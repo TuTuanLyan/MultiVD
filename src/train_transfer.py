@@ -1,0 +1,745 @@
+#!/usr/bin/env python3
+"""CLI for generic source multitask pretraining and Python RecAdam transfer."""
+
+import argparse
+import json
+import math
+import random
+import time
+from collections import Counter
+from pathlib import Path
+
+import numpy as np
+import sklearn
+import torch
+import transformers
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
+from torch.utils.data import DataLoader
+from transformers import AutoModel, AutoTokenizer
+
+from dataset import CodeDataset
+from evaluate import (
+    classification_metrics,
+    evaluate,
+    find_best_threshold,
+    log_per_cwe_reports,
+    per_cwe_metrics,
+    print_classification_report,
+)
+from logging_utils import configure_logging, get_logger
+from model import TransferModel
+from RecAdam import RecAdam, anneal_function
+from train import assert_recadam_setup, train_loop
+
+
+CWE_MAPPING = {"CWE-022": 0, "CWE-078": 1, "CWE-079": 2, "CWE-089": 3}
+CWE_ID_MAPPING = {22: 0, 78: 1, 79: 2, 89: 3}
+CLASS_TO_CWE = {value: key for key, value in CWE_MAPPING.items()}
+GROUP_FIELDS = ("pair_id", "commit_id", "project", "repo", "CVE_ID")
+logger = get_logger()
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def resolve_cwe_class(record):
+    """Prefer normalized cwe_class; fall back only when that field is absent."""
+    if "cwe_class" in record:
+        try:
+            value = int(record["cwe_class"])
+        except (TypeError, ValueError):
+            return -100
+        return value if value in CLASS_TO_CWE else -100
+    try:
+        cwe_id = int(record.get("cwe_id"))
+    except (TypeError, ValueError):
+        cwe_id = None
+    if cwe_id in CWE_ID_MAPPING:
+        return CWE_ID_MAPPING[cwe_id]
+    cwe = str(record.get("cwe", "")).upper()
+    if cwe.startswith("CWE-"):
+        try:
+            return CWE_ID_MAPPING.get(int(cwe.split("-", 1)[1]), -100)
+        except ValueError:
+            pass
+    return -100
+
+
+def load_jsonl(path, expected_lang=None):
+    expected_languages = None
+    if expected_lang is not None:
+        expected_languages = {expected_lang} if isinstance(expected_lang, str) else set(expected_lang)
+    records = []
+    with open(path, "r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, 1):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"{path}:{line_number}: invalid JSON: {error}") from error
+            if "code" not in record or not isinstance(record["code"], str) or not record["code"].strip():
+                raise ValueError(f"{path}:{line_number}: missing or empty string field 'code'")
+            if "label" not in record:
+                raise ValueError(f"{path}:{line_number}: missing field 'label'")
+            try:
+                record["label"] = int(record["label"])
+            except (TypeError, ValueError) as error:
+                raise ValueError(f"{path}:{line_number}: label must be 0 or 1") from error
+            if record["label"] not in (0, 1):
+                raise ValueError(f"{path}:{line_number}: label must be 0 or 1, got {record['label']}")
+            lang = record.get("lang")
+            legacy_language = record.get("language")
+            if lang is not None and legacy_language is not None and lang != legacy_language:
+                raise ValueError(
+                    f"{path}:{line_number}: conflicting 'lang'={lang!r} and "
+                    f"'language'={legacy_language!r}"
+                )
+            normalized_lang = lang if lang is not None else legacy_language
+            if not isinstance(normalized_lang, str) or not normalized_lang.strip():
+                raise ValueError(
+                    f"{path}:{line_number}: missing or empty language field ('lang' or 'language')"
+                )
+            record["lang"] = normalized_lang
+            if expected_languages is not None and record.get("lang") not in expected_languages:
+                raise ValueError(
+                    f"{path}:{line_number}: expected lang in {sorted(expected_languages)!r}, "
+                    f"got {record.get('lang')!r}"
+                )
+            record["cwe_class"] = resolve_cwe_class(record)
+            record["_source_index"] = len(records)
+            records.append(record)
+    if not records:
+        raise ValueError(f"{path}: no records found")
+    return records
+
+
+def print_dataset_stats(name, records):
+    labels = Counter(record["label"] for record in records)
+    cwes = Counter(
+        CLASS_TO_CWE[record["cwe_class"]]
+        for record in records
+        if record["cwe_class"] in CLASS_TO_CWE
+    )
+    languages = Counter(record.get("lang", "missing") for record in records)
+    invalid_cwes = sum(record["cwe_class"] == -100 for record in records)
+    logger.info(
+        "Data split: %s | Total: %d | Labels: %s | CWEs: %s | Languages: %s | Invalid CWE: %d",
+        name,
+        len(records),
+        dict(sorted(labels.items())),
+        dict(sorted(cwes.items())),
+        dict(sorted(languages.items())),
+        invalid_cwes,
+    )
+
+
+def limit_records(records, maximum, seed):
+    if maximum is None or maximum <= 0 or len(records) <= maximum:
+        return records
+    rng = np.random.default_rng(seed)
+    indices = sorted(rng.choice(len(records), size=maximum, replace=False).tolist())
+    return [records[index] for index in indices]
+
+
+def source_groups(records):
+    """Conservatively group adjacent vulnerable/fixed rows with the same CWE/language."""
+    groups = []
+    index = 0
+    while index < len(records):
+        if (
+            index + 1 < len(records)
+            and records[index + 1]["_source_index"] == records[index]["_source_index"] + 1
+            and records[index]["label"] == 1
+            and records[index + 1]["label"] == 0
+            and records[index]["cwe_class"] == records[index + 1]["cwe_class"]
+            and records[index].get("lang") == records[index + 1].get("lang")
+        ):
+            groups.append(records[index : index + 2])
+            index += 2
+        elif (
+            index + 1 < len(records)
+            and records[index + 1]["_source_index"] == records[index]["_source_index"] + 1
+            and records[index]["label"] == 0
+            and records[index + 1]["label"] == 1
+            and records[index]["cwe_class"] == records[index + 1]["cwe_class"]
+            and records[index].get("lang") == records[index + 1].get("lang")
+            and not (
+                index + 2 < len(records)
+                and records[index + 2]["_source_index"] == records[index + 1]["_source_index"] + 1
+                and records[index + 2]["label"] == 0
+                and records[index + 1]["cwe_class"] == records[index + 2]["cwe_class"]
+                and records[index + 1].get("lang") == records[index + 2].get("lang")
+            )
+        ):
+            # Accept reversed safe->vulnerable only when the vulnerable row
+            # cannot begin the usual 1->0 pair.
+            groups.append(records[index : index + 2])
+            index += 2
+        else:
+            groups.append(records[index : index + 1])
+            index += 1
+    return groups
+
+
+def limit_source_groups(records, maximum, seed):
+    """Smoke-test cap that never separates conservative source groups."""
+    if maximum is None or maximum <= 0 or len(records) <= maximum:
+        return records
+    groups = source_groups(records)
+    rng = np.random.default_rng(seed)
+    indices = rng.permutation(len(groups)).tolist()
+    selected, count = [], 0
+    for index in indices:
+        group = groups[index]
+        if selected and count + len(group) > maximum:
+            continue
+        selected.append(index)
+        count += len(group)
+        if count >= maximum:
+            break
+    return [record for index in sorted(selected) for record in groups[index]]
+
+
+def split_source_language(records, seed, language):
+    for field in GROUP_FIELDS:
+        if all(record.get(field) not in (None, "") for record in records):
+            groups = [str(record[field]) for record in records]
+            if len(set(groups)) > 1:
+                splitter = GroupShuffleSplit(n_splits=1, test_size=0.10, random_state=seed)
+                train_indices, val_indices = next(splitter.split(records, groups=groups))
+                logger.info(
+                    "Source split | Language: %s | Group field: %s | Ratio: 90/10 | Seed: %d",
+                    language,
+                    field,
+                    seed,
+                )
+                return [records[i] for i in train_indices], [records[i] for i in val_indices]
+
+    groups = source_groups(records)
+    pair_count = sum(len(group) == 2 for group in groups)
+    singleton_count = sum(len(group) == 1 for group in groups)
+    if pair_count:
+        group_indices = list(range(len(groups)))
+        group_strata = [group[0]["cwe_class"] for group in groups]
+        group_counts = Counter(group_strata)
+        test_group_count = math.ceil(0.10 * len(groups))
+        can_stratify = (
+            min(group_counts.values()) >= 2 and test_group_count >= len(group_counts)
+        )
+        train_groups, val_groups = train_test_split(
+            group_indices,
+            test_size=0.10,
+            random_state=seed,
+            shuffle=True,
+            stratify=group_strata if can_stratify else None,
+        )
+        logger.info(
+            "Source split | Language: %s | Conservative pairs: %d | Singletons: %d | "
+            "Stratified: %s | Ratio: 90/10 | Seed: %d",
+            language,
+            pair_count,
+            singleton_count,
+            can_stratify,
+            seed,
+        )
+        return (
+            [record for index in train_groups for record in groups[index]],
+            [record for index in val_groups for record in groups[index]],
+        )
+    strata = [f"{record['label']}:{record['cwe_class']}" for record in records]
+    counts = Counter(strata)
+    labels = [record["label"] for record in records]
+    label_counts = Counter(labels)
+    test_record_count = math.ceil(0.10 * len(records))
+    if min(counts.values()) >= 2 and test_record_count >= len(counts):
+        stratify = strata
+        stratify_name = "label+cwe_class"
+    elif min(label_counts.values()) >= 2 and test_record_count >= len(label_counts):
+        stratify = labels
+        stratify_name = "label"
+    else:
+        stratify = None
+        stratify_name = "none"
+    train_records, val_records = train_test_split(
+        records, test_size=0.10, random_state=seed, shuffle=True, stratify=stratify
+    )
+    logger.info(
+        "Source split | Language: %s | Fallback stratification: %s | Ratio: 90/10 | Seed: %d",
+        language,
+        stratify_name,
+        seed,
+    )
+    return train_records, val_records
+
+
+def split_source_records(records, seed):
+    """Split every source language independently while preserving detected groups."""
+    by_language = {}
+    for record in records:
+        by_language.setdefault(record["lang"], []).append(record)
+    train_records, val_records = [], []
+    for offset, language in enumerate(sorted(by_language)):
+        language_train, language_val = split_source_language(
+            by_language[language], seed + offset, language
+        )
+        train_records.extend(language_train)
+        val_records.extend(language_val)
+    logger.info(
+        "Combined source split | Languages: %s | Train: %d | Validation: %d",
+        sorted(by_language),
+        len(train_records),
+        len(val_records),
+    )
+    logger.warning(
+        "No upstream pair/repo/commit IDs: adjacent groups are protected, but distant "
+        "near-duplicate families may still cross source train/validation"
+    )
+    return train_records, val_records
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % (2**32)
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
+def build_dataloader(
+    records, tokenizer, max_length, batch_size, shuffle, seed, num_workers, truncation_strategy
+):
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    return DataLoader(
+        CodeDataset(records, tokenizer, max_length, truncation_strategy),
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        generator=generator,
+        worker_init_fn=seed_worker if num_workers > 0 else None,
+        pin_memory=torch.cuda.is_available(),
+    )
+
+
+def make_model(model_name, device):
+    backbone = AutoModel.from_pretrained(model_name)
+    return TransferModel(backbone, num_classes=2, num_cwes=4).to(device)
+
+
+def freeze_cwe_head(model):
+    for parameter in model.cwe_head.parameters():
+        parameter.requires_grad = False
+
+
+def component_parameter_counts(model):
+    output = {}
+    for name in ("backbone", "vul_head", "cwe_head"):
+        parameters = list(getattr(model, name).parameters())
+        output[name] = {
+            "total": sum(parameter.numel() for parameter in parameters),
+            "trainable": sum(parameter.numel() for parameter in parameters if parameter.requires_grad),
+            "frozen": sum(parameter.numel() for parameter in parameters if not parameter.requires_grad),
+        }
+    return output
+
+
+def training_args_dict(args):
+    scalar_types = (str, int, float, bool, type(None))
+    return {key: value for key, value in vars(args).items() if isinstance(value, scalar_types)}
+
+
+def save_checkpoint(path, model, epoch, score, args):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            "model_state_dict": model.state_dict(),
+            "best_epoch": epoch,
+            "best_val_macro_f1": score,
+            "seed": args.seed,
+            "fold": args.fold,
+            "model_name": args.model_name,
+            "cwe_mapping": CWE_MAPPING,
+            "training_args": training_args_dict(args),
+        },
+        path,
+    )
+
+
+def load_checkpoint(path, model, device):
+    checkpoint = torch.load(path, map_location=device, weights_only=True)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    return checkpoint
+
+
+def assert_checkpoint_compatible(checkpoint, args, checkpoint_name):
+    saved_args = checkpoint.get("training_args", {})
+    saved_model = checkpoint.get("model_name")
+    if saved_model != args.model_name:
+        raise ValueError(
+            f"{checkpoint_name} model_name={saved_model!r} does not match --model_name={args.model_name!r}"
+        )
+    saved_strategy = saved_args.get("truncation_strategy", "head")
+    if saved_strategy != args.truncation_strategy:
+        raise ValueError(
+            f"{checkpoint_name} used truncation_strategy={saved_strategy!r}, but current run uses "
+            f"{args.truncation_strategy!r}; retrain the preceding phase to avoid incompatible inputs"
+        )
+
+
+def log_environment(args, model, device, mode):
+    components = component_parameter_counts(model)
+    trainable = sum(item["trainable"] for item in components.values())
+    frozen = sum(item["frozen"] for item in components.values())
+    gpu = torch.cuda.get_device_name(device) if device.type == "cuda" else None
+    logger.info(
+        "Environment: %s",
+        json.dumps(
+            {
+                "mode": mode,
+                "seed": args.seed,
+                "fold": args.fold,
+                "torch": torch.__version__,
+                "transformers": transformers.__version__,
+                "sklearn": sklearn.__version__,
+                "cuda": torch.version.cuda,
+                "gpu": gpu,
+                "model_name": args.model_name,
+                "trainable_parameters": trainable,
+                "frozen_parameters": frozen,
+                "components": components,
+                "hyperparameters": training_args_dict(args),
+            },
+            sort_keys=True,
+        ),
+    )
+
+
+def run_phase1(args, device):
+    logger.info("Loading Phase-1 source data: %s", args.data_path)
+    records = load_jsonl(args.data_path)
+    logger.info("Detected Phase-1 languages: %s", sorted({record["lang"] for record in records}))
+    train_records, val_records = split_source_records(records, args.seed)
+    train_records = limit_source_groups(train_records, args.max_train_samples, args.seed)
+    val_records = limit_source_groups(val_records, args.max_eval_samples, args.seed)
+    print_dataset_stats("source_train", train_records)
+    print_dataset_stats("source_val", val_records)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = make_model(args.model_name, device)
+    log_environment(args, model, device, "phase1_train")
+    train_loader = build_dataloader(
+        train_records, tokenizer, args.max_length, args.batch_size, True, args.seed, args.num_workers,
+        args.truncation_strategy
+    )
+    val_loader = build_dataloader(
+        val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
+        args.truncation_strategy
+    )
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
+    )
+    train_loop(
+        args, model, train_loader, val_loader, optimizer, device, "phase1", save_checkpoint
+    )
+
+
+def python_paths(args):
+    base = Path("data/sven_python_folds_norm") / f"fold{args.fold}"
+    return (
+        Path(args.train_path) if args.train_path else base / "train.jsonl",
+        Path(args.val_path) if args.val_path else base / "val.jsonl",
+        Path(args.test_path) if args.test_path else base / "test.jsonl",
+    )
+
+
+def print_recadam_schedule(args, total_steps, anneal_t0, steps_per_epoch):
+    checkpoints = sorted(set([1, steps_per_epoch, anneal_t0, total_steps]))
+    values = {
+        step: anneal_function(args.anneal_fun, step, args.anneal_k, anneal_t0, args.anneal_w)
+        for step in checkpoints
+    }
+    logger.info(
+        "RecAdam schedule | Total steps: %d | Steps/epoch: %d | Anneal t0: %d | Weights: %s",
+        total_steps,
+        steps_per_epoch,
+        anneal_t0,
+        values,
+    )
+
+
+def run_phase2(args, device):
+    train_path, val_path, _ = python_paths(args)
+    logger.info("Loading Python training data: %s", train_path)
+    logger.info("Loading Python validation data: %s", val_path)
+    train_records = limit_records(load_jsonl(train_path, "python"), args.max_train_samples, args.seed)
+    val_records = limit_records(load_jsonl(val_path, "python"), args.max_eval_samples, args.seed)
+    print_dataset_stats("python_train", train_records)
+    print_dataset_stats("python_val", val_records)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = make_model(args.model_name, device)
+    source_checkpoint = load_checkpoint(args.source_checkpoint, model, device)
+    assert_checkpoint_compatible(source_checkpoint, args, "source checkpoint")
+    logger.info(
+        "Loaded source checkpoint: %s | Best epoch: %s | Best Val Macro-F1: %.6f",
+        args.source_checkpoint,
+        source_checkpoint["best_epoch"],
+        source_checkpoint["best_val_macro_f1"],
+    )
+    freeze_cwe_head(model)
+    current_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    # This is the immutable RecAdam anchor, cloned before any Python optimizer step.
+    pretrain_params = [parameter.detach().clone() for parameter in current_params]
+    assert_recadam_setup(current_params, pretrain_params, model)
+
+    train_loader = build_dataloader(
+        train_records, tokenizer, args.max_length, args.batch_size, True, args.seed, args.num_workers,
+        args.truncation_strategy
+    )
+    val_loader = build_dataloader(
+        val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
+        args.truncation_strategy
+    )
+    total_steps = max(1, len(train_loader) * args.epochs)
+    anneal_t0 = max(1, int(args.anneal_t0_ratio * total_steps))
+    optimizer = RecAdam(
+        current_params,
+        lr=args.learning_rate,
+        weight_decay=args.weight_decay,
+        anneal_fun=args.anneal_fun,
+        anneal_k=args.anneal_k,
+        anneal_t0=anneal_t0,
+        anneal_w=args.anneal_w,
+        pretrain_cof=args.pretrain_cof,
+        pretrain_params=pretrain_params,
+    )
+    print_recadam_schedule(args, total_steps, anneal_t0, len(train_loader))
+    log_environment(args, model, device, "phase2_train")
+    train_loop(
+        args,
+        model,
+        train_loader,
+        val_loader,
+        optimizer,
+        device,
+        "phase2",
+        save_checkpoint,
+        pretrain_params,
+    )
+
+
+def run_test(args, device):
+    _, val_path, test_path = python_paths(args)
+    logger.info("Loading Python validation data: %s", val_path)
+    logger.info("Loading Python test data: %s", test_path)
+    val_records = limit_records(load_jsonl(val_path, "python"), args.max_eval_samples, args.seed)
+    test_records = limit_records(load_jsonl(test_path, "python"), args.max_eval_samples, args.seed)
+    print_dataset_stats("python_val", val_records)
+    print_dataset_stats("python_test", test_records)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = make_model(args.model_name, device)
+    checkpoint = load_checkpoint(args.checkpoint_path, model, device)
+    assert_checkpoint_compatible(checkpoint, args, "target checkpoint")
+    freeze_cwe_head(model)
+    log_environment(args, model, device, "test_inference_no_optimizer")
+    val_loader = build_dataloader(
+        val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
+        args.truncation_strategy
+    )
+    test_loader = build_dataloader(
+        test_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
+        args.truncation_strategy
+    )
+    validation_started = time.perf_counter()
+    val = evaluate(model, val_loader, device)
+    threshold, calibrated_val_f1 = find_best_threshold(val["labels"], val["probabilities"])
+    validation_seconds = time.perf_counter() - validation_started
+    logger.info(
+        "Evaluation time | Split: validation+threshold | Seconds: %.2f",
+        validation_seconds,
+    )
+    print_classification_report("validation", val["labels"], val["probabilities"], 0.5)
+    print_classification_report("validation_calibrated", val["labels"], val["probabilities"], threshold)
+    # Exactly one test inference pass; both reports reuse these fixed predictions.
+    test_started = time.perf_counter()
+    test = evaluate(model, test_loader, device)
+    test_seconds = time.perf_counter() - test_started
+    logger.info("Evaluation time | Split: test | Seconds: %.2f", test_seconds)
+    test_at_05 = classification_metrics(test["labels"], test["probabilities"], 0.5)
+    test_at_valcal = classification_metrics(test["labels"], test["probabilities"], threshold)
+    print_classification_report("test", test["labels"], test["probabilities"], 0.5)
+    print_classification_report("test_valcal", test["labels"], test["probabilities"], threshold)
+    log_per_cwe_reports(
+        test["labels"], test["probabilities"], test["cwe_classes"], 0.5,
+        CLASS_TO_CWE, "test_at_0.5"
+    )
+    log_per_cwe_reports(
+        test["labels"], test["probabilities"], test["cwe_classes"], threshold,
+        CLASS_TO_CWE, "test_at_valcal"
+    )
+    per_cwe_at_05 = per_cwe_metrics(
+        test["labels"], test["probabilities"], test["cwe_classes"], 0.5, CLASS_TO_CWE
+    )
+    per_cwe_at_valcal = per_cwe_metrics(
+        test["labels"], test["probabilities"], test["cwe_classes"], threshold, CLASS_TO_CWE
+    )
+
+    result = {
+        "experiment_name": f"{args.run_name}/{args.method_name}",
+        "phase": "test",
+        "fold": args.fold,
+        "seed": args.seed,
+        "source_checkpoint": args.source_checkpoint or checkpoint["training_args"].get("source_checkpoint"),
+        "target_checkpoint": str(args.checkpoint_path),
+        "best_epoch": checkpoint["best_epoch"],
+        "best_val_macro_f1_at_0.5": checkpoint["best_val_macro_f1"],
+        "val_calibrated_threshold": threshold,
+        "val_macro_f1_at_valcal": calibrated_val_f1,
+        "validation_and_threshold_seconds": validation_seconds,
+        "test_inference_seconds": test_seconds,
+        "test_macro_f1_at_0.5": test_at_05["macro_f1"],
+        "test_macro_f1_at_valcal": test_at_valcal["macro_f1"],
+        "test_positive_f1_at_0.5": test_at_05["positive_f1"],
+        "test_positive_f1_at_valcal": test_at_valcal["positive_f1"],
+        "test_precision_at_0.5": test_at_05["precision"],
+        "test_precision_at_valcal": test_at_valcal["precision"],
+        "test_recall_at_0.5": test_at_05["recall"],
+        "test_recall_at_valcal": test_at_valcal["recall"],
+        "test_accuracy_at_0.5": test_at_05["accuracy"],
+        "test_accuracy_at_valcal": test_at_valcal["accuracy"],
+        "test_roc_auc": test_at_05["roc_auc"],
+        "test_pr_auc": test_at_05["pr_auc"],
+        "per_cwe": per_cwe_at_valcal,
+        "per_cwe_at_0.5": per_cwe_at_05,
+        "per_cwe_at_valcal": per_cwe_at_valcal,
+        "hyperparameters": checkpoint["training_args"],
+    }
+    result_path = Path(args.result_path)
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(result_path, "w", encoding="utf-8") as handle:
+        json.dump(result, handle, indent=2, sort_keys=True, allow_nan=False)
+        handle.write("\n")
+    logger.info("Test result saved: %s", result_path)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Generic source multitask pretraining -> Python RecAdam transfer",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    execution = parser.add_argument_group("execution")
+    execution.add_argument("--phase", choices=("phase1", "phase2", "test"), required=True,
+                           help="pipeline phase to execute")
+    execution.add_argument("--seed", type=int, default=42, help="random seed")
+    execution.add_argument("--fold", type=int, default=1, choices=range(1, 6), help="Python fold")
+    execution.add_argument("--num_workers", type=int, default=0, help="DataLoader worker count")
+    execution.add_argument("--run_name", default="default_run", help="parent experiment folder")
+    execution.add_argument("--method_name", default="transfer", help="method folder under run_name")
+
+    paths = parser.add_argument_group("data and output paths")
+    paths.add_argument("--data_path", default="data/train_ccpp_filtered.jsonl", help="Phase-1 JSONL")
+    paths.add_argument("--train_path", help="optional Python train JSONL override")
+    paths.add_argument("--val_path", help="optional validation JSONL override")
+    paths.add_argument("--test_path", help="optional test JSONL override")
+    paths.add_argument("--source_checkpoint", help="best Phase-1 checkpoint")
+    paths.add_argument("--checkpoint_path", help="checkpoint to write or read")
+    paths.add_argument("--output_dir", help="result root; derived from run_name when omitted")
+    paths.add_argument("--result_path", help="test JSON output path")
+
+    training = parser.add_argument_group("model and training")
+    training.add_argument("--model_name", default="microsoft/codebert-base", help="Hugging Face model")
+    training.add_argument("--epochs", type=int, default=10, help="maximum epochs")
+    training.add_argument("--min_epochs", type=int, default=3,
+                          help="do not count early-stopping patience before this epoch")
+    training.add_argument("--batch_size", type=int, default=8, help="training batch size")
+    training.add_argument("--eval_batch_size", type=int, default=16, help="evaluation batch size")
+    training.add_argument("--max_length", type=int, default=512, help="token sequence length")
+    training.add_argument(
+        "--truncation_strategy",
+        choices=("head", "head_middle_tail"),
+        default="head_middle_tail",
+        help="how to retain tokens from code longer than max_length",
+    )
+    training.add_argument("--learning_rate", type=float, default=2e-5, help="optimizer learning rate")
+    training.add_argument("--weight_decay", type=float, default=0.01, help="decoupled weight decay")
+    training.add_argument("--lambda_cwe", type=float, default=0.2, help="Phase-1 CWE loss weight")
+    training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
+    training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
+
+    recadam = parser.add_argument_group("RecAdam phase 2")
+    recadam.add_argument("--anneal_fun", choices=("sigmoid", "linear", "constant"), default="sigmoid",
+                         help="RecAdam annealing curve")
+    recadam.add_argument("--anneal_k", type=float, default=0.05, help="sigmoid steepness")
+    recadam.add_argument("--anneal_t0_ratio", type=float, default=0.05,
+                         help="anneal midpoint as a fraction of total Phase-2 steps")
+    recadam.add_argument("--anneal_w", type=float, default=1.0, help="maximum target-task weight")
+    recadam.add_argument("--pretrain_cof", type=float, default=5000.0,
+                         help="quadratic source-anchor coefficient")
+
+    smoke = parser.add_argument_group("smoke-test limits")
+    smoke.add_argument("--max_train_samples", type=int, help="cap training records")
+    smoke.add_argument("--max_eval_samples", type=int, help="cap validation/test records")
+    args = parser.parse_args()
+    if args.epochs < 1 or args.min_epochs < 1 or args.patience < 1:
+        parser.error("epochs, min_epochs, and patience must be positive")
+    if not 0.0 <= args.anneal_t0_ratio <= 1.0:
+        parser.error("--anneal_t0_ratio must be in [0, 1]")
+
+    if args.output_dir is None:
+        args.output_dir = f"results/{args.run_name}/{args.method_name}"
+    model_root = Path("model") / args.run_name / args.method_name / f"seed_{args.seed}"
+    if args.checkpoint_path is None:
+        if args.phase == "phase1":
+            args.checkpoint_path = str(model_root / "source" / "best.pt")
+        else:
+            args.checkpoint_path = str(model_root / f"fold{args.fold}" / "best.pt")
+    if args.result_path is None:
+        args.result_path = str(Path(args.output_dir) / f"seed_{args.seed}" / f"fold{args.fold}.json")
+    if args.phase == "phase2" and args.source_checkpoint is None:
+        args.source_checkpoint = str(model_root / "source" / "best.pt")
+    if args.phase == "phase2" and not Path(args.source_checkpoint).is_file():
+        parser.error(f"source checkpoint does not exist: {args.source_checkpoint}")
+    if args.phase == "test" and not Path(args.checkpoint_path).is_file():
+        parser.error(f"target checkpoint does not exist: {args.checkpoint_path}")
+    return args
+
+
+def main():
+    args = parse_args()
+    configure_logging()
+    set_seed(args.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    started = time.perf_counter()
+    logger.info("Using device: %s", device)
+    logger.info(
+        "Run started | Run: %s | Method: %s | Phase: %s | Fold: %d | Seed: %d | Device: %s",
+        args.run_name,
+        args.method_name,
+        args.phase,
+        args.fold,
+        args.seed,
+        device,
+    )
+    try:
+        if args.phase == "phase1":
+            run_phase1(args, device)
+        elif args.phase == "phase2":
+            run_phase2(args, device)
+        else:
+            run_test(args, device)
+    finally:
+        logger.info(
+            "Run finished | Phase: %s | Fold: %d | Seed: %d | Elapsed: %.2fs",
+            args.phase,
+            args.fold,
+            args.seed,
+            time.perf_counter() - started,
+        )
+
+
+if __name__ == "__main__":
+    main()
