@@ -36,7 +36,9 @@ def main():
         print(f"no results yet under {ROOT}")
         return
     methods = ["baseline"] + sorted(
-        p.name for p in ROOT.iterdir() if p.name.startswith("transfer_")
+        p.name
+        for p in ROOT.iterdir()
+        if p.is_dir() and p.name != "baseline" and p.name.startswith("transfer")
     )
     table = {m: load(m) for m in methods}
     folds = sorted({f for scores in table.values() for f in scores})

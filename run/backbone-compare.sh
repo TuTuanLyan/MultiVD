@@ -44,6 +44,9 @@ BRES="results/$RUN_NAME/baseline/seed_$SEED"; mkdir -p "$BRES"
 
 echo "### backbone=$MODEL_NAME pooling=$POOLING seed=$SEED run=$RUN_NAME"
 
+if [[ -f "$TMODEL/source/best.pt" ]]; then
+  echo "=== $(date '+%F %T') | phase1 already present, skipping ==="
+else
 echo "=== $(date '+%F %T') | phase1 (source pretraining, once) ==="
 $PYTHON -u src/train_transfer.py --phase phase1 \
   --run_name "$RUN_NAME" --method_name transfer --data_path "$DATA" \
@@ -52,8 +55,13 @@ $PYTHON -u src/train_transfer.py --phase phase1 \
   "${SHARED[@]}" >> "$LOG/phase1.log" 2>&1
 if [[ $? -ne 0 ]]; then echo "PHASE1 FAILED, aborting"; tail -20 "$LOG/phase1.log"; exit 1; fi
 echo "phase1 done: $(grep 'Best checkpoint saved' "$LOG/phase1.log" | tail -1 | sed 's/.*| Epoch/Epoch/')"
+fi
 
 for FOLD in $FOLDS; do
+  if [[ -f "$TRES/fold$FOLD.json" && -f "$BRES/fold$FOLD.json" ]]; then
+    echo "=== $(date '+%F %T') | fold $FOLD | already complete, skipping ==="
+    continue
+  fi
   echo "=== $(date '+%F %T') | fold $FOLD | baseline ==="
   mkdir -p "$BMODEL/fold$FOLD"
   $PYTHON -u src/train_baseline.py --phase train \
@@ -64,7 +72,6 @@ for FOLD in $FOLDS; do
     && $PYTHON -u src/train_baseline.py --phase infer \
       --run_name "$RUN_NAME" --method_name baseline --fold "$FOLD" \
       --checkpoint_path "$BMODEL/fold$FOLD/best.pt" \
-      --output_dir "results/$RUN_NAME/baseline" \
       "${SHARED[@]}" >> "$LOG/baseline_infer_fold$FOLD.log" 2>&1 \
     || echo "  baseline fold$FOLD FAILED"
 
@@ -83,6 +90,11 @@ for FOLD in $FOLDS; do
       --output_dir "results/$RUN_NAME/transfer" \
       "${SHARED[@]}" >> "$LOG/transfer_test_fold$FOLD.log" 2>&1 \
     || echo "  method fold$FOLD FAILED"
+
+  # Fold checkpoints are ~500MB each and are not needed once the fold's result
+  # JSON exists. Keeping them all fills a 20GB disk before fold 5.
+  if [[ -f "$TRES/fold$FOLD.json" ]]; then rm -f "$TMODEL/fold$FOLD/best.pt"; fi
+  if [[ -f "$BRES/fold$FOLD.json" ]]; then rm -f "$BMODEL/fold$FOLD/best.pt"; fi
 
   # Paired delta for this fold, printed as soon as the pair exists.
   $PYTHON - "$BRES/fold$FOLD.json" "$TRES/fold$FOLD.json" "$FOLD" <<'PYEOF'

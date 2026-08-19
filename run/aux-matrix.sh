@@ -101,7 +101,6 @@ for FOLD in 1 2 3 4 5; do
   $PYTHON -u src/train_baseline.py --phase infer \
     --run_name "$RUN_NAME" --method_name baseline --fold "$FOLD" \
     --checkpoint_path "$BMODEL/fold$FOLD/best.pt" \
-    --output_dir "results/$RUN_NAME/baseline" \
     "${SHARED[@]}" >> "$BLOG/infer_fold$FOLD.log" 2>&1 || echo "baseline infer fold$FOLD failed"
 done
 $PYTHON -u src/summarize_results.py --input_dir "$BRES" --output_dir "$BRES" \

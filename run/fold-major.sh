@@ -76,8 +76,7 @@ for FOLD in $FOLDS; do
       && $PYTHON -u src/train_baseline.py --phase infer \
         --run_name "$RUN_NAME" --method_name baseline --fold "$FOLD" \
         --checkpoint_path "$BMODEL/best.pt" \
-        --output_dir "results/$RUN_NAME/baseline" \
-        "${SHARED[@]}" >> "$BLOG/infer_fold$FOLD.log" 2>&1 \
+          "${SHARED[@]}" >> "$BLOG/infer_fold$FOLD.log" 2>&1 \
       || echo "  baseline fold$FOLD FAILED"
   fi
 
