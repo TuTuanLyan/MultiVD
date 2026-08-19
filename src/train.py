@@ -269,7 +269,11 @@ def train_loop(
             val = evaluate(model, val_loader, device, return_cwe=False)
         validation_seconds = time.perf_counter() - validation_started
 
-        score = val["macro_f1"]
+        metric_name = getattr(args, "selection_metric", "macro_f1")
+        score = val.get(metric_name)
+        if score is None:
+            # ROC/PR AUC are undefined when a validation split is single-class.
+            score = val["macro_f1"]
         new_best = False
         tied_best = False
         if score > best_score:
@@ -304,9 +308,10 @@ def train_loop(
             logger.info("Early stopping | Epoch: %d | Best epoch: %d", epoch, best_epoch)
             break
     logger.info(
-        "Best checkpoint saved | Path: %s | Epoch: %d | Val Macro-F1@0.5: %.6f",
+        "Best checkpoint saved | Path: %s | Epoch: %d | Val %s: %.6f",
         args.checkpoint_path,
         best_epoch,
+        getattr(args, "selection_metric", "macro_f1"),
         best_score,
     )
     logger.info(

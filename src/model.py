@@ -83,8 +83,19 @@ class TransferModel(nn.Module):
             self.latent_proj = nn.Linear(hidden_size, num_latent)
             self.cwe_head = nn.Linear(num_latent, num_cwes)
         elif aux_mode == "latent_proto":
-            self.latent_proj = nn.Linear(hidden_size, num_latent)
+            # Two-layer projection head, following SwAV: the clustering objective
+            # acts on its own space rather than directly on the pooled feature the
+            # vulnerability head reads, so it cannot sharpen that feature's geometry.
+            self.latent_proj = nn.Sequential(
+                nn.Linear(hidden_size, hidden_size),
+                nn.GELU(),
+                nn.Linear(hidden_size, num_latent),
+            )
             self.prototypes = nn.Parameter(torch.randn(num_latent, num_latent) * 0.02)
+            # Prototypes stay fixed for the first steps so the projection can settle
+            # before the assignment targets start moving (SwAV freeze_prototypes_niters).
+            self.freeze_prototypes_steps = 0
+            self.register_buffer("_step", torch.zeros((), dtype=torch.long))
 
     def aux_modules(self):
         """Parameters that serve only the auxiliary task, frozen from Phase 2 on."""
@@ -117,6 +128,10 @@ class TransferModel(nn.Module):
             elif self.aux_mode == "latent_proto":
                 latent = F.normalize(self.latent_proj(cls_output), dim=-1)
                 prototypes = F.normalize(self.prototypes, dim=-1)
+                if self.training:
+                    self._step += 1
+                    if self._step.item() <= self.freeze_prototypes_steps:
+                        prototypes = prototypes.detach()
                 # Raw cosine scores. The temperature is applied in the loss, not
                 # here: Sinkhorn needs the unscaled scores or exp() overflows.
                 cwe_logits = latent @ prototypes.t()

@@ -332,7 +332,7 @@ def make_model(model_name, device, args=None):
     num_latent = getattr(args, "num_latent", 8) if args else 8
     temperature = getattr(args, "latent_temperature", 0.1) if args else 0.1
     pooling = getattr(args, "pooling", "cls") if args else "cls"
-    return TransferModel(
+    model = TransferModel(
         backbone,
         num_classes=2,
         num_cwes=4,
@@ -341,6 +341,9 @@ def make_model(model_name, device, args=None):
         latent_temperature=temperature,
         pooling=pooling,
     ).to(device)
+    if hasattr(model, "freeze_prototypes_steps") and args is not None:
+        model.freeze_prototypes_steps = getattr(args, "freeze_prototypes_steps", 0)
+    return model
 
 
 def freeze_aux_head(model):
@@ -712,6 +715,14 @@ def parse_args():
                           help="latent units or prototypes, held fixed across source configs")
     training.add_argument("--latent_temperature", type=float, default=0.1,
                           help="prototype assignment temperature for aux_mode=latent_proto")
+    training.add_argument("--freeze_prototypes_steps", type=int, default=0,
+                          help="hold prototypes fixed for this many steps so the projection "
+                               "settles before assignment targets move")
+    training.add_argument("--selection_metric", choices=("macro_f1", "pr_auc", "roc_auc"),
+                          default="macro_f1",
+                          help="validation metric for best-checkpoint and early stopping; "
+                               "pr_auc is threshold-free and catches a model that only wins "
+                               "at 0.5")
     training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
     training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
 
