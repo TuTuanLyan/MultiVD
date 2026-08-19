@@ -17,8 +17,11 @@ PYTHON="${PYTHON:-python}"
 SEED="${SEED:-36}"
 RUN_NAME="${RUN_NAME:-auxmatrix_ccppjs}"
 DATA="${PHASE1_DATA_PATH:-data/train_ccpp_js.jsonl}"
-MODES="${MODES:-cwe latent_bottleneck latent_proto none}"
+MODES="${MODES-cwe latent_bottleneck latent_proto none}"
 NUM_LATENT="${NUM_LATENT:-8}"
+# The baseline is independent of aux_mode, so it can be scheduled separately.
+# Run it first when you want a reference point before the modes finish.
+RUN_BASELINE="${RUN_BASELINE:-1}"
 
 MAX_LENGTH="${MAX_LENGTH:-512}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
@@ -82,6 +85,7 @@ for MODE in $MODES; do
 done
 
 # Baseline: Python only, no source checkpoint, so one run covers every mode.
+if [[ "$RUN_BASELINE" == "1" ]]; then
 BLOG="log/$RUN_NAME/baseline/seed_$SEED"
 BMODEL="model/$RUN_NAME/baseline/seed_$SEED"
 BRES="results/$RUN_NAME/baseline/seed_$SEED"
@@ -102,5 +106,6 @@ for FOLD in 1 2 3 4 5; do
 done
 $PYTHON -u src/summarize_results.py --input_dir "$BRES" --output_dir "$BRES" \
   >> "$BLOG/summary.log" 2>&1 || echo "baseline summarize failed"
+fi
 
 echo "=== ALL DONE | total $((SECONDS - started_all))s ==="
