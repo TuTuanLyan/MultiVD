@@ -28,6 +28,9 @@ python -u src/train_transfer.py \
   --learning_rate "$PHASE1_LEARNING_RATE" \
   --weight_decay "$WEIGHT_DECAY" \
   --lambda_cwe "$LAMBDA_CWE" \
+  --aux_mode "$AUX_MODE" \
+  --num_latent "$NUM_LATENT" \
+  --latent_temperature "$LATENT_TEMPERATURE" \
   --patience "$PATIENCE" \
   --max_grad_norm "$MAX_GRAD_NORM" \
   --num_workers "$NUM_WORKERS" \

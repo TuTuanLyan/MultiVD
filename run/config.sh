@@ -28,6 +28,13 @@
 : "${PHASE1_LEARNING_RATE:=2e-5}"
 : "${LAMBDA_CWE:=0.2}"
 
+# Phase-1 auxiliary task. cwe = explicit 4-way head (v1); latent_bottleneck =
+# same supervision through NUM_LATENT units; latent_proto = label-free
+# prototypes; none = the lambda=0 ablation that isolates the auxiliary signal.
+: "${AUX_MODE:=cwe}"
+: "${NUM_LATENT:=8}"
+: "${LATENT_TEMPERATURE:=0.1}"
+
 # Phase 2: Python RecAdam transfer.
 : "${PHASE2_EPOCHS:=30}"
 : "${PHASE2_LEARNING_RATE:=2e-5}"

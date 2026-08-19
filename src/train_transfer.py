@@ -326,19 +326,32 @@ def build_dataloader(
     )
 
 
-def make_model(model_name, device):
+def make_model(model_name, device, args=None):
     backbone = AutoModel.from_pretrained(model_name)
-    return TransferModel(backbone, num_classes=2, num_cwes=4).to(device)
+    aux_mode = getattr(args, "aux_mode", "cwe") if args else "cwe"
+    num_latent = getattr(args, "num_latent", 8) if args else 8
+    temperature = getattr(args, "latent_temperature", 0.1) if args else 0.1
+    return TransferModel(
+        backbone,
+        num_classes=2,
+        num_cwes=4,
+        aux_mode=aux_mode,
+        num_latent=num_latent,
+        latent_temperature=temperature,
+    ).to(device)
 
 
-def freeze_cwe_head(model):
-    for parameter in model.cwe_head.parameters():
+def freeze_aux_head(model):
+    """Freeze every auxiliary parameter; Phase 2 optimizes backbone + vul_head only."""
+    for parameter in model.aux_parameters():
         parameter.requires_grad = False
 
 
 def component_parameter_counts(model):
     output = {}
-    for name in ("backbone", "vul_head", "cwe_head"):
+    for name in ("backbone", "vul_head", "latent_proj", "cwe_head"):
+        if not hasattr(model, name):
+            continue
         parameters = list(getattr(model, name).parameters())
         output[name] = {
             "total": sum(parameter.numel() for parameter in parameters),
@@ -365,6 +378,8 @@ def save_checkpoint(path, model, epoch, score, args):
             "fold": args.fold,
             "model_name": args.model_name,
             "cwe_mapping": CWE_MAPPING,
+            "aux_mode": model.aux_mode,
+            "num_latent": getattr(model, "num_latent", None),
             "training_args": training_args_dict(args),
         },
         path,
@@ -383,6 +398,13 @@ def assert_checkpoint_compatible(checkpoint, args, checkpoint_name):
     if saved_model != args.model_name:
         raise ValueError(
             f"{checkpoint_name} model_name={saved_model!r} does not match --model_name={args.model_name!r}"
+        )
+    saved_aux = checkpoint.get("aux_mode", "cwe")
+    if saved_aux != args.aux_mode:
+        raise ValueError(
+            f"{checkpoint_name} used aux_mode={saved_aux!r}, but current run uses "
+            f"{args.aux_mode!r}; the auxiliary head shapes differ so the state dict "
+            f"cannot be loaded"
         )
     saved_strategy = saved_args.get("truncation_strategy", "head")
     if saved_strategy != args.truncation_strategy:
@@ -430,7 +452,7 @@ def run_phase1(args, device):
     print_dataset_stats("source_train", train_records)
     print_dataset_stats("source_val", val_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    model = make_model(args.model_name, device)
+    model = make_model(args.model_name, device, args)
     log_environment(args, model, device, "phase1_train")
     train_loader = build_dataloader(
         train_records, tokenizer, args.max_length, args.batch_size, True, args.seed, args.num_workers,
@@ -481,7 +503,7 @@ def run_phase2(args, device):
     print_dataset_stats("python_train", train_records)
     print_dataset_stats("python_val", val_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    model = make_model(args.model_name, device)
+    model = make_model(args.model_name, device, args)
     source_checkpoint = load_checkpoint(args.source_checkpoint, model, device)
     assert_checkpoint_compatible(source_checkpoint, args, "source checkpoint")
     logger.info(
@@ -490,7 +512,7 @@ def run_phase2(args, device):
         source_checkpoint["best_epoch"],
         source_checkpoint["best_val_macro_f1"],
     )
-    freeze_cwe_head(model)
+    freeze_aux_head(model)
     current_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
     # This is the immutable RecAdam anchor, cloned before any Python optimizer step.
     pretrain_params = [parameter.detach().clone() for parameter in current_params]
@@ -541,10 +563,10 @@ def run_test(args, device):
     print_dataset_stats("python_val", val_records)
     print_dataset_stats("python_test", test_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    model = make_model(args.model_name, device)
+    model = make_model(args.model_name, device, args)
     checkpoint = load_checkpoint(args.checkpoint_path, model, device)
     assert_checkpoint_compatible(checkpoint, args, "target checkpoint")
-    freeze_cwe_head(model)
+    freeze_aux_head(model)
     log_environment(args, model, device, "test_inference_no_optimizer")
     val_loader = build_dataloader(
         val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
@@ -666,7 +688,18 @@ def parse_args():
     )
     training.add_argument("--learning_rate", type=float, default=2e-5, help="optimizer learning rate")
     training.add_argument("--weight_decay", type=float, default=0.01, help="decoupled weight decay")
-    training.add_argument("--lambda_cwe", type=float, default=0.2, help="Phase-1 CWE loss weight")
+    training.add_argument("--lambda_cwe", type=float, default=0.2, help="Phase-1 auxiliary loss weight")
+    training.add_argument(
+        "--aux_mode",
+        choices=("cwe", "latent_bottleneck", "latent_proto", "none"),
+        default="cwe",
+        help="Phase-1 auxiliary task: explicit CWE head, latent bottleneck, "
+             "label-free latent prototypes, or none for the lambda=0 ablation",
+    )
+    training.add_argument("--num_latent", type=int, default=8,
+                          help="latent units or prototypes, held fixed across source configs")
+    training.add_argument("--latent_temperature", type=float, default=0.1,
+                          help="prototype assignment temperature for aux_mode=latent_proto")
     training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
     training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
 

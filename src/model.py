@@ -2,28 +2,94 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+AUX_MODES = ("cwe", "latent_bottleneck", "latent_proto", "none")
+
+
 class TransferModel(nn.Module):
-    def __init__(self, backbone, num_classes, num_cwes, dropout_rate = 0.1):
-        super(TransferModel, self).__init__()
+    """CodeBERT backbone with a binary vulnerability head and one auxiliary head.
+
+    The auxiliary head shapes the backbone during source pretraining and is
+    frozen and unused from Phase 2 onward, so its shape never constrains the
+    target. Four modes:
+
+    cwe                explicit C-way CWE classifier (the v1 method)
+    latent_bottleneck  C-way classifier factorized through K latent units, so
+                       only a K-sized layer depends on the source taxonomy
+    latent_proto       K learnable prototypes trained by balanced self-labelling;
+                       needs no CWE labels at all
+    none               no auxiliary task, for the ablation that isolates whether
+                       the auxiliary signal contributes anything
+    """
+
+    def __init__(
+        self,
+        backbone,
+        num_classes=2,
+        num_cwes=4,
+        dropout_rate=0.1,
+        aux_mode="cwe",
+        num_latent=8,
+        latent_temperature=0.1,
+    ):
+        super().__init__()
+        if aux_mode not in AUX_MODES:
+            raise ValueError(f"unsupported aux_mode: {aux_mode!r}, expected one of {AUX_MODES}")
         self.backbone = backbone
+        self.aux_mode = aux_mode
+        self.num_latent = num_latent
+        self.latent_temperature = latent_temperature
         hidden_size = backbone.config.hidden_size
         self.dropout = nn.Dropout(dropout_rate)
         self.vul_head = nn.Linear(hidden_size, num_classes)
-        self.cwe_head = nn.Linear(hidden_size, num_cwes)
 
-    def forward(self, input_ids, attention_mask, return_cwe = False):
+        if aux_mode == "cwe":
+            self.cwe_head = nn.Linear(hidden_size, num_cwes)
+        elif aux_mode == "latent_bottleneck":
+            self.latent_proj = nn.Linear(hidden_size, num_latent)
+            self.cwe_head = nn.Linear(num_latent, num_cwes)
+        elif aux_mode == "latent_proto":
+            self.latent_proj = nn.Linear(hidden_size, num_latent)
+            self.prototypes = nn.Parameter(torch.randn(num_latent, num_latent) * 0.02)
+
+    def aux_modules(self):
+        """Parameters that serve only the auxiliary task, frozen from Phase 2 on."""
+        modules = []
+        for name in ("latent_proj", "cwe_head"):
+            if hasattr(self, name):
+                modules.append(getattr(self, name))
+        return modules
+
+    def aux_parameters(self):
+        parameters = [p for module in self.aux_modules() for p in module.parameters()]
+        if hasattr(self, "prototypes"):
+            parameters.append(self.prototypes)
+        return parameters
+
+    def forward(self, input_ids, attention_mask, return_cwe=False):
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
         cls_output = self.dropout(outputs.last_hidden_state[:, 0, :])
         vul_logits = self.vul_head(cls_output)
-        
-        if return_cwe:
-            cwe_logits = self.cwe_head(cls_output)
-        else:
-            cwe_logits = None
+
+        cwe_logits = None
+        latent = None
+        if return_cwe and self.aux_mode != "none":
+            if self.aux_mode == "cwe":
+                cwe_logits = self.cwe_head(cls_output)
+            elif self.aux_mode == "latent_bottleneck":
+                latent = self.latent_proj(cls_output)
+                cwe_logits = self.cwe_head(latent)
+            elif self.aux_mode == "latent_proto":
+                latent = F.normalize(self.latent_proj(cls_output), dim=-1)
+                prototypes = F.normalize(self.prototypes, dim=-1)
+                # Raw cosine scores. The temperature is applied in the loss, not
+                # here: Sinkhorn needs the unscaled scores or exp() overflows.
+                cwe_logits = latent @ prototypes.t()
 
         return {
             "vul_logits": vul_logits,
-            "cwe_logits": cwe_logits
+            "cwe_logits": cwe_logits,
+            "latent": latent,
         }
 
 
@@ -42,4 +108,53 @@ class BaselineModel(nn.Module):
         return {
             "vul_logits": self.vul_head(cls_output),
             "cwe_logits": None,
+            "latent": None,
         }
+
+
+@torch.no_grad()
+def sinkhorn(scores, epsilon=0.05, n_iters=3):
+    """Balanced soft assignment (Sinkhorn-Knopp) used as the self-labelling target.
+
+    The equipartition constraint is what stops the prototype head from collapsing
+    onto one slot: a confident *and* balanced assignment is the only way down.
+    """
+    scores = scores.float()
+    Q = torch.exp((scores - scores.max()) / epsilon).t()
+    Q = Q / Q.sum().clamp_min(1e-12)
+    n_prototypes, n_samples = Q.shape
+    for _ in range(n_iters):
+        Q = Q / Q.sum(dim=1, keepdim=True).clamp_min(1e-12)
+        Q = Q / n_prototypes
+        Q = Q / Q.sum(dim=0, keepdim=True).clamp_min(1e-12)
+        Q = Q / n_samples
+    return (Q * n_samples).t()
+
+
+def auxiliary_loss(outputs, cwe_targets, aux_mode, sinkhorn_epsilon=0.05, temperature=0.1):
+    """Auxiliary loss for the active mode, plus diagnostics for logging.
+
+    Returns (loss, assignment) where assignment is the hard latent/CWE slot per
+    sample, or None when the mode has no auxiliary task. The assignment feeds the
+    NMI diagnostics that tell us whether the latent structure is CWE-like or has
+    merely collapsed onto the binary label.
+    """
+    logits = outputs["cwe_logits"]
+    if aux_mode == "none" or logits is None:
+        return None, None
+
+    if aux_mode in ("cwe", "latent_bottleneck"):
+        valid = cwe_targets != -100
+        if not valid.any():
+            return logits.sum() * 0.0, None
+        loss = F.cross_entropy(logits[valid], cwe_targets[valid])
+        return loss, logits.argmax(dim=-1)
+
+    # latent_proto: no labels are used, the target comes from the balanced
+    # assignment of this batch's own scores.
+    with torch.no_grad():
+        targets = sinkhorn(logits.detach(), epsilon=sinkhorn_epsilon)
+    loss = -torch.mean(
+        torch.sum(targets * F.log_softmax(logits / temperature, dim=-1), dim=-1)
+    )
+    return loss, logits.argmax(dim=-1)

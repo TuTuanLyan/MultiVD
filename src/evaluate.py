@@ -95,10 +95,13 @@ def log_per_cwe_reports(labels, probabilities, cwe_classes, threshold, class_to_
 
 @torch.no_grad()
 def evaluate(model, dataloader, device, return_cwe=False, lambda_cwe=0.2):
+    from model import auxiliary_loss
+
     model.eval()
     total_loss = 0.0
     total_examples = 0
     labels, probabilities, cwe_classes = [], [], []
+    assignments = []
     for batch in dataloader:
         input_ids = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
@@ -106,11 +109,15 @@ def evaluate(model, dataloader, device, return_cwe=False, lambda_cwe=0.2):
         batch_cwes = batch["cwe_class"].to(device)
         outputs = model(input_ids, attention_mask, return_cwe=return_cwe)
         loss = F.cross_entropy(outputs["vul_logits"], batch_labels)
-        valid_cwe = batch_cwes != -100
-        if return_cwe and valid_cwe.any():
-            loss = loss + lambda_cwe * F.cross_entropy(
-                outputs["cwe_logits"][valid_cwe], batch_cwes[valid_cwe]
+        if return_cwe:
+            aux_loss, assignment = auxiliary_loss(
+                outputs, batch_cwes, getattr(model, "aux_mode", "cwe"),
+                temperature=getattr(model, "latent_temperature", 0.1),
             )
+            if aux_loss is not None:
+                loss = loss + lambda_cwe * aux_loss
+            if assignment is not None:
+                assignments.extend(assignment.cpu().tolist())
         batch_size = batch_labels.size(0)
         total_loss += loss.item() * batch_size
         total_examples += batch_size
@@ -123,6 +130,7 @@ def evaluate(model, dataloader, device, return_cwe=False, lambda_cwe=0.2):
         labels=labels,
         probabilities=probabilities,
         cwe_classes=cwe_classes,
+        assignments=assignments,
     )
     return result
 

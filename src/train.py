@@ -9,9 +9,42 @@ import torch.nn.functional as F
 
 from evaluate import classification_metrics, evaluate, print_classification_report
 from logging_utils import get_logger
+from model import auxiliary_loss
 
 
 logger = get_logger()
+
+
+def latent_diagnostics(assignments, cwe_targets, binary_labels, num_latent):
+    """Is the auxiliary structure CWE-like, or has it collapsed onto the main task?
+
+    High NMI against CWE with low NMI against the binary label is the outcome
+    that justifies a latent auxiliary task at all: it means the head discovered
+    vulnerability-type structure rather than re-learning what vul_head already
+    predicts. Slot usage catches the other failure, collapse onto few slots.
+    """
+    from sklearn.metrics import normalized_mutual_info_score
+
+    if not assignments:
+        return {}
+    valid = [i for i, c in enumerate(cwe_targets) if c != -100]
+    used = sorted(set(assignments))
+    counts = Counter(assignments)
+    diagnostics = {
+        "slots_used": len(used),
+        "slots_total": num_latent,
+        "largest_slot_share": max(counts.values()) / len(assignments),
+        "nmi_binary": float(
+            normalized_mutual_info_score(binary_labels, assignments)
+        ),
+    }
+    if valid:
+        diagnostics["nmi_cwe"] = float(
+            normalized_mutual_info_score(
+                [cwe_targets[i] for i in valid], [assignments[i] for i in valid]
+            )
+        )
+    return diagnostics
 
 
 def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max_grad_norm):
@@ -19,6 +52,7 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
     totals = Counter()
     examples = 0
     labels_seen, probabilities = [], []
+    assignments, cwe_seen = [], []
     for batch in dataloader:
         optimizer.zero_grad(set_to_none=True)
         input_ids = batch["input_ids"].to(device)
@@ -27,13 +61,9 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
         cwes = batch["cwe_class"].to(device)
         outputs = model(input_ids, attention_mask, return_cwe=True)
         vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
-        valid_cwe = cwes != -100
-        cwe_loss = (
-            F.cross_entropy(outputs["cwe_logits"][valid_cwe], cwes[valid_cwe])
-            if valid_cwe.any()
-            else outputs["cwe_logits"].sum() * 0.0
-        )
-        loss = vul_loss + lambda_cwe * cwe_loss
+        aux_loss, assignment = auxiliary_loss(outputs, cwes, model.aux_mode,
+            temperature=getattr(model, "latent_temperature", 0.1))
+        loss = vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
@@ -41,12 +71,18 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
         examples += size
         totals["loss"] += loss.item() * size
         totals["vul"] += vul_loss.item() * size
-        totals["cwe"] += cwe_loss.item() * size
+        totals["cwe"] += (0.0 if aux_loss is None else aux_loss.item()) * size
         labels_seen.extend(labels.detach().cpu().tolist())
         probabilities.extend(torch.softmax(outputs["vul_logits"].detach(), dim=-1)[:, 1].cpu().tolist())
+        if assignment is not None:
+            assignments.extend(assignment.detach().cpu().tolist())
+            cwe_seen.extend(cwes.detach().cpu().tolist())
     result = {key: value / examples for key, value in totals.items()}
     result.update(classification_metrics(labels_seen, probabilities, 0.5))
     result.update(labels=labels_seen, probabilities=probabilities)
+    result["latent"] = latent_diagnostics(
+        assignments, cwe_seen, labels_seen, getattr(model, "num_latent", 0)
+    )
     return result
 
 
@@ -55,7 +91,9 @@ def assert_recadam_setup(current_params, pretrain_params, model):
     for index, (current, source) in enumerate(zip(current_params, pretrain_params)):
         assert current.shape == source.shape, f"RecAdam parameter shape differs at index {index}"
         assert not source.requires_grad, f"source parameter {index} unexpectedly requires gradients"
-    assert all(not parameter.requires_grad for parameter in model.cwe_head.parameters()), "cwe_head not frozen"
+    assert all(
+        not parameter.requires_grad for parameter in model.aux_parameters()
+    ), "auxiliary head not frozen"
 
 
 def train_one_epoch_phase2(
@@ -77,8 +115,8 @@ def train_one_epoch_phase2(
         loss.backward()
 
         if check_first_step and not checked:
-            assert all(parameter.grad is None for parameter in model.cwe_head.parameters()), (
-                "cwe_head received a gradient in Phase 2"
+            assert all(parameter.grad is None for parameter in model.aux_parameters()), (
+                "auxiliary head received a gradient in Phase 2"
             )
             useful = [
                 parameter
@@ -167,6 +205,17 @@ def print_epoch(
             train["vul"],
             train["cwe"],
             train["loss"],
+        )
+    latent = train.get("latent") or {}
+    if latent:
+        logger.info(
+            "Latent structure | Slots used: %d/%d | Largest slot: %.3f | "
+            "NMI vs CWE: %s | NMI vs binary: %.4f",
+            latent["slots_used"],
+            latent["slots_total"],
+            latent["largest_slot_share"],
+            f"{latent['nmi_cwe']:.4f}" if "nmi_cwe" in latent else "n/a",
+            latent["nmi_binary"],
         )
     if anneal_lambda is not None:
         logger.info("RecAdam target-task weight at epoch end: %.6f", anneal_lambda)

@@ -38,6 +38,9 @@ python -u src/train_transfer.py \
   --max_grad_norm "$MAX_GRAD_NORM" \
   --num_workers "$NUM_WORKERS" \
   --model_name "$MODEL_NAME" \
+  --aux_mode "$AUX_MODE" \
+  --num_latent "$NUM_LATENT" \
+  --latent_temperature "$LATENT_TEMPERATURE" \
   --anneal_fun "$ANNEAL_FUN" \
   --anneal_k "$ANNEAL_K" \
   --anneal_t0_ratio "$ANNEAL_T0_RATIO" \

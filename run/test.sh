@@ -33,4 +33,7 @@ python -u src/train_transfer.py \
   --truncation_strategy "$TRUNCATION_STRATEGY" \
   --num_workers "$NUM_WORKERS" \
   --model_name "$MODEL_NAME" \
+  --aux_mode "$AUX_MODE" \
+  --num_latent "$NUM_LATENT" \
+  --latent_temperature "$LATENT_TEMPERATURE" \
   2>&1 | tee -a "$LOG_DIR/test_fold${FOLD}.log"
