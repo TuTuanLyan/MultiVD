@@ -1,9 +1,39 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from transformers import AutoConfig, AutoModel
 
 
 AUX_MODES = ("cwe", "latent_bottleneck", "latent_proto", "none")
+POOLING_MODES = ("cls", "mean")
+
+
+def build_backbone(model_name):
+    """Load an encoder. Encoder-decoder checkpoints contribute their encoder only.
+
+    T5-family checkpoints (CodeT5, CodeT5+) would otherwise drag in decoder
+    weights that this classifier never runs.
+    """
+    config = AutoConfig.from_pretrained(model_name)
+    if getattr(config, "is_encoder_decoder", False):
+        from transformers import T5EncoderModel
+
+        return T5EncoderModel.from_pretrained(model_name)
+    return AutoModel.from_pretrained(model_name)
+
+
+def pool_hidden_states(hidden_states, attention_mask, strategy):
+    """CLS for BERT-family, attention-masked mean for encoders with no CLS token.
+
+    T5 has no sentence-level token at position 0, so taking [:, 0, :] there would
+    read whatever the first code token happens to be.
+    """
+    if strategy == "cls":
+        return hidden_states[:, 0, :]
+    if strategy != "mean":
+        raise ValueError(f"unsupported pooling: {strategy!r}, expected one of {POOLING_MODES}")
+    mask = attention_mask.unsqueeze(-1).to(hidden_states.dtype)
+    return (hidden_states * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1e-9)
 
 
 class TransferModel(nn.Module):
@@ -31,11 +61,15 @@ class TransferModel(nn.Module):
         aux_mode="cwe",
         num_latent=8,
         latent_temperature=0.1,
+        pooling="cls",
     ):
         super().__init__()
         if aux_mode not in AUX_MODES:
             raise ValueError(f"unsupported aux_mode: {aux_mode!r}, expected one of {AUX_MODES}")
+        if pooling not in POOLING_MODES:
+            raise ValueError(f"unsupported pooling: {pooling!r}, expected one of {POOLING_MODES}")
         self.backbone = backbone
+        self.pooling = pooling
         self.aux_mode = aux_mode
         self.num_latent = num_latent
         self.latent_temperature = latent_temperature
@@ -68,7 +102,8 @@ class TransferModel(nn.Module):
 
     def forward(self, input_ids, attention_mask, return_cwe=False):
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
-        cls_output = self.dropout(outputs.last_hidden_state[:, 0, :])
+        pooled = pool_hidden_states(outputs.last_hidden_state, attention_mask, self.pooling)
+        cls_output = self.dropout(pooled)
         vul_logits = self.vul_head(cls_output)
 
         cwe_logits = None
@@ -96,15 +131,19 @@ class TransferModel(nn.Module):
 class BaselineModel(nn.Module):
     """Plain CodeBERT binary classifier with no source task or CWE head."""
 
-    def __init__(self, backbone, num_classes=2, dropout_rate=0.1):
+    def __init__(self, backbone, num_classes=2, dropout_rate=0.1, pooling="cls"):
         super().__init__()
+        if pooling not in POOLING_MODES:
+            raise ValueError(f"unsupported pooling: {pooling!r}, expected one of {POOLING_MODES}")
         self.backbone = backbone
+        self.pooling = pooling
         self.dropout = nn.Dropout(dropout_rate)
         self.vul_head = nn.Linear(backbone.config.hidden_size, num_classes)
 
     def forward(self, input_ids, attention_mask, return_cwe=False):
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
-        cls_output = self.dropout(outputs.last_hidden_state[:, 0, :])
+        pooled = pool_hidden_states(outputs.last_hidden_state, attention_mask, self.pooling)
+        cls_output = self.dropout(pooled)
         return {
             "vul_logits": self.vul_head(cls_output),
             "cwe_logits": None,

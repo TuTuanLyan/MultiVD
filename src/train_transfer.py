@@ -27,7 +27,7 @@ from evaluate import (
     print_classification_report,
 )
 from logging_utils import configure_logging, get_logger
-from model import TransferModel
+from model import TransferModel, build_backbone
 from RecAdam import RecAdam, anneal_function
 from train import assert_recadam_setup, train_loop
 
@@ -327,10 +327,11 @@ def build_dataloader(
 
 
 def make_model(model_name, device, args=None):
-    backbone = AutoModel.from_pretrained(model_name)
+    backbone = build_backbone(model_name)
     aux_mode = getattr(args, "aux_mode", "cwe") if args else "cwe"
     num_latent = getattr(args, "num_latent", 8) if args else 8
     temperature = getattr(args, "latent_temperature", 0.1) if args else 0.1
+    pooling = getattr(args, "pooling", "cls") if args else "cls"
     return TransferModel(
         backbone,
         num_classes=2,
@@ -338,6 +339,7 @@ def make_model(model_name, device, args=None):
         aux_mode=aux_mode,
         num_latent=num_latent,
         latent_temperature=temperature,
+        pooling=pooling,
     ).to(device)
 
 
@@ -379,6 +381,7 @@ def save_checkpoint(path, model, epoch, score, args):
             "model_name": args.model_name,
             "cwe_mapping": CWE_MAPPING,
             "aux_mode": model.aux_mode,
+            "pooling": model.pooling,
             "num_latent": getattr(model, "num_latent", None),
             "training_args": training_args_dict(args),
         },
@@ -405,6 +408,12 @@ def assert_checkpoint_compatible(checkpoint, args, checkpoint_name):
             f"{checkpoint_name} used aux_mode={saved_aux!r}, but current run uses "
             f"{args.aux_mode!r}; the auxiliary head shapes differ so the state dict "
             f"cannot be loaded"
+        )
+    saved_pooling = checkpoint.get("pooling", "cls")
+    if saved_pooling != args.pooling:
+        raise ValueError(
+            f"{checkpoint_name} used pooling={saved_pooling!r}, but current run uses "
+            f"{args.pooling!r}; the representation would change meaning"
         )
     saved_strategy = saved_args.get("truncation_strategy", "head")
     if saved_strategy != args.truncation_strategy:
@@ -696,6 +705,9 @@ def parse_args():
         help="Phase-1 auxiliary task: explicit CWE head, latent bottleneck, "
              "label-free latent prototypes, or none for the lambda=0 ablation",
     )
+    training.add_argument("--pooling", choices=("cls", "mean"), default="cls",
+                          help="sentence representation; use mean for T5-family encoders "
+                               "which have no CLS token")
     training.add_argument("--num_latent", type=int, default=8,
                           help="latent units or prototypes, held fixed across source configs")
     training.add_argument("--latent_temperature", type=float, default=0.1,

@@ -20,7 +20,7 @@ from evaluate import (
     print_classification_report,
 )
 from logging_utils import configure_logging, get_logger
-from model import BaselineModel
+from model import BaselineModel, build_backbone
 from train import train_loop
 from train_transfer import (
     CLASS_TO_CWE,
@@ -36,8 +36,8 @@ from train_transfer import (
 logger = get_logger()
 
 
-def make_model(model_name, device):
-    return BaselineModel(AutoModel.from_pretrained(model_name)).to(device)
+def make_model(model_name, device, pooling="cls"):
+    return BaselineModel(build_backbone(model_name), pooling=pooling).to(device)
 
 
 def parameter_counts(model):
@@ -171,7 +171,7 @@ def run_train(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     train_loader, val_loader = loaders(args, tokenizer)
     # set_seed is called before this fresh model initialization for every fold.
-    model = make_model(args.model_name, device)
+    model = make_model(args.model_name, device, args.pooling)
     log_environment(args, model, device, "baseline_train")
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
@@ -191,7 +191,7 @@ def run_train(args, device):
 def run_test(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     val_loader, test_loader = loaders(args, tokenizer, include_test=True)
-    model = make_model(args.model_name, device)
+    model = make_model(args.model_name, device, args.pooling)
     checkpoint = load_checkpoint(args.checkpoint_path, model, device, args)
     log_environment(args, model, device, "baseline_inference_no_optimizer")
 
@@ -286,6 +286,9 @@ def parse_args():
     parser.add_argument("--checkpoint_path", help="checkpoint to write/read")
     parser.add_argument("--result_path", help="test result JSON")
     parser.add_argument("--model_name", default="microsoft/codebert-base", help="backbone")
+    parser.add_argument("--pooling", choices=("cls", "mean"), default="cls",
+                        help="sentence representation; use mean for T5-family encoders "
+                             "which have no CLS token")
     parser.add_argument("--epochs", type=int, default=10, help="maximum epochs")
     parser.add_argument("--min_epochs", type=int, default=3, help="minimum epochs before patience")
     parser.add_argument("--batch_size", type=int, default=8, help="training batch size")
