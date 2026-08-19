@@ -22,6 +22,9 @@ DATA="${PHASE1_DATA_PATH:-data/train_ccpp_js.jsonl}"
 MODES="${MODES-cwe latent_bottleneck latent_proto none}"
 FOLDS="${FOLDS:-1 2 3 4 5}"
 NUM_LATENT="${NUM_LATENT:-8}"
+FREEZE_PROTOTYPES_STEPS="${FREEZE_PROTOTYPES_STEPS:-0}"
+LATENT_TEMPERATURE="${LATENT_TEMPERATURE:-0.1}"
+SELECTION_METRIC="${SELECTION_METRIC:-macro_f1}"
 
 MAX_LENGTH="${MAX_LENGTH:-512}"
 BATCH_SIZE="${BATCH_SIZE:-16}"
@@ -37,6 +40,16 @@ SHARED=(
   --weight_decay 0.01 --patience 5 --min_epochs 3 --max_grad_norm 1.0 --num_workers 0
 )
 
+# train_baseline.py accepts none of these, so they stay out of SHARED and go
+# only to train_transfer.py. Passing an unknown flag makes argparse exit, which
+# is how an earlier sweep lost every baseline result.
+AUX=(
+  --num_latent "$NUM_LATENT"
+  --freeze_prototypes_steps "$FREEZE_PROTOTYPES_STEPS"
+  --latent_temperature "$LATENT_TEMPERATURE"
+  --selection_metric "$SELECTION_METRIC"
+)
+
 # --- Phase 1 once per mode -------------------------------------------------
 for MODE in $MODES; do
   METHOD="transfer_$MODE"
@@ -50,7 +63,7 @@ for MODE in $MODES; do
   echo "=== $(date '+%F %T') | phase1 $MODE ==="
   $PYTHON -u src/train_transfer.py --phase phase1 \
     --run_name "$RUN_NAME" --method_name "$METHOD" --data_path "$DATA" \
-    --aux_mode "$MODE" --num_latent "$NUM_LATENT" \
+    --aux_mode "${MODE%%_v2}" "${AUX[@]}" \
     --epochs "$PHASE1_EPOCHS" --learning_rate "$LR" --lambda_cwe "$LAMBDA_CWE" \
     --checkpoint_path "$MODEL/source/best.pt" \
     "${SHARED[@]}" >> "$LOG/phase1.log" 2>&1 || echo "  phase1 $MODE FAILED"
@@ -96,7 +109,7 @@ for FOLD in $FOLDS; do
     mkdir -p "$MODEL/fold$FOLD"
     $PYTHON -u src/train_transfer.py --phase phase2 \
       --run_name "$RUN_NAME" --method_name "$METHOD" --fold "$FOLD" \
-      --aux_mode "$MODE" --num_latent "$NUM_LATENT" \
+      --aux_mode "${MODE%%_v2}" "${AUX[@]}" \
       --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" \
       --source_checkpoint "$MODEL/source/best.pt" \
       --checkpoint_path "$MODEL/fold$FOLD/best.pt" \
@@ -104,7 +117,7 @@ for FOLD in $FOLDS; do
       "${SHARED[@]}" >> "$LOG/phase2_fold$FOLD.log" 2>&1 \
       && $PYTHON -u src/train_transfer.py --phase test \
         --run_name "$RUN_NAME" --method_name "$METHOD" --fold "$FOLD" \
-        --aux_mode "$MODE" --num_latent "$NUM_LATENT" \
+        --aux_mode "${MODE%%_v2}" "${AUX[@]}" \
         --checkpoint_path "$MODEL/fold$FOLD/best.pt" \
         --output_dir "results/$RUN_NAME/$METHOD" \
         "${SHARED[@]}" >> "$LOG/test_fold$FOLD.log" 2>&1 \
