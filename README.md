@@ -7,6 +7,49 @@ MultiVD triển khai và so sánh hai phương pháp phát hiện lỗ hổng Py
 
 Chi tiết học thuật và công thức nằm trong [METHOD.md](METHOD.md).
 
+## 0. Trạng thái phiên bản
+
+Branch `v1-explicit-cwe4` đóng băng phiên bản dùng **CWE head tường minh 4 lớp**
+(`CWE-022/078/079/089`), khớp đúng taxonomy của target Python. Công việc tổng quát hóa
+sang auxiliary task dạng latent diễn ra trên branch khác; branch này giữ nguyên để
+đối chiếu.
+
+`src/RecAdam.py` là bản tham chiếu từ [Sanyuan-Chen/RecAdam](https://github.com/Sanyuan-Chen/RecAdam).
+Phần toán học giữ nguyên. Khác biệt duy nhất so với upstream là port API in-place của
+PyTorch (`addcdiv_(value, t1, t2)` dạng positional đã bị gỡ từ PyTorch 1.5), một dòng
+`last_anneal_lambda` để log, và `raise ValueError` thay cho `ValueError` trần. Không sửa
+file này khi mở rộng phương pháp.
+
+### Kết quả đã chạy trên phiên bản này
+
+Source `data/train_ccpp_js.jsonl`, target 5 fold Python, delta = transfer − baseline:
+
+| Seed | Δ Macro-F1@0.5 | Δ Macro-F1@valcal | Thư mục |
+| --- | --- | --- | --- |
+| 7 | +0.0360 ± 0.0350 | +0.0482 ± 0.0590 | `results/seed7_ccppjs_py_compare_v1/` |
+| 12 | +0.0596 ± 0.0425 | +0.0643 ± 0.0548 | `results/seed12_ccppjs_py_compare_v1/` |
+| 36 | +0.0518 ± 0.0160 | +0.0591 ± 0.0077 | `results/seed18_ccppjs_py_compare_v1/` |
+| 42 | +0.0530 ± 0.0248 | +0.0461 ± 0.0116 | `results/seed42_ccppjs_py_compare_v1/` |
+
+### Hạn chế đã biết
+
+Ba điểm cần xử lý trước khi mở rộng quy mô thí nghiệm:
+
+1. **Rò rỉ cặp trong Python folds.** Năm fold được dựng sẵn bên ngoài repo và không
+   group-aware. Đo trực tiếp: 61–67 trên 152 mẫu test mỗi fold có near-duplicate
+   (SequenceMatcher ratio > 0.90) nằm trong train, và trên 90% số đó là partner
+   đối nghịch label — tức bản vá/bản lỗi của chính nó. Điều này làm phồng chỉ số
+   tuyệt đối của cả hai nhánh. Phép so sánh transfer-vs-baseline vẫn công bằng vì
+   dùng chung folds, nhưng con số tuyệt đối không phản ánh khả năng khái quát hóa.
+   Phase 1 ngược lại có bảo vệ group đầy đủ (`source_groups()`).
+2. **Thiếu ablation tách nguồn lợi ích.** Khoảng cách transfer-vs-baseline hiện gộp
+   ba yếu tố: được thấy dữ liệu source, có CWE auxiliary task, và dùng RecAdam thay
+   AdamW. Cần thêm hai nhánh để tách: source binary-only → RecAdam, và
+   source multitask → AdamW.
+3. **Tên thư mục không khớp seed.** `results/seed18_ccppjs_py_compare_v1/` thực chất
+   chứa `seed_36/`. `results/` đã được thêm vào `.gitignore`, nhưng 35 file kết quả cũ
+   vẫn đang được track từ trước (bao gồm `seed18_ccpp_py_v1` thiếu fold5 và summary).
+
 ## 1. Cấu hình một run
 
 Chỉnh [run/config.sh](run/config.sh). Hai biến quan trọng nhất:

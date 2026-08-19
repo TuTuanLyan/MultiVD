@@ -6,7 +6,7 @@
 
 # Change RUN_NAME for every experiment you want to preserve. Transfer,
 # baseline, logs, models, results, and comparisons share this parent folder.
-: "${RUN_NAME:=seed18_ccpp_py_v1}"
+: "${RUN_NAME:=seed12_ccppjs_py_compare_v1}"
 : "${TRANSFER_NAME:=transfer}"
 : "${BASELINE_NAME:=baseline}"
 : "${COMPARE_NAME:=compare}"
@@ -14,8 +14,8 @@
 # Shared model/data settings.
 : "${MAX_LENGTH:=512}"
 : "${TRUNCATION_STRATEGY:=head_middle_tail}"
-: "${BATCH_SIZE:=32}"
-: "${EVAL_BATCH_SIZE:=32}"
+: "${BATCH_SIZE:=16}"
+: "${EVAL_BATCH_SIZE:=16}"
 : "${NUM_WORKERS:=0}"
 : "${WEIGHT_DECAY:=0.01}"
 : "${MAX_GRAD_NORM:=1.0}"
@@ -23,7 +23,7 @@
 : "${MIN_EPOCHS:=3}"
 
 # Phase 1: any JSONL with code, label, CWE fields, and lang/language.
-: "${PHASE1_DATA_PATH:=data/train_ccpp_filtered.jsonl}"
+: "${PHASE1_DATA_PATH:=data/train_ccpp_js.jsonl}"
 : "${PHASE1_EPOCHS:=15}"
 : "${PHASE1_LEARNING_RATE:=2e-5}"
 : "${LAMBDA_CWE:=0.2}"
