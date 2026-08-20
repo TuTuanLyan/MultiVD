@@ -96,7 +96,18 @@ if len(deltas) > 1:
     print(f"\nacross {len(values)} source draws: delta {min(values):+.4f} to {max(values):+.4f}, "
           f"spread {spread:.4f}, sd {statistics.stdev(values):.4f}")
     print(f"every draw agrees on the sign: {all(v > 0 for v in values) or all(v < 0 for v in values)}")
-    print("\nCompare the spread against the 0.042 headline. A spread of that size means")
-    print("the headline is one sample from this distribution, not an estimate of its centre.")
+
+    # The headline this is being checked against. Which conclusion applies is a
+    # property of the numbers, so it is decided here rather than asserted; an
+    # earlier version printed the "one lucky draw" reading unconditionally and
+    # would have said it even when the run refuted it, which it did.
+    headline = 0.042
+    if spread >= headline / 2:
+        print(f"\nSpread {spread:.4f} is at least half the {headline} headline: that headline is")
+        print("one sample from this distribution, not an estimate of its centre.")
+    else:
+        print(f"\nSpread {spread:.4f} is small against the {headline} headline, and the sd across")
+        print(f"draws ({statistics.stdev(values):.4f}) is well under the effect itself. The gain")
+        print("does not depend on which Phase-1 draw it started from.")
 PY
 touch /workspace/SOURCEDRAWS_DONE
