@@ -4,6 +4,7 @@
 import argparse
 import json
 import math
+import os
 import random
 import time
 from collections import Counter
@@ -40,7 +41,32 @@ GROUP_FIELDS = ("pair_id", "commit_id", "project", "repo", "CVE_ID")
 logger = get_logger()
 
 
-def set_seed(seed):
+def set_seed(seed, strict=False):
+    """Seed every generator, and optionally demand deterministic kernels too.
+
+    Seeding alone does not pin Phase 1 here. Three runs at seed 36 with identical
+    arguments produced three different checkpoints -- source validation 0.5722,
+    0.6591, 0.6654 -- and the spread across fixed-seed repeats (sd 0.0521) matched
+    the spread across three different seeds (sd 0.0496). The seed was buying no
+    control at all.
+
+    The amplifier is early stopping: patience 5 over at most 15 epochs turns a
+    drift of order 1e-7 into a different stopping decision, and one of those three
+    runs stopped at epoch 3 while the others ran to 11 and 13. cudnn.deterministic
+    does not cover the non-cuDNN reductions that produce that drift.
+
+    strict=True closes the remaining sources. It is opt-in because it changes
+    results relative to every run recorded in RESULT.md, and because determinism
+    is not the same thing as low variance -- it makes one draw repeatable, while
+    the spread across draws stays real and still has to be averaged over.
+    """
+    if strict:
+        # cuBLAS reads this once, when it creates its handle, so it has to be set
+        # before any CUDA work happens.
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        # warn_only: a few backward kernels have no deterministic implementation,
+        # and warning beats refusing to run at all.
+        torch.use_deterministic_algorithms(True, warn_only=True)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -858,6 +884,9 @@ def parse_args():
     execution.add_argument("--phase", choices=("phase1", "phase2", "test"), required=True,
                            help="pipeline phase to execute")
     execution.add_argument("--seed", type=int, default=42, help="random seed")
+    execution.add_argument("--strict_determinism", action="store_true",
+                           help="demand deterministic kernels as well as seeding; the seed "
+                                "alone does not pin Phase 1 (see set_seed)")
     execution.add_argument("--fold", type=int, default=1, choices=range(1, 6), help="Python fold")
     execution.add_argument("--num_workers", type=int, default=0, help="DataLoader worker count")
     execution.add_argument("--run_name", default="default_run", help="parent experiment folder")
@@ -989,7 +1018,7 @@ def parse_args():
 def main():
     args = parse_args()
     configure_logging()
-    set_seed(args.seed)
+    set_seed(args.seed, strict=args.strict_determinism)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     started = time.perf_counter()
     logger.info("Using device: %s", device)
