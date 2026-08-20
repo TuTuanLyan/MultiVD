@@ -1867,3 +1867,78 @@ nhãn CWE mà nó đã biểu diễn được. Hai ứng viên cụ thể, chạ
 
 Ứng viên 2 là hướng đáng đầu tư hơn, nhưng nó **thay đổi phương pháp** chứ không phải tinh chỉnh,
 nên cần bắt đầu lại từ Cổng 1.
+
+---
+
+## 35. Tín hiệu phụ thay thế: đã kiểm chứng khả thi, sẵn sàng chạy Cổng 1
+
+§34.3 chỉ ra hướng duy nhất còn cơ sở: **cần tín hiệu phụ mà backbone mạnh chưa có**. Máy đã hủy
+nên không chạy được, nhưng toàn bộ phần kiểm chứng khả thi làm được **không cần GPU** — và nó có
+thể bác hướng đi này trước khi tốn một giờ GPU nào.
+
+### 35.1 Dữ liệu có đủ không
+
+| | Kết quả |
+| --- | --- |
+| Source `train_ccpp_js.jsonl` có `pair_id`? | **Không** |
+| Nhưng cặp liền kề suy ra được? | **638 cặp, phủ 1276/1284 dòng = 99%** |
+| Fold target có `pair_id`? | Có, nhưng chỉ 159/234 cặp đủ hai nửa trong `train` |
+
+Chỉ **source** mới quan trọng, vì head phụ chỉ chạy ở Phase 1 rồi bị đóng băng. Source phủ 99% nên
+tín hiệu dựa trên diff là **khả thi**.
+
+Đáng ghi: các dòng trong fold target **không** nằm cạnh nhau theo cặp (tôi đã giả định sai lúc đầu
+và phải kiểm lại) — chúng phải nhóm qua `pair_id`. Riêng source thì liền kề thật.
+
+### 35.2 Tín hiệu có học được không, hay suy biến
+
+Đo hai ứng viên trên 638 cặp:
+
+| Tín hiệu | Phân bố | Lớp lớn nhất |
+| --- | --- | --- |
+| **Số dòng bị sửa** (4 nhóm) | 30% / 22% / 27% / 21% | **30%** — cân bằng |
+| Vị trí sửa đổi đầu tiên (3 nhóm) | 54% / 31% / 16% | 54% — lệch hơn |
+
+Ranh giới nhóm lấy từ **tứ phân vị đo được** (q1=1, median=3, q3=8), không phải số tròn tự nghĩ.
+
+**Số dòng bị sửa cân bằng hơn hẳn cả phân bố CWE gốc** (nơi CWE-089 chiếm 54% tập test). Và nó
+tình cờ cũng **4 lớp** như head CWE gốc.
+
+### 35.3 Chạy được mà không sửa một dòng code model
+
+`src/build_edit_labels.py` chỉ **ghi đè trường `cwe_class`** bằng nhóm kích thước sửa đổi.
+`resolve_cwe_class` vốn ưu tiên `cwe_class` khi có sẵn, nên chạy với `AUX_MODE=cwe` là head phụ học
+tín hiệu mới. Đã sinh `data/train_ccpp_js_editsize.jsonl` và kiểm chứng:
+
+```
+so dong giu nguyen : True      code khong doi  : True
+truong giu nguyen  : True      label khong doi : True
+chi cwe_class doi  : True      gia tri moi     : [-100, 0, 1, 2, 3]
+```
+
+8 dòng không ghép cặp được gán **−100**, đúng `ignore_index` của `cross_entropy`, nên chúng không
+vào loss thay vì âm thầm thành một lớp giả.
+
+Nhờ tối giản như vậy, phép so **"cùng kiến trúc, khác tín hiệu"** là sạch tuyệt đối: chỉ đúng một
+biến thay đổi giữa hai nhánh.
+
+### 35.4 Cách chạy khi có máy trở lại
+
+```bash
+BACKBONES="codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-220m:cls" \
+MODES="cwe none" SEED=42 RUN_NAME=gate_edit \
+PHASE1_DATA_PATH=data/train_ccpp_js_editsize.jsonl \
+  bash run/gated.sh
+```
+
+Đối chiếu `gate_edit_*` với `gate1_*` (cùng seed 42, cùng backbone, cùng kiến trúc) là đo trực tiếp
+**tín hiệu phụ nào tốt hơn**. Điều cần nhìn không phải Δ tuyệt đối mà là **`Δ(edit) − Δ(none)` trên
+CodeT5+** — §34.3 cho thấy đại lượng đó ở tín hiệu CWE là −0.0137 và +0.0124, tức gần như bằng
+không. Nếu tín hiệu mới cũng ra gần không thì hướng này bị bác và nên bỏ.
+
+### 35.5 Rủi ro đã đo trước
+
+**26% số cặp có bản lỗi dài hơn 60 dòng.** Ở đó chỗ sửa có thể nằm ngoài cửa sổ 512 token, khiến
+nhãn trở thành thứ model không nhìn thấy được. Đây là **giả thuyết cần kiểm chứ không phải khiếm
+khuyết đã biết** — §18.3 từng cho thấy một giả thuyết truncation nghe rất hợp lý mà đo ra chỉ 1.8%.
+Cách kiểm rẻ: so Δ trên nhóm cặp ngắn với nhóm cặp dài.
