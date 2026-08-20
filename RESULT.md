@@ -30,7 +30,7 @@ Tài liệu dài 26 mục vì nó ghi cả những thứ đã bị bác. Bảng 
 | --- | --- | --- |
 | **Độ lớn trên metric xếp hạng** | với `cwe`: ROC-AUC và PR-AUC đều p = 0.084. `latent_bottleneck` vượt được ROC-AUC (p = 0.0059) nhưng PR-AUC vẫn 0.0645 | §20.2, §27 |
 | Lọc CWE có cứu được PrimeVul không | hướng nhất quán ~+0.026 qua hai head phụ, nhưng p = 0.31–0.44 | §21 |
-| Phương pháp có tốt nhất trên backbone mạnh không | CodeT5+ dưới cls đạt 0.8800, vẫn thua baseline mean-pool 0.8823 | §22.2 |
+| Phương pháp có mang lại gì trên backbone mạnh không | CodeT5+ dưới cls: +0.0039 (n=5), không phân biệt được với baseline mean-pool (hiệu +0.0014, sd 0.0057) | §28.3 |
 | `latent_bottleneck` có bền trước nhiễu lần rút Phase 1 không | `cwe` đã kiểm chứng 5/5 lần rút (§26); nhánh latent **chưa** — `run/latent-draws.sh` đang trong hàng đợi | §27.3 |
 
 ### Đã bị bác — chín giả thuyết
@@ -1464,17 +1464,40 @@ Thêm một chi tiết đáng chú ý: trên CodeT5+, hiệu cls − mean cực 
 kinh ngạc ở §22.1 vì thế **không phải tính chất chung của phép đo** mà là đặc thù của CodeT5+ —
 đúng như §22.1 đã ngờ và ghi lại.
 
-### 28.3 Nhưng "dương" không đồng nghĩa "tốt nhất"
+### 28.3 CodeT5+ ở đủ 5 fold: kết luận ở n=3 bị đảo
 
-| backbone | cấu hình tốt nhất trong bốn ô | giá trị |
+`run/t5cls45.sh` xong. Ở n=5, CodeT5+ dưới `cls` cho **+0.0039** (so với +0.0087 ở n=3), dưới
+`mean` giữ nguyên **−0.0184**. Dấu vẫn bám theo cột.
+
+Nhưng thứ hạng tuyệt đối thì đảo:
+
+| cấu hình | n=3 | **n=5** |
 | --- | --- | --- |
-| **CodeBERT** | **transfer + cls** | **0.8451** |
-| **CodeT5+** | baseline + mean | 0.8823 |
+| transfer + cls | 0.8800 | **0.8893** ← cao nhất |
+| baseline + mean | **0.8823** ← cao nhất | 0.8879 |
+| baseline + cls | 0.8713 | 0.8854 |
+| transfer + mean | 0.8647 | 0.8696 |
 
-Trên CodeBERT, phương pháp **là** lựa chọn tốt nhất — nó vượt cả baseline mean-pool (0.8338).
-Trên CodeT5+, nó **không**: transfer+cls đạt 0.8800, vẫn thua baseline mean-pool 0.8823.
+Ở n=3 tôi kết luận "trên CodeT5+ phương pháp **không** phải lựa chọn tốt nhất". Ở n=5 nó vươn lên
+đầu. Ghép cặp trực tiếp `transfer+cls` với `baseline+mean` theo từng fold:
 
-Phát biểu chặt nhất cho mục tiêu pretrained-agnostic: **cách đọc biểu diễn giải thích được dấu, và
-sửa nó làm phương pháp dương trên cả hai backbone. Nhưng trên backbone mạnh, "dương so với baseline
-cùng cách đọc" vẫn chưa bằng "không transfer gì và pool bằng trung bình".** Khoảng cách còn lại là
-0.0023 — nhỏ, nhưng có dấu.
+```
++0.0000, -0.0067, -0.0001, +0.0073, +0.0066   ->  mean +0.0014, sd 0.0057, 2/5 duong
+```
+
+Trung bình **nhỏ hơn độ lệch chuẩn**, hai fold gần như hoà tuyệt đối. Phát biểu đúng không phải
+"phương pháp thắng" cũng không phải "phương pháp thua" mà là: **trên CodeT5+, phương pháp với `cls`
+và baseline với `mean` không phân biệt được.**
+
+Và độ ổn định kinh ngạc ở §22.1 cũng tan ở n=5: hiệu cls − mean từng fold là +0.0260, +0.0263,
++0.0265, **+0.0056**, +0.0270 — sd nhảy từ **0.00025 lên 0.0093**. Fold 4 phá vỡ nó. Ba fold đầu
+trùng khớp tới bốn chữ số thập phân **là trùng hợp**, đúng như §22.1 đã ngờ.
+
+### 28.4 Phát biểu cuối cho mục tiêu pretrained-agnostic
+
+**Cách đọc biểu diễn giải thích được dấu.** Sửa nó làm phương pháp dương trên cả hai họ backbone,
+và điều đó gỡ bỏ phần lớn hiện tượng "phụ thuộc pretrained" đã tiêu ba can thiệp thất bại để truy.
+
+**Nhưng lợi ích thì co lại theo độ mạnh backbone.** CodeBERT +0.0311; CodeT5+ +0.0039 — nhỏ hơn
+tám lần, và không phân biệt được với việc đơn giản đổi cách pool. Phương pháp **không còn gây hại**
+trên backbone mạnh, nhưng cũng **chưa mang lại gì đáng kể** ở đó.
