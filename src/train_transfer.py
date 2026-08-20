@@ -370,6 +370,9 @@ def make_model(model_name, device, args=None):
     ).to(device)
     if args is not None and getattr(args, "lora_rank", 0) > 0 and args.phase == "phase1":
         count = inject_lora(model.backbone, args.lora_rank)
+        # inject_lora builds fresh parameters on CPU, so the model has to move
+        # again; it was already on the device before the wrapping happened.
+        model.to(device)
         logger.info(
             "LoRA injected | Rank: %d | Projections wrapped: %d | Backbone otherwise frozen",
             args.lora_rank, count,
