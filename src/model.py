@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -50,6 +52,68 @@ def freeze_backbone_layers(backbone, n_layers):
                 parameter.requires_grad = False
             frozen += 1
     return {"frozen_modules": frozen, "requested_layers": n_layers}
+
+
+class LoRALinear(nn.Module):
+    """A frozen Linear plus a trainable rank-r update.
+
+    Full fine-tuning during Phase 1 rewrites the backbone, which helps a weak
+    encoder and damages a strong one. Constraining that stage to a low-rank
+    update bounds how far the weights can travel while still letting the source
+    task teach something.
+    """
+
+    def __init__(self, base, rank=8, alpha=16):
+        super().__init__()
+        self.base = base
+        for parameter in self.base.parameters():
+            parameter.requires_grad = False
+        self.lora_a = nn.Parameter(torch.zeros(rank, base.in_features))
+        self.lora_b = nn.Parameter(torch.zeros(base.out_features, rank))
+        nn.init.kaiming_uniform_(self.lora_a, a=math.sqrt(5))
+        self.scaling = alpha / rank
+
+    def forward(self, x):
+        return self.base(x) + (x @ self.lora_a.t() @ self.lora_b.t()) * self.scaling
+
+    @torch.no_grad()
+    def merge(self):
+        """Fold the update into the frozen weight and return the plain Linear.
+
+        Merging before the checkpoint is written means Phase 2 loads an ordinary
+        backbone and needs to know nothing about LoRA.
+        """
+        self.base.weight.add_((self.lora_b @ self.lora_a) * self.scaling)
+        for parameter in self.base.parameters():
+            parameter.requires_grad = True
+        return self.base
+
+
+# Query and value projections, named differently by BERT-family and T5-family.
+LORA_TARGETS = ("query", "value", "q", "v")
+
+
+def inject_lora(backbone, rank, alpha=16):
+    """Freeze the backbone and attach LoRA to its attention projections."""
+    for parameter in backbone.parameters():
+        parameter.requires_grad = False
+    injected = 0
+    for module in backbone.modules():
+        for name, child in list(module.named_children()):
+            if name in LORA_TARGETS and isinstance(child, nn.Linear):
+                setattr(module, name, LoRALinear(child, rank=rank, alpha=alpha))
+                injected += 1
+    return injected
+
+
+def merge_lora(backbone):
+    merged = 0
+    for module in backbone.modules():
+        for name, child in list(module.named_children()):
+            if isinstance(child, LoRALinear):
+                setattr(module, name, child.merge())
+                merged += 1
+    return merged
 
 
 def pool_hidden_states(hidden_states, attention_mask, strategy):

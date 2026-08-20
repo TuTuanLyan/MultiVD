@@ -27,7 +27,8 @@ from evaluate import (
     print_classification_report,
 )
 from logging_utils import configure_logging, get_logger
-from model import TransferModel, build_backbone, freeze_backbone_layers
+from model import (TransferModel, build_backbone, freeze_backbone_layers,
+                   inject_lora, merge_lora)
 from RecAdam import RecAdam, anneal_function
 from train import assert_recadam_setup, train_loop
 
@@ -367,6 +368,12 @@ def make_model(model_name, device, args=None):
         latent_temperature=temperature,
         pooling=pooling,
     ).to(device)
+    if args is not None and getattr(args, "lora_rank", 0) > 0 and args.phase == "phase1":
+        count = inject_lora(model.backbone, args.lora_rank)
+        logger.info(
+            "LoRA injected | Rank: %d | Projections wrapped: %d | Backbone otherwise frozen",
+            args.lora_rank, count,
+        )
     if args is not None and getattr(args, "freeze_backbone_layers", 0) > 0:
         info = freeze_backbone_layers(model.backbone, args.freeze_backbone_layers)
         logger.info("Backbone partially frozen | %s", json.dumps(info, sort_keys=True))
@@ -522,6 +529,18 @@ def run_phase1(args, device):
     train_loop(
         args, model, train_loader, val_loader, optimizer, device, "phase1", save_checkpoint
     )
+
+    if args.lora_rank > 0:
+        # The best checkpoint was written mid-training and still carries LoRA
+        # modules. Reload it, fold the update into the frozen weights, and write
+        # it back so Phase 2 loads a plain backbone.
+        saved = torch.load(args.checkpoint_path, map_location=device, weights_only=True)
+        model.load_state_dict(saved["model_state_dict"])
+        merged = merge_lora(model.backbone)
+        saved["model_state_dict"] = model.state_dict()
+        saved["lora_merged"] = merged
+        torch.save(saved, args.checkpoint_path)
+        logger.info("LoRA merged into the saved checkpoint | Projections: %d", merged)
 
 
 def python_paths(args):
@@ -851,6 +870,10 @@ def parse_args():
                           help="latent units or prototypes, held fixed across source configs")
     training.add_argument("--latent_temperature", type=float, default=0.1,
                           help="prototype assignment temperature for aux_mode=latent_proto")
+    training.add_argument("--lora_rank", type=int, default=0,
+                          help="Phase-1 LoRA rank; the backbone is frozen and only a rank-r "
+                               "update trains, then it is merged before the checkpoint is "
+                               "written so Phase 2 sees an ordinary backbone")
     training.add_argument("--source_interpolation", type=float, default=1.0,
                           help="blend the Phase-1 backbone toward its original pretrained "
                                "weights before Phase 2: 1.0 keeps Phase 1 whole, 0.0 "
