@@ -1570,3 +1570,58 @@ ràng buộc" đã đủ; không cần nó phải hơn.
 Đây là lần thứ tám một tín hiệu của tôi co lại khi có thêm dữ liệu, và lần thứ tư tôi phải sửa một
 phát biểu đã viết vào tài liệu này. Lần này khoảng cách chỉ là **hai giờ** — §27 viết ở n=10, sửa
 ở n=13.
+
+---
+
+## 30. Quy trình sàng lọc: một seed trước, nhiều seed sau
+
+Từ đây trở đi, mọi ý tưởng mới đi theo quy trình này thay vì chạy nhiều seed ngay:
+
+| Bước | Làm gì | Điều kiện đi tiếp |
+| --- | --- | --- |
+| 1 | Chạy **seed 42**, **đủ 5 fold**, kèm baseline huấn luyện lại tại seed đó trên chính máy đó | Δ dương và nhất quán qua các fold |
+| 2 | Mở rộng sang seed khác (36, 12, 7) để loại trừ may rủi | — |
+
+Chạy nhiều seed ngay từ đầu là lãng phí khi chưa biết có gì đáng xác nhận. Ba seed cho một ý tưởng
+hỏng tốn gấp ba lần một seed cho cùng kết luận đó.
+
+### 30.1 Vì sao đủ 5 fold, không phải 3
+
+Tài liệu này có bốn lần một tín hiệu ở n=3 co lại hoặc **đảo dấu** ở n=5:
+
+| Tín hiệu ở n=3 | Sự thật ở n=5 |
+| --- | --- |
+| `common` hơn `full` "gấp mười lần" | 3/5 fold, p = 0.4375 |
+| CodeT5+ `cls` tốt hơn baseline mean-pool | đảo ngược — hoà, hiệu +0.0014 |
+| hiệu cls − mean sd 0.00025 (cực ổn định) | sd 0.0093, fold 4 phá vỡ |
+| `latent_bottleneck` vượt cả hai kiểm định | ở n lớn hơn thì không |
+
+Với sd giữa các fold tới 0.09 trên tập test 152 mẫu, ba fold **không đủ** để thấy xu hướng. Năm
+fold là mức tối thiểu, và đó là lý do bước 1 chạy hết chứ không dừng ở 3.
+
+### 30.2 Vì sao sàng lọc một seed lại đáng tin ở đây
+
+Có một phản biện hiển nhiên: §19.3 cho thấy **Phase 1 không tái lập** — chạy lại cùng seed vẫn cho
+val nguồn lệch sd 0.0521. Vậy một seed thì ghim được gì?
+
+§26 trả lời được, và câu trả lời thuận lợi: nhiễu đó **không truyền xuống** Δ transfer.
+
+| Đại lượng | sd giữa các lần rút |
+| --- | --- |
+| val nguồn của Phase 1 | **0.0521** |
+| **Δ transfer** | **0.0085** |
+
+Nhỏ hơn sáu lần, và 5/5 lần rút đều dương kể cả lần rút hỏng dừng ở epoch 3. Nghĩa là **Δ ổn định
+hơn nhiều so với checkpoint sinh ra nó**, nên sàng lọc trên Δ ở một seed là hợp lệ.
+
+Điều này chỉ được biết vì `run/source-draws.sh` đã đo. Trước khi có §26, quy trình một-seed là một
+canh bạc; sau đó thì nó có cơ sở.
+
+### 30.3 Áp dụng đầu tiên
+
+`run/t5-seed42.sh` — head latent trên backbone T5, seed 42, đủ 5 fold.
+
+Đây là **khoảng trống thật**, không phải chạy lại: mọi lần chạy trên họ T5 từ trước tới nay đều chỉ
+dùng nhánh `cwe`. `latent_bottleneck` chưa từng chạy trên backbone nào ngoài CodeBERT, trong khi
+hai nhánh **không** hành xử giống nhau (§27: `cwe` có Δ lớn hơn, `latent_bottleneck` có p tốt hơn
+trên ROC-AUC). Câu "phương pháp không phụ thuộc pretrained" vì thế hiện mới chỉ được kiểm cho `cwe`.
