@@ -1411,3 +1411,70 @@ Tất cả vẫn trong **một backbone (CodeBERT), một source (ccpp+js), mộ
 `latent_bottleneck` chưa được chạy qua nhiều lần rút Phase 1 như `cwe` đã làm ở §26, nên độ bền
 của nó trước nhiễu lần rút **chưa được kiểm chứng**. Và PR-AUC của nó vẫn chưa vượt ngưỡng
 (p = 0.0645), nên "tốt hơn" đúng cho hai trên ba metric chứ không phải cả ba.
+
+---
+
+## 28. Bảng 2×2 hoàn chỉnh: **dấu bám theo cách đọc, không theo backbone**
+
+`run/pooling.sh` xong. Cả bốn ô của bảng {CodeBERT, CodeT5+} × {cls, mean} giờ đã có, cùng 3 fold,
+mỗi ô có baseline riêng huấn luyện đúng kiểu pooling của nó.
+
+| backbone | pooling | baseline | transfer | Δ | Δ từng fold |
+| --- | --- | --- | --- | --- | --- |
+| CodeBERT | cls | 0.8140 | 0.8451 | **+0.0311** | +0.0586, +0.0274, +0.0073 |
+| CodeBERT | mean | 0.8338 | 0.8296 | **−0.0042** | +0.0131, −0.0450, +0.0194 |
+| CodeT5+ | cls | 0.8713 | 0.8800 | **+0.0087** | +0.0065, −0.0001, +0.0196 |
+| CodeT5+ | mean | 0.8823 | 0.8647 | **−0.0176** | −0.0195, −0.0264, −0.0069 |
+
+| Δ | cls | mean | cls − mean |
+| --- | --- | --- | --- |
+| **CodeBERT** | +0.0311 | −0.0042 | **+0.0353** |
+| **CodeT5+** | +0.0087 | −0.0176 | **+0.0263** |
+
+### 28.1 Phép thử đã ghi trước ở §18.2
+
+§18.2 ghi trước hai khả năng: *"Dấu bám theo **cột** → cách đọc biểu diễn là cơ chế, và phương pháp
+không phụ thuộc pretrained model. Dấu bám theo **hàng** → backbone thật sự là biến quyết định."*
+
+**Dấu bám theo cột.** Dưới `cls`, cả hai backbone **dương** (+0.0311 và +0.0087). Dưới `mean`, cả
+hai **âm** (−0.0042 và −0.0176). Hiệu cls − mean cùng chiều và cùng bậc trên cả hai backbone
+(+0.0353 và +0.0263).
+
+Nghĩa là **hiện tượng "transfer làm hại backbone mạnh" phần lớn là artefact của cách đọc biểu
+diễn**, do một khẳng định sai trong `src/model.py` rằng họ T5 không có token ở vị trí 0 (§18.2).
+Đây là kết quả trực tiếp cho mục tiêu **không phụ thuộc pretrained**: dùng `cls` thì phương pháp
+dương trên cả hai họ backbone.
+
+### 28.2 Dự đoán số của tôi thì trượt
+
+§22.3 ghi: *"CodeBERT dưới mean pooling sẽ mất khoảng 0.026, tức Δ rơi từ +0.0417 xuống khoảng
++0.016, và **vẫn dương**."*
+
+| | |
+| --- | --- |
+| Hướng | **đúng** — mean pooling làm giảm Δ |
+| Độ lớn | **ước lượng thấp** — thực tế rơi 0.0353 chứ không phải 0.026 |
+| Dấu kết quả | **sai** — tôi nói vẫn dương, thực tế ra **−0.0042** |
+
+Hai trong ba thành phần sai. Ước lượng 0.026 lấy từ CodeT5+, và giả định ngầm là hiệu ứng pooling
+có cùng độ lớn trên mọi backbone. Nó không: CodeBERT mất **nhiều hơn** (0.0353).
+
+Thêm một chi tiết đáng chú ý: trên CodeT5+, hiệu cls − mean cực kỳ ổn định (+0.0260, +0.0263,
++0.0265, sd 0.00025). Trên CodeBERT thì **không hề**: −0.0455, −0.0724, +0.0121. Sự trùng khớp
+kinh ngạc ở §22.1 vì thế **không phải tính chất chung của phép đo** mà là đặc thù của CodeT5+ —
+đúng như §22.1 đã ngờ và ghi lại.
+
+### 28.3 Nhưng "dương" không đồng nghĩa "tốt nhất"
+
+| backbone | cấu hình tốt nhất trong bốn ô | giá trị |
+| --- | --- | --- |
+| **CodeBERT** | **transfer + cls** | **0.8451** |
+| **CodeT5+** | baseline + mean | 0.8823 |
+
+Trên CodeBERT, phương pháp **là** lựa chọn tốt nhất — nó vượt cả baseline mean-pool (0.8338).
+Trên CodeT5+, nó **không**: transfer+cls đạt 0.8800, vẫn thua baseline mean-pool 0.8823.
+
+Phát biểu chặt nhất cho mục tiêu pretrained-agnostic: **cách đọc biểu diễn giải thích được dấu, và
+sửa nó làm phương pháp dương trên cả hai backbone. Nhưng trên backbone mạnh, "dương so với baseline
+cùng cách đọc" vẫn chưa bằng "không transfer gì và pool bằng trung bình".** Khoảng cách còn lại là
+0.0023 — nhỏ, nhưng có dấu.
