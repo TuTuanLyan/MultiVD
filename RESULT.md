@@ -788,3 +788,81 @@ Báo cáo p = 0.0078 mà giấu p = 0.109 sẽ là chọn kiểm định theo k�
 seed lấy mẫu lại Phase 2 — không cái nào lấy mẫu lại model nguồn. `run/source-draws.sh` giữ cố
 định mọi thứ ở hạ nguồn và chỉ đổi checkpoint Phase 1; nó mới là thứ quyết định con số 0.0349
 thuộc về **phương pháp** hay thuộc về **hai lần rút may mắn**.
+
+---
+
+## 21. Lớp CWE nào của source mới chuyển giao được — và tôi lại đoán sai
+
+### 21.1 Con số
+
+Cùng corpus gốc PrimeVul, cùng CodeBERT, cùng folds twin, cùng baseline. Khác biệt duy nhất là
+**bộ CWE nào được giữ lại**:
+
+| Source | dòng | CWE | trùng CWE với target | Δ `transfer_cwe` |
+| --- | --- | --- | --- | --- |
+| `ccpp_primevul_paired_full` | 9408 | 121 | 4 CWE, 178 dòng (2%) | **+0.0037** (n=5) |
+| `ccpp_primevul_paired_common` | **2975** | 73 | 4 CWE, 178 dòng (6%) | **+0.0372** (n=3) |
+| `train_ccpp_js` | 1284 | 4 | 4 CWE, 1284 dòng (100%) | +0.0417 (n=5) |
+
+**Xóa 6433 dòng làm transfer tốt lên gấp mười lần.**
+
+### 21.2 Hai giải thích hiển nhiên đều bị số liệu loại
+
+**Không phải quy mô.** Quy mô đi ngược chiều — corpus nhỏ hơn lại là corpus tốt hơn.
+
+**Không phải chất lượng model nguồn.** Val Macro-F1 Phase 1 của `full` là 0.5329, của `common` là
+0.5197 — gần như bằng nhau. Hai model nguồn học được ngang nhau trên task của chính chúng, nhưng
+chuyển giao lệch nhau gấp mười lần. **Độ chính xác của Phase 1 không dự báo được giá trị transfer.**
+
+**Cũng không phải trùng nhãn với target.** `common` chỉ trùng **6%** số dòng với 4 CWE của target,
+gần bằng 2% của `full`, mà vẫn gần chạm nguồn trùng 100%. Đây là giả thuyết đầu tiên tôi định
+đưa ra và số liệu bác ngay.
+
+### 21.3 Điều thật sự phân biệt hai bộ
+
+48 CWE bị loại khỏi `full` để thành `common`, xếp theo số dòng:
+
+```
+CWE-119 buffer overflow          1097     CWE-399 resource management       311
+CWE-125 out-of-bounds read       1006     CWE-264 permissions               289
+CWE-787 out-of-bounds write       818     CWE-189 numeric errors            269
+CWE-476 NULL dereference          603     CWE-369 divide by zero            206
+CWE-416 use-after-free            460     CWE-401/772 memory & resource leak 353
+```
+
+Gần như toàn bộ là **lớp bộ nhớ và quản lý tài nguyên thủ công — những thứ không tồn tại trong
+Python.** Không có con trỏ, không có buffer, không có `free()`, có GC.
+
+73 CWE được giữ lại:
+
+```
+CWE-020 input validation          745     CWE-022 path traversal             80
+CWE-200 information exposure      482     CWE-078 command injection          50
+CWE-703 unchecked exceptions      419     CWE-079 XSS                        40
+CWE-190 integer overflow          341     CWE-059 link following             36
+CWE-835 infinite loop             115     CWE-770 alloc without limits       32
+```
+
+Toàn bộ là **lớp logic và kiểm tra đầu vào, độc lập ngôn ngữ**, và đều tồn tại trong Python.
+
+Cách đọc: điều quyết định không phải nhãn CWE có trùng target hay không, mà **kiểu hỏng mà lớp
+CWE đó mô tả có tồn tại được trong ngôn ngữ target hay không**. CWE bộ nhớ dạy model một khái
+niệm "thế nào là lỗ hổng" mà Python không thể biểu đạt, và trộn chúng vào **làm loãng** tín hiệu
+thay vì bổ sung.
+
+Điều này thay §16 điểm 3 bằng một phát biểu có cơ chế: không chỉ "chọn source quan trọng hơn quy
+mô source", mà **chọn theo tính khả chuyển khái niệm của lớp lỗ hổng**.
+
+### 21.4 Dự đoán sai thứ năm
+
+Tôi đã báo rằng thí nghiệm `common` "nhiều khả năng **không phân tách được** hai giả thuyết"
+vì Phase 1 của nó gần như đoán ngẫu nhiên (ma trận nhầm lẫn `[[131, 19], [127, 23]]`, std xác
+suất 0.0338), và lý do đưa ra là "không có gì để chuyển giao". Nó lại cho hiệu ứng **lớn thứ hai
+trong toàn dự án**.
+
+Sai lầm nằm ở chỗ ngầm giả định **độ chính xác nhị phân của Phase 1 đo được lượng thứ có thể
+chuyển giao**. §21.2 cho thấy nó không đo. Một model nguồn gần như đoán bừa trên task nhị phân
+của nó vẫn có thể định hình biểu diễn theo cách hữu ích cho target — thứ được chuyển đi là hình
+học đặc trưng do head phụ tạo ra, không phải năng lực phân loại của Phase 1.
+
+`run/common45.sh` chạy nốt fold 4–5 để đưa `common` lên n=5, so trực tiếp được với n=5 của `full`.
