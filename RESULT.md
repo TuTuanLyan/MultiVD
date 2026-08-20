@@ -910,3 +910,68 @@ chung baseline thì luôn ghép cặp theo fold trước, đừng bao giờ so h
 n của hai bên khác nhau.
 
 `run/common45.sh` đã chạy xong fold 5; số liệu ở §21.1 là bản đầy đủ.
+
+---
+
+## 22. Cách đọc biểu diễn, không phải backbone — nhưng chỉ đúng một nửa
+
+### 22.1 Số liệu
+
+CodeT5+ chạy lại với `POOLING=cls`, đọc từ token `<s>` ở vị trí 0 mà §18.2 chứng minh là **có tồn
+tại** trong họ T5. Mọi thứ khác giữ nguyên; `--pooling` nằm trong `SHARED` nên baseline cũng được
+huấn luyện lại cùng kiểu pooling.
+
+| fold | base cls | transfer cls | Δ_cls | base mean | transfer mean | Δ_mean | Δ_cls − Δ_mean |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0.8896 | 0.8961 | +0.0065 | 0.8961 | 0.8766 | −0.0195 | **+0.0260** |
+| 2 | 0.8823 | 0.8822 | −0.0001 | 0.8889 | 0.8625 | −0.0264 | **+0.0263** |
+| 3 | 0.8421 | 0.8617 | +0.0196 | 0.8618 | 0.8549 | −0.0069 | **+0.0265** |
+
+**Δ_mean = −0.0176 → Δ_cls = +0.0087. Dấu đổi.**
+
+Hiệu Δ_cls − Δ_mean là **+0.0260, +0.0263, +0.0265** — sd **0.00025**, trên một bài toán mà độ lệch
+chuẩn giữa các fold là 0.09. Hiệu của hai hiệu triệt tiêu độ khó của từng fold, đó chính là lý do
+thiết kế ghép cặp có tác dụng, nhưng mức trùng khớp này thì hoặc là một hiệu ứng rất sạch, hoặc là
+trùng hợp mà hai fold nữa sẽ phá vỡ. `run/t5cls45.sh` đã xếp hàng để đưa lên n=5.
+
+### 22.2 Tầng thứ ba, làm dịu hai tầng trên
+
+Nhìn giá trị **tuyệt đối** trên đúng ba fold đó:
+
+| cấu hình | Macro-F1 |
+| --- | --- |
+| **baseline, mean pooling** | **0.8823** |
+| transfer, cls pooling | 0.8800 |
+| baseline, cls pooling | 0.8713 |
+| transfer, mean pooling | 0.8647 |
+
+Cấu hình tốt nhất **vẫn là không transfer gì, dùng mean pooling**. Đổi cách đọc làm transfer thôi
+gây hại và bắt đầu có lợi **so với baseline của chính nó**, nhưng **không** làm nó vượt được
+baseline tốt nhất hiện có cho CodeT5+ — còn kém 0.0023, tức hòa.
+
+Phát biểu đúng cho mục tiêu pretrained-agnostic: **cách đọc biểu diễn giải thích được dấu âm, chứ
+chưa biến phương pháp thành lựa chọn tốt nhất trên backbone mạnh.**
+
+### 22.3 Cơ chế, và một dự đoán phát biểu **trước** khi chạy
+
+Bóc tách cho thấy hai chiều ngược nhau: cls cho baseline **kém hơn** (0.8713 so với 0.8823) nhưng
+transfer **tốt hơn** (0.8800 so với 0.8647). Nghĩa là **mean pooling tốt hơn cho finetune thường,
+cls tốt hơn cho phương pháp transfer.**
+
+Cơ chế khớp với thiết kế: head phụ đọc đúng vector đã pool. Với cls, nó có một **slot riêng** để
+định hình. Với mean, muốn định hình vector pool thì phải định hình lại phân bố của **mọi token**,
+và việc đó xung đột trực tiếp với task nhị phân.
+
+Nếu cơ chế này đúng thì nó là tính chất của **cách đọc**, không phải của checkpoint, nên nó phải
+lặp lại trên CodeBERT. Dự đoán cụ thể, ghi trước khi `run/pooling.sh` chạy:
+
+> CodeBERT dưới mean pooling sẽ **mất khoảng 0.026** so với chính nó dưới cls, tức Δ rơi từ
+> **+0.0417 xuống khoảng +0.016**, và **vẫn dương**.
+
+- Rơi khoảng 0.026 → cơ chế "head phụ cần một slot riêng" đứng vững trên cả hai backbone.
+- Rơi ít hơn nhiều, hoặc không rơi → hiệu ứng là đặc thù của CodeT5+, và §22.1 chỉ là trùng hợp
+  ở n=3.
+- Rơi tới mức âm → mean pooling phá phương pháp mạnh hơn nhiều so với ước lượng từ CodeT5+.
+
+Ghi dự đoán trước là cách duy nhất để lần này không rơi vào đúng cái bẫy đã sập sáu lần: nhìn số
+rồi mới dựng câu chuyện khớp với nó.
