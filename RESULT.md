@@ -1098,3 +1098,55 @@ Nghĩa là dùng source mặc định cho target JS sẽ là **rò rỉ toàn ph
 
 Ghi lại vì đây đúng là loại lỗi mà §6 đã tốn nhiều công để phát hiện một lần rồi, và vì bất kỳ ai
 sau này đổi `PHASE1_DATA_PATH` cho target JS đều sẽ vô tình tạo lại nó.
+
+---
+
+## 25. Chất lượng lần rút Phase 1 có dự báo được lợi ích transfer không?
+
+§19.3 cho thấy Phase 1 không tái lập: các lần rút trải sd 0.052 trên val nguồn. §19.4 coi đó
+thuần tuý là nhiễu phải lấy trung bình. `run/source-draws.sh` — vốn dựng ra để đo biên độ nhiễu đó
+— lại lộ ra một thứ khác.
+
+Ba lần rút đã xong, Phase 2 cố định ở seed 36, cùng 3 fold, cùng baseline. Biến duy nhất là
+checkpoint Phase 1:
+
+| Lần rút | val Macro-F1 nguồn | Δ Macro-F1 | Δ ROC-AUC |
+| --- | --- | --- | --- |
+| `twin_ccppjs` (gốc) | 0.6322 | +0.0311 | +0.0153 |
+| `draw_seed7` | 0.6495 | +0.0399 | +0.0277 |
+| `draw_seed18` | 0.6959 | +0.0529 | +0.0319 |
+
+**Thứ tự trùng khít trên cả hai metric.** Pearson r = +0.989 và +0.860.
+
+### 25.1 Vì sao r **không phải** bằng chứng
+
+Với ba điểm, hầu như mọi quan hệ đơn điệu đều cho r gần 1 — ba điểm gần như xác định một đường
+thẳng. Báo cáo r = 0.989 như một phát hiện sẽ là lỗi n nhỏ, lần thứ tám.
+
+Bằng chứng phải là **dự đoán ngoài mẫu**. Lần rút thứ tư trong hàng đợi là `same36_rep1`, val
+**0.5722** — thấp hơn cả ba lần trên, và đúng là lần rút "hỏng" dừng ở epoch 3 ở §19.3. Hồi quy
+tuyến tính trên ba điểm cho:
+
+> **Dự đoán, ghi trước khi chạy:** `same36_rep1` sẽ cho Δ Macro-F1 ≈ **+0.013** và
+> Δ ROC-AUC ≈ **+0.005** — thấp hơn rõ rệt cả ba lần rút kia, và là lần rút duy nhất mà transfer
+> gần như không còn tác dụng.
+
+- Trúng → val nguồn dự báo được lợi ích transfer **trong cùng một corpus**, và nhiễu Phase 1 chuyển
+  từ vấn đề thành công cụ: chạy Phase 1 vài lần, giữ lần tốt nhất theo val nguồn, rồi mới transfer.
+  Đây là một công thức rẻ và dùng được ngay, vì val nguồn **không đụng đến dữ liệu target**.
+- Trượt → tương quan chỉ là artefact của n=3, và §19.4 giữ nguyên: nhiễu lần rút là nhiễu, phải
+  lấy trung bình chứ không chọn lọc được.
+
+### 25.2 Quan hệ với §21.2
+
+§21.2 kết luận "độ chính xác Phase 1 không dự báo được giá trị transfer", dựa trên `full`
+(val 0.5329 → +0.0037) so với `common` (val 0.5197 → +0.0307). Hai phát biểu **không mâu thuẫn**
+vì chúng hỏi hai câu khác nhau:
+
+- **Giữa các corpus khác nhau**: val nguồn không so sánh được, vì mỗi corpus có tập validation
+  riêng và độ khó riêng. §21.2 vẫn đúng.
+- **Trong cùng một corpus, giữa các lần rút**: mọi lần rút chia sẻ đúng một tập validation, nên
+  val nguồn là thước đo so sánh được. Đây mới là câu §25 hỏi.
+
+Nếu dự đoán ở §25.1 trúng thì cách phát biểu gộp phải là: **chọn corpus thì đừng nhìn val nguồn;
+chọn lần rút trong một corpus thì hãy nhìn.**
