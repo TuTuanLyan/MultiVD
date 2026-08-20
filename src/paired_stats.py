@@ -94,26 +94,37 @@ def main():
     parser.add_argument("--results_root", required=True,
                         help="directory holding <method>/seed_<seed>/foldN.json")
     parser.add_argument("--baseline", default="baseline")
-    parser.add_argument("--seed", type=int, default=36)
+    parser.add_argument("--seed", type=int, nargs="+", default=[36],
+                        help="one or more seeds; folds from every seed are pooled into one "
+                             "paired sample, which is what lets the Wilcoxon test clear 0.05 "
+                             "-- five folds alone put the floor at 0.0625")
     parser.add_argument("--metric", default="test_macro_f1_at_0.5")
     parser.add_argument("--n_train", type=int, default=456)
     parser.add_argument("--n_test", type=int, default=152)
     args = parser.parse_args()
 
     root = Path(args.results_root)
-    base = load(root / args.baseline / f"seed_{args.seed}", args.metric)
+    # Key observations by (seed, fold) so pooling several seeds keeps each fold
+    # paired against the baseline from its own seed.
+    base = {}
+    for seed in args.seed:
+        for fold, value in load(root / args.baseline / f"seed_{seed}", args.metric).items():
+            base[(seed, fold)] = value
     if not base:
         print(f"no baseline results under {root / args.baseline}")
         return
 
     methods = sorted(p.name for p in root.iterdir() if p.is_dir() and p.name != args.baseline)
-    print(f"[{args.metric}] baseline n={len(base)}  "
+    print(f"[{args.metric}] seeds={args.seed}  baseline n={len(base)}  "
           f"mean={statistics.mean(base.values()):.4f}\n")
     header = f"{'method':<30}{'n':>3}{'Δ mean':>10}{'Δ std':>9}{'A12':>7}{'Wilcoxon p':>12}{'t_corr':>9}"
     print(header)
     print("-" * len(header))
     for method in methods:
-        scores = load(root / method / f"seed_{args.seed}", args.metric)
+        scores = {}
+        for seed in args.seed:
+            for fold, value in load(root / method / f"seed_{seed}", args.metric).items():
+                scores[(seed, fold)] = value
         folds = sorted(set(scores) & set(base))
         if len(folds) < 2:
             print(f"{method:<30}{len(folds):>3}  (need at least two paired folds)")
@@ -132,8 +143,10 @@ def main():
         )
 
     n = len(base)
-    print(f"\nSmallest reachable Wilcoxon p at n={n} is {2 / (2 ** n):.4f}; "
-          f"significance at 0.05 is unreachable below n=6.")
+    floor = 2 / (2 ** n)
+    print(f"\nSmallest reachable Wilcoxon p at n={n} is {floor:.4f}"
+          + ("; 0.05 is reachable." if floor < 0.05
+             else "; 0.05 is unreachable, pool more seeds."))
     print("A12 reads as P(method > baseline) on a randomly drawn fold: "
           "0.50 is no difference, 0.71 and above is a large effect.")
 
