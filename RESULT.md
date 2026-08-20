@@ -1,7 +1,8 @@
 # Kết quả thí nghiệm
 
 Tài liệu này ghi lại các thí nghiệm đã chạy và số liệu cụ thể, để tra cứu về sau.
-Số thô nằm ở `results_vast/`, log ở `logs_vast/` (không track trong git).
+Số thô nằm ở `results_vast/` (**có** track trong git — các file `summary.json` và `fold*.json`
+đi kèm repo để đối chiếu lại được). Log ở `logs_vast/` thì không track vì quá nặng.
 
 Mọi so sánh trong tài liệu này chỉ hợp lệ **trong cùng một bảng**. Xem mục
 [Cảnh báo so sánh chéo](#cảnh-báo-so-sánh-chéo-máy) trước khi ghép số từ hai bảng khác nhau.
