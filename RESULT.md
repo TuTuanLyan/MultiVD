@@ -282,6 +282,39 @@ twin thì ta đã đi tiếp với một kết quả sai.
 **`none` vẫn âm trên metric xếp hạng** (ROC −0.016, PR −0.034) dù Macro-F1 gần bằng baseline.
 Kết luận "task phụ tạo ra khả năng phân biệt" giữ nguyên.
 
+
+### 10.3 Thống kê ghép cặp trên folds twin (CodeBERT, 5 fold)
+
+Trung bình trần không đủ khi độ lệch chuẩn giữa các fold (tới 0.09) lớn hơn hiệu ứng cần đo
+(0.02–0.04). Bảng dưới dùng các kiểm định mà y văn phương pháp luận khuyến nghị cho mẫu nhỏ.
+
+| Cấu hình | Δ mean | Δ std | **A12** | Wilcoxon p | t hiệu chỉnh |
+| --- | --- | --- | --- | --- | --- |
+| `cwe` | +0.0417 | 0.0311 | **0.88** | 0.0625 | +1.83 |
+| `latent_bottleneck` | +0.0268 | **0.0196** | **0.84** | 0.0625 | **+1.87** |
+| `latent_proto` | +0.0254 | 0.0380 | 0.72 | 0.1250 | +0.92 |
+| `none` | −0.0025 | 0.0249 | 0.48 | 1.0000 | −0.14 |
+
+**A12** = xác suất cấu hình thắng baseline trên một fold bốc ngẫu nhiên. Ngưỡng 0.71 trở lên
+là hiệu ứng lớn (Vargha & Delaney). `cwe` 0.88 và `latent_bottleneck` 0.84 đều vượt; `none`
+đạt 0.48 tức **đúng bằng tung đồng xu**.
+
+`latent_bottleneck` có **độ lệch chuẩn thấp nhất** và **t hiệu chỉnh cao nhất** dù Δ mean thấp
+hơn `cwe` — hiệu ứng nhỏ hơn nhưng nhất quán hơn.
+
+### Giới hạn phải nêu rõ
+
+**Ở n=5, giá trị Wilcoxon p nhỏ nhất có thể đạt là 0.0625.** Không cấu hình nào có thể xuống
+dưới 0.05 với một seed, dù hiệu ứng sạch đến đâu — đây là tính chất của cỡ mẫu, không phải
+của dữ liệu.
+
+Hệ quả: mọi kết quả một-seed trong tài liệu này là **sàng lọc hướng đi**, không phải bằng chứng
+công bố được. Từ ước tính công suất ở `RESEARCH_2026-08-20_0959.md` §6 (σ≈0.03, δ≈0.02 → cần
+~18 cặp quan sát), cấu hình nào sống sót cần **4 seed × 5 fold**.
+
+Công cụ: `src/paired_stats.py`, đã kiểm chứng bằng các ca biết trước đáp án (toàn dấu dương →
+đúng 0.0625; dấu lẫn lộn → 0.8125; A12 = 1.00 khi thắng tuyệt đối, 0.50 khi giống hệt).
+
 ### 10.2 CodeT5+ — negative transfer tái hiện, và LP-FT không cứu được
 
 | Config | Macro-F1 @0.5 | Δ | ROC-AUC | Δ |
