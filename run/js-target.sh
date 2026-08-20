@@ -12,6 +12,7 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source /venv/main/bin/activate
 export HF_HOME=/workspace/hf PYTHON=python
 export DATA_ROOT=data/js_twin
+export TARGET_LANG=js
 export RUN_NAME=jstarget_pvcommon
 export SEED=${SEED:-36}
 export CWE_VOCAB=source

@@ -117,7 +117,7 @@ def loaders(args, tokenizer, include_test=False):
     train_path, val_path, test_path = python_paths(args)
     logger.info("Loading Python validation data: %s", val_path)
     val_records = limit_records(
-        load_jsonl(val_path, "python"), args.max_eval_samples, args.seed
+        load_jsonl(val_path, args.target_lang), args.max_eval_samples, args.seed
     )
     val_loader = build_dataloader(
         val_records,
@@ -133,7 +133,7 @@ def loaders(args, tokenizer, include_test=False):
         logger.info("Loading Python test data: %s", test_path)
         print_dataset_stats("python_val", val_records)
         test_records = limit_records(
-            load_jsonl(test_path, "python"), args.max_eval_samples, args.seed
+            load_jsonl(test_path, args.target_lang), args.max_eval_samples, args.seed
         )
         print_dataset_stats("python_test", test_records)
         test_loader = build_dataloader(
@@ -150,7 +150,7 @@ def loaders(args, tokenizer, include_test=False):
 
     logger.info("Loading Python training data: %s", train_path)
     train_records = limit_records(
-        load_jsonl(train_path, "python"), args.max_train_samples, args.seed
+        load_jsonl(train_path, args.target_lang), args.max_train_samples, args.seed
     )
     print_dataset_stats("python_train", train_records)
     print_dataset_stats("python_val", val_records)
@@ -285,6 +285,8 @@ def parse_args():
     parser.add_argument("--test_path", help="optional Python test JSONL override")
     parser.add_argument("--checkpoint_path", help="checkpoint to write/read")
     parser.add_argument("--result_path", help="test result JSON")
+    parser.add_argument("--target_lang", default="python",
+                        help="language every target row must declare")
     parser.add_argument("--data_root", default="data/sven_python_folds_norm",
                         help="directory holding fold1..fold5")
     parser.add_argument("--model_name", default="microsoft/codebert-base", help="backbone")

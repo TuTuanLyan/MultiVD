@@ -670,8 +670,8 @@ def run_phase2(args, device):
     train_path, val_path, _ = python_paths(args)
     logger.info("Loading Python training data: %s", train_path)
     logger.info("Loading Python validation data: %s", val_path)
-    train_records = limit_records(load_jsonl(train_path, "python"), args.max_train_samples, args.seed)
-    val_records = limit_records(load_jsonl(val_path, "python"), args.max_eval_samples, args.seed)
+    train_records = limit_records(load_jsonl(train_path, args.target_lang), args.max_train_samples, args.seed)
+    val_records = limit_records(load_jsonl(val_path, args.target_lang), args.max_eval_samples, args.seed)
     print_dataset_stats("python_train", train_records)
     print_dataset_stats("python_val", val_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -758,8 +758,8 @@ def run_test(args, device):
     _, val_path, test_path = python_paths(args)
     logger.info("Loading Python validation data: %s", val_path)
     logger.info("Loading Python test data: %s", test_path)
-    val_records = limit_records(load_jsonl(val_path, "python"), args.max_eval_samples, args.seed)
-    test_records = limit_records(load_jsonl(test_path, "python"), args.max_eval_samples, args.seed)
+    val_records = limit_records(load_jsonl(val_path, args.target_lang), args.max_eval_samples, args.seed)
+    test_records = limit_records(load_jsonl(test_path, args.target_lang), args.max_eval_samples, args.seed)
     print_dataset_stats("python_val", val_records)
     print_dataset_stats("python_test", test_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
@@ -865,6 +865,9 @@ def parse_args():
 
     paths = parser.add_argument_group("data and output paths")
     paths.add_argument("--data_path", default="data/train_ccpp_filtered.jsonl", help="Phase-1 JSONL")
+    paths.add_argument("--target_lang", default="python",
+                       help="language every target row must declare; guards against pointing "
+                            "--data_root at folds from a different corpus by mistake")
     paths.add_argument("--data_root", default="data/sven_python_folds_norm",
                        help="directory holding fold1..fold5; point at the pair-preserving "
                             "folds to evaluate without near-duplicate leakage")

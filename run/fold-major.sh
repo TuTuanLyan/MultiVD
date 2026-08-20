@@ -20,6 +20,7 @@ SEED="${SEED:-36}"
 RUN_NAME="${RUN_NAME:-auxmatrix_ccppjs}"
 DATA="${PHASE1_DATA_PATH:-data/train_ccpp_js.jsonl}"
 DATA_ROOT="${DATA_ROOT:-data/sven_python_folds_norm}"
+TARGET_LANG="${TARGET_LANG:-python}"
 MODES="${MODES-cwe latent_bottleneck latent_proto none}"
 FOLDS="${FOLDS:-1 2 3 4 5}"
 NUM_LATENT="${NUM_LATENT:-8}"
@@ -49,7 +50,8 @@ SHARED=(
   --seed "$SEED" --batch_size "$BATCH_SIZE" --eval_batch_size "$EVAL_BATCH_SIZE"
   --max_length "$MAX_LENGTH" --truncation_strategy head_middle_tail
   --weight_decay 0.01 --patience 5 --min_epochs 3 --max_grad_norm 1.0 --num_workers 0
-  --data_root "$DATA_ROOT" --model_name "$MODEL_NAME" --pooling "$POOLING"
+  --data_root "$DATA_ROOT" --target_lang "$TARGET_LANG"
+  --model_name "$MODEL_NAME" --pooling "$POOLING"
 )
 
 # train_baseline.py accepts none of these, so they stay out of SHARED and go
