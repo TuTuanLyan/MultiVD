@@ -796,20 +796,43 @@ thuộc về **phương pháp** hay thuộc về **hai lần rút may mắn**.
 
 ## 21. Lớp CWE nào của source mới chuyển giao được — và tôi lại đoán sai
 
-### 21.1 Con số
+### 21.1 Con số, và vì sao cách đọc đầu tiên của tôi sai
 
 Cùng corpus gốc PrimeVul, cùng CodeBERT, cùng folds twin, cùng baseline. Khác biệt duy nhất là
 **bộ CWE nào được giữ lại**:
 
 | Source | dòng | CWE | trùng CWE với target | Δ `transfer_cwe` |
 | --- | --- | --- | --- | --- |
-| `ccpp_primevul_paired_full` | 9408 | 121 | 4 CWE, 178 dòng (2%) | **+0.0037** (n=5) |
-| `ccpp_primevul_paired_common` | **2975** | 73 | 4 CWE, 178 dòng (6%) | **+0.0372** (n=3) |
+| `ccpp_primevul_paired_full` | 9408 | 121 | 4 CWE, 178 dòng (2%) | +0.0037 (n=5) |
+| `ccpp_primevul_paired_common` | **2975** | 73 | 4 CWE, 178 dòng (6%) | +0.0251 (n=4) |
 | `train_ccpp_js` | 1284 | 4 | 4 CWE, 1284 dòng (100%) | +0.0417 (n=5) |
 
-**Xóa 6433 dòng làm transfer tốt lên gấp mười lần.**
+Đọc bảng này rồi kết luận "xóa 6433 dòng làm transfer tốt lên gấp mười lần" là **sai phương pháp**,
+và tôi đã viết đúng câu đó ở bản trước. Nó so **hai trung bình ở n khác nhau** (khi đó là n=3 với
+n=5) trong khi `full` và `common` **dùng chung y hệt một baseline**, nên phép so ghép cặp theo
+từng fold luôn sẵn có và chặt hơn hẳn.
 
-### 21.2 Hai giải thích hiển nhiên đều bị số liệu loại
+Ghép cặp theo fold:
+
+| fold | baseline | `full` | `common` | common − full |
+| --- | --- | --- | --- | --- |
+| 1 | 0.8113 | **0.7532** | 0.8700 | **+0.1168** |
+| 2 | 0.8157 | 0.8431 | 0.8348 | −0.0083 |
+| 3 | 0.8150 | 0.8289 | 0.8486 | +0.0197 |
+| 4 | 0.8654 | 0.8871 | 0.8542 | −0.0329 |
+| 5 | 0.8333 | 0.8467 | *đang chạy* | — |
+
+**`common` chỉ hơn `full` ở 2/4 fold**, trung bình +0.0238 nhưng độ lệch chuẩn 0.0656. Và toàn bộ
+lợi thế nằm ở **fold 1**, nơi `full` đạt 0.7532 — thấp hơn 0.076 so với fold tệ thứ nhì của chính
+nó (0.8289). Bỏ fold 1 ra thì `common` **kém hơn** `full`: −0.0072 trên ba fold còn lại.
+
+Nên khác biệt giữa hai bộ source **chưa được xác lập**. Điều đứng vững chỉ là: `full` với 9408
+dòng cho +0.0037, tức gần như vô ích, còn `train_ccpp_js` với 1284 dòng cho +0.0417 — quy mô
+source không mua được gì. Còn *lọc CWE có cứu được PrimeVul hay không* thì cần fold 5 và nhiều
+khả năng cần cả nhiều lần rút Phase 1, vì §19.3 cho thấy nhiễu lần rút có sd 0.052 — **lớn hơn
+chính hiệu ứng đang tranh luận**.
+
+### 21.2 Ba giải thích cho khoảng cách — nếu khoảng cách là thật
 
 **Không phải quy mô.** Quy mô đi ngược chiều — corpus nhỏ hơn lại là corpus tốt hơn.
 
@@ -848,15 +871,16 @@ CWE-835 infinite loop             115     CWE-770 alloc without limits       32
 
 Toàn bộ là **lớp logic và kiểm tra đầu vào, độc lập ngôn ngữ**, và đều tồn tại trong Python.
 
-Cách đọc: điều quyết định không phải nhãn CWE có trùng target hay không, mà **kiểu hỏng mà lớp
-CWE đó mô tả có tồn tại được trong ngôn ngữ target hay không**. CWE bộ nhớ dạy model một khái
-niệm "thế nào là lỗ hổng" mà Python không thể biểu đạt, và trộn chúng vào **làm loãng** tín hiệu
-thay vì bổ sung.
+Giả thuyết tương ứng: điều quyết định không phải nhãn CWE có trùng target hay không, mà **kiểu
+hỏng mà lớp CWE đó mô tả có tồn tại được trong ngôn ngữ target hay không**. CWE bộ nhớ dạy model
+một khái niệm "thế nào là lỗ hổng" mà Python không thể biểu đạt.
 
-Điều này thay §16 điểm 3 bằng một phát biểu có cơ chế: không chỉ "chọn source quan trọng hơn quy
-mô source", mà **chọn theo tính khả chuyển khái niệm của lớp lỗ hổng**.
+Đây là một giả thuyết **hấp dẫn và chưa được kiểm chứng**. §21.1 cho thấy dữ liệu hiện có chưa đủ
+sức phân biệt nó với nhiễu. Ghi lại ở đây vì nó gợi ra một thí nghiệm cụ thể — lọc source theo
+tính khả chuyển khái niệm rồi đo trên nhiều lần rút Phase 1 — chứ không phải vì nó đã được chứng
+minh.
 
-### 21.4 Dự đoán sai thứ năm
+### 21.4 Dự đoán sai thứ năm, và một lỗi phương pháp thứ sáu
 
 Tôi đã báo rằng thí nghiệm `common` "nhiều khả năng **không phân tách được** hai giả thuyết"
 vì Phase 1 của nó gần như đoán ngẫu nhiên (ma trận nhầm lẫn `[[131, 19], [127, 23]]`, std xác
@@ -868,4 +892,9 @@ chuyển giao**. §21.2 cho thấy nó không đo. Một model nguồn gần nh�
 của nó vẫn có thể định hình biểu diễn theo cách hữu ích cho target — thứ được chuyển đi là hình
 học đặc trưng do head phụ tạo ra, không phải năng lực phân loại của Phase 1.
 
-`run/common45.sh` chạy nốt fold 4–5 để đưa `common` lên n=5, so trực tiếp được với n=5 của `full`.
+Lỗi thứ sáu là của chính bản ghi này: tôi so hai trung bình ở n khác nhau khi phép so ghép cặp
+đã sẵn có, rồi viết "gấp mười lần" vào tài liệu. Bài học lặp lại lần nữa — **khi hai nhánh dùng
+chung baseline thì luôn ghép cặp theo fold trước, đừng bao giờ so hai Δ trung bình**, nhất là khi
+n của hai bên khác nhau.
+
+`run/common45.sh` đang chạy nốt fold 5.
