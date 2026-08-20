@@ -1734,3 +1734,57 @@ phải có target lớn hơn, không phải chạy lâu hơn.
 Vì thế máy rảnh được dùng cho **chiều đang mỏng nhất** thay vì làm dày chiều đã đủ: `cwe` và
 `latent_bottleneck` trên CodeBERT đã có n=15, trong khi **CodeT5+ mới chỉ có n=5 ở đúng một seed**.
 `run/gated.sh` với `SEED=18` chạy cả hai backbone trên cùng một máy để bổ sung đúng chỗ đó.
+
+---
+
+## 33. Hai run cổng chặn hoàn tất — bức tranh 5 seed, và một kết quả âm quan trọng
+
+`gate1` (seed 42) và `gate18` (seed 18) chạy xong đủ 5 fold, mỗi run có baseline riêng cho từng
+backbone trên chính máy đó. Gộp với ba seed cũ:
+
+### 33.1 CodeBERT · cls — 5 seed, n=25
+
+| Nhánh | seed 36 | seed 12 | seed 7 | seed 42 | seed 18 | **gộp n=25** | **sd giữa các seed** |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `cwe` | +0.0417 | +0.0370 | +0.0442 | **+0.0157** | +0.0422 | **+0.0362** | 0.0117 |
+| `latent_bottleneck` | +0.0268 | +0.0319 | +0.0203 | +0.0234 | +0.0266 | **+0.0258** | **0.0043** |
+| `none` | −0.0025 | +0.0184 | +0.0079 | +0.0090 | **+0.0264** | +0.0119 | 0.0110 |
+
+**`latent_bottleneck` ổn định gấp 2.7 lần `cwe` giữa các seed** — sd 0.0043 so với 0.0117, dải chỉ
++0.0203…+0.0319 trong khi `cwe` trải +0.0157…+0.0442. Đây là phiên bản mạnh hơn nhiều của tuyên bố
+đã bị rút ở §29: lần đó dựa trên 2 seed và trục fold, lần này 5 seed và trục seed.
+
+**Nhưng `none` cũng phải sửa.** Ở n=13 nó là +0.0078 và được mô tả là phẳng. Ở n=25 nó là **+0.0119**
+và dải trải từ −0.0025 tới **+0.0264** — seed 18 cho `none` gần bằng `latent_bottleneck`. Ablation
+λ=0 **không null sạch** như các mục trước nói; khoảng cách `cwe` − `none` thu hẹp còn +0.024.
+
+### 33.2 CodeT5+ · cls — kết quả âm
+
+| Nhánh | seed 36 | seed 42 | seed 18 | gộp | sd giữa các seed |
+| --- | --- | --- | --- | --- | --- |
+| `cwe` | +0.0039 | +0.0279 | **−0.0132** | +0.0062 (n=15) | **0.0206** |
+| `latent_bottleneck` | — | **−0.0079** | **−0.0094** | **−0.0086** (n=10) | 0.0010 |
+| `none` | — | +0.0081 | −0.0144 | −0.0032 (n=10) | 0.0160 |
+
+**Trên CodeT5+, nhánh latent âm ở cả hai seed** (−0.0079 và −0.0094, cực kỳ nhất quán về phía âm).
+`cwe` thì dao động hoang dã: −0.0132 đến +0.0279, sd giữa seed **0.0206** — lớn hơn cả hiệu ứng
+trung bình +0.0062.
+
+Đây là **kết quả âm và phải nói thẳng**: §28 kết luận sửa cách đọc biểu diễn làm phương pháp dương
+trên cả hai họ backbone, dựa trên **một seed** của CodeT5+ (+0.0039, vốn đã nằm trong nhiễu). Thêm
+hai seed cho thấy con số đó không lặp lại, và nhánh latent — nhánh tốt nhất trên CodeBERT — **âm
+đều** trên CodeT5+.
+
+### 33.3 Phát biểu đúng sau tất cả
+
+| | CodeBERT (5 seed, n=25) | CodeT5+ (2–3 seed) |
+| --- | --- | --- |
+| `cwe` | +0.0362, sd seed 0.0117 | +0.0062, sd seed **0.0206** — không lặp lại |
+| `latent_bottleneck` | **+0.0258, sd seed 0.0043** | **−0.0086** — âm cả hai seed |
+
+**Phương pháp có tác dụng rõ và ổn định trên CodeBERT, và không chuyển được sang CodeT5+.** Mục
+tiêu "không phụ thuộc pretrained" **chưa đạt**. Việc sửa pooling ở §28 gỡ được phần lớn thiệt hại
+nhưng không tạo ra lợi ích trên backbone mạnh — và ở nhánh latent thì vẫn còn hại nhẹ.
+
+Điều đứng vững nhất còn lại: trên backbone mà phương pháp hoạt động, **nhánh latent vừa gỡ được
+ràng buộc taxonomy vừa là nhánh ổn định nhất qua 5 seed**.
