@@ -804,7 +804,7 @@ Cùng corpus gốc PrimeVul, cùng CodeBERT, cùng folds twin, cùng baseline. K
 | Source | dòng | CWE | trùng CWE với target | Δ `transfer_cwe` |
 | --- | --- | --- | --- | --- |
 | `ccpp_primevul_paired_full` | 9408 | 121 | 4 CWE, 178 dòng (2%) | +0.0037 (n=5) |
-| `ccpp_primevul_paired_common` | **2975** | 73 | 4 CWE, 178 dòng (6%) | +0.0251 (n=4) |
+| `ccpp_primevul_paired_common` | **2975** | 73 | 4 CWE, 178 dòng (6%) | +0.0307 (n=5) |
 | `train_ccpp_js` | 1284 | 4 | 4 CWE, 1284 dòng (100%) | +0.0417 (n=5) |
 
 Đọc bảng này rồi kết luận "xóa 6433 dòng làm transfer tốt lên gấp mười lần" là **sai phương pháp**,
@@ -812,25 +812,37 @@ và tôi đã viết đúng câu đó ở bản trước. Nó so **hai trung bì
 n=5) trong khi `full` và `common` **dùng chung y hệt một baseline**, nên phép so ghép cặp theo
 từng fold luôn sẵn có và chặt hơn hẳn.
 
-Ghép cặp theo fold:
+Ghép cặp theo fold, đủ 5 fold:
 
-| fold | baseline | `full` | `common` | common − full |
+| fold | baseline | `full` cwe | `common` cwe | common − full |
 | --- | --- | --- | --- | --- |
 | 1 | 0.8113 | **0.7532** | 0.8700 | **+0.1168** |
 | 2 | 0.8157 | 0.8431 | 0.8348 | −0.0083 |
 | 3 | 0.8150 | 0.8289 | 0.8486 | +0.0197 |
 | 4 | 0.8654 | 0.8871 | 0.8542 | −0.0329 |
-| 5 | 0.8333 | 0.8467 | *đang chạy* | — |
+| 5 | 0.8333 | 0.8467 | 0.8865 | +0.0398 |
 
-**`common` chỉ hơn `full` ở 2/4 fold**, trung bình +0.0238 nhưng độ lệch chuẩn 0.0656. Và toàn bộ
-lợi thế nằm ở **fold 1**, nơi `full` đạt 0.7532 — thấp hơn 0.076 so với fold tệ thứ nhì của chính
-nó (0.8289). Bỏ fold 1 ra thì `common` **kém hơn** `full`: −0.0072 trên ba fold còn lại.
+| nhánh phụ | 5 hiệu ghép cặp | dương | mean | sd | Wilcoxon p |
+| --- | --- | --- | --- | --- | --- |
+| `cwe` | +0.1168, −0.0083, +0.0197, −0.0329, +0.0398 | 3/5 | +0.0270 | 0.0573 | **0.4375** |
+| `latent_bottleneck` | −0.0260, +0.0329, +0.0798, +0.0525, −0.0132 | 3/5 | +0.0252 | 0.0444 | **0.3125** |
 
-Nên khác biệt giữa hai bộ source **chưa được xác lập**. Điều đứng vững chỉ là: `full` với 9408
-dòng cho +0.0037, tức gần như vô ích, còn `train_ccpp_js` với 1284 dòng cho +0.0417 — quy mô
-source không mua được gì. Còn *lọc CWE có cứu được PrimeVul hay không* thì cần fold 5 và nhiều
-khả năng cần cả nhiều lần rút Phase 1, vì §19.3 cho thấy nhiễu lần rút có sd 0.052 — **lớn hơn
-chính hiệu ứng đang tranh luận**.
+Ba điều cùng lúc, không được bỏ điều nào:
+
+**Hướng nhất quán.** Cả hai head phụ độc lập đều cho `common` hơn `full` khoảng **+0.026**, và
+dấu sống sót qua phép bỏ-một-fold ở cả hai (`cwe`: +0.0046 … +0.0420; `latent_bottleneck`:
++0.0115 … +0.0380). Hai phép đo bán độc lập trùng hướng và trùng độ lớn.
+
+**Không đạt ý nghĩa thống kê.** p = 0.4375 và 0.3125, trong khi sàn ở n=5 là 0.0625. Còn rất xa.
+
+**Nhánh `cwe` dựa nhiều vào fold 1.** Bỏ fold 1 thì nó chỉ còn +0.0046. `latent_bottleneck` thì
+không có điểm tựa đơn lẻ nào như vậy, nên nó mới là bằng chứng tốt hơn cho cùng một hướng.
+
+Kết luận: khác biệt giữa hai bộ source **vẫn chưa được xác lập**, nhưng cũng không phải không có
+gì — nó là một hướng nhất quán ở cỡ hiệu ứng khoảng +0.026 mà n=5 không đủ sức phân giải. Điều
+đứng vững chắc chắn vẫn là: `full` với 9408 dòng cho +0.0037, còn `train_ccpp_js` với 1284 dòng
+cho +0.0417 — **quy mô source không mua được gì**. Muốn xác lập phần còn lại thì cần nhiều lần
+rút Phase 1, vì §19.3 cho thấy nhiễu lần rút có sd 0.052 — **lớn gấp đôi hiệu ứng đang tranh luận**.
 
 ### 21.2 Ba giải thích cho khoảng cách — nếu khoảng cách là thật
 
@@ -897,4 +909,4 @@ Lỗi thứ sáu là của chính bản ghi này: tôi so hai trung bình ở n 
 chung baseline thì luôn ghép cặp theo fold trước, đừng bao giờ so hai Δ trung bình**, nhất là khi
 n của hai bên khác nhau.
 
-`run/common45.sh` đang chạy nốt fold 5.
+`run/common45.sh` đã chạy xong fold 5; số liệu ở §21.1 là bản đầy đủ.
