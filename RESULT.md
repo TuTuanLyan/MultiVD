@@ -253,3 +253,90 @@ và phân kỳ bắt đầu ngay từ Phase 1 (val Macro-F1 0.6589 so với 0.53
 
 Vì vậy **chỉ so số trong cùng một bảng**. Mỗi bảng ở trên đều được sinh từ một lượt chạy
 trên một máy duy nhất, và mỗi backbone luôn có baseline riêng chạy cùng lượt.
+
+---
+
+## 10. Thí nghiệm trên folds twin (không rò rỉ)
+
+Toàn bộ mục 2–4 đo trên folds gốc có rò rỉ 40–44%. Mục này chạy lại trên
+`data/sven_python_twin` (rò rỉ 0.1%), cùng seed 36, cùng máy cho mỗi bảng.
+
+### 10.1 CodeBERT — bốn chế độ head phụ, 5 fold
+
+| Config | Macro-F1 @0.5 | Δ | ROC-AUC | Δ | PR-AUC | Δ |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline | 0.8281 | — | 0.9153 | — | 0.9121 | — |
+| cwe | 0.8698 | **+0.0417** | 0.9387 | **+0.0234** | 0.9407 | **+0.0286** |
+| latent_bottleneck | 0.8549 | +0.0268 | 0.9333 | +0.0181 | 0.9316 | +0.0195 |
+| latent_proto | 0.8536 | +0.0254 | 0.9195 | +0.0042 | 0.8989 | −0.0132 |
+| none | 0.8257 | −0.0025 | 0.8992 | −0.0160 | 0.8778 | −0.0343 |
+
+**Hiệu ứng transfer sống sót khi hết rò rỉ.** `cwe` giữ +0.042 Macro-F1 (folds cũ: +0.029).
+Đây là kết quả quan trọng nhất của mục này: lợi ích **không phải do rò rỉ tạo ra**.
+
+**`latent_proto` mất phần lớn ưu thế: +0.0635 → +0.0254.** Trên folds cũ nó cao gần gấp đôi
+các mode khác; trên folds sạch nó ngang bằng, và PR-AUC vẫn âm (−0.013). Kết luận: ưu thế
+trước đây **chủ yếu là ảo**, do nó khai thác được cấu trúc cặp bị lộ. Nếu không dựng folds
+twin thì ta đã đi tiếp với một kết quả sai.
+
+**`none` vẫn âm trên metric xếp hạng** (ROC −0.016, PR −0.034) dù Macro-F1 gần bằng baseline.
+Kết luận "task phụ tạo ra khả năng phân biệt" giữ nguyên.
+
+### 10.2 CodeT5+ — negative transfer tái hiện, và LP-FT không cứu được
+
+| Config | Macro-F1 @0.5 | Δ | ROC-AUC | Δ |
+| --- | --- | --- | --- | --- |
+| baseline | 0.8879 | — | 0.9574 | — |
+| cwe | 0.8696 | −0.0184 | 0.9455 | −0.0119 |
+| cwe + LP-FT | 0.8682 | −0.0198 | 0.9358 | **−0.0216** |
+
+Negative transfer tái hiện trên folds sạch (−0.018 so với −0.027 trên folds cũ), nên đây là
+hiện tượng thật. **LP-FT không những không cứu mà còn làm tệ hơn** trên metric xếp hạng.
+
+Đã kiểm chứng linear probe thật sự chạy trước khi kết luận: log có dòng `Linear probe`,
+`lp_epochs=3`, `lp_lr=1e-3`, hai nhánh dừng ở epoch khác nhau (29 vs 13) với val khác nhau.
+
+**Khoảng cách backbone lớn hơn mọi can thiệp.** Baseline CodeT5+ đạt 0.8879 Macro-F1 và
+0.9574 ROC-AUC; CodeBERT với cấu hình transfer tốt nhất chỉ đạt 0.8698 và 0.9387. Đổi
+checkpoint pretrained vẫn ăn đứt toàn bộ pipeline transfer.
+
+---
+
+## 11. Kho dữ liệu source
+
+Bốn biến thể PrimeVul đã có sẵn (không tự xử lý lại — có quy tắc lọc CWE nội bộ), tất cả
+đều `lang='ccpp'`, nhãn cân bằng chính xác 50/50, schema `code, cwe, cwe_id, label, lang`:
+
+| File | Dòng | Số CWE | Ghi chú |
+| --- | --- | --- | --- |
+| `ccpp_primevul_paired_4cwe` | 178 | 4 | quá nhỏ, hợp làm đối chứng "source thiếu dữ liệu" |
+| `ccpp_primevul_paired_common` | 2975 | 73 | CWE giao giữa hai phía |
+| `ccpp_primevul_paired_full` | 9408 | **121** | phép thử cực đoan cho khái quát hóa taxonomy |
+| `ccpp_primevul_paired_ignored` | 9042 | 115 | bỏ các negative lọc tay |
+
+Cộng với `train_ccpp_js.jsonl` (1284 dòng, ccpp 146 + js 1138, **chỉ 4 CWE**). Phần js chỉ
+có 4 CWE nên hai chiều "ngôn ngữ" và "số CWE" không giao nhau tự do được.
+
+**Nút thắt đã gỡ.** `resolve_cwe_class()` hard-map `{22,78,79,89}` và ném `-100` cho phần
+còn lại, nên `full` chỉ dùng được 4 trong 121 CWE. `--cwe_vocab source` xây từ điển từ chính
+dữ liệu: `full` → **120 lớp phụ, chỉ bỏ 1 dòng** thay vì bỏ 116 loại.
+
+---
+
+## 12. Nhiệm vụ pretrained-agnostic: tình trạng các can thiệp
+
+Tiêu chí thành công đặt trước: phải **đồng thời** giữ được mức tăng trên CodeBERT và xóa
+được mức giảm trên CodeT5+. Chỉ làm transfer trở nên vô hại ở mọi backbone là thất bại trá hình.
+
+| Can thiệp | Cơ chế | Trạng thái |
+| --- | --- | --- |
+| **LP-FT** | Fit head trước, rồi mở khóa backbone | **Thất bại** (ROC −0.022 vs −0.012) |
+| Nội suy trọng số | `θ = α·θ_phase1 + (1−α)·θ_pretrained` | đang chạy, α ∈ {0.75, 0.5, 0.25} |
+| Tỉ lệ dữ liệu target | 114 / 228 / 456 dòng mỗi fold | đang chạy |
+| LoRA Phase 1 | Đóng băng backbone, chỉ cập nhật hạng r | đang chạy, r ∈ {8, 32} |
+| Task arithmetic / merging | — | **Loại**: sập khi trộn qua kiến trúc khác họ |
+
+Nếu cả ba can thiệp còn lại đều thất bại thì giả thuyết "Phase 1 làm méo đặc trưng" sai, và
+kết luận trung thực nhất từ dữ liệu sẽ là: phương pháp có giá trị **trong chế độ backbone yếu
+hoặc target ít dữ liệu**, chứ không phải ở mọi chế độ. Bằng chứng cho hướng đó đã có trong
+mục 3: lợi ích dồn hết vào hai CWE hiếm, còn CWE-089 với 408 mẫu thì baseline thắng.
