@@ -753,9 +753,26 @@ ghép mỗi fold với baseline **của chính seed đó**, nên dù seed 36 ch�
 | `transfer_latent_proto` | 6 | +0.0298 | 0.0356 | 0.78 | 0.0625 | +1.18 |
 | `transfer_none` | 10 | +0.0080 | 0.0269 | 0.62 | 0.3750 | +0.45 |
 
-Seed 12 mới xong fold 1 cho hai nhánh latent, nên n=6 của chúng là **5 fold seed 36 + 1 fold
-seed 12** — thực chất vẫn là n=5 cộng một. Chưa đủ để phát biểu; `run/seed12-latent.sh` đang chạy
-nốt bốn fold còn lại.
+Seed 12 mới xong một vài fold cho hai nhánh latent, nên n của chúng chủ yếu vẫn là seed 36 cộng
+thêm. Chưa đủ để phát biểu; `run/seed12-latent.sh` đang chạy nốt.
+
+**Chốt chặn tính hợp lệ của phép gộp.** Trước khi gộp hai seed cho nhánh latent, tôi đối chiếu
+`training_args` trong checkpoint Phase 1 của cả hai. Mọi giá trị thực chất trùng khít:
+`num_latent=8`, `latent_temperature=0.1`, `freeze_prototypes_steps=0`, `lambda_cwe=0.2`,
+`pooling=cls`, `lr=2e-5`, 15 epoch, `patience=5`, `min_epochs=3`, batch 16, `max_length=512`,
+`head_middle_tail`, `selection_metric=macro_f1`. Chỗ khác biệt duy nhất là seed 36 ghi `None` ở
+`cwe_vocab`, `phase2_optimizer`, `lora_rank`, `source_interpolation`, `lp_epochs` — vì các cờ đó
+**chưa tồn tại** khi nó chạy — trong khi seed 12 ghi đúng giá trị mặc định tương đương
+(`fixed4`, `recadam`, `0`, `1.0`, `0`). Hành vi như nhau, chỉ khác việc có được ghi lại hay không.
+
+Ghi lại vì `None` trong metadata rất dễ bị đọc nhầm thành "cấu hình khác", và vì kiểm tra này mất
+hai phút trong khi phát hiện muộn sẽ làm hỏng cả một bảng kết quả — đúng như đã xảy ra với LoRA ở
+§19.5.
+
+Lưu ý thêm, đúng theo bài học §19.2: val Phase 1 của hai seed rất gần nhau (`cwe` 0.6322 và
+0.6277; `latent_proto` 0.5986 và 0.5974). **Không được** đọc đó là bằng chứng Phase 1 ổn định —
+§19.3 đã cho thấy chạy lại cùng seed lệch tới 0.09. Đây chỉ là hai lần rút tình cờ rơi gần nhau,
+đúng cái bẫy đã sập một lần.
 
 Δ từng fold, seed 36 rồi seed 12:
 
