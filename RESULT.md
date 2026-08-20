@@ -331,10 +331,20 @@ Tiêu chí thành công đặt trước: phải **đồng thời** giữ đượ
 | Can thiệp | Cơ chế | Trạng thái |
 | --- | --- | --- |
 | **LP-FT** | Fit head trước, rồi mở khóa backbone | **Thất bại** (ROC −0.022 vs −0.012) |
-| **Nội suy trọng số** | `θ = α·θ_phase1 + (1−α)·θ_pretrained` | **Thất bại** (α=0.75: −0.0371 vs −0.0184, n=3) |
+| **Nội suy trọng số** | `θ = α·θ_phase1 + (1−α)·θ_pretrained` | **Thất bại**, mọi α (xem đường cong dưới) |
 | Tỉ lệ dữ liệu target | 114 / 228 / 456 dòng mỗi fold | đang chạy |
 | LoRA Phase 1 | Đóng băng backbone, chỉ cập nhật hạng r | đang chạy, r ∈ {8, 32} |
 | Task arithmetic / merging | — | **Loại**: sập khi trộn qua kiến trúc khác họ |
+
+### Đường cong nội suy: không bao giờ cắt trục 0
+
+| α | 1.00 | 0.75 | 0.50 | 0.25 | 0.00 |
+| --- | --- | --- | --- | --- | --- |
+| Δ Macro-F1 | −0.0184 | **−0.0371** | −0.0284 | −0.0066 | 0.0000 (baseline) |
+
+Lõm xuống ở α=0.75 rồi hồi lên đơn điệu về baseline. **Không có tỉ lệ pha trộn nào làm
+transfer có lợi.** Ở α=0.25 gần chạm baseline nhưng vẫn âm, và đó là vì chỉ còn 25% Phase 1
+— tức gần như không transfer nữa. Nội suy chỉ làm *mờ dần* transfer, không tạo ra điểm tốt.
 
 ### Vì sao nội suy hỏng
 
