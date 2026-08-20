@@ -501,8 +501,9 @@ LoRA là phép thử sạch nhất — Phase 1 gần như không được chạm
 
 1. **Task phụ tạo ra khả năng phân biệt.** `none` có A12 = 0.48 — đúng bằng tung đồng xu.
    Ablation này chưa từng xuất hiện trong y văn.
-2. **Quy luật đơn điệu theo độ mạnh backbone.** Baseline 0.7821 → +0.029; 0.8315 → −0.027;
-   0.8419 → −0.036. Không can thiệp nào đảo ngược được.
+2. **Hiệu ứng đổi dấu theo backbone, không phải suy giảm dần.** Baseline 0.7821 → +0.029;
+   0.8315 → −0.027; 0.8419 → −0.036. Không can thiệp nào đảo ngược được. Xem §18 — cách
+   phát biểu "đơn điệu theo độ mạnh" ở các bản trước là **sai bản chất**.
 3. **Chọn source quan trọng hơn quy mô source.** Cùng backbone, cùng folds, cùng baseline:
    ccpp+js 1284 dòng cho **+0.042**; PrimeVul 9408 dòng cho **+0.004**. Gấp bảy lần dữ liệu
    nhưng lệch miền thì vô ích, và không kiến trúc head nào bù được.
@@ -529,3 +530,74 @@ Với độ lệch chuẩn giữa các fold tới **0.09** trên tập test 152 
 không mang thông tin. Kèm cảnh báo về cỡ mẫu **không cứu được** một kết luận sai.
 
 **Quy tắc áp dụng từ giờ: không phát biểu nhận định nào dưới n=3.**
+
+---
+
+## 18. Đọc lại quan hệ với backbone: đổi dấu, không phải suy giảm
+
+### 18.1 Giả thuyết trần bị bác
+
+Cách phát biểu cũ — "lợi ích giảm dần khi backbone mạnh lên" — hàm ý một **hiệu ứng trần**:
+backbone mạnh đã giải quyết gần hết bài toán nên task phụ không còn gì để thêm. Nếu đúng vậy,
+chuẩn hóa lợi ích theo phần lỗi còn lại (`Δ / (1 − baseline)`) phải làm các backbone hội tụ về
+nhau. Đo bằng `src/backbone_headroom.py` trên toàn bộ kết quả đã có:
+
+| Backbone | n | baseline | transfer | Δ | dư địa | % lỗi còn lại được lấy đi |
+| --- | --- | --- | --- | --- | --- | --- |
+| CodeBERT (folds gốc) | 5 | 0.7821 | 0.8109 | **+0.0289** | 0.2179 | **+12.8%** |
+| CodeBERT (folds twin) | 5 | 0.8281 | 0.8698 | **+0.0417** | 0.1719 | **+24.6%** |
+| CodeT5 | 5 | 0.8315 | 0.8045 | **−0.0270** | 0.1685 | **−17.6%** |
+| CodeT5+ | 5 | 0.8419 | 0.8059 | **−0.0361** | 0.1581 | **−25.4%** |
+| CodeT5+ (folds twin) | 5 | 0.8879 | 0.8696 | **−0.0184** | 0.1121 | **−17.1%** |
+
+Chuẩn hóa làm **spread rộng ra**, không thu hẹp: 0.0777 → 0.4994. Giả thuyết trần bị bác.
+
+Quan trọng hơn, bảng này cho thấy điều mà cách phát biểu cũ che mất: lợi ích **không suy giảm
+dần về 0** mà **đổi dấu**. Trên T5 và T5+, transfer không phải là vô ích — nó **có hại**, ổn
+định ở cả ba lần đo, trên cả folds gốc lẫn folds twin. Một hiệu ứng trần không tạo ra dấu âm.
+Đây là hai hiện tượng khác nhau và tôi đã gộp nhầm chúng suốt nhiều mục trước.
+
+### 18.2 Biến gây nhiễu tôi tự tạo ra
+
+CodeBERT và họ T5 **chưa bao giờ được chạy cùng một cách đọc biểu diễn**. CodeBERT pool từ CLS;
+T5 không có token cấp câu ở vị trí 0 nên các lần chạy đó pool bằng trung bình có mask. Đó là
+một lựa chọn trong repo này, không phải thuộc tính của checkpoint — và nó **biến thiên cùng
+lúc** với backbone trong mọi lần chạy đã làm. Không lần nào tách được hai biến.
+
+Cơ chế hợp lý: bằng chứng của một lỗ hổng nằm ở vài dòng, còn trung bình có mask chia đều tín
+hiệu đó cho độ dài hàm. Một task phụ định hình backbone sẽ được CLS giữ lại nhưng bị trung bình
+làm loãng.
+
+`run/pooling.sh` chạy CodeBERT với `POOLING=mean`, giữ nguyên mọi thứ khác. `--pooling` nằm
+trong khối `SHARED` của driver nên baseline cũng được huấn luyện lại cùng kiểu pooling.
+
+- Δ vẫn dương → pooling không phải cơ chế, khác biệt thật sự nằm ở backbone.
+- Δ đổi dấu âm → **cách đọc biểu diễn mới là cơ chế**, và hướng sửa cho T5 là cấp cho nó một
+  slot tổng hợp, chứ không phải bảo vệ trọng số — hướng đó đã thất bại ba lần.
+
+### 18.3 Truncation: cơ chế được đo, không được giả định
+
+PrimeVul transfer kém hơn một corpus nhỏ hơn bảy lần. Một giải thích là 70% hàm vượt giới hạn
+512 token, làm mất đúng những dòng phân biệt bản lỗi với bản vá, khiến hai nửa của một cặp
+tokenize gần như giống hệt nhau dưới hai nhãn ngược nhau.
+
+Đó là một cơ chế, và cơ chế thì **đo được**. `src/pair_collapse.py` tokenize từng cặp đúng
+chiến lược đang dùng (`head_middle_tail`, 512) rồi đếm số cặp trùng khít:
+
+| Corpus | số cặp | trùng khít | tỉ lệ |
+| --- | --- | --- | --- |
+| `train_ccpp_js` | 596 | 8 | **1.3%** |
+| `ccpp_primevul_paired_common` | 600 | 11 | **1.8%** |
+| `ccpp_primevul_fit512` | 600 | 0 | **0.0%** |
+
+**1.8% không giải thích được** một Phase 1 gần như đoán ngẫu nhiên (ma trận nhầm lẫn
+`[[131, 19], [127, 23]]`, std xác suất 0.0338). `head_middle_tail` giữ ba cửa sổ đầu–giữa–cuối
+nên hầu như luôn còn khác biệt nào đó sót lại. **Dạng mạnh của giả thuyết truncation bị bác.**
+
+`fit512` vẫn chạy nhưng để kiểm chứng dạng yếu hơn: dù hai bản còn khác nhau sau cắt, dòng
+**thật sự quyết định** có thể đã mất trong khi một khác biệt vô nghĩa còn lại — model thấy khác
+biệt nhưng không phải khác biệt đúng. Vì thế `fit512` bị xếp **sau** `pooling.sh` trong hàng đợi.
+
+Ghi lại vì đây là điểm khác biệt về quy trình: lần này giả thuyết bị bác **trước** khi tiêu GPU,
+nhờ hỏi "cơ chế tôi hình dung có thật sự xảy ra không?" thay vì chạy thẳng thí nghiệm. Bốn lần
+trước trong §15 đều phải trả giá bằng nhiều giờ GPU mới biết mình sai.
