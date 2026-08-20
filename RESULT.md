@@ -654,92 +654,89 @@ trọng số khác nhau**, lệch **0.12** trên val nguồn.
 generator của DataLoader, và `train_test_split` cũng nhận `random_state=seed`. Về nguyên tắc
 phải tái lập.
 
-### 19.2 Nhưng bằng chứng ngược mạnh hơn — và nó bác lại chính tôi
+### 19.2 Một suy luận trung gian đã sai, ghi lại vì cách sai mới là bài học
 
-Phản xạ đầu tiên của tôi là kết luận "Phase 1 không tái lập". Đó lại đúng là kiểu suy luận ở
-n=1 mà §17 đã cam kết không lặp lại. Xem toàn bộ 8 checkpoint Phase 1 của CodeBERT trên cùng
-source `train_ccpp_js`:
-
-| run | val Macro-F1 nguồn |
-| --- | --- |
-| `frac228` cwe s36 | 0.6654 |
-| `twin_ccppjs` latent_bottleneck s36 | 0.6439 |
-| `twin_ccppjs` none s36 | 0.6423 |
-| `twin_ccppjs` none s12 | 0.6360 |
-| `twin_ccppjs` cwe s36 | 0.6322 |
-| `twin_ccppjs` cwe s12 | 0.6277 |
-| `twin_ccppjs` latent_proto s36 | 0.5986 |
-| `frac114` cwe s36 | **0.5450** |
-
-sd toàn bộ = 0.0369. **Bỏ riêng `frac114` thì sd tụt còn 0.0202**, dải 0.5986–0.6654.
-
-Hai phép so sánh quyết định:
+Phản xạ đầu tiên của tôi là kết luận ngay "Phase 1 không tái lập". Đó đúng là kiểu suy luận ở
+n=1 mà §17 cam kết không lặp lại, nên tôi đi tìm bằng chứng ngược và tưởng đã tìm được:
 
 | | lệch |
 | --- | --- |
-| cùng config, **khác seed** (cwe s36 vs s12) | **0.0045** |
-| cùng config, **khác seed** (none s36 vs s12) | **0.0063** |
-| cùng config, **cùng seed** (frac228 vs frac114) | **0.1204** |
+| cùng config, **khác seed** (cwe s36 vs s12) | 0.0045 |
+| cùng config, **khác seed** (none s36 vs s12) | 0.0063 |
+| cùng config, **cùng seed** (frac228 vs frac114) | 0.1204 |
 
-Đây là hình dạng **ngược** với thứ nhiễu ngẫu nhiên tạo ra. Nếu Phase 1 thật sự bất định, đổi
-seed phải làm nó dịch chuyển ít nhất bằng khi giữ nguyên seed. Thực tế đổi seed gần như **không
-làm gì** (0.0045 và 0.0063), trong khi đúng một cặp cùng seed lệch 0.12.
+Tôi đọc bảng này là "đổi seed gần như không làm gì, nên `frac114` phải là một lần chạy hỏng" —
+hình dạng ngược với thứ nhiễu ngẫu nhiên tạo ra. Lập luận nghe chặt, và **nó sai**.
 
-Cách đọc đúng: **`frac114` là một lần chạy hỏng**, không phải bằng chứng về bất định chung.
-Ứng viên khả dĩ nhất là sự cố tranh chấp GPU đã ghi ở §14 — có lúc GPU chỉ còn 1113 MiB trống vì
-hai tiến trình chạy đè lên nhau.
+Sai ở chỗ: hai con số 0.0045 và 0.0063 là **hai lần rút từ một phân phối rộng tình cờ rơi gần
+nhau**. Tôi lại đọc chúng như bằng chứng phân phối đó hẹp. Đúng lỗi n nhỏ mà §17 liệt kê, chỉ
+khác là lần này nó xảy ra **trong lúc tôi đang sửa một lỗi n nhỏ khác**.
 
-Hệ quả kéo theo cũng phải sửa: vì đổi seed hầu như không dịch chuyển Phase 1, **đa seed chủ yếu
-lấy mẫu lại Phase 2 và cách chia fold, chứ không lấy mẫu lại model nguồn.** Lập luận "đa seed là
-cách duy nhất để lấy mẫu lại Phase 1" ở bản nháp trước là **sai**.
+### 19.3 Phép thử trực tiếp phân xử
 
-### 19.3 Vấn đề thiết kế vẫn còn, và nó độc lập với tính tái lập
+`run/determinism.sh` chạy đúng một cấu hình Phase 1 ba lần ở seed 36, rồi một lần ở mỗi seed
+7/12/18. Cùng máy, cùng file dữ liệu, cùng mọi tham số.
 
-Kể cả khi `frac114` chỉ là một lần chạy hỏng, một vấn đề thiết kế **vẫn còn nguyên** và nó
-không liên quan gì đến tính tái lập: cả 5 fold **dùng chung đúng một checkpoint Phase 1**. Nghĩa
-là 5 fold là **5 phép đo trên cùng một model nguồn**, không phải 5 mẫu độc lập của phương pháp.
-Kiểm định ghép cặp theo fold ở §17 vì thế chỉ đo nhiễu của **cách chia fold**, và §19.2 vừa cho
-thấy đa seed cũng không lấy mẫu lại được model nguồn.
+| lần chạy | best epoch | val Macro-F1 nguồn | vân tay trọng số |
+| --- | --- | --- | --- |
+| `same36_rep1` | **3** | **0.5722** | `b466d1bc` |
+| `same36_rep2` | 13 | 0.6591 | `9aab83d6` |
+| `same36_rep3` | 11 | 0.6654 | `b07829a7` |
+| `draw_seed7` | 14 | 0.6495 | `e8f352d2` |
+| `draw_seed12` | 15 | 0.5968 | `13f50b5f` |
+| `draw_seed18` | 13 | 0.6959 | `18c3c847` |
 
-Điều này không làm các Δ đã đo sai đi, nhưng nó giới hạn phát biểu được phép rút ra: chúng là
-"với **model nguồn này**, phương pháp cho +0.042 trên 5 fold", chưa phải "phương pháp cho +0.042".
-Muốn phát biểu thứ hai thì phải lấy trung bình trên **nhiều model nguồn độc lập** — điều chưa
-thí nghiệm nào trong tài liệu này làm.
+**Ba lần chạy cùng seed cho ba bộ trọng số khác nhau.** Và con số quyết định:
 
-Còn dải 0.5986–0.6654 (sd 0.0202) giữa các Phase 1 hợp lệ là con số cần đối chiếu: nó **cùng
-bậc** với hiệu ứng 0.042 đang đo.
+| | mean | sd | dải |
+| --- | --- | --- | --- |
+| cùng seed 36, 3 lần chạy | 0.6322 | **0.0521** | 0.0932 |
+| 3 seed khác nhau | 0.6474 | **0.0496** | 0.0991 |
 
-### 19.4 Một kết luận cũ phải sửa
+Tỉ lệ sd = **1.05**. Chạy lại cùng một seed dao động **bằng đúng** đổi seed. Seed **không kiểm
+soát được gì** ở Phase 1, dù `src/train_transfer.py` đã đặt `manual_seed`, `cuda.manual_seed_all`,
+`cudnn.deterministic=True`, `cudnn.benchmark=False`, `num_workers=0`, seed cả `random`, `numpy`,
+generator của DataLoader và `random_state` của `train_test_split`.
 
-Bảng vân tay cho thấy `+a025/a050/a075/+lpft` **dùng chung** đúng checkpoint `e8b0c7c9` với nhánh
-`cwe` gốc. Ba so sánh đó **sạch**.
+Kết luận ban đầu ở §19.1 đúng; phần rút lại ở §19.2 sai. Phép thử trực tiếp phân xử được thứ mà
+khảo cổ metadata không phân xử nổi.
 
-Nhưng `+lora8` và `+lora32` huấn luyện Phase 1 **riêng** và rơi vào một checkpoint kém hơn hẳn:
-val nguồn 0.5281 so với 0.6815. §15 kết luận "LoRA là phép thử sạch nhất — Phase 1 gần như không
-chạm vào backbone — và cho kết quả trùng khít với không can thiệp". Câu đó **nói quá**. Ở nhánh
-LoRA có **hai thứ đổi cùng lúc**: ràng buộc lên Phase 1, *và* chất lượng model nguồn thu được.
-LoRA đánh đổi "ít làm hỏng backbone" lấy "model nguồn tệ hơn", và kết quả ròng bằng không can
-thiệp. Kết luận "bảo vệ trọng số không cứu được T5" vẫn đứng, nhưng nó dựa vào LP-FT và nội suy —
-hai nhánh thật sự chia sẻ Phase 1 — chứ **không** dựa vào LoRA.
+`frac114` cũng không phải ngoại lệ: `same36_rep1` dừng ở **epoch 3** với val 0.5722, gần như trùng
+khít `frac114` (epoch 3, val 0.5450). Đây là **một chế độ hỏng lặp lại được**, không phải sự cố
+một lần. Nghi phạm rõ nhất là early stopping khuếch đại sai số số học rất nhỏ: `patience=5`,
+`min_epochs=3`, nên một chênh lệch cỡ 1e-7 ở epoch đầu đủ để một lần chạy dừng ở epoch 3 trong
+khi lần khác đi tiếp tới epoch 13. Thiếu `torch.use_deterministic_algorithms(True)` và
+`CUBLAS_WORKSPACE_CONFIG` là nguồn sai số số học khả dĩ nhất.
 
-### 19.5 Phép thử
+### 19.4 Hệ quả
 
-`run/determinism.sh` trả lời **hai** câu hỏi tách biệt, và câu thứ hai mới là câu quan trọng.
+**Hai nhánh nào tự huấn luyện Phase 1 riêng thì không so sánh trực tiếp được.** Khác biệt giữa
+chúng có thể hoàn toàn là khác biệt giữa hai lần rút, sd 0.052. Áp dụng ngay cho §19.5.
 
-**Ba lần chạy ở cùng seed 36** — một con số đã báo cáo có lấy lại được không:
+**5 fold dùng chung một checkpoint Phase 1**, nên fold không hề lấy mẫu biến thiên này. Và §19.3
+vừa cho thấy **đa seed cũng không** — đổi seed không lấy mẫu rộng hơn chạy lại cùng seed.
 
-- vân tay giống nhau → Phase 1 tái lập được, `frac114` đúng là lần chạy hỏng như §19.2 dự đoán,
-  và mọi bảng phía trên giữ nguyên hiệu lực.
-- vân tay khác nhau → seed không ghim được Phase 1, và mọi nhánh bắt buộc phải dùng chung một
-  checkpoint Phase 1 thay vì tự huấn luyện.
+Điều này không làm các Δ đã đo sai, nhưng giới hạn phát biểu được phép rút ra: chúng là "với
+**model nguồn này**, phương pháp cho +0.042 trên 5 fold". Riêng §20 khá hơn một bậc — seed 36 và
+seed 12 có **hai lần rút Phase 1 khác nhau** và cả hai đều dương (+0.0417 và +0.0370), nên kết
+quả 10/10 đã bắc qua 2 lần rút. Nhưng 2 vẫn là n nhỏ, và `run/source-draws.sh` nâng lên 4 lần rút
+trải từ val 0.5722 đến 0.6959 — gần trọn dải quan sát được.
 
-**Một lần chạy ở mỗi seed 7, 12, 18** — các model nguồn độc lập cách nhau bao xa. Đây là con số
-§19.3 cần: nếu độ lệch chuẩn giữa các lần rút cùng bậc với 0.042 thì hiệu ứng đang báo cáo nằm
-trong nhiễu của việc chọn model nguồn, và mọi kết luận phải phát biểu kèm điều kiện đó.
+### 19.5 Một kết luận cũ phải sửa
 
-Hai bằng chứng hiện có mâu thuẫn nhau về câu thứ hai: hai cặp cùng-config-khác-seed chỉ lệch
-0.0045 và 0.0063 (rất ổn định), nhưng toàn bộ 8 checkpoint hợp lệ trải trên sd 0.0202 (cùng bậc
-với hiệu ứng). Ba lần rút có chủ đích sẽ phân xử.
+Vân tay trọng số cho thấy `+a025`, `+a050`, `+a075` và `+lpft` **dùng chung** đúng checkpoint
+`e8b0c7c9` với nhánh `cwe` gốc. Ba so sánh đó **sạch** — chúng chỉ khác nhau ở Phase 2.
+
+Nhưng `+lora8` và `+lora32` huấn luyện Phase 1 **riêng** và rơi vào checkpoint kém hơn hẳn: val
+nguồn 0.5281 so với 0.6815. §15 kết luận "LoRA là phép thử sạch nhất — Phase 1 gần như không chạm
+vào backbone — và cho kết quả trùng khít với không can thiệp". Câu đó **nói quá**. Ở nhánh LoRA có
+hai thứ đổi cùng lúc: ràng buộc lên Phase 1, *và* lần rút Phase 1 thu được.
+
+Và §19.3 làm nó nặng hơn nữa: khoảng cách 0.5281 → 0.6815 là **1.5 lần sd của nhiễu lần rút**
+(0.052), nên hoàn toàn có thể chỉ là một lần rút xấu chứ không phải hệ quả của ràng buộc LoRA.
+Kết luận "bảo vệ trọng số không cứu được T5" vẫn đứng, nhưng nó dựa vào LP-FT và nội suy — hai
+nhánh thật sự chia sẻ Phase 1 — chứ **không** dựa vào LoRA. Muốn dùng LoRA làm bằng chứng thì
+phải chạy lại nó nhiều lần rút.
 
 ---
 
@@ -775,7 +772,7 @@ phương pháp thắng ở **mọi** quan sát. `transfer_cwe` dương ở cả 
 
 Đây là bằng chứng mạnh nhất cho phát biểu đã đứng vững lâu nhất trong dự án: **head phụ mới là
 thứ tạo ra lợi ích, không phải bản thân việc pretrain trên source rồi RecAdam.** Ablation λ=0
-giờ đã có n=8 và vẫn phẳng.
+giờ đã có n=9 và vẫn phẳng.
 
 ### 20.2 Điều ngưỡng đó không nói
 
