@@ -8,6 +8,52 @@ Mọi so sánh trong tài liệu này chỉ hợp lệ **trong cùng một bản
 
 ---
 
+## 0. Trạng thái bằng chứng — đọc mục này trước
+
+Tài liệu dài 26 mục vì nó ghi cả những thứ đã bị bác. Bảng này là bản đồ.
+
+### Đã đứng vững
+
+| Phát biểu | Bằng chứng | Mục |
+| --- | --- | --- |
+| Transfer thắng baseline ở **điểm vận hành 0.5** | 10/10 fold ghép cặp, 2 seed, Wilcoxon p = 0.0020 | §20 |
+| Lợi ích **không phụ thuộc lần rút Phase 1** | 5/5 lần rút dương, sd 0.0085 so với sd 0.0521 của val nguồn | §26 |
+| Lợi ích **tập trung ở lớp CWE hiếm** | CWE-022 +0.214 và CWE-079 +0.179, mỗi lớp 9/10 fold | §23 |
+| Head phụ **gỡ bỏ thiệt hại** mà pretrain trần gây ra | λ=0 âm trên lớp phổ biến (−0.026, 1/9 fold dương), `cwe` đưa về +0.004 | §23.2 |
+| **Quy mô source không mua được gì** | 9408 dòng → +0.004; 1284 dòng → +0.042 | §21 |
+| **Phase 1 không tái lập** kể cả khi cố định seed | 3 lần chạy cùng seed → 3 trọng số khác nhau, sd 0.0521 ≈ sd khi đổi seed | §19.3 |
+
+### Chưa xác lập
+
+| Câu hỏi | Tình trạng | Mục |
+| --- | --- | --- |
+| **Độ lớn trên metric xếp hạng** | ROC-AUC +0.0203 và PR-AUC +0.0213, cả hai p = 0.084 | §20.2 |
+| Lọc CWE có cứu được PrimeVul không | hướng nhất quán ~+0.026 qua hai head phụ, nhưng p = 0.31–0.44 | §21 |
+| Phương pháp có tốt nhất trên backbone mạnh không | CodeT5+ dưới cls đạt 0.8800, vẫn thua baseline mean-pool 0.8823 | §22.2 |
+| Nhánh latent có ổn định hơn `cwe` không | ROC-AUC sd 0.0086 so với 0.0286, nhưng n còn nhỏ | §20 |
+
+### Đã bị bác — chín giả thuyết
+
+Rò rỉ cặp tạo ra hiệu ứng (§15) · Phase 1 làm méo backbone mạnh (§15) · Bottleneck cứu taxonomy
+lớn (§15) · RecAdam gây hại khi ít dữ liệu (§15) · Truncation làm hỏng cặp, đo được chỉ 1.8%
+(§18.3) · Hiệu ứng trần giải thích quan hệ backbone (§18.1) · `common` không phân tách được gì
+(§21.4) · `common` hơn `full` "gấp mười lần" (§21.1) · Chọn lần rút Phase 1 theo val nguồn (§26).
+
+**Năm trong chín là dự đoán của chính tôi**, và ba lần tôi phải rút lại phát biểu đã viết vào tài
+liệu này. Hai giả thuyết được ghi dự đoán bằng số **trước** khi chạy; một đã kiểm tra và trượt
+(§26), một đang chờ (§22.3).
+
+### Nguyên tắc đang áp dụng
+
+1. Không phát biểu nhận định nào dưới **n=3**.
+2. Hai nhánh dùng chung baseline thì **ghép cặp theo fold**, không so hai Δ trung bình.
+3. Hai kiểm định bất đồng thì **báo cáo cả hai**; nhiều metric thì báo cáo hết, không chọn theo
+   kết quả.
+4. Trước khi tiêu GPU cho một giả thuyết, **đo thẳng cơ chế** mà nó giả định.
+5. Khi có thể, **ghi dự đoán bằng số trước** khi chạy.
+
+---
+
 ## 1. Thiết lập chung
 
 | Hạng mục | Giá trị |
