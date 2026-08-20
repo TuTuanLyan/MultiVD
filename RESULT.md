@@ -1693,3 +1693,44 @@ phải nhiễu fold) và **n=4**, nên nó chưa mạnh hơn lần trước là 
 Phát biểu được phép: **`latent_bottleneck` bền trước nhiễu lần rút Phase 1 ngang `cwe`** — 4/4 dương,
 sd cùng bậc hoặc nhỏ hơn. Đó là điều §27.4 cần và giờ đã có. Còn "latent ổn định **hơn**" thì vẫn
 **chưa xác lập**, và sẽ chỉ xác lập được nếu nó sống sót qua nhiều lần rút hơn.
+
+---
+
+## 32. Thêm seed **không** gỡ được kiểm định t hiệu chỉnh — và vì sao
+
+Trước khi cho máy rảnh chạy thêm một seed nữa, tôi tính xem nó có gỡ được điểm yếu cuối không.
+Câu trả lời là **gần như không**, và lý do nằm ngay trong công thức.
+
+Sai số chuẩn hiệu chỉnh Nadeau–Bengio:
+
+```
+SE = sqrt( sd² × ( 1/n  +  n_test/n_train ) )
+                   ↑         ↑
+              giam theo n   HANG SO = 152/456 = 0.3333
+```
+
+Số hạng thứ hai **không phụ thuộc n**. Với tỉ lệ chia hiện tại nó bằng 0.3333, áp đảo hoàn toàn
+`1/n` (ở n=15 chỉ là 0.067). Nên thêm bao nhiêu fold hay seed cũng chỉ gặm được phần nhỏ:
+
+| Nhánh · metric | n=15 | n=20 (+1 seed) | n=25 (+2 seed) |
+| --- | --- | --- | --- |
+| `cwe` Macro-F1 | p = 0.066 | p = 0.056 | p = **0.050** |
+| `cwe` ROC-AUC | p = 0.199 | p = 0.184 | p = 0.175 |
+| `latent_bottleneck` Macro-F1 | p = 0.131 | p = 0.118 | p = 0.110 |
+| `latent_bottleneck` ROC-AUC | p = 0.163 | p = 0.149 | p = 0.141 |
+
+Phải chạy **thêm hai seed** mới đưa được đúng một ô chạm vạch 0.050, còn các metric xếp hạng thì
+**không bao giờ tới**. Từ n=20 trở đi gần như bão hoà.
+
+### 32.1 Hệ quả cho kế hoạch
+
+**Chạy thêm seed để đuổi theo t hiệu chỉnh là khoản đầu tư tồi.** Nó chỉ cải thiện được khi đổi
+**tỉ lệ chia dữ liệu** (train lớn hơn so với test), chứ không phải khi lặp lại nhiều lần hơn.
+
+Điều này cũng nói rõ giới hạn của thiết kế hiện tại: với 760 mẫu target chia 456/152/152, kiểm định
+t hiệu chỉnh **bị chặn trên bởi chính tỉ lệ chia**, không phải bởi công sức bỏ ra. Muốn vượt thì
+phải có target lớn hơn, không phải chạy lâu hơn.
+
+Vì thế máy rảnh được dùng cho **chiều đang mỏng nhất** thay vì làm dày chiều đã đủ: `cwe` và
+`latent_bottleneck` trên CodeBERT đã có n=15, trong khi **CodeT5+ mới chỉ có n=5 ở đúng một seed**.
+`run/gated.sh` với `SEED=18` chạy cả hai backbone trên cùng một máy để bổ sung đúng chỗ đó.
