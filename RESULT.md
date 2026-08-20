@@ -1341,3 +1341,57 @@ hai giờ**, và không có lúc nào một khẳng định sai được ghi và
 
 Dự đoán ghi trước còn lại đang chờ: §22.3 dự báo CodeBERT dưới mean pooling rơi khoảng 0.026 xuống
 ≈ +0.016. `run/pooling.sh` là công việc tiếp theo trên ntat.
+
+---
+
+## 27. Head phụ latent **tốt hơn** head CWE tường minh
+
+Cả hai nhánh latent giờ có đủ n=10 như `cwe`. Bảng đầy đủ: bốn nhánh × ba metric × hai kiểm định,
+gộp seed 36 và 12, ghép cặp theo `(seed, fold)`.
+
+| Nhánh | Metric | Δ | sd | A12 | Wilcoxon p | t hiệu chỉnh | p của t | vượt 0.05 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `cwe` | Macro-F1 | +0.0393 | 0.0286 | 0.86 | **0.0020** | +2.09 | 0.066 | Wilcoxon |
+| `cwe` | ROC-AUC | +0.0203 | 0.0286 | 0.65 | 0.0840 | +1.08 | 0.308 | không |
+| `cwe` | PR-AUC | +0.0213 | 0.0339 | 0.64 | 0.0840 | +0.96 | 0.362 | không |
+| **`latent_bottleneck`** | Macro-F1 | +0.0294 | **0.0169** | 0.83 | **0.0020** | **+2.64** | **0.027** | **cả hai** |
+| **`latent_bottleneck`** | ROC-AUC | **+0.0218** | 0.0210 | **0.73** | **0.0059** | +1.58 | 0.149 | Wilcoxon |
+| `latent_bottleneck` | PR-AUC | +0.0201 | 0.0360 | 0.68 | 0.0645 | +0.85 | 0.417 | không |
+| `latent_proto` | Macro-F1 | +0.0279 | 0.0334 | 0.72 | **0.0195** | +1.27 | 0.236 | Wilcoxon |
+| `latent_proto` | ROC-AUC | +0.0023 | 0.0226 | 0.56 | 0.4316 | +0.15 | 0.884 | không |
+| `latent_proto` | PR-AUC | −0.0164 | 0.0405 | 0.44 | 0.5566 | −0.62 | 0.551 | không |
+| `none` | Macro-F1 | +0.0080 | 0.0269 | 0.62 | 0.3750 | +0.45 | 0.663 | không |
+| `none` | ROC-AUC | −0.0072 | 0.0220 | 0.43 | 0.5703 | −0.49 | 0.636 | không |
+| `none` | PR-AUC | −0.0188 | 0.0366 | 0.43 | 0.1934 | −0.78 | 0.455 | không |
+
+### 27.1 Hai điều bảng này nói
+
+**`latent_bottleneck` là nhánh duy nhất vượt 0.05 trên *cả hai* kiểm định** (Macro-F1: Wilcoxon
+0.0020 và t hiệu chỉnh 0.027). `cwe` không đạt — t hiệu chỉnh của nó dừng ở 0.066.
+
+**Và nó vá đúng điểm yếu ở §20.2.** Trên ROC-AUC, `cwe` cho p = 0.084 còn `latent_bottleneck`
+cho **p = 0.0059**, với Δ nhỉnh hơn (+0.0218 so với +0.0203) và A12 cao hơn (0.73 so với 0.65).
+
+Nguyên nhân không phải hiệu ứng lớn hơn mà là **ổn định hơn**: sd 0.0169 so với 0.0286 trên
+Macro-F1. `cwe` có trung bình cao hơn (+0.0393 so với +0.0294) nhưng phân tán gấp rưỡi, nên nó
+thắng ở con số quảng cáo và thua ở con số kiểm định được.
+
+### 27.2 Điều này trả lời câu hỏi ban đầu của dự án
+
+Ý tưởng gốc là biến head CWE tường minh thành latent để phương pháp **không bị khoá vào đúng 4
+CWE**. Câu hỏi đặt ra khi đó là "làm thế có ổn không?". Câu trả lời ở n=10:
+
+**Không chỉ ổn — nó tốt hơn.** `latent_bottleneck` vừa gỡ được ràng buộc taxonomy (điều kiện cần
+để dùng source như PrimeVul với 121 CWE), vừa cho bằng chứng thống kê mạnh hơn head tường minh.
+
+`latent_proto` — biến thể **không cần nhãn CWE nào** — thì chỉ vượt được ở Macro-F1 (p = 0.0195)
+và **âm trên PR-AUC** (−0.0164). Đây đúng triệu chứng §5 đã chẩn đoán: mục tiêu phân cụm bằng
+prototype cải thiện điểm vận hành nhưng phá hình học thứ hạng. Bỏ hẳn nhãn thì phải trả giá; giữ
+nhãn nhưng ép qua nút thắt K chiều thì không.
+
+### 27.3 Giới hạn
+
+Tất cả vẫn trong **một backbone (CodeBERT), một source (ccpp+js), một target (Python), hai seed**.
+`latent_bottleneck` chưa được chạy qua nhiều lần rút Phase 1 như `cwe` đã làm ở §26, nên độ bền
+của nó trước nhiễu lần rút **chưa được kiểm chứng**. Và PR-AUC của nó vẫn chưa vượt ngưỡng
+(p = 0.0645), nên "tốt hơn" đúng cho hai trên ba metric chứ không phải cả ba.
