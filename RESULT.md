@@ -1788,3 +1788,82 @@ nhưng không tạo ra lợi ích trên backbone mạnh — và ở nhánh laten
 
 Điều đứng vững nhất còn lại: trên backbone mà phương pháp hoạt động, **nhánh latent vừa gỡ được
 ràng buộc taxonomy vừa là nhánh ổn định nhất qua 5 seed**.
+
+---
+
+## 34. Vì sao phương pháp hỏng trên CodeT5+ — chẩn đoán từ dữ liệu đã có
+
+Máy đã hủy nên không chạy thêm được, nhưng câu hỏi "vì sao" trả lời được **không cần GPU** từ chính
+kết quả per-CWE đã tải về.
+
+### 34.1 Dư địa: CodeT5+ đã giải sẵn đúng chỗ CodeBERT thu lợi
+
+| CWE | mẫu | baseline CodeBERT | baseline CodeT5+ | chênh | dư địa còn lại |
+| --- | --- | --- | --- | --- | --- |
+| **CWE-022** | 66 | 0.4876 | **0.6586** | +0.1711 | CodeT5+ ít hơn **33%** |
+| **CWE-079** | 82 | 0.5793 | **0.6756** | +0.0962 | CodeT5+ ít hơn **23%** |
+| CWE-078 | 204 | 0.7775 | 0.8321 | +0.0545 | — |
+| CWE-089 | 408 | 0.9489 | 0.9763 | +0.0274 | — |
+
+§23 cho thấy **toàn bộ** lợi ích của phương pháp nằm ở CWE-022 và CWE-079. Đó lại đúng là hai lớp
+CodeT5+ vượt CodeBERT nhiều nhất (+0.17 và +0.10). Dư địa mà phương pháp sống nhờ đã bị backbone
+mạnh ăn mất phần lớn.
+
+### 34.2 Nhưng không phải hỏng hoàn toàn — Δ theo từng lớp
+
+| CWE | CodeBERT `none` → `cwe` | CodeT5+ `none` → `cwe` |
+| --- | --- | --- |
+| CWE-022 | +0.1193 → **+0.1954** | +0.0338 → **+0.0201** |
+| CWE-079 | +0.1305 → **+0.2102** | +0.1079 → **+0.1202** |
+| CWE-078 | −0.0038 → **+0.0157** | −0.0312 → **−0.0256** |
+| CWE-089 | −0.0153 → −0.0065 | −0.0135 → −0.0000 |
+
+Trên CodeT5+, **CWE-079 vẫn được +0.1202** — phương pháp *vẫn* giúp lớp hiếm đó rất nhiều. Cái hỏng
+là hai chỗ khác:
+
+1. **CWE-022 sụp từ +0.195 xuống +0.020** — đúng lớp mà CodeT5+ đã tự giải tốt (0.6586).
+2. **CWE-078 âm −0.0256 và không được cứu.** Lớp này có **204 mẫu**, gấp 2.5 lần CWE-079, nên nó
+   kéo tổng hợp xuống nhiều hơn phần CWE-079 kéo lên.
+
+### 34.3 Cơ chế "gỡ thiệt hại" ngừng hoạt động
+
+§23.2 xác định đóng góp thật của head phụ là **gỡ bỏ thiệt hại mà pretrain trần gây ra trên lớp phổ
+biến**. Đo trực tiếp giá trị gia tăng đó, `Δ(cwe) − Δ(none)`:
+
+| CWE | CodeBERT | CodeT5+ |
+| --- | --- | --- |
+| CWE-022 | **+0.0761** | **−0.0137** |
+| CWE-079 | **+0.0797** | +0.0124 |
+| CWE-078 | +0.0195 | +0.0056 |
+| CWE-089 | +0.0089 | +0.0134 |
+
+Trên CodeBERT, head phụ cộng thêm **+0.076 và +0.080** ở hai lớp hiếm. Trên CodeT5+ nó cộng
+**−0.014 và +0.012** — gần như không còn giá trị gia tăng, thậm chí âm ở CWE-022.
+
+**Kết luận cơ chế:** head phụ chỉ có tác dụng khi backbone **chưa** biểu diễn tốt lớp hiếm. Khi
+backbone đã giải sẵn (CodeT5+ đạt 0.6586 trên CWE-022 so với 0.4876), tín hiệu CWE mà head phụ áp
+vào là **thông tin backbone đã có**, nên nó không thêm gì mà chỉ nhiễu thêm.
+
+### 34.4 Việc nên làm khi có máy trở lại
+
+Chẩn đoán này thu hẹp không gian tìm kiếm rất nhiều — nó nói **đừng** làm gì:
+
+| Đừng làm | Vì sao |
+| --- | --- |
+| Thêm seed cho CodeT5+ | vấn đề là dư địa, không phải nhiễu |
+| Sửa cách đọc biểu diễn nữa | §28 đã làm, và §33 cho thấy không lặp lại được |
+| Bảo vệ trọng số (LP-FT, LoRA, nội suy) | §15 đã bác cả ba |
+| Thêm seed đuổi theo t hiệu chỉnh | §32: bị chặn bởi tỉ lệ chia, không phải công sức |
+
+Hướng còn lại có cơ sở từ §34.3: **cần một tín hiệu phụ mà backbone mạnh CHƯA có**, thay vì lặp lại
+nhãn CWE mà nó đã biểu diễn được. Hai ứng viên cụ thể, chạy được theo quy trình bốn cổng ở §30:
+
+1. **Target nhỏ hơn.** Nếu cơ chế là dư địa thì giảm dữ liệu target sẽ mở lại dư địa cho CodeT5+.
+   Kiểm được ngay và bác được ngay: §13 cho thấy ở 114 dòng thì transfer **có hại** trên CodeBERT,
+   nên dự đoán là nó cũng không cứu được — đây là phép thử rẻ và có khả năng bác cao.
+2. **Đổi tín hiệu phụ, không đổi kiến trúc.** Head phụ hiện dự đoán nhãn CWE. Trên backbone đã biết
+   CWE rồi thì tín hiệu đó thừa. Một task phụ mang thông tin khác — ví dụ dự đoán vị trí dòng sửa
+   lỗi, hoặc khoảng cách sửa đổi giữa hai bản của cặp — có thể còn giá trị gia tăng.
+
+Ứng viên 2 là hướng đáng đầu tư hơn, nhưng nó **thay đổi phương pháp** chứ không phải tinh chỉnh,
+nên cần bắt đầu lại từ Cổng 1.
