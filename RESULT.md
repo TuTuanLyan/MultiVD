@@ -774,7 +774,35 @@ phương pháp thắng ở **mọi** quan sát. `transfer_cwe` dương ở cả 
 thứ tạo ra lợi ích, không phải bản thân việc pretrain trên source rồi RecAdam.** Ablation λ=0
 giờ đã có n=9 và vẫn phẳng.
 
-### 20.2 Điều ngưỡng đó không nói
+### 20.2 Trên metric độc lập ngưỡng thì yếu hơn hẳn
+
+Macro-F1@0.5 là đại lượng **rời rạc** trên tập test 152 mẫu. Điều này không trừu tượng: hai model
+Phase-2 khác hẳn nhau — ROC-AUC 0.9430 so với 0.9548, precision 0.843 so với 0.901, recall 0.909
+so với 0.831 — vẫn cho **đúng cùng một** Macro-F1@0.5 = 0.8699, vì hai kiểu đánh đổi lỗi tình cờ
+bù trừ về cùng một ma trận nhầm lẫn. Một metric có thể trùng khít giữa hai model khác nhau như vậy
+thì phải kiểm tra kết luận trên metric liên tục.
+
+Cùng 10 quan sát ghép cặp, ba metric:
+
+| Metric | Δ `transfer_cwe` | A12 | Wilcoxon p | Δ `transfer_none` |
+| --- | --- | --- | --- | --- |
+| Macro-F1@0.5 | **+0.0393** | 0.86 | **0.0020** | +0.0037 |
+| ROC-AUC | +0.0203 | 0.65 | **0.0840** | −0.0080 |
+| PR-AUC | +0.0213 | 0.64 | **0.0840** | −0.0191 |
+
+**Trên metric xếp hạng, hiệu ứng chỉ bằng khoảng một nửa và không vượt 0.05.**
+
+Điều này không xoá kết quả, nhưng thu hẹp nó đáng kể. Phát biểu được phép đưa ra:
+
+- Ở **điểm vận hành 0.5**, phương pháp thắng ở 10/10 fold — dấu rất chắc.
+- Về **khả năng phân biệt tổng thể**, lợi ích khoảng +0.020 và **chưa đạt ý nghĩa thống kê** ở n=10.
+- Ablation λ=0 **âm** trên cả hai metric xếp hạng, khớp với kết luận §2: head phụ là thứ tạo ra
+  khả năng phân biệt, còn pretrain + RecAdam trần thì làm hỏng nó.
+
+Chỉ báo cáo dòng Macro-F1 mà giấu hai dòng dưới sẽ là **chọn metric theo kết quả** — đúng lỗi mà
+§20.3 đã cảnh báo với việc chọn kiểm định, chỉ khác trục.
+
+### 20.3 Điều ngưỡng đó không nói
 
 **Kiểm định t hiệu chỉnh Nadeau–Bengio cho p = 0.066, vẫn chưa vượt 0.05.** Hai kiểm định không
 mâu thuẫn — chúng trả lời hai câu khác nhau:
