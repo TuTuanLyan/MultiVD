@@ -1154,7 +1154,47 @@ tuyến tính trên ba điểm cho:
 - Trượt → tương quan chỉ là artefact của n=3, và §19.4 giữ nguyên: nhiễu lần rút là nhiễu, phải
   lấy trung bình chứ không chọn lọc được.
 
-### 25.2 Quan hệ với §21.2
+### 25.2 Điểm thứ tư vào, và tương quan yếu đi đúng như đã cảnh báo
+
+`draw_seed12` xong với val nguồn **0.5968** — thấp nhất trong bốn — nhưng cho Δ **+0.0400**, cao
+hơn lần rút gốc (val 0.6322, +0.0311). **Quan hệ đơn điệu bị phá.**
+
+| Lần rút | val nguồn | Δ Macro-F1 | Δ ROC-AUC |
+| --- | --- | --- | --- |
+| `draw_seed12` | 0.5968 | +0.0400 | +0.0187 |
+| `twin_ccppjs` (gốc) | 0.6322 | +0.0311 | +0.0153 |
+| `draw_seed7` | 0.6495 | +0.0399 | +0.0277 |
+| `draw_seed18` | 0.6959 | +0.0529 | +0.0319 |
+
+Pearson r rơi từ **+0.989 (3 điểm) xuống +0.699 (4 điểm)**. Đúng như §25.1 đã cảnh báo: ba điểm
+gần như luôn khớp một đường thẳng. Giả thuyết "chọn lần rút theo val nguồn" **yếu đi rõ rệt**;
+lần rút thứ năm `same36_rep1` sẽ quyết định, và dự đoán +0.013 của tôi giờ trông khó trúng, vì
+`draw_seed12` ở val chỉ cao hơn một chút đã cho +0.0400.
+
+### 25.3 Nhưng câu hỏi quan trọng hơn thì đã có câu trả lời
+
+§19.4 nêu vấn đề nghiêm trọng nhất còn lại: cả 10 quan sát của §20 đều đến từ 2 model nguồn, nên
++0.0393 có thể thuộc về **hai lần rút may mắn** chứ không phải phương pháp. Bốn lần rút độc lập
+trả lời được:
+
+| | Δ Macro-F1 | Δ ROC-AUC |
+| --- | --- | --- |
+| dải | +0.0311 … +0.0529 | +0.0153 … +0.0319 |
+| mean | **+0.0410** | +0.0234 |
+| sd | **0.0090** | 0.0075 |
+| số lần rút dương | **4/4** | **4/4** |
+
+**Cả bốn đều dương trên cả hai metric**, và độ lệch chuẩn giữa các lần rút chỉ **0.0090** — nhỏ hơn
+bốn lần so với chính hiệu ứng (+0.0410).
+
+Đối chiếu quan trọng: nhiễu lần rút Phase 1 đo trên **val nguồn** có sd **0.052** (§19.3), nhưng
+nhiễu đó truyền xuống Δ transfer chỉ còn sd **0.0090**. Nghĩa là **chất lượng model nguồn dao động
+rất mạnh, còn lợi ích transfer thì bền vững trước dao động đó.**
+
+Đây là câu trả lời cho lo ngại lớn nhất của §19.4, và nó tích cực: +0.0393 **không** thuộc về một
+lần rút may mắn. Lần rút thứ năm sẽ kiểm tra thêm, đặc biệt vì nó là lần rút "hỏng" dừng ở epoch 3.
+
+### 25.4 Quan hệ với §21.2
 
 §21.2 kết luận "độ chính xác Phase 1 không dự báo được giá trị transfer", dựa trên `full`
 (val 0.5329 → +0.0037) so với `common` (val 0.5197 → +0.0307). Hai phát biểu **không mâu thuẫn**
@@ -1165,5 +1205,6 @@ vì chúng hỏi hai câu khác nhau:
 - **Trong cùng một corpus, giữa các lần rút**: mọi lần rút chia sẻ đúng một tập validation, nên
   val nguồn là thước đo so sánh được. Đây mới là câu §25 hỏi.
 
-Nếu dự đoán ở §25.1 trúng thì cách phát biểu gộp phải là: **chọn corpus thì đừng nhìn val nguồn;
-chọn lần rút trong một corpus thì hãy nhìn.**
+Với r đã tụt xuống +0.699 ở §25.2, phát biểu gộp tạm thời là: **val nguồn không dùng để chọn
+corpus, và cũng chưa chứng minh được là dùng để chọn lần rút.** Điều đã chắc chắn là §25.3 —
+lợi ích transfer bền vững trước việc lần rút nào được dùng.
