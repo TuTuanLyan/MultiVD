@@ -32,43 +32,77 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source /venv/main/bin/activate
 export HF_HOME=/workspace/hf
 
+# Two questions, not one.
+#
+#   REPEATS at a fixed seed  -> can a reported number be reproduced at all?
+#   One run at each of SEEDS -> how far apart do independent Phase-1 draws land?
+#
+# The second is what actually sizes the uncertainty. Even a perfectly
+# reproducible Phase 1 leaves the design problem intact: one draw is shared by
+# all five folds, so the folds resample the split and never the source model.
+# The spread across seeds is the noise floor that a 0.04 effect has to clear.
 SEED="${SEED:-36}"
 REPEATS="${REPEATS:-3}"
-for i in $(seq 1 "$REPEATS"); do
-  echo "=== Phase 1 repeat $i/$REPEATS, seed $SEED ==="
+SEEDS="${SEEDS:-7 12 18}"
+
+run_phase1() {  # $1 = method_name (output dir), $2 = seed
   python -u src/train_transfer.py --phase phase1 \
-    --run_name determinism --method_name "rep$i" \
+    --run_name determinism --method_name "$1" \
     --data_path data/train_ccpp_js.jsonl --data_root data/sven_python_twin \
     --model_name microsoft/codebert-base --pooling cls \
     --aux_mode cwe --cwe_vocab fixed4 --num_latent 8 \
-    --seed "$SEED" --fold 1 --epochs 15 --min_epochs 3 --patience 5 \
+    --seed "$2" --fold 1 --epochs 15 --min_epochs 3 --patience 5 \
     --batch_size 16 --eval_batch_size 16 --max_length 512 \
     --truncation_strategy head_middle_tail --learning_rate 2e-5 \
     --weight_decay 0.01 --lambda_cwe 0.2 --max_grad_norm 1.0 --num_workers 0 \
     2>&1 | tail -3
+}
+
+for i in $(seq 1 "$REPEATS"); do
+  echo "=== same seed $SEED, repeat $i/$REPEATS ==="
+  run_phase1 "same${SEED}_rep$i" "$SEED"
+done
+
+for s in $SEEDS; do
+  echo "=== independent draw, seed $s ==="
+  run_phase1 "draw_seed$s" "$s"
 done
 
 echo
-echo "=== source val macro-F1 and first-tensor fingerprint per repeat ==="
+echo "=== source val macro-F1 and weight fingerprint per run ==="
 python - <<'PY'
-import glob, hashlib, torch
+import glob, hashlib, statistics, torch
 
-seen = {}
+repeats, draws = {}, {}
 for path in sorted(glob.glob("model/determinism/*/seed_*/source/best.pt")):
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
     state = next(v for k, v in checkpoint.items() if k.endswith("state_dict"))
     first = next(iter(state))
     fingerprint = hashlib.md5(state[first].float().numpy().tobytes()).hexdigest()[:8]
     name = path.split("/")[2]
-    print(f"{name:<8} best epoch {checkpoint['best_epoch']:<3} "
-          f"source val macro-F1 {checkpoint['best_val_macro_f1']:.4f}  weights {fingerprint}")
-    seen.setdefault(fingerprint, []).append(name)
+    score = checkpoint["best_val_macro_f1"]
+    print(f"{name:<18} best epoch {checkpoint['best_epoch']:<3} "
+          f"source val macro-F1 {score:.4f}  weights {fingerprint}")
+    (repeats if name.startswith("same") else draws)[name] = (score, fingerprint)
 
-if len(seen) == 1:
-    print("\nOne fingerprint across every repeat: Phase 1 is reproducible at a fixed seed.")
+print()
+prints = {f for _, f in repeats.values()}
+if len(prints) == 1:
+    print(f"Fixed seed, {len(repeats)} repeats: one fingerprint. Phase 1 reproduces.")
+    print("The frac114/frac228 gap then came from something other than the seed,")
+    print("and that cause still has to be found before those runs can be compared.")
 else:
-    print(f"\n{len(seen)} distinct fingerprints: the seed does not pin Phase 1.")
-    print("Arms that trained their own Phase 1 are not comparable to arms that")
-    print("reused another one, and a single draw cannot support a 0.04 effect.")
+    scores = [s for s, _ in repeats.values()]
+    print(f"Fixed seed, {len(repeats)} repeats: {len(prints)} fingerprints, "
+          f"val spread {max(scores) - min(scores):.4f}. The seed does not pin Phase 1.")
+
+if len(draws) > 1:
+    scores = [s for s, _ in draws.values()]
+    spread = max(scores) - min(scores)
+    print(f"\nIndependent draws across {len(draws)} seeds: val "
+          f"{min(scores):.4f}-{max(scores):.4f}, spread {spread:.4f}, "
+          f"sd {statistics.stdev(scores):.4f}")
+    print("This spread is the noise floor a 0.04 transfer effect has to clear, and")
+    print("no amount of fold-splitting samples it -- all five folds share one draw.")
 PY
 touch /workspace/DETERMINISM_DONE
