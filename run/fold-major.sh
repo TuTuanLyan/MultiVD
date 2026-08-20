@@ -30,6 +30,7 @@ LP_LEARNING_RATE="${LP_LEARNING_RATE:-1e-3}"
 FREEZE_BACKBONE_LAYERS="${FREEZE_BACKBONE_LAYERS:-0}"
 CWE_VOCAB="${CWE_VOCAB:-fixed4}"
 SOURCE_INTERPOLATION="${SOURCE_INTERPOLATION:-1.0}"
+MAX_TRAIN_SAMPLES="${MAX_TRAIN_SAMPLES:-0}"
 FREEZE_PROTOTYPES_STEPS="${FREEZE_PROTOTYPES_STEPS:-0}"
 LATENT_TEMPERATURE="${LATENT_TEMPERATURE:-0.1}"
 SELECTION_METRIC="${SELECTION_METRIC:-macro_f1}"
@@ -52,6 +53,11 @@ SHARED=(
 # train_baseline.py accepts none of these, so they stay out of SHARED and go
 # only to train_transfer.py. Passing an unknown flag makes argparse exit, which
 # is how an earlier sweep lost every baseline result.
+# Applies to the Python target only. Phase 1 must never see it, or the source
+# corpus gets truncated instead of the target training set.
+TARGET_CAP=()
+[[ "$MAX_TRAIN_SAMPLES" -gt 0 ]] && TARGET_CAP+=(--max_train_samples "$MAX_TRAIN_SAMPLES")
+
 AUX=(
   --num_latent "$NUM_LATENT"
   --lp_epochs "$LP_EPOCHS" --lp_learning_rate "$LP_LEARNING_RATE"
@@ -98,7 +104,7 @@ for FOLD in $FOLDS; do
       --run_name "$RUN_NAME" --method_name baseline --fold "$FOLD" \
       --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" \
       --checkpoint_path "$BMODEL/best.pt" \
-      "${SHARED[@]}" >> "$BLOG/train_fold$FOLD.log" 2>&1 \
+      "${TARGET_CAP[@]}" "${SHARED[@]}" >> "$BLOG/train_fold$FOLD.log" 2>&1 \
       && $PYTHON -u src/train_baseline.py --phase infer \
         --run_name "$RUN_NAME" --method_name baseline --fold "$FOLD" \
         --checkpoint_path "$BMODEL/best.pt" \
@@ -128,7 +134,7 @@ for FOLD in $FOLDS; do
       --source_checkpoint "$MODEL/source/best.pt" \
       --checkpoint_path "$MODEL/fold$FOLD/best.pt" \
       --output_dir "results/$RUN_NAME/$METHOD" \
-      "${SHARED[@]}" >> "$LOG/phase2_fold$FOLD.log" 2>&1 \
+      "${TARGET_CAP[@]}" "${SHARED[@]}" >> "$LOG/phase2_fold$FOLD.log" 2>&1 \
       && $PYTHON -u src/train_transfer.py --phase test \
         --run_name "$RUN_NAME" --method_name "$METHOD" --fold "$FOLD" \
         --aux_mode "${MODE%%+*}" "${AUX[@]}" \
