@@ -601,3 +601,66 @@ biệt nhưng không phải khác biệt đúng. Vì thế `fit512` bị xếp *
 Ghi lại vì đây là điểm khác biệt về quy trình: lần này giả thuyết bị bác **trước** khi tiêu GPU,
 nhờ hỏi "cơ chế tôi hình dung có thật sự xảy ra không?" thay vì chạy thẳng thí nghiệm. Bốn lần
 trước trong §15 đều phải trả giá bằng nhiều giờ GPU mới biết mình sai.
+
+---
+
+## 19. Phase 1 có tái lập được không? — nghi vấn làm lung lay mọi con số phía trên
+
+### 19.1 Bằng chứng
+
+Đọc metadata của mọi checkpoint Phase 1 (`best_val_macro_f1` + vân tay MD5 của tensor đầu tiên)
+cho ra một bảng không thể bỏ qua:
+
+| run | nhánh | val Macro-F1 nguồn | best epoch | vân tay trọng số |
+| --- | --- | --- | --- | --- |
+| `frac114_codebert-base` | `transfer_cwe` | **0.5450** | 3 | `8bd16812` |
+| `frac228_codebert-base` | `transfer_cwe` | **0.6654** | 13 | `73f40a0a` |
+| `twin_ccppjs` | `transfer_cwe` (s36) | 0.6322 | 13 | — |
+| `t5p_twin` | `cwe`, `+a025`, `+a050`, `+a075`, `+lpft` | 0.6815 | 7 | `e8b0c7c9` |
+| `t5p_twin` | `+lora8`, `+lora32` | **0.5281** | 5 | `0addf22b` |
+
+Hai dòng đầu có **tham số Phase 1 giống hệt nhau**: cùng `data/train_ccpp_js.jsonl`, cùng seed 36,
+15 epoch, lr 2e-5, `lora_rank=0`, `lp_epochs=0`, `source_interpolation=1.0`,
+`max_train_samples=None`. Chỉ khác `run_name`, thứ không đi vào huấn luyện. Chúng cho **hai bộ
+trọng số khác nhau**, lệch **0.12** trên val nguồn.
+
+`src/train_transfer.py` đã đặt `manual_seed`, `cuda.manual_seed_all`,
+`cudnn.deterministic=True`, `cudnn.benchmark=False`, `num_workers=0`, và seed cả generator của
+DataLoader. Về nguyên tắc phải tái lập. Nó **không** tái lập.
+
+### 19.2 Vì sao điều này quan trọng hơn mọi mục phía trên
+
+Hiệu ứng đang đo là **0.04**. Dao động của một lần rút Phase 1 là **0.12** — gấp ba lần.
+
+Tệ hơn, thiết kế fold-major **khuếch đại** vấn đề chứ không giảm: cả 5 fold **dùng chung một
+checkpoint Phase 1**. Nghĩa là 5 fold là **5 phép đo trên cùng một lần rút**, không phải 5 mẫu
+độc lập của phương pháp. Kiểm định ghép cặp theo fold ở §17 vì thế **đánh giá thấp** độ bất định
+về bản thân phương pháp — nó chỉ đo được nhiễu của việc chia fold, không đo được nhiễu của Phase 1.
+
+Đây cũng là lý do thật sự khiến đa seed là bắt buộc chứ không phải để làm đẹp: **đổi seed là cách
+duy nhất hiện có để lấy mẫu lại Phase 1.**
+
+### 19.3 Một kết luận cũ phải sửa
+
+Bảng vân tay cho thấy `+a025/a050/a075/+lpft` **dùng chung** đúng checkpoint `e8b0c7c9` với nhánh
+`cwe` gốc. Ba so sánh đó **sạch**.
+
+Nhưng `+lora8` và `+lora32` huấn luyện Phase 1 **riêng** và rơi vào một checkpoint kém hơn hẳn:
+val nguồn 0.5281 so với 0.6815. §15 kết luận "LoRA là phép thử sạch nhất — Phase 1 gần như không
+chạm vào backbone — và cho kết quả trùng khít với không can thiệp". Câu đó **nói quá**. Ở nhánh
+LoRA có **hai thứ đổi cùng lúc**: ràng buộc lên Phase 1, *và* chất lượng model nguồn thu được.
+LoRA đánh đổi "ít làm hỏng backbone" lấy "model nguồn tệ hơn", và kết quả ròng bằng không can
+thiệp. Kết luận "bảo vệ trọng số không cứu được T5" vẫn đứng, nhưng nó dựa vào LP-FT và nội suy —
+hai nhánh thật sự chia sẻ Phase 1 — chứ **không** dựa vào LoRA.
+
+### 19.4 Phép thử
+
+`run/determinism.sh` chạy đúng một cấu hình Phase 1 **ba lần** vào ba thư mục riêng rồi in val
+nguồn kèm vân tay trọng số. Nó được xếp **đầu hàng đợi**, trước cả `pooling`, vì nếu Phase 1
+không tái lập thì mọi so sánh một-lần-rút trong tài liệu này đều cần đọc lại.
+
+- vân tay giống nhau → Phase 1 tái lập được, và khoảng cách `frac114`/`frac228` đến từ nguyên
+  nhân khác còn phải tìm.
+- vân tay khác nhau → seed không ghim được Phase 1. Khi đó mọi nhánh **bắt buộc** phải dùng chung
+  một checkpoint Phase 1, hoặc phải lấy trung bình trên nhiều lần rút, và các Δ ở §2–§14 cần
+  kèm dải bất định rộng hơn nhiều so với hiện tại.
