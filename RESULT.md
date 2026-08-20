@@ -1066,3 +1066,35 @@ trên Macro-F1: nó phá thứ hạng ở đúng lớp chiếm 54% tập test.
 Nói cách khác, đóng góp thật của task phụ không phải "tạo ra lợi ích" mà là **giữ cho việc chuyển
 giao không phải trả giá bằng các lớp mà target vốn đã học tốt**. Đây là phát biểu chặt hơn, và nó
 được ủng hộ bởi 10 quan sát chứ không phải 5.
+
+---
+
+## 24. Thí nghiệm target thứ hai: C/C++ → JavaScript
+
+Mục tiêu "tiến tới các source, target khác" cần ít nhất một target thứ hai. `run/js-target.sh`
+dùng JS làm target với ba nhánh `cwe`, `latent_bottleneck`, `none` trên 3 fold.
+
+| Hạng mục | Giá trị |
+| --- | --- |
+| Target | `data/js_twin`, 1138 mẫu, 5 fold (679 / 229 / 230), nhãn cân bằng |
+| CWE target | CWE-079 (478), CWE-078 (84), CWE-089 (75), CWE-022 (42) |
+| Source | `data/ccpp_primevul_paired_common.jsonl` — **2975 dòng, 100% C/C++** |
+| `TARGET_LANG` | `js`, khớp trường `lang` trong dữ liệu |
+
+### 24.1 Kiểm tra rò rỉ, làm **trước** khi chạy
+
+Điều này không hiển nhiên và suýt sai. `data/train_ccpp_js.jsonl` — source mặc định của mọi thí
+nghiệm Python — chứa 1138 dòng JS, và `js_twin` cũng có **đúng 1138** mẫu. So khớp mã nguồn sau
+chuẩn hoá khoảng trắng:
+
+| Cặp | Số hàm trùng |
+| --- | --- |
+| `train_ccpp_js` (phần JS) vs `js_twin` | **1138 / 1138 — trùng hoàn toàn** |
+| `ccpp_primevul_paired_common` vs `js_twin` | **0 / 1138** |
+
+Nghĩa là dùng source mặc định cho target JS sẽ là **rò rỉ toàn phần**: Phase 1 huấn luyện trên
+đúng tập test của Phase 2. Script đã dùng source C/C++ thuần nên sạch, nhưng khoảng cách giữa
+"sạch" và "rò rỉ 100%" ở đây chỉ là một biến môi trường.
+
+Ghi lại vì đây đúng là loại lỗi mà §6 đã tốn nhiều công để phát hiện một lần rồi, và vì bất kỳ ai
+sau này đổi `PHASE1_DATA_PATH` cho target JS đều sẽ vô tình tạo lại nó.
