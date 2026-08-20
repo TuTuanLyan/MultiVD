@@ -331,10 +331,25 @@ Tiêu chí thành công đặt trước: phải **đồng thời** giữ đượ
 | Can thiệp | Cơ chế | Trạng thái |
 | --- | --- | --- |
 | **LP-FT** | Fit head trước, rồi mở khóa backbone | **Thất bại** (ROC −0.022 vs −0.012) |
-| Nội suy trọng số | `θ = α·θ_phase1 + (1−α)·θ_pretrained` | đang chạy, α ∈ {0.75, 0.5, 0.25} |
+| **Nội suy trọng số** | `θ = α·θ_phase1 + (1−α)·θ_pretrained` | **Thất bại** (α=0.75: −0.0371 vs −0.0184, n=3) |
 | Tỉ lệ dữ liệu target | 114 / 228 / 456 dòng mỗi fold | đang chạy |
 | LoRA Phase 1 | Đóng băng backbone, chỉ cập nhật hạng r | đang chạy, r ∈ {8, 32} |
 | Task arithmetic / merging | — | **Loại**: sập khi trộn qua kiến trúc khác họ |
+
+### Vì sao nội suy hỏng
+
+Trộn 25% backbone gốc vào lại làm tệ **gấp đôi** so với không trộn. Nếu nội suy chỉ đơn thuần
+kéo mô hình về phía baseline thì α=0.75 phải nằm giữa α=1.0 (−0.018) và α=0 (baseline, 0.000).
+Nó không nằm giữa — đường đi vòng qua một vùng xấu.
+
+Đã loại trừ khả năng lỗi code: kiểm chứng phép trộn trên backbone thật cho sai số **0.000e+00**
+so với công thức, trọng số lai đúng tỉ lệ 0.75.
+
+Giải thích khả dĩ nhất: **chỉ backbone được nội suy, còn `vul_head` giữ nguyên từ Phase 1.**
+Head đó học để đọc đặc trưng của backbone Phase 1, giờ phải đọc một backbone lai chưa từng
+thấy. WiSE-FT gốc nội suy toàn bộ mô hình, nhưng ở đây backbone gốc không có head tương ứng
+để trộn vì lúc đó head còn ngẫu nhiên. Nặng hơn nữa, RecAdam neo θ* vào chính trạng thái lai
+đó, nên giữ chặt mô hình quanh một điểm đã hỏng.
 
 Nếu cả ba can thiệp còn lại đều thất bại thì giả thuyết "Phase 1 làm méo đặc trưng" sai, và
 kết luận trung thực nhất từ dữ liệu sẽ là: phương pháp có giá trị **trong chế độ backbone yếu
