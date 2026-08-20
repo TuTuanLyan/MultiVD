@@ -19,6 +19,7 @@ PYTHON="${PYTHON:-python}"
 SEED="${SEED:-36}"
 RUN_NAME="${RUN_NAME:-auxmatrix_ccppjs}"
 DATA="${PHASE1_DATA_PATH:-data/train_ccpp_js.jsonl}"
+DATA_ROOT="${DATA_ROOT:-data/sven_python_folds_norm}"
 MODES="${MODES-cwe latent_bottleneck latent_proto none}"
 FOLDS="${FOLDS:-1 2 3 4 5}"
 NUM_LATENT="${NUM_LATENT:-8}"
@@ -38,6 +39,7 @@ SHARED=(
   --seed "$SEED" --batch_size "$BATCH_SIZE" --eval_batch_size "$EVAL_BATCH_SIZE"
   --max_length "$MAX_LENGTH" --truncation_strategy head_middle_tail
   --weight_decay 0.01 --patience 5 --min_epochs 3 --max_grad_norm 1.0 --num_workers 0
+  --data_root "$DATA_ROOT"
 )
 
 # train_baseline.py accepts none of these, so they stay out of SHARED and go
@@ -91,6 +93,7 @@ for FOLD in $FOLDS; do
         --checkpoint_path "$BMODEL/best.pt" \
           "${SHARED[@]}" >> "$BLOG/infer_fold$FOLD.log" 2>&1 \
       || echo "  baseline fold$FOLD FAILED"
+    if [[ -f "$BRES/fold$FOLD.json" ]]; then rm -f "$BMODEL/best.pt"; fi
   fi
 
   for MODE in $MODES; do
@@ -122,6 +125,10 @@ for FOLD in $FOLDS; do
         --output_dir "results/$RUN_NAME/$METHOD" \
         "${SHARED[@]}" >> "$LOG/test_fold$FOLD.log" 2>&1 \
       || echo "  $MODE fold$FOLD FAILED"
+
+    # Fold checkpoints are ~440MB each and nothing downstream reads them once
+    # the fold's result JSON exists. Keeping all of them fills a 20GB disk.
+    if [[ -f "$RES/fold$FOLD.json" ]]; then rm -f "$MODEL/fold$FOLD/best.pt"; fi
   done
 
   echo "---- comparison after fold $FOLD ----"

@@ -27,7 +27,7 @@ from evaluate import (
     print_classification_report,
 )
 from logging_utils import configure_logging, get_logger
-from model import TransferModel, build_backbone
+from model import TransferModel, build_backbone, freeze_backbone_layers
 from RecAdam import RecAdam, anneal_function
 from train import assert_recadam_setup, train_loop
 
@@ -341,6 +341,9 @@ def make_model(model_name, device, args=None):
         latent_temperature=temperature,
         pooling=pooling,
     ).to(device)
+    if args is not None and getattr(args, "freeze_backbone_layers", 0) > 0:
+        info = freeze_backbone_layers(model.backbone, args.freeze_backbone_layers)
+        logger.info("Backbone partially frozen | %s", json.dumps(info, sort_keys=True))
     if hasattr(model, "freeze_prototypes_steps") and args is not None:
         model.freeze_prototypes_steps = getattr(args, "freeze_prototypes_steps", 0)
     return model
@@ -483,7 +486,8 @@ def run_phase1(args, device):
 
 
 def python_paths(args):
-    base = Path("data/sven_python_folds_norm") / f"fold{args.fold}"
+    base = Path(getattr(args, "data_root", None) or "data/sven_python_folds_norm")
+    base = base / f"fold{args.fold}"
     return (
         Path(args.train_path) if args.train_path else base / "train.jsonl",
         Path(args.val_path) if args.val_path else base / "val.jsonl",
@@ -676,6 +680,9 @@ def parse_args():
 
     paths = parser.add_argument_group("data and output paths")
     paths.add_argument("--data_path", default="data/train_ccpp_filtered.jsonl", help="Phase-1 JSONL")
+    paths.add_argument("--data_root", default="data/sven_python_folds_norm",
+                       help="directory holding fold1..fold5; point at the pair-preserving "
+                            "folds to evaluate without near-duplicate leakage")
     paths.add_argument("--train_path", help="optional Python train JSONL override")
     paths.add_argument("--val_path", help="optional validation JSONL override")
     paths.add_argument("--test_path", help="optional test JSONL override")
@@ -715,6 +722,10 @@ def parse_args():
                           help="latent units or prototypes, held fixed across source configs")
     training.add_argument("--latent_temperature", type=float, default=0.1,
                           help="prototype assignment temperature for aux_mode=latent_proto")
+    training.add_argument("--freeze_backbone_layers", type=int, default=0,
+                          help="freeze embeddings and the lowest N encoder layers during "
+                               "Phase 1, bounding how far source pretraining can move a "
+                               "backbone that is already strong")
     training.add_argument("--freeze_prototypes_steps", type=int, default=0,
                           help="hold prototypes fixed for this many steps so the projection "
                                "settles before assignment targets move")

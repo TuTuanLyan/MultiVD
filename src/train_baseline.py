@@ -285,6 +285,8 @@ def parse_args():
     parser.add_argument("--test_path", help="optional Python test JSONL override")
     parser.add_argument("--checkpoint_path", help="checkpoint to write/read")
     parser.add_argument("--result_path", help="test result JSON")
+    parser.add_argument("--data_root", default="data/sven_python_folds_norm",
+                        help="directory holding fold1..fold5")
     parser.add_argument("--model_name", default="microsoft/codebert-base", help="backbone")
     parser.add_argument("--pooling", choices=("cls", "mean"), default="cls",
                         help="sentence representation; use mean for T5-family encoders "

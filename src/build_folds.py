@@ -22,7 +22,7 @@ from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from pathlib import Path
 
-LENGTH_BAND = 0.35
+LENGTH_BAND = 0.5
 
 
 def normalize(code):
@@ -116,7 +116,12 @@ def assign_folds(clusters, records, n_folds, seed):
     return [sorted(fold) for fold in folds]
 
 
-def write_split(path, records, indices):
+def write_split(path, records, indices, pair_of):
+    """Write rows in the original column order plus pair_id.
+
+    pair_id is the first entry in the loader's GROUP_FIELDS, so its presence is
+    enough to make source splitting group-aware without any other change.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         for index in indices:
@@ -125,6 +130,7 @@ def write_split(path, records, indices):
                 for key, value in records[index].items()
                 if not key.startswith("_")
             }
+            record["pair_id"] = pair_of[index]
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
@@ -145,8 +151,10 @@ def main():
     parser.add_argument("--input", default="data/sven_python_folds_norm/data.jsonl")
     parser.add_argument("--output_dir", default="data/sven_python_folds_grouped")
     parser.add_argument("--n_folds", type=int, default=5)
-    parser.add_argument("--threshold", type=float, default=0.90,
-                        help="SequenceMatcher ratio above which two rows are one group")
+    parser.add_argument("--threshold", type=float, default=0.75,
+                        help="SequenceMatcher ratio above which two rows are one group. "
+                             "0.75 recovers 384 clusters from SVEN Python, matching its "
+                             "documented 380 vulnerable/fixed pairs")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -158,6 +166,11 @@ def main():
     print(f"Clusters: {len(clusters)} (threshold={args.threshold})")
     print(f"Cluster size distribution: {dict(sorted(sizes.items()))}")
     print(f"Effective independent units: {len(clusters)} vs {len(records)} rows")
+
+    pair_of = {}
+    for number, cluster in enumerate(clusters):
+        for index in cluster:
+            pair_of[index] = f"pair_{number:04d}"
 
     folds = assign_folds(clusters, records, args.n_folds, args.seed)
     output_dir = Path(args.output_dir)
@@ -185,9 +198,9 @@ def main():
             for index in folds[j]
         )
         fold_dir = output_dir / f"fold{i + 1}"
-        write_split(fold_dir / "train.jsonl", records, train_indices)
-        write_split(fold_dir / "val.jsonl", records, val_indices)
-        write_split(fold_dir / "test.jsonl", records, test_indices)
+        write_split(fold_dir / "train.jsonl", records, train_indices, pair_of)
+        write_split(fold_dir / "val.jsonl", records, val_indices, pair_of)
+        write_split(fold_dir / "test.jsonl", records, test_indices, pair_of)
         print(f"fold{i + 1}:")
         for name, indices in (
             ("  train", train_indices), ("  val", val_indices), ("  test", test_indices)

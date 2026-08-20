@@ -22,6 +22,36 @@ def build_backbone(model_name):
     return AutoModel.from_pretrained(model_name)
 
 
+def freeze_backbone_layers(backbone, n_layers):
+    """Freeze embeddings and the lowest n encoder layers.
+
+    Source pretraining on a small corpus helps a weak encoder and measurably
+    damages a strong one. Holding the lower layers fixed bounds how far Phase 1
+    can move a backbone that was already good, without giving up the heads and
+    upper layers that the auxiliary task needs.
+    """
+    if n_layers <= 0:
+        return {"frozen_modules": 0}
+    frozen = 0
+    embeddings = getattr(backbone, "embeddings", None) or getattr(backbone, "shared", None)
+    if embeddings is not None:
+        for parameter in embeddings.parameters():
+            parameter.requires_grad = False
+        frozen += 1
+
+    # RoBERTa-family: backbone.encoder.layer. T5-family: backbone.encoder.block.
+    encoder = getattr(backbone, "encoder", backbone)
+    layers = getattr(encoder, "layer", None)
+    if layers is None:
+        layers = getattr(encoder, "block", None)
+    if layers is not None:
+        for layer in list(layers)[:n_layers]:
+            for parameter in layer.parameters():
+                parameter.requires_grad = False
+            frozen += 1
+    return {"frozen_modules": frozen, "requested_layers": n_layers}
+
+
 def pool_hidden_states(hidden_states, attention_mask, strategy):
     """CLS for BERT-family, attention-masked mean for encoders with no CLS token.
 
