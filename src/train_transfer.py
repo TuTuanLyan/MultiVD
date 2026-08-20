@@ -695,6 +695,23 @@ def run_phase2(args, device):
     )
     total_steps = max(1, len(train_loader) * args.epochs)
     anneal_t0 = max(1, int(args.anneal_t0_ratio * total_steps))
+
+    if args.phase2_optimizer == "adamw":
+        # RecAdam scales the target gradient by lambda(t), which is calibrated to
+        # total_steps. With a small target set there are too few steps for lambda
+        # to rise, so the model stays anchored at the source solution -- visible
+        # as test probabilities collapsing toward 0.5. Plain AdamW isolates that.
+        optimizer = torch.optim.AdamW(
+            current_params, lr=args.learning_rate, weight_decay=args.weight_decay
+        )
+        logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
+        log_environment(args, model, device, "phase2_train")
+        train_loop(
+            args, model, train_loader, val_loader, optimizer, device, "phase2",
+            save_checkpoint, pretrain_params,
+        )
+        return
+
     optimizer = RecAdam(
         current_params,
         lr=args.learning_rate,
@@ -908,6 +925,10 @@ def parse_args():
     training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
 
     recadam = parser.add_argument_group("RecAdam phase 2")
+    recadam.add_argument("--phase2_optimizer", choices=("recadam", "adamw"), default="recadam",
+                         help="adamw drops the source anchor entirely, isolating what RecAdam "
+                              "contributes and testing whether its step-count-calibrated "
+                              "annealing is what fails on a small target set")
     recadam.add_argument("--anneal_fun", choices=("sigmoid", "linear", "constant"), default="sigmoid",
                          help="RecAdam annealing curve")
     recadam.add_argument("--anneal_k", type=float, default=0.05, help="sigmoid steepness")
