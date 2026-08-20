@@ -117,10 +117,19 @@ def merge_lora(backbone):
 
 
 def pool_hidden_states(hidden_states, attention_mask, strategy):
-    """CLS for BERT-family, attention-masked mean for encoders with no CLS token.
+    """Position 0, or the attention-masked mean over the window.
 
-    T5 has no sentence-level token at position 0, so taking [:, 0, :] there would
-    read whatever the first code token happens to be.
+    An earlier version of this docstring claimed the T5 family has no token at
+    position 0 and forced mean pooling there. That is wrong: CodeT5 and CodeT5+
+    both tokenise with RobertaTokenizerFast and both emit <s> at position 0,
+    exactly as CodeBERT does. Neither model pretrains that slot as a sentence
+    summary -- RoBERTa does not either -- but fine-tuning is what teaches it to
+    aggregate in both cases.
+
+    The mistake matters because pooling then moved together with the backbone in
+    every run, so no experiment separated "CodeT5 transfers worse" from "mean
+    pooling transfers worse". Both strategies are valid for both families; which
+    one to use is an experimental question, not a property of the checkpoint.
     """
     if strategy == "cls":
         return hidden_states[:, 0, :]
