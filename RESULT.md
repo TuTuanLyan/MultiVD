@@ -1003,3 +1003,55 @@ lặp lại trên CodeBERT. Dự đoán cụ thể, ghi trước khi `run/poolin
 
 Ghi dự đoán trước là cách duy nhất để lần này không rơi vào đúng cái bẫy đã sập sáu lần: nhìn số
 rồi mới dựng câu chuyện khớp với nó.
+
+---
+
+## 23. Lợi ích nằm ở đâu — và ablation λ=0 **không** phẳng như tôi vẫn nói
+
+Kết quả per-CWE ở §3 dựa trên một seed và folds cũ. Giờ có đủ dữ liệu để làm lại ở **n=10**, ghép
+cặp theo `(seed, fold)`, gộp seed 36 và 12 trên folds twin.
+
+| CWE | mẫu test | baseline | `cwe` | Δ | số fold dương |
+| --- | --- | --- | --- | --- | --- |
+| **CWE-022** path traversal | 66 | 0.5019 | 0.7159 | **+0.2139** | **9/10** |
+| **CWE-079** XSS | 82 | 0.5999 | 0.7791 | **+0.1793** | **9/10** |
+| CWE-078 command injection | 204 | 0.7784 | 0.7856 | +0.0072 | 5/10 |
+| CWE-089 SQL injection | 408 | 0.9447 | 0.9484 | +0.0037 | 5/10 |
+
+**Toàn bộ lợi ích nằm ở hai lớp hiếm**, và ở đó nó rất lớn: +0.21 và +0.18, dương ở 9/10 fold cho
+cả hai. Hai lớp này chỉ chiếm 148 trên 760 mẫu, nên chúng bị pha loãng thành +0.039 khi gộp — đó
+là lý do con số tổng hợp khiêm tốn hơn nhiều so với tác dụng thật.
+
+### 23.1 Ablation λ=0 không phẳng, nó **triệt tiêu**
+
+Đây là phần buộc phải sửa. Suốt tài liệu này tôi mô tả `transfer_none` là "phẳng" vì Δ tổng hợp
++0.0037. Bóc theo lớp thì nó không phẳng chút nào:
+
+| CWE | Δ `none` | số fold dương | Δ `cwe` |
+| --- | --- | --- | --- |
+| CWE-022 | **+0.1286** | 7/9 | +0.2139 |
+| CWE-079 | **+0.1369** | 8/9 | +0.1793 |
+| CWE-078 | **−0.0240** | 3/9 | +0.0072 |
+| CWE-089 | **−0.0261** | **1/9** | +0.0037 |
+
+`none` **có** cải thiện lớp hiếm (+0.13, +0.14) và **có** làm hỏng lớp phổ biến (−0.024, −0.026,
+với CWE-089 chỉ dương ở 1/9 fold). Hai chiều triệt tiêu nhau nên tổng hợp ra gần 0. "Phẳng" là
+một **artefact của phép gộp**, không phải mô tả đúng hành vi.
+
+### 23.2 Phát biểu đúng về vai trò của head phụ
+
+Bản cũ: *"head phụ tạo ra toàn bộ lợi ích, pretrain + RecAdam tự thân không làm gì"*. Bản đúng có
+hai vế, và vế thứ hai mới là phần đáng kể:
+
+1. **Pretrain trên source tự nó đã giúp lớp hiếm** — `none` cho +0.13 và +0.14 mà không cần bất kỳ
+   nhãn CWE nào. Rất có thể chỉ là hiệu ứng thêm dữ liệu và khởi tạo tốt hơn.
+2. **Head phụ làm hai việc mà pretrain trần không làm được**: nó cộng thêm vào lớp hiếm
+   (+0.13 → +0.21 và +0.14 → +0.18), và quan trọng hơn, nó **gỡ bỏ thiệt hại trên lớp phổ biến**
+   (−0.024 → +0.007 và −0.026 → +0.004).
+
+Vế thứ hai giải thích luôn vì sao `none` âm trên ROC-AUC và PR-AUC ở §20.2 trong khi vẫn xấp xỉ 0
+trên Macro-F1: nó phá thứ hạng ở đúng lớp chiếm 54% tập test.
+
+Nói cách khác, đóng góp thật của task phụ không phải "tạo ra lợi ích" mà là **giữ cho việc chuyển
+giao không phải trả giá bằng các lớp mà target vốn đã học tốt**. Đây là phát biểu chặt hơn, và nó
+được ủng hộ bởi 10 quan sát chứ không phải 5.
