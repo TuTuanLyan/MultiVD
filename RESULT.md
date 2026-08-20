@@ -452,3 +452,80 @@ giai đoạn đầu, và không tài liệu nào nêu điều này. Đây là ca
 được set ở một chỗ nhưng phase khác không thấy, script **chạy trót lọt và log trông bình thường**
 nhưng không sinh dữ liệu. Cách phát hiện duy nhất là đối chiếu "log nói gì" với "có bao nhiêu
 file kết quả thật".
+
+---
+
+## 15. Bốn giả thuyết đã bị bác bỏ
+
+Giá trị lớn nhất của phiên này là thu hẹp không gian tìm kiếm. Bốn giải thích hiển nhiên nhất
+cho hiện tượng đã được kiểm chứng và loại bỏ.
+
+| Giả thuyết | Cách kiểm chứng | Kết quả |
+| --- | --- | --- |
+| Rò rỉ cặp tạo ra hiệu ứng transfer | dựng lại folds group-aware | **Sai** — hiệu ứng còn tăng: +0.029 → +0.042 |
+| `latent_proto` thật sự vượt trội | đo lại trên folds sạch | **Sai** — +0.064 → +0.025, PR-AUC vẫn âm |
+| Phase 1 làm méo đặc trưng backbone mạnh | LP-FT, nội suy α, LoRA | **Sai** — cả ba độc lập đều thất bại |
+| Bottleneck cứu được taxonomy lớn | PrimeVul 121 CWE, 5 fold | **Sai** — `cwe` +0.004, `bottleneck` −0.017 |
+| RecAdam gây hại khi target ít dữ liệu | ablation AdamW, cùng source ckpt | **Sai phần lớn** — chỉ giải thích 20% |
+
+### Chi tiết ablation optimizer (114 dòng, n=3)
+
+| | fold1 | fold2 | fold3 | mean | Δ |
+| --- | --- | --- | --- | --- | --- |
+| baseline | 0.6818 | 0.6536 | 0.7150 | 0.6835 | — |
+| transfer + RecAdam | 0.5260 | 0.5163 | 0.6920 | 0.5781 | −0.1054 |
+| transfer + AdamW | 0.6455 | 0.5162 | 0.6371 | 0.5996 | −0.0839 |
+
+Bỏ hẳn cơ chế neo của RecAdam chỉ lấy lại **0.021 trên 0.105**. Bốn phần năm thiệt hại vẫn còn,
+nên **transfer tự nó có hại ở chế độ ít dữ liệu**, không phải do optimizer.
+
+Bằng chứng gián tiếp trước đó (xác suất bị nén vào [0.32, 0.83], std 0.116 so với 0.431) trông
+rất thuyết phục nhưng chỉ mô tả **triệu chứng**, không xác định được **nguyên nhân**. Đây là bài
+học đáng ghi: một cơ chế nghe hợp lý và khớp với triệu chứng vẫn cần ablation trực tiếp.
+
+### Ba can thiệp pretrained-agnostic (CodeT5+, folds twin)
+
+| Can thiệp | Cách tác động | Δ | n |
+| --- | --- | --- | --- |
+| *(không can thiệp)* | — | −0.0176 | 3 |
+| LP-FT | sửa thứ tự huấn luyện Phase 2 | −0.0198 | 5 |
+| Nội suy α | sửa trọng số sau Phase 1 | −0.028 … −0.037 | 3 |
+| LoRA r=8 | đóng băng 99.73% backbone ở Phase 1 | −0.0175 | 3 |
+
+LoRA là phép thử sạch nhất — Phase 1 gần như không được chạm vào backbone — và cho kết quả
+**trùng khít** với không can thiệp. LoRA r=32 đã **cắt** vì cùng cơ chế, chỉ khác cường độ.
+
+---
+
+## 16. Điều còn đứng vững
+
+1. **Task phụ tạo ra khả năng phân biệt.** `none` có A12 = 0.48 — đúng bằng tung đồng xu.
+   Ablation này chưa từng xuất hiện trong y văn.
+2. **Quy luật đơn điệu theo độ mạnh backbone.** Baseline 0.7821 → +0.029; 0.8315 → −0.027;
+   0.8419 → −0.036. Không can thiệp nào đảo ngược được.
+3. **Chọn source quan trọng hơn quy mô source.** Cùng backbone, cùng folds, cùng baseline:
+   ccpp+js 1284 dòng cho **+0.042**; PrimeVul 9408 dòng cho **+0.004**. Gấp bảy lần dữ liệu
+   nhưng lệch miền thì vô ích, và không kiến trúc head nào bù được.
+
+Điểm 3 gợi hướng đi khác hẳn câu hỏi ban đầu: thay vì tinh chỉnh head phụ, câu hỏi đáng theo
+đuổi là **chọn source thế nào cho khớp target**. Y văn đã có công cụ — task embedding của
+Vu et al. (EMNLP 2020) và ước lượng transferability của Poth et al. (EMNLP 2021), xem
+`RESEARCH_2026-08-20_0959.md` §2.
+
+---
+
+## 17. Kỷ luật thống kê rút ra từ phiên
+
+Bốn lần trong phiên tôi diễn giải một tín hiệu ở n≤2 và bốn lần phải rút lại:
+
+| Tín hiệu ở n nhỏ | Sự thật ở n≥3 |
+| --- | --- |
+| `latent_proto` +0.0635 | +0.0254 khi hết rò rỉ |
+| PrimeVul: bottleneck hơn cwe 0.065 (n=1) | khoảng cách biến mất |
+| PrimeVul: bottleneck dương cả 2 fold (n=2) | âm ở n=4 |
+| LoRA −0.0032 (n=2) | −0.0175 ở n=3, bằng không can thiệp |
+
+Với độ lệch chuẩn giữa các fold tới **0.09** trên tập test 152 mẫu, một hoặc hai fold gần như
+không mang thông tin. Kèm cảnh báo về cỡ mẫu **không cứu được** một kết luận sai.
+
+**Quy tắc áp dụng từ giờ: không phát biểu nhận định nào dưới n=3.**
