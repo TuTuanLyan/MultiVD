@@ -1679,7 +1679,7 @@ Phase 2 cố định seed 36, cùng 3 fold, cùng baseline.
 | `cwe` | Macro-F1 | +0.0395 | 0.0085 | +0.0311 … +0.0529 | 5/5 |
 | `latent_bottleneck` | Macro-F1 | +0.0328 | **0.0072** | +0.0225 … +0.0377 | 4/4 |
 | `cwe` | ROC-AUC | +0.0209 | 0.0087 | +0.0109 … +0.0319 | 5/5 |
-| `latent_bottleneck` | ROC-AUC | +0.0163 | **0.0055** | +0.0124 … +0.0248 | 4/4 |
+| `latent_bottleneck` | ROC-AUC | +0.0168 | **0.0055** | +0.0124 … +0.0248 | 4/4 |
 
 Cùng hình dạng như trên trục fold: `cwe` có **trung bình cao hơn**, `latent_bottleneck` có **phân
 tán nhỏ hơn** — lần này trên ROC-AUC thì sd chỉ bằng **0.63 lần** (0.0055 so với 0.0087).
