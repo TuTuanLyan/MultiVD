@@ -1936,7 +1936,38 @@ PHASE1_DATA_PATH=data/train_ccpp_js_editsize.jsonl \
 CodeT5+** — §34.3 cho thấy đại lượng đó ở tín hiệu CWE là −0.0137 và +0.0124, tức gần như bằng
 không. Nếu tín hiệu mới cũng ra gần không thì hướng này bị bác và nên bỏ.
 
-### 35.5 Rủi ro đã đo trước
+### 35.5 Tín hiệu mới có thật sự mới không
+
+Đây là phép kiểm có thể **giết hướng này miễn phí**, và tôi suýt bỏ qua: nếu nhóm kích thước sửa
+đổi chỉ là CWE trá hình thì nó chẳng mang thông tin gì backbone chưa có, và toàn bộ §35 vô nghĩa.
+
+Đo thông tin tương hỗ chuẩn hoá trên 1276 dòng có nhãn:
+
+| Cặp đại lượng | NMI |
+| --- | --- |
+| `edit_class` vs **CWE gốc** | **0.0286** |
+| `edit_class` vs **nhãn nhị phân** | **0.0000** |
+| CWE gốc vs nhãn nhị phân | 0.0000 |
+
+**NMI với CWE gần như bằng không** — hai tín hiệu gần như độc lập hoàn toàn. Bảng chéo xác nhận:
+mỗi CWE trải đều qua cả bốn nhóm, không lớp nào bị một nhóm chiếm quá 36%.
+
+| CWE | 1 dòng | 2-3 | 4-10 | >10 |
+| --- | --- | --- | --- | --- |
+| CWE-079 (824) | 296 | 208 | 198 | 122 |
+| CWE-078 (188) | 42 | 36 | 60 | 50 |
+| CWE-022 (132) | 22 | 16 | 46 | 48 |
+| CWE-089 (132) | 28 | 20 | 40 | 44 |
+
+**NMI với nhãn nhị phân bằng đúng 0** cũng quan trọng không kém, và nó đúng theo thiết kế: hai nửa
+của một cặp nhận **cùng** nhãn kích thước sửa đổi, nên tín hiệu này **không thể rò rỉ** task chính.
+Head phụ định hình biểu diễn mà không đi tắt.
+
+Đây là hồ sơ lý tưởng cho một task phụ: **mới so với CWE, và mù với nhãn cần dự đoán**. Hướng §35
+sống sót phép kiểm này, và giờ đã được kiểm chứng trên ba trục — dữ liệu có đủ, phân bố không suy
+biến, và trực giao với các tín hiệu đã có.
+
+### 35.6 Rủi ro đã đo trước
 
 **26% số cặp có bản lỗi dài hơn 60 dòng.** Ở đó chỗ sửa có thể nằm ngoài cửa sổ 512 token, khiến
 nhãn trở thành thứ model không nhìn thấy được. Đây là **giả thuyết cần kiểm chứ không phải khiếm
