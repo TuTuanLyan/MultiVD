@@ -432,6 +432,17 @@ def save_checkpoint(path, model, epoch, score, args):
     )
 
 
+def adopt_checkpoint_shape(path, device):
+    """Read the auxiliary head width the checkpoint was written with."""
+    saved = torch.load(path, map_location="cpu", weights_only=True)
+    num_cwes = saved.get("num_cwes")
+    if num_cwes is None:
+        weight = saved.get("model_state_dict", {}).get("cwe_head.weight")
+        num_cwes = weight.shape[0] if weight is not None else 4
+    logger.info("Auxiliary head width taken from checkpoint: %d", num_cwes)
+    return int(num_cwes)
+
+
 def load_checkpoint(path, model, device):
     checkpoint = torch.load(path, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["model_state_dict"])
@@ -664,6 +675,11 @@ def run_phase2(args, device):
     print_dataset_stats("python_train", train_records)
     print_dataset_stats("python_val", val_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    # The auxiliary head's width is a property of the Phase-1 data, not of this
+    # run's flags, so read it off the checkpoint before building the model.
+    # Rebuilding with the four-way default makes load_state_dict fail on a
+    # source trained with a larger CWE vocabulary.
+    args.num_cwes = adopt_checkpoint_shape(args.source_checkpoint, device)
     model = make_model(args.model_name, device, args)
     source_checkpoint = load_checkpoint(args.source_checkpoint, model, device)
     if args.source_interpolation < 1.0:
@@ -747,6 +763,7 @@ def run_test(args, device):
     print_dataset_stats("python_val", val_records)
     print_dataset_stats("python_test", test_records)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    args.num_cwes = adopt_checkpoint_shape(args.checkpoint_path, device)
     model = make_model(args.model_name, device, args)
     checkpoint = load_checkpoint(args.checkpoint_path, model, device)
     assert_checkpoint_compatible(checkpoint, args, "target checkpoint")
