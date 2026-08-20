@@ -23,6 +23,13 @@ DATA_ROOT="${DATA_ROOT:-data/sven_python_folds_norm}"
 MODES="${MODES-cwe latent_bottleneck latent_proto none}"
 FOLDS="${FOLDS:-1 2 3 4 5}"
 NUM_LATENT="${NUM_LATENT:-8}"
+MODEL_NAME="${MODEL_NAME:-microsoft/codebert-base}"
+POOLING="${POOLING:-cls}"
+LP_EPOCHS="${LP_EPOCHS:-0}"
+LP_LEARNING_RATE="${LP_LEARNING_RATE:-1e-3}"
+FREEZE_BACKBONE_LAYERS="${FREEZE_BACKBONE_LAYERS:-0}"
+CWE_VOCAB="${CWE_VOCAB:-fixed4}"
+SOURCE_INTERPOLATION="${SOURCE_INTERPOLATION:-1.0}"
 FREEZE_PROTOTYPES_STEPS="${FREEZE_PROTOTYPES_STEPS:-0}"
 LATENT_TEMPERATURE="${LATENT_TEMPERATURE:-0.1}"
 SELECTION_METRIC="${SELECTION_METRIC:-macro_f1}"
@@ -39,7 +46,7 @@ SHARED=(
   --seed "$SEED" --batch_size "$BATCH_SIZE" --eval_batch_size "$EVAL_BATCH_SIZE"
   --max_length "$MAX_LENGTH" --truncation_strategy head_middle_tail
   --weight_decay 0.01 --patience 5 --min_epochs 3 --max_grad_norm 1.0 --num_workers 0
-  --data_root "$DATA_ROOT"
+  --data_root "$DATA_ROOT" --model_name "$MODEL_NAME" --pooling "$POOLING"
 )
 
 # train_baseline.py accepts none of these, so they stay out of SHARED and go
@@ -47,6 +54,10 @@ SHARED=(
 # is how an earlier sweep lost every baseline result.
 AUX=(
   --num_latent "$NUM_LATENT"
+  --lp_epochs "$LP_EPOCHS" --lp_learning_rate "$LP_LEARNING_RATE"
+  --freeze_backbone_layers "$FREEZE_BACKBONE_LAYERS"
+  --cwe_vocab "$CWE_VOCAB"
+  --source_interpolation "$SOURCE_INTERPOLATION"
   --freeze_prototypes_steps "$FREEZE_PROTOTYPES_STEPS"
   --latent_temperature "$LATENT_TEMPERATURE"
   --selection_metric "$SELECTION_METRIC"
@@ -65,7 +76,7 @@ for MODE in $MODES; do
   echo "=== $(date '+%F %T') | phase1 $MODE ==="
   $PYTHON -u src/train_transfer.py --phase phase1 \
     --run_name "$RUN_NAME" --method_name "$METHOD" --data_path "$DATA" \
-    --aux_mode "${MODE%%_v2}" "${AUX[@]}" \
+    --aux_mode "${MODE%%+*}" "${AUX[@]}" \
     --epochs "$PHASE1_EPOCHS" --learning_rate "$LR" --lambda_cwe "$LAMBDA_CWE" \
     --checkpoint_path "$MODEL/source/best.pt" \
     "${SHARED[@]}" >> "$LOG/phase1.log" 2>&1 || echo "  phase1 $MODE FAILED"
@@ -112,7 +123,7 @@ for FOLD in $FOLDS; do
     mkdir -p "$MODEL/fold$FOLD"
     $PYTHON -u src/train_transfer.py --phase phase2 \
       --run_name "$RUN_NAME" --method_name "$METHOD" --fold "$FOLD" \
-      --aux_mode "${MODE%%_v2}" "${AUX[@]}" \
+      --aux_mode "${MODE%%+*}" "${AUX[@]}" \
       --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" \
       --source_checkpoint "$MODEL/source/best.pt" \
       --checkpoint_path "$MODEL/fold$FOLD/best.pt" \
@@ -120,7 +131,7 @@ for FOLD in $FOLDS; do
       "${SHARED[@]}" >> "$LOG/phase2_fold$FOLD.log" 2>&1 \
       && $PYTHON -u src/train_transfer.py --phase test \
         --run_name "$RUN_NAME" --method_name "$METHOD" --fold "$FOLD" \
-        --aux_mode "${MODE%%_v2}" "${AUX[@]}" \
+        --aux_mode "${MODE%%+*}" "${AUX[@]}" \
         --checkpoint_path "$MODEL/fold$FOLD/best.pt" \
         --output_dir "results/$RUN_NAME/$METHOD" \
         "${SHARED[@]}" >> "$LOG/test_fold$FOLD.log" 2>&1 \

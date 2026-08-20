@@ -71,6 +71,31 @@ def resolve_cwe_class(record):
     return -100
 
 
+def build_cwe_vocab(records):
+    """Map every CWE present in the source onto a contiguous auxiliary class index.
+
+    The fixed four-way mapping silently sent everything outside
+    {22,78,79,89} to -100, so a source like PrimeVul (121 CWEs here) would
+    contribute nothing to the auxiliary task beyond those four. Building the
+    vocabulary from the data lets any source use its whole taxonomy; the target
+    never sees this head, so its size does not have to match anything.
+
+    Sorted by name so the mapping is stable across runs and machines.
+    """
+    names = sorted({
+        str(record.get("cwe", "")).upper()
+        for record in records
+        if str(record.get("cwe", "")).upper().startswith("CWE-")
+    })
+    return {name: index for index, name in enumerate(names)}
+
+
+def apply_cwe_vocab(records, vocab):
+    for record in records:
+        name = str(record.get("cwe", "")).upper()
+        record["cwe_class"] = vocab.get(name, -100)
+
+
 def load_jsonl(path, expected_lang=None):
     expected_languages = None
     if expected_lang is not None:
@@ -330,12 +355,13 @@ def make_model(model_name, device, args=None):
     backbone = build_backbone(model_name)
     aux_mode = getattr(args, "aux_mode", "cwe") if args else "cwe"
     num_latent = getattr(args, "num_latent", 8) if args else 8
+    num_cwes = getattr(args, "num_cwes", 4) if args else 4
     temperature = getattr(args, "latent_temperature", 0.1) if args else 0.1
     pooling = getattr(args, "pooling", "cls") if args else "cls"
     model = TransferModel(
         backbone,
         num_classes=2,
-        num_cwes=4,
+        num_cwes=num_cwes,
         aux_mode=aux_mode,
         num_latent=num_latent,
         latent_temperature=temperature,
@@ -387,6 +413,7 @@ def save_checkpoint(path, model, epoch, score, args):
             "model_name": args.model_name,
             "cwe_mapping": CWE_MAPPING,
             "aux_mode": model.aux_mode,
+            "num_cwes": getattr(args, "num_cwes", 4),
             "pooling": model.pooling,
             "num_latent": getattr(model, "num_latent", None),
             "training_args": training_args_dict(args),
@@ -461,6 +488,18 @@ def run_phase1(args, device):
     logger.info("Loading Phase-1 source data: %s", args.data_path)
     records = load_jsonl(args.data_path)
     logger.info("Detected Phase-1 languages: %s", sorted({record["lang"] for record in records}))
+    if args.cwe_vocab == "source":
+        vocab = build_cwe_vocab(records)
+        apply_cwe_vocab(records, vocab)
+        args.num_cwes = max(1, len(vocab))
+        logger.info(
+            "Auxiliary CWE vocabulary built from source | Classes: %d | Sample: %s",
+            len(vocab),
+            dict(list(vocab.items())[:6]),
+        )
+    else:
+        args.num_cwes = 4
+        logger.info("Auxiliary CWE vocabulary: fixed four-way %s", CWE_MAPPING)
     train_records, val_records = split_source_records(records, args.seed)
     train_records = limit_source_groups(train_records, args.max_train_samples, args.seed)
     val_records = limit_source_groups(val_records, args.max_eval_samples, args.seed)
@@ -510,6 +549,90 @@ def print_recadam_schedule(args, total_steps, anneal_t0, steps_per_epoch):
     )
 
 
+def interpolate_backbone(model, args, device):
+    """Blend the Phase-1 backbone back toward its original pretrained weights.
+
+    Phase 1 helps a weak encoder and damages a strong one, so rather than
+    choosing between running it and not, dial it: alpha=1 keeps Phase 1 whole,
+    alpha=0 restores the untouched pretrained weights, and values between trade
+    source knowledge against the pretrained features Phase 1 would overwrite.
+
+    This is the weight-ensembling idea from WiSE-FT (Wortsman et al., 2021),
+    applied to the source stage rather than to a zero-shot model, and it costs
+    one extra model load rather than another training run.
+    """
+    alpha = args.source_interpolation
+    pretrained = build_backbone(args.model_name).to(device)
+    source_state = model.backbone.state_dict()
+    pretrained_state = pretrained.state_dict()
+    blended, skipped = 0, 0
+    for name, tensor in source_state.items():
+        original = pretrained_state.get(name)
+        if original is None or original.shape != tensor.shape:
+            skipped += 1
+            continue
+        if not tensor.is_floating_point():
+            skipped += 1
+            continue
+        tensor.mul_(alpha).add_(original.to(tensor.device), alpha=1.0 - alpha)
+        blended += 1
+    del pretrained
+    logger.info(
+        "Backbone interpolated toward pretrained | alpha: %.2f | Tensors blended: %d | Skipped: %d",
+        alpha, blended, skipped,
+    )
+
+
+def run_linear_probe(args, model, train_records, val_records, tokenizer, device):
+    """Fit vul_head with the backbone frozen, before any full fine-tuning.
+
+    Kumar et al. (ICLR 2022) show full fine-tuning distorts pretrained features
+    when they are already good, which is exactly the pattern measured here: the
+    transfer helps CodeBERT and hurts the stronger CodeT5+. Fitting the head
+    first means the initial full-model gradients are no longer dominated by a
+    randomly-initialised head pulling the backbone apart.
+
+    The RecAdam anchor is cloned after this runs, so the probed head is part of
+    the source solution the optimizer holds on to.
+    """
+    for parameter in model.backbone.parameters():
+        parameter.requires_grad = False
+    head_params = [p for p in model.vul_head.parameters() if p.requires_grad]
+    optimizer = torch.optim.AdamW(
+        head_params, lr=args.lp_learning_rate, weight_decay=args.weight_decay
+    )
+    loader = build_dataloader(
+        train_records, tokenizer, args.max_length, args.batch_size, True, args.seed,
+        args.num_workers, args.truncation_strategy
+    )
+    logger.info(
+        "Linear probe | Epochs: %d | LR: %.2e | Trainable: %d parameters",
+        args.lp_epochs,
+        args.lp_learning_rate,
+        sum(p.numel() for p in head_params),
+    )
+    model.train()
+    for epoch in range(1, args.lp_epochs + 1):
+        total, seen = 0.0, 0
+        for batch in loader:
+            optimizer.zero_grad(set_to_none=True)
+            outputs = model(
+                batch["input_ids"].to(device), batch["attention_mask"].to(device),
+                return_cwe=False,
+            )
+            labels = batch["labels"].to(device)
+            loss = torch.nn.functional.cross_entropy(outputs["vul_logits"], labels)
+            loss.backward()
+            optimizer.step()
+            total += loss.item() * labels.size(0)
+            seen += labels.size(0)
+        logger.info("Linear probe | Epoch %d/%d | Loss: %.6f", epoch, args.lp_epochs, total / seen)
+
+    for parameter in model.backbone.parameters():
+        parameter.requires_grad = True
+    freeze_aux_head(model)
+
+
 def run_phase2(args, device):
     train_path, val_path, _ = python_paths(args)
     logger.info("Loading Python training data: %s", train_path)
@@ -521,6 +644,8 @@ def run_phase2(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = make_model(args.model_name, device, args)
     source_checkpoint = load_checkpoint(args.source_checkpoint, model, device)
+    if args.source_interpolation < 1.0:
+        interpolate_backbone(model, args, device)
     assert_checkpoint_compatible(source_checkpoint, args, "source checkpoint")
     logger.info(
         "Loaded source checkpoint: %s | Best epoch: %s | Best Val Macro-F1: %.6f",
@@ -529,6 +654,10 @@ def run_phase2(args, device):
         source_checkpoint["best_val_macro_f1"],
     )
     freeze_aux_head(model)
+
+    if args.lp_epochs > 0:
+        run_linear_probe(args, model, train_records, val_records, tokenizer, device)
+
     current_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
     # This is the immutable RecAdam anchor, cloned before any Python optimizer step.
     pretrain_params = [parameter.detach().clone() for parameter in current_params]
@@ -722,6 +851,21 @@ def parse_args():
                           help="latent units or prototypes, held fixed across source configs")
     training.add_argument("--latent_temperature", type=float, default=0.1,
                           help="prototype assignment temperature for aux_mode=latent_proto")
+    training.add_argument("--source_interpolation", type=float, default=1.0,
+                          help="blend the Phase-1 backbone toward its original pretrained "
+                               "weights before Phase 2: 1.0 keeps Phase 1 whole, 0.0 "
+                               "restores the untouched checkpoint")
+    training.add_argument("--lp_epochs", type=int, default=0,
+                          help="Phase-2 linear-probe epochs before unfreezing the backbone "
+                               "(LP-FT). Guards a strong backbone against distortion by a "
+                               "freshly initialised head")
+    training.add_argument("--lp_learning_rate", type=float, default=1e-3,
+                          help="learning rate for the linear-probe stage; the head alone "
+                               "tolerates a far larger step than the backbone")
+    training.add_argument("--cwe_vocab", choices=("fixed4", "source"), default="fixed4",
+                          help="fixed4 keeps the original four-way head; source builds the "
+                               "auxiliary label space from whatever CWEs the Phase-1 data "
+                               "contains, so a 121-CWE corpus is usable in full")
     training.add_argument("--freeze_backbone_layers", type=int, default=0,
                           help="freeze embeddings and the lowest N encoder layers during "
                                "Phase 1, bounding how far source pretraining can move a "
