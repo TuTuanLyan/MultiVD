@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 660" width="1060" height="660" font-family="DejaVu Sans, Liberation Sans, Arial, sans-serif">
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45309"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#888"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="660" fill="#ffffff"/>
+
+  <text x="530" y="34" text-anchor="middle" font-size="15" font-weight="bold" fill="#17202a">Hình 2 — Bốn biến thể head phụ. Tất cả nhận cùng một đầu vào: vector đã pool sau dropout, [B, H], H = 768.</text>
+  <text x="530" y="54" text-anchor="middle" font-size="12" fill="#556">K = num_latent = 8 · C = số lớp CWE của source (4 với fixed4; 73 hoặc 121 với PrimeVul)</text>
+
+  <!-- ================= 1. cwe ================= -->
+  <rect x="24" y="76" width="242" height="450" rx="8" fill="#fdf6ec" stroke="#b45309" stroke-width="1.6"/>
+  <text x="145" y="102" text-anchor="middle" font-size="14" font-weight="bold" fill="#8a4a08">1 · cwe</text>
+  <text x="145" y="120" text-anchor="middle" font-size="11" fill="#8a4a08">bản gốc — CWE tường minh</text>
+
+  <rect x="60" y="138" width="170" height="34" rx="5" fill="#fff" stroke="#333"/>
+  <text x="145" y="160" text-anchor="middle" font-size="12" fill="#111">pooled  [B, H]</text>
+  <line x1="145" y1="172" x2="145" y2="200" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="52" y="202" width="186" height="42" rx="5" fill="#fff" stroke="#b45309" stroke-width="1.5"/>
+  <text x="145" y="221" text-anchor="middle" font-size="12.5" font-weight="bold" fill="#111">cwe_head</text>
+  <text x="145" y="237" text-anchor="middle" font-size="11.5" fill="#556">Linear(H, C)</text>
+  <line x1="145" y1="244" x2="145" y2="272" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="60" y="274" width="170" height="32" rx="5" fill="#fff" stroke="#333"/>
+  <text x="145" y="295" text-anchor="middle" font-size="12" fill="#111">logits  [B, C]</text>
+  <line x1="145" y1="306" x2="145" y2="334" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="44" y="336" width="202" height="44" rx="5" fill="#fff" stroke="#333"/>
+  <text x="145" y="355" text-anchor="middle" font-size="12" fill="#111">CrossEntropy</text>
+  <text x="145" y="371" text-anchor="middle" font-size="11" fill="#556">với nhãn CWE thật</text>
+
+  <rect x="44" y="398" width="202" height="112" rx="5" fill="#fff" stroke="#ddd"/>
+  <text x="145" y="418" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#8a4a08">Cần nhãn CWE: CÓ</text>
+  <text x="145" y="440" text-anchor="middle" font-size="11" fill="#333">Δ Macro-F1  +0.0393</text>
+  <text x="145" y="458" text-anchor="middle" font-size="11" fill="#333">Δ ROC-AUC   +0.0203</text>
+  <text x="145" y="480" text-anchor="middle" font-size="10.5" fill="#667">taxonomy đi thẳng vào</text>
+  <text x="145" y="494" text-anchor="middle" font-size="10.5" fill="#667">lớp cuối — khoá vào C</text>
+
+  <!-- ================= 2. latent_bottleneck ================= -->
+  <rect x="278" y="76" width="242" height="450" rx="8" fill="#e9f4ee" stroke="#1d6a49" stroke-width="2.2"/>
+  <text x="399" y="102" text-anchor="middle" font-size="14" font-weight="bold" fill="#12543a">2 · latent_bottleneck</text>
+  <text x="399" y="120" text-anchor="middle" font-size="11" fill="#12543a">nút thắt K chiều</text>
+
+  <rect x="314" y="138" width="170" height="34" rx="5" fill="#fff" stroke="#333"/>
+  <text x="399" y="160" text-anchor="middle" font-size="12" fill="#111">pooled  [B, H]</text>
+  <line x1="399" y1="172" x2="399" y2="192" stroke="#1d6a49" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="306" y="194" width="186" height="40" rx="5" fill="#fff" stroke="#1d6a49" stroke-width="1.5"/>
+  <text x="399" y="212" text-anchor="middle" font-size="12.5" font-weight="bold" fill="#111">latent_proj</text>
+  <text x="399" y="227" text-anchor="middle" font-size="11.5" fill="#556">Linear(H, K)</text>
+  <line x1="399" y1="234" x2="399" y2="250" stroke="#1d6a49" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="330" y="252" width="138" height="28" rx="5" fill="#d6ece0" stroke="#1d6a49"/>
+  <text x="399" y="271" text-anchor="middle" font-size="12" font-weight="bold" fill="#12543a">latent  [B, K]</text>
+  <line x1="399" y1="280" x2="399" y2="296" stroke="#1d6a49" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="306" y="298" width="186" height="40" rx="5" fill="#fff" stroke="#1d6a49" stroke-width="1.5"/>
+  <text x="399" y="316" text-anchor="middle" font-size="12.5" font-weight="bold" fill="#111">cwe_head</text>
+  <text x="399" y="331" text-anchor="middle" font-size="11.5" fill="#556">Linear(K, C)</text>
+  <line x1="399" y1="338" x2="399" y2="354" stroke="#1d6a49" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="298" y="356" width="202" height="40" rx="5" fill="#fff" stroke="#333"/>
+  <text x="399" y="373" text-anchor="middle" font-size="12" fill="#111">CrossEntropy</text>
+  <text x="399" y="388" text-anchor="middle" font-size="11" fill="#556">với nhãn CWE thật</text>
+
+  <rect x="298" y="404" width="202" height="106" rx="5" fill="#fff" stroke="#bcd8c9"/>
+  <text x="399" y="424" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#12543a">Cần nhãn CWE: CÓ</text>
+  <text x="399" y="446" text-anchor="middle" font-size="11" fill="#333">Δ Macro-F1  +0.0294</text>
+  <text x="399" y="464" text-anchor="middle" font-size="11" fill="#333">Δ ROC-AUC   +0.0218</text>
+  <text x="399" y="486" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#12543a">chỉ lớp K×C phụ thuộc</text>
+  <text x="399" y="500" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#12543a">taxonomy — không khoá</text>
+
+  <!-- ================= 3. latent_proto ================= -->
+  <rect x="532" y="76" width="242" height="450" rx="8" fill="#fdf6ec" stroke="#b45309" stroke-width="1.6"/>
+  <text x="653" y="102" text-anchor="middle" font-size="14" font-weight="bold" fill="#8a4a08">3 · latent_proto</text>
+  <text x="653" y="120" text-anchor="middle" font-size="11" fill="#8a4a08">prototype + Sinkhorn (SwAV)</text>
+
+  <rect x="568" y="132" width="170" height="30" rx="5" fill="#fff" stroke="#333"/>
+  <text x="653" y="152" text-anchor="middle" font-size="12" fill="#111">pooled  [B, H]</text>
+  <line x1="653" y1="162" x2="653" y2="176" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="558" y="178" width="190" height="54" rx="5" fill="#fff" stroke="#b45309" stroke-width="1.5"/>
+  <text x="653" y="195" text-anchor="middle" font-size="12.5" font-weight="bold" fill="#111">latent_proj (2 lớp riêng)</text>
+  <text x="653" y="210" text-anchor="middle" font-size="10.5" fill="#556">Linear(H,H) → GELU → Linear(H,K)</text>
+  <text x="653" y="225" text-anchor="middle" font-size="10.5" fill="#556">rồi L2-normalize</text>
+  <line x1="653" y1="232" x2="653" y2="246" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="586" y="248" width="134" height="26" rx="5" fill="#f6e6cf" stroke="#b45309"/>
+  <text x="653" y="266" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#8a4a08">latent  [B, K]</text>
+
+  <rect x="782" y="248" width="140" height="26" rx="5" fill="#f6e6cf" stroke="#b45309"/>
+  <text x="852" y="266" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#8a4a08">prototypes [K, K]</text>
+  <text x="852" y="288" text-anchor="middle" font-size="10" fill="#8a4a08">tham số học được</text>
+  <polyline points="782,261 762,261 762,305 744,305" fill="none" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <line x1="653" y1="274" x2="653" y2="288" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+  <rect x="568" y="290" width="170" height="30" rx="5" fill="#fff" stroke="#333"/>
+  <text x="653" y="310" text-anchor="middle" font-size="11.5" fill="#111">cosine  →  [B, K]</text>
+  <line x1="653" y1="320" x2="653" y2="334" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="552" y="336" width="202" height="44" rx="5" fill="#fff" stroke="#b45309" stroke-width="1.5"/>
+  <text x="653" y="354" text-anchor="middle" font-size="12" font-weight="bold" fill="#111">Sinkhorn–Knopp</text>
+  <text x="653" y="370" text-anchor="middle" font-size="10.5" fill="#556">gán cân bằng → target giả</text>
+  <line x1="653" y1="380" x2="653" y2="394" stroke="#b45309" stroke-width="1.5" marker-end="url(#b)"/>
+
+  <rect x="552" y="396" width="202" height="34" rx="5" fill="#fff" stroke="#333"/>
+  <text x="653" y="411" text-anchor="middle" font-size="11.5" fill="#111">CE với target giả</text>
+  <text x="653" y="424" text-anchor="middle" font-size="10.5" fill="#556">temperature 0.1</text>
+
+  <rect x="552" y="440" width="202" height="72" rx="5" fill="#fff" stroke="#ddd"/>
+  <text x="653" y="459" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#8a4a08">Cần nhãn CWE: KHÔNG</text>
+  <text x="653" y="478" text-anchor="middle" font-size="11" fill="#333">Δ Macro-F1  +0.0279</text>
+  <text x="653" y="495" text-anchor="middle" font-size="11" fill="#9d3832">Δ PR-AUC    −0.0164</text>
+
+  <!-- ================= 4. none ================= -->
+  <rect x="786" y="330" width="242" height="196" rx="8" fill="#f4f4f4" stroke="#999" stroke-width="1.4" stroke-dasharray="5 3"/>
+  <text x="907" y="356" text-anchor="middle" font-size="14" font-weight="bold" fill="#555">4 · none  (λ = 0)</text>
+  <text x="907" y="374" text-anchor="middle" font-size="11" fill="#666">ablation — không có head phụ</text>
+
+  <rect x="822" y="390" width="170" height="30" rx="5" fill="#fff" stroke="#999"/>
+  <text x="907" y="410" text-anchor="middle" font-size="12" fill="#555">pooled  [B, H]</text>
+  <line x1="907" y1="420" x2="907" y2="440" stroke="#888" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#g)"/>
+  <text x="907" y="456" text-anchor="middle" font-size="12" font-weight="bold" fill="#777">(không nhánh phụ)</text>
+
+  <text x="907" y="480" text-anchor="middle" font-size="11" fill="#333">Δ Macro-F1  +0.0080</text>
+  <text x="907" y="497" text-anchor="middle" font-size="11" fill="#9d3832">Δ ROC-AUC   −0.0072</text>
+  <text x="907" y="514" text-anchor="middle" font-size="10" fill="#667">chỉ còn pretrain + RecAdam</text>
+
+  <!-- footer -->
+  <line x1="24" y1="548" x2="1036" y2="548" stroke="#dde2e8"/>
+  <text x="24" y="574" font-size="11.5" fill="#556">Mọi số Δ là so với baseline của chính cấu hình đó, gộp seed 36 và 12, n = 10 fold ghép cặp, backbone CodeBERT, pooling cls.</text>
+  <text x="24" y="594" font-size="11.5" fill="#556">Cả bốn head chỉ hoạt động ở Phase 1. Từ Phase 2 trở đi chúng bị đóng băng và không tham gia inference.</text>
+  <text x="24" y="620" font-size="11.5" font-weight="bold" fill="#12543a">Biến thể 2 được tô đậm: nó gỡ được ràng buộc taxonomy và đồng thời cho bằng chứng thống kê mạnh nhất (xem RESULT.md §27).</text>
+</svg>
