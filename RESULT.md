@@ -715,3 +715,51 @@ trong nhiễu của việc chọn model nguồn, và mọi kết luận phải p
 Hai bằng chứng hiện có mâu thuẫn nhau về câu thứ hai: hai cặp cùng-config-khác-seed chỉ lệch
 0.0045 và 0.0063 (rất ổn định), nhưng toàn bộ 8 checkpoint hợp lệ trải trên sd 0.0202 (cùng bậc
 với hiệu ứng). Ba lần rút có chủ đích sẽ phân xử.
+
+---
+
+## 20. Gộp hai seed: lần đầu vượt ngưỡng, và điều ngưỡng đó **không** nói
+
+Seed 12 đạt 3 fold, gộp với 5 fold của seed 36 thành **8 quan sát ghép cặp**. `paired_stats.py`
+ghép mỗi fold với baseline **của chính seed đó**, nên dù seed 36 chạy trên `ntat` và seed 12 trên
+`ntat2`, từng Δ vẫn là so sánh trong cùng một máy.
+
+| Nhánh | n | Δ mean | Δ sd | A12 | Wilcoxon p | t (Nadeau–Bengio) | p của t |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `transfer_cwe` | 8 | **+0.0349** | 0.0281 | **0.88** | **0.0078** | +1.84 | 0.109 |
+| `transfer_latent_bottleneck` | 5 | +0.0268 | 0.0196 | 0.84 | 0.0625 | +1.87 | — |
+| `transfer_latent_proto` | 5 | +0.0254 | 0.0380 | 0.72 | 0.1250 | +0.92 | — |
+| `transfer_none` | 8 | +0.0041 | 0.0264 | 0.55 | 0.6406 | +0.23 | 0.826 |
+
+Δ từng fold:
+
+```
+transfer_cwe   +0.025  +0.000  +0.046  +0.059  +0.027  +0.007  +0.028  +0.087   -> 8/8 duong
+transfer_none  +0.032  +0.033  -0.020  +0.026  -0.033  -0.006  -0.019  +0.020   -> 4/8 duong
+```
+
+### 20.1 Điều đã đạt được
+
+Sàn Wilcoxon tụt từ 0.0625 (n=5, không bao giờ với tới 0.05) xuống 0.0039, và `transfer_cwe`
+đạt **p = 0.0078**. `transfer_cwe` **dương ở cả 8/8 fold**; `transfer_none` chỉ 4/8 và Δ gần 0.
+
+Đây là bằng chứng mạnh nhất cho phát biểu đã đứng vững lâu nhất trong dự án: **head phụ mới là
+thứ tạo ra lợi ích, không phải bản thân việc pretrain trên source rồi RecAdam.** Ablation λ=0
+giờ đã có n=8 và vẫn phẳng.
+
+### 20.2 Điều ngưỡng đó không nói
+
+**Kiểm định t hiệu chỉnh Nadeau–Bengio cho p = 0.109, không vượt 0.05.** Hai kiểm định không
+mâu thuẫn — chúng trả lời hai câu khác nhau:
+
+- Wilcoxon/sign test hỏi *"phương pháp có gần như luôn thắng không?"* → có, 8/8, p = 0.0078.
+- t hiệu chỉnh hỏi *"độ lớn của lợi ích có được xác định chắc chắn không, sau khi tính đến việc
+  các fold dùng chung dữ liệu huấn luyện?"* → chưa, p = 0.109.
+
+Báo cáo p = 0.0078 mà giấu p = 0.109 sẽ là chọn kiểm định theo kết quả. Phát biểu đúng là:
+**dấu của hiệu ứng rất chắc, độ lớn thì chưa.**
+
+**Và cả 8 quan sát vẫn chỉ đến từ 2 model nguồn.** Theo §19.3, fold lấy mẫu lại cách chia target,
+seed lấy mẫu lại Phase 2 — không cái nào lấy mẫu lại model nguồn. `run/source-draws.sh` giữ cố
+định mọi thứ ở hạ nguồn và chỉ đổi checkpoint Phase 1; nó mới là thứ quyết định con số 0.0349
+thuộc về **phương pháp** hay thuộc về **hai lần rút may mắn**.
