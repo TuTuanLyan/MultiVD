@@ -746,12 +746,16 @@ Seed 12 đã xong cả 5 fold, gộp với 5 fold của seed 36 thành **10 quan
 ghép mỗi fold với baseline **của chính seed đó**, nên dù seed 36 chạy trên `ntat` và seed 12 trên
 `ntat2`, từng Δ vẫn là so sánh trong cùng một máy.
 
-| Nhánh | n | Δ mean | Δ sd | A12 | Wilcoxon p | t (Nadeau–Bengio) | p của t |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `transfer_cwe` | **10** | **+0.0393** | 0.0286 | **0.86** | **0.0020** | +2.09 | 0.066 |
-| `transfer_latent_bottleneck` | 5 | +0.0268 | 0.0196 | 0.84 | 0.0625 | +1.87 | — |
-| `transfer_latent_proto` | 5 | +0.0254 | 0.0380 | 0.72 | 0.1250 | +0.92 | — |
-| `transfer_none` | 9 | +0.0037 | 0.0247 | 0.58 | 0.6523 | +0.23 | 0.827 |
+| Nhánh | n | Δ mean | Δ sd | A12 | Wilcoxon p | t (Nadeau–Bengio) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `transfer_cwe` | **10** | **+0.0393** | 0.0286 | **0.86** | **0.0020** | +2.09 |
+| `transfer_latent_bottleneck` | 6 | +0.0245 | 0.0184 | 0.83 | 0.0312 | +1.88 |
+| `transfer_latent_proto` | 6 | +0.0298 | 0.0356 | 0.78 | 0.0625 | +1.18 |
+| `transfer_none` | 10 | +0.0080 | 0.0269 | 0.62 | 0.3750 | +0.45 |
+
+Seed 12 mới xong fold 1 cho hai nhánh latent, nên n=6 của chúng là **5 fold seed 36 + 1 fold
+seed 12** — thực chất vẫn là n=5 cộng một. Chưa đủ để phát biểu; `run/seed12-latent.sh` đang chạy
+nốt bốn fold còn lại.
 
 Δ từng fold, seed 36 rồi seed 12:
 
@@ -786,9 +790,16 @@ Cùng 10 quan sát ghép cặp, ba metric:
 
 | Metric | Δ `transfer_cwe` | A12 | Wilcoxon p | Δ `transfer_none` |
 | --- | --- | --- | --- | --- |
-| Macro-F1@0.5 | **+0.0393** | 0.86 | **0.0020** | +0.0037 |
-| ROC-AUC | +0.0203 | 0.65 | **0.0840** | −0.0080 |
+| Macro-F1@0.5 | **+0.0393** | 0.86 | **0.0020** | +0.0080 |
+| ROC-AUC | +0.0203 | 0.65 | **0.0840** | −0.0072 |
 | PR-AUC | +0.0213 | 0.64 | **0.0840** | −0.0191 |
+
+Một điều đáng theo dõi, **chưa phải kết luận**: trên ROC-AUC, `latent_bottleneck` cho Δ +0.0185 —
+gần bằng `cwe` (+0.0203) — nhưng độ lệch chuẩn chỉ **0.0086** so với 0.0286, tức **nhỏ hơn ba lần**.
+Kéo theo t hiệu chỉnh **+3.02** (p ≈ 0.029), giá trị cao nhất từng thấy trong dự án, và Wilcoxon
+0.0312. Nếu điều này còn đứng vững khi seed 12 xong đủ 5 fold thì nó đáng chú ý: nhánh **không bị
+khoá vào 4 CWE** lại là nhánh **ổn định nhất**. Nhưng n hiện tại là 6, trong đó 5 đến từ một seed,
+nên đúng theo §17 thì chưa được phát biểu gì.
 
 **Trên metric xếp hạng, hiệu ứng chỉ bằng khoảng một nửa và không vượt 0.05.**
 
