@@ -1227,3 +1227,71 @@ vì chúng hỏi hai câu khác nhau:
 Với r đã tụt xuống +0.699 ở §25.2, phát biểu gộp tạm thời là: **val nguồn không dùng để chọn
 corpus, và cũng chưa chứng minh được là dùng để chọn lần rút.** Điều đã chắc chắn là §25.3 —
 lợi ích transfer bền vững trước việc lần rút nào được dùng.
+
+---
+
+## 26. Phép thử dự đoán: tôi ghi trước, và tôi trượt
+
+### 26.1 Kết quả
+
+§25.1 ghi một dự đoán **trước khi chạy**: lần rút `same36_rep1` (val nguồn 0.5722, thấp nhất, và
+là lần rút "hỏng" dừng ở epoch 3 ở §19.3) sẽ cho Δ Macro-F1 ≈ **+0.013**.
+
+| | |
+| --- | --- |
+| Dự đoán ghi trước | **+0.0126** |
+| Thực tế | **+0.0335** |
+| Lệch | **+0.0209** |
+
+**Trượt.** Không phải trượt nhỏ — thực tế cao gấp 2.7 lần dự đoán, và nằm giữa dải chứ không phải
+dưới đáy.
+
+Bảng đầy đủ năm lần rút:
+
+| Lần rút | val nguồn | Δ Macro-F1 |
+| --- | --- | --- |
+| `same36_rep1` (dừng ở epoch 3) | 0.5722 | +0.0335 |
+| `draw_seed12` | 0.5968 | +0.0400 |
+| `twin_ccppjs` (gốc) | 0.6322 | +0.0311 |
+| `draw_seed7` | 0.6495 | +0.0399 |
+| `draw_seed18` | 0.6959 | +0.0529 |
+
+Pearson r theo số điểm: **+0.989 (3) → +0.699 (4) → +0.742 (5)**. Giả thuyết "chọn lần rút Phase 1
+theo val nguồn" **bị bác**. Val nguồn thấp nhất lại không cho Δ thấp nhất; Δ thấp nhất thuộc về
+lần rút có val **hạng ba**.
+
+### 26.2 Nhưng phép thử trượt lại củng cố một điều khác, mạnh hơn
+
+`same36_rep1` là lần rút **tệ nhất** có thể lấy được: nó dừng ở epoch 3 vì early stopping, và val
+nguồn của nó thấp hơn lần rút tốt nhất tới 0.124. Nó vẫn cho **+0.0335**.
+
+Năm lần rút độc lập, trải gần trọn dải val quan sát được:
+
+| | giá trị |
+| --- | --- |
+| dải Δ | +0.0311 … +0.0529 |
+| mean | **+0.0395** |
+| sd | **0.0085** |
+| số lần rút dương | **5/5** |
+
+Đối chiếu quyết định: **sd của val nguồn giữa các lần rút là 0.0521; sd của Δ transfer chỉ 0.0085**
+— nhỏ hơn sáu lần. Chất lượng model nguồn dao động dữ dội và **lợi ích transfer gần như không đi
+theo**.
+
+Đây là kết quả tốt hơn nhiều so với thứ tôi định chứng minh. Tôi đi tìm một công thức chọn lọc
+("chạy Phase 1 vài lần, giữ lần tốt nhất") và thay vào đó tìm ra rằng **không cần chọn lọc**:
+phương pháp hoạt động kể cả khi Phase 1 hỏng. Với một phương pháp muốn dùng được ở nơi khác, "không
+cần may mắn" đáng giá hơn "biết cách chọn lần may mắn".
+
+### 26.3 Ghi chú về quy trình
+
+Đây là giả thuyết thứ chín bị bác trong dự án, và là lần đầu tiên **tôi ghi dự đoán bằng số trước
+khi có dữ liệu**. Chênh lệch +0.0209 là một con số cụ thể tôi không thể diễn giải lại theo hướng
+có lợi.
+
+Đối chiếu với §21.4, nơi tôi nhìn số rồi mới dựng câu chuyện "gấp mười lần" và phải rút lại: cùng
+một sai lầm về bản chất, nhưng ghi dự đoán trước khiến việc phát hiện mất **ba mươi giây thay vì
+hai giờ**, và không có lúc nào một khẳng định sai được ghi vào tài liệu như thể nó đúng.
+
+Dự đoán ghi trước còn lại đang chờ: §22.3 dự báo CodeBERT dưới mean pooling rơi khoảng 0.026 xuống
+≈ +0.016. `run/pooling.sh` là công việc tiếp theo trên ntat.
