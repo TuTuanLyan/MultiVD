@@ -1502,3 +1502,67 @@ và điều đó gỡ bỏ phần lớn hiện tượng "phụ thuộc pretraine
 **Nhưng lợi ích thì co lại theo độ mạnh backbone.** CodeBERT +0.0311; CodeT5+ +0.0039 — nhỏ hơn
 tám lần, và không phân biệt được với việc đơn giản đổi cách pool. Phương pháp **không còn gây hại**
 trên backbone mạnh, nhưng cũng **chưa mang lại gì đáng kể** ở đó.
+
+---
+
+## 29. Seed thứ ba: metric xếp hạng vượt ngưỡng, và một khẳng định của tôi yếu đi
+
+`run/seed7-core.sh` xong 3 fold. Δ Macro-F1 theo từng seed:
+
+| Nhánh | seed 36 | seed 12 | seed 7 |
+| --- | --- | --- | --- |
+| `cwe` | +0.0417 (n=5) | +0.0370 (n=5) | +0.0337 (n=3) |
+| `latent_bottleneck` | +0.0268 (n=5) | +0.0319 (n=5) | +0.0272 (n=3) |
+| `none` | −0.0025 (n=5) | +0.0184 (n=5) | +0.0072 (n=3) |
+
+Ba seed độc lập, ba lần rút Phase 1 khác nhau, hai máy khác nhau — và ba cột **khớp nhau chặt**.
+
+Gộp thành **n=13**:
+
+| Nhánh | Metric | Δ | sd | A12 | Wilcoxon p | t hiệu chỉnh | p của t |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `cwe` | Macro-F1 | +0.0380 | 0.0286 | 0.85 | **0.0007** | +2.08 | 0.060 |
+| `cwe` | ROC-AUC | +0.0219 | 0.0304 | 0.67 | **0.0327** | +1.13 | 0.281 |
+| `latent_bottleneck` | Macro-F1 | +0.0289 | 0.0248 | 0.80 | **0.0034** | +1.82 | 0.094 |
+| `latent_bottleneck` | ROC-AUC | +0.0208 | 0.0261 | 0.69 | **0.0215** | +1.25 | 0.235 |
+| `none` | Macro-F1 | +0.0078 | 0.0262 | 0.60 | 0.2734 | +0.47 | 0.647 |
+| `none` | ROC-AUC | −0.0031 | 0.0241 | 0.45 | 0.9097 | −0.20 | 0.845 |
+
+### 29.1 Điểm yếu chính đã được giải quyết
+
+§20.2 nêu vấn đề lớn nhất còn lại: trên metric **độc lập ngưỡng**, hiệu ứng chỉ bằng nửa và
+không vượt 0.05 (ROC-AUC p = 0.0840 ở n=10).
+
+Ở n=13, **ROC-AUC vượt ngưỡng cho cả hai nhánh**: `cwe` p = **0.0327**, `latent_bottleneck`
+p = **0.0215**. Đây không phải hiệu ứng lớn lên (Δ vẫn ~+0.021) mà là **thêm quan sát thật**, đúng
+như §20.2 đã nói là cách hợp lệ duy nhất. Ablation λ=0 vẫn phẳng và **âm** trên ROC-AUC (−0.0031,
+p = 0.91), giữ nguyên kết luận về vai trò head phụ.
+
+### 29.2 Nhưng §27 đã nói quá, và giờ phải sửa
+
+§27 kết luận **"`latent_bottleneck` là nhánh duy nhất vượt 0.05 trên cả hai kiểm định"**, dựa trên
+n=10 nơi nó có sd 0.0169 và t hiệu chỉnh +2.64 (p = 0.027).
+
+Thêm seed 7 thì lợi thế phương sai đó **co lại**:
+
+| | n=10 | n=13 |
+| --- | --- | --- |
+| sd | 0.0169 | **0.0248** |
+| t hiệu chỉnh | +2.64 | **+1.82** |
+| p của t | **0.027** (vượt) | **0.094** (không vượt) |
+
+Ở n=13, **không nhánh nào vượt được kiểm định t hiệu chỉnh** — kể cả `cwe` (p = 0.060). Cả hai chỉ
+vượt Wilcoxon.
+
+Phát biểu đúng bây giờ: **`cwe` và `latent_bottleneck` gần như tương đương.** `cwe` có trung bình
+cao hơn (+0.0380 so với +0.0289) và A12 cao hơn (0.85 so với 0.80); `latent_bottleneck` có sd nhỏ
+hơn chút (0.0248 so với 0.0286) và p tốt hơn trên ROC-AUC (0.0215 so với 0.0327). Không đủ căn cứ
+để nói nhánh nào hơn.
+
+Điều **vẫn đứng vững** và mới là điểm đáng kể: `latent_bottleneck` **ngang** head CWE tường minh
+trong khi **không bị khoá vào taxonomy nguồn**. Với mục tiêu tổng quát hóa thì "ngang mà không
+ràng buộc" đã đủ; không cần nó phải hơn.
+
+Đây là lần thứ tám một tín hiệu của tôi co lại khi có thêm dữ liệu, và lần thứ tư tôi phải sửa một
+phát biểu đã viết vào tài liệu này. Lần này khoảng cách chỉ là **hai giờ** — §27 viết ở n=10, sửa
+ở n=13.
