@@ -1087,12 +1087,14 @@ rồi mới dựng câu chuyện khớp với nó.
 Kết quả per-CWE ở §3 dựa trên một seed và folds cũ. Giờ có đủ dữ liệu để làm lại ở **n=10**, ghép
 cặp theo `(seed, fold)`, gộp seed 36 và 12 trên folds twin.
 
-| CWE | mẫu test | baseline | `cwe` | Δ | số fold dương |
-| --- | --- | --- | --- | --- | --- |
-| **CWE-022** path traversal | 66 | 0.5019 | 0.7159 | **+0.2139** | **9/10** |
-| **CWE-079** XSS | 82 | 0.5999 | 0.7791 | **+0.1793** | **9/10** |
-| CWE-078 command injection | 204 | 0.7784 | 0.7856 | +0.0072 | 5/10 |
-| CWE-089 SQL injection | 408 | 0.9447 | 0.9484 | +0.0037 | 5/10 |
+*Cập nhật lên n=13 sau khi seed 7 xong 3 fold:*
+
+| CWE | mẫu test | baseline | `cwe` | Δ | fold dương | `latent_bottleneck` Δ | fold dương |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **CWE-022** path traversal | 66 | 0.4767 | 0.7057 | **+0.2290** | **12/13** | **+0.1594** | 11/13 |
+| **CWE-079** XSS | 82 | 0.5750 | 0.7873 | **+0.2124** | **12/13** | **+0.1785** | 12/13 |
+| CWE-078 command injection | 204 | 0.7746 | 0.7785 | +0.0039 | 7/13 | −0.0070 | 7/13 |
+| CWE-089 SQL injection | 408 | 0.9471 | 0.9434 | −0.0037 | 5/13 | −0.0009 | 7/13 |
 
 **Toàn bộ lợi ích nằm ở hai lớp hiếm**, và ở đó nó rất lớn: +0.21 và +0.18, dương ở 9/10 fold cho
 cả hai. Hai lớp này chỉ chiếm 148 trên 760 mẫu, nên chúng bị pha loãng thành +0.039 khi gộp — đó
@@ -1103,12 +1105,12 @@ là lý do con số tổng hợp khiêm tốn hơn nhiều so với tác dụng 
 Đây là phần buộc phải sửa. Suốt tài liệu này tôi mô tả `transfer_none` là "phẳng" vì Δ tổng hợp
 +0.0037. Bóc theo lớp thì nó không phẳng chút nào:
 
-| CWE | Δ `none` | số fold dương | Δ `cwe` |
-| --- | --- | --- | --- |
-| CWE-022 | **+0.1286** | 7/9 | +0.2139 |
-| CWE-079 | **+0.1369** | 8/9 | +0.1793 |
-| CWE-078 | **−0.0240** | 3/9 | +0.0072 |
-| CWE-089 | **−0.0261** | **1/9** | +0.0037 |
+| CWE | Δ `none` (n=13) | Δ `cwe` (n=13) |
+| --- | --- | --- |
+| CWE-022 | **+0.1129** | +0.2290 |
+| CWE-079 | **+0.1510** | +0.2124 |
+| CWE-078 | **−0.0244** | +0.0039 |
+| CWE-089 | **−0.0171** | −0.0037 |
 
 `none` **có** cải thiện lớp hiếm (+0.13, +0.14) và **có** làm hỏng lớp phổ biến (−0.024, −0.026,
 với CWE-089 chỉ dương ở 1/9 fold). Hai chiều triệt tiêu nhau nên tổng hợp ra gần 0. "Phẳng" là
