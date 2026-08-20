@@ -1194,6 +1194,25 @@ rất mạnh, còn lợi ích transfer thì bền vững trước dao động đ
 Đây là câu trả lời cho lo ngại lớn nhất của §19.4, và nó tích cực: +0.0393 **không** thuộc về một
 lần rút may mắn. Lần rút thứ năm sẽ kiểm tra thêm, đặc biệt vì nó là lần rút "hỏng" dừng ở epoch 3.
 
+### 25.3.1 Toàn bộ lưới (lần rút × fold), thống kê mô tả
+
+Trải phẳng mọi ô đã có — mỗi ô là một cặp (lần rút Phase 1, fold), so với cùng một baseline:
+
+| Metric | ô dương | mean | sd | min | max |
+| --- | --- | --- | --- | --- | --- |
+| Macro-F1@0.5 | **14/14** | +0.0399 | 0.0190 | +0.0073 | +0.0847 |
+| ROC-AUC | **14/14** | +0.0212 | 0.0158 | +0.0021 | +0.0435 |
+| PR-AUC | 13/14 | +0.0321 | 0.0227 | −0.0016 | +0.0636 |
+
+**Không một tổ hợp (lần rút, fold) nào cho ROC-AUC âm.** Đây là góc nhìn khác về điểm yếu ở
+§20.2: ở đó Wilcoxon trên 10 fold cho ROC-AUC p = 0.0840 vì độ lệch chuẩn **giữa các fold** (0.0286)
+lớn so với hiệu ứng; ở đây, khi cố định fold và đổi lần rút, mọi ô đều dương.
+
+**Cảnh báo bắt buộc:** 14 ô này **không phải 14 quan sát độc lập** — chúng dùng lại đúng 3 fold,
+nên các ô cùng fold tương quan mạnh với nhau. Vì thế đây là **thống kê mô tả**, không phải kiểm
+định, và tuyệt đối không được đem chạy Wilcoxon trên 14 ô rồi báo cáo p. Điều duy nhất bảng này
+nói là: trong không gian (lần rút × fold) đã khảo sát, chưa gặp ô nào âm trên hai metric đầu.
+
 ### 25.4 Quan hệ với §21.2
 
 §21.2 kết luận "độ chính xác Phase 1 không dự báo được giá trị transfer", dựa trên `full`
