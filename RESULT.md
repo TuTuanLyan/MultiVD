@@ -1577,13 +1577,44 @@ phát biểu đã viết vào tài liệu này. Lần này khoảng cách chỉ 
 
 Từ đây trở đi, mọi ý tưởng mới đi theo quy trình này thay vì chạy nhiều seed ngay:
 
-| Bước | Làm gì | Điều kiện đi tiếp |
+| Cổng | Làm gì | Điều kiện đi tiếp |
 | --- | --- | --- |
-| 1 | Chạy **seed 42**, **đủ 5 fold**, kèm baseline huấn luyện lại tại seed đó trên chính máy đó | Δ dương và nhất quán qua các fold |
-| 2 | Mở rộng sang seed khác (36, 12, 7) để loại trừ may rủi | — |
+| **1** | Seed 42, **fold 1–3**. Mỗi fold: baseline → các phương pháp → các pretrained cùng phương pháp | xu hướng mạnh |
+| **2** | Chạy nốt **fold 4–5**, cùng seed | mean cao ở **mọi** fold, và biên độ **vượt nhiễu** |
+| **3** | Lặp lại trên **3–5 seed** khác để loại trừ may rủi | vẫn giữ |
+| **4** | Mới đến ablation: bỏ RecAdam, đổi dữ liệu, đổi source/target, xác định lượng dữ liệu cần, kiểm định thống kê | — |
+
+**Chỉ hai thứ quyết định: phương pháp và pretrained.** Cổng 1–3 kiểm đúng hai thứ đó và không gì
+khác. Mọi câu hỏi còn lại — RecAdam có cần không, cần bao nhiêu dữ liệu, đổi source thì sao — đều
+**vô nghĩa nếu phương pháp không thắng ngay từ đầu**, nên chúng bị đẩy hết xuống Cổng 4.
 
 Chạy nhiều seed ngay từ đầu là lãng phí khi chưa biết có gì đáng xác nhận. Ba seed cho một ý tưởng
 hỏng tốn gấp ba lần một seed cho cùng kết luận đó.
+
+### 30.0 Thứ tự trong từng fold, và luật cùng máy
+
+`run/gated.sh` chạy đúng thứ tự này trong **mỗi** fold:
+
+1. **baseline của từng backbone** — chạy trước mọi thứ, vì mọi Δ đều quy về nó;
+2. **từng phương pháp**, và với mỗi phương pháp thì **mọi backbone chạy liền nhau**.
+
+Vòng ngoài là phương pháp chứ không phải backbone, nên "phương pháp → pretrained cùng phương pháp"
+nằm sát nhau trong thời gian, dễ đọc xu hướng.
+
+**Luật cùng máy là luật mềm, phạm vi hẹp.** Một *nhóm so sánh* — baseline cùng các phương pháp của
+nó, cùng seed, cùng fold — nên nằm trên một máy, vì chênh lệch phần cứng đo được là **0.028
+Macro-F1**, lớn hơn chính hiệu ứng. Ngoài phạm vi đó thì tách máy thoải mái: **fold khác nhau hoặc
+seed khác nhau chạy song song hai máy đều hợp lệ** và nhanh gấp đôi. Điều duy nhất cấm là lấy
+baseline máy này ghép với phương pháp máy kia trong cùng một phép so.
+
+### 30.0.1 "Vượt nhiễu" nghĩa là gì
+
+Ở Cổng 2, Δ cỡ **0.00x** không tính là thắng — nó nằm gọn trong nhiễu. Ngưỡng này không phải quy
+ước chung mà lấy từ chính dự án: sd giữa các fold tới **0.09** trên tập test 152 mẫu.
+
+Ví dụ có thật: CodeT5+ dưới `cls` cho Δ = **+0.0039**. `src/report_gate.py` tự xếp nó vào nhóm
+**"ngang baseline"** chứ không phải "thắng" — và đó là cách đọc đúng, vì ghép cặp với baseline
+mean-pool cho hiệu +0.0014 với sd 0.0057, tức trung bình nhỏ hơn chính độ lệch chuẩn của nó.
 
 ### 30.1 Vì sao đủ 5 fold, không phải 3
 

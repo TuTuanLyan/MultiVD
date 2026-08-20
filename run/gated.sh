@@ -2,10 +2,13 @@
 # Sàng lọc có cổng chặn: mỗi fold chạy baseline trước, rồi các phương pháp, rồi
 # các pretrained cùng phương pháp — tất cả trên MỘT máy.
 #
-# Vì sao phải cùng máy: hai instance đang dùng hai GPU khác nhau (5070 Ti và
-# 4070 Ti SUPER), và chênh lệch phần cứng đo được là 0.028 Macro-F1 — lớn hơn
-# chính hiệu ứng đang đo. So một backbone chạy máy này với backbone chạy máy kia
-# là so nhầm biến.
+# Cùng máy là **luật mềm**, phạm vi hẹp: một NHÓM SO SÁNH — baseline cùng các
+# phương pháp của nó, cùng seed, cùng fold — nên nằm trên một máy, vì chênh lệch
+# phần cứng đo được là 0.028 Macro-F1, lớn hơn chính hiệu ứng đang đo.
+#
+# Ngoài phạm vi đó thì tách máy thoải mái: fold khác nhau, hoặc seed khác nhau,
+# chạy song song hai máy đều hợp lệ và nhanh gấp đôi. Chỉ đừng lấy baseline máy
+# này ghép với phương pháp máy kia trong cùng một phép so.
 #
 # Vì sao baseline chạy trước trong từng fold: mọi Δ đều phải quy về baseline của
 # CHÍNH backbone đó, CHÍNH fold đó, CHÍNH máy đó. Chạy baseline sau hoặc tái dùng
@@ -22,6 +25,10 @@
 # Cách gọi:
 #   BACKBONES="codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-220m:cls" \
 #   MODES="cwe latent_bottleneck none" SEED=42 RUN_NAME=gate1 bash run/gated.sh
+#
+# Chia việc hai máy: đặt GATE_FOLDS/REST_FOLDS khác nhau, ví dụ máy A chạy
+# GATE_FOLDS="1 2 3" còn máy B chạy GATE_FOLDS="4 5" REST_FOLDS="" — mỗi fold vẫn
+# trọn vẹn baseline + mọi phương pháp trên cùng một máy.
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source /venv/main/bin/activate 2>/dev/null || true
