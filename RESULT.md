@@ -560,20 +560,45 @@ dần về 0** mà **đổi dấu**. Trên T5 và T5+, transfer không phải l�
 ### 18.2 Biến gây nhiễu tôi tự tạo ra
 
 CodeBERT và họ T5 **chưa bao giờ được chạy cùng một cách đọc biểu diễn**. CodeBERT pool từ CLS;
-T5 không có token cấp câu ở vị trí 0 nên các lần chạy đó pool bằng trung bình có mask. Đó là
-một lựa chọn trong repo này, không phải thuộc tính của checkpoint — và nó **biến thiên cùng
-lúc** với backbone trong mọi lần chạy đã làm. Không lần nào tách được hai biến.
+các lần chạy T5 pool bằng trung bình có mask. Lý do ghi trong `src/model.py` là "T5 không có
+token cấp câu ở vị trí 0".
+
+**Lý do đó sai.** Kiểm tra thẳng tokenizer:
+
+| Model | lớp tokenizer | token ở vị trí 0 |
+| --- | --- | --- |
+| `microsoft/codebert-base` | `RobertaTokenizerFast` | `<s>` (id 0) |
+| `Salesforce/codet5p-220m` | `RobertaTokenizerFast` | `<s>` (id 1) |
+| `Salesforce/codet5-base` | `RobertaTokenizerFast` | `<s>` (id 1) |
+
+Cả ba dùng **cùng một lớp tokenizer** và cùng phát ra `<s>` ở vị trí 0. Không model nào trong số
+đó pretrain vị trí này thành biểu diễn cấp câu — RoBERTa cũng không — và ở cả hai họ thì chính
+giai đoạn finetune mới dạy nó gộp thông tin. Nghĩa là pooling là **lựa chọn tự do cho cả hai
+họ**, không phải thuộc tính của checkpoint.
+
+Hậu quả: pooling **biến thiên cùng lúc** với backbone trong mọi lần chạy đã làm, nên chưa lần nào
+tách được "CodeT5 transfer kém hơn" khỏi "mean pooling transfer kém hơn". Bảng 2×2 giữa
+{CodeBERT, CodeT5+} × {cls, mean} mới chỉ có **đường chéo**.
 
 Cơ chế hợp lý: bằng chứng của một lỗ hổng nằm ở vài dòng, còn trung bình có mask chia đều tín
 hiệu đó cho độ dài hàm. Một task phụ định hình backbone sẽ được CLS giữ lại nhưng bị trung bình
 làm loãng.
 
-`run/pooling.sh` chạy CodeBERT với `POOLING=mean`, giữ nguyên mọi thứ khác. `--pooling` nằm
-trong khối `SHARED` của driver nên baseline cũng được huấn luyện lại cùng kiểu pooling.
+Hai script điền nốt hai ô còn lại. `run/pooling.sh` chạy CodeBERT với `POOLING=mean`;
+`run/t5-cls.sh` chạy CodeT5+ với `POOLING=cls`. Mỗi script chỉ đổi đúng pooling, và vì
+`--pooling` nằm trong khối `SHARED` của driver nên baseline cũng được huấn luyện lại cùng kiểu
+pooling — so sánh vẫn nằm trong cùng điều kiện.
 
-- Δ vẫn dương → pooling không phải cơ chế, khác biệt thật sự nằm ở backbone.
-- Δ đổi dấu âm → **cách đọc biểu diễn mới là cơ chế**, và hướng sửa cho T5 là cấp cho nó một
-  slot tổng hợp, chứ không phải bảo vệ trọng số — hướng đó đã thất bại ba lần.
+| | `cls` | `mean` |
+| --- | --- | --- |
+| **CodeBERT** | +0.0417 (đã có) | `run/pooling.sh` |
+| **CodeT5+** | `run/t5-cls.sh` | −0.0184 (đã có) |
+
+- Dấu bám theo **cột** → cách đọc biểu diễn là cơ chế, và phương pháp **không** phụ thuộc
+  pretrained model. Cách sửa cho T5 chỉ là một dòng cấu hình, chứ không phải bảo vệ trọng số —
+  hướng đó đã thất bại ba lần ở §15.
+- Dấu bám theo **hàng** → backbone thật sự là biến quyết định, và ba can thiệp đã thử vẫn là
+  toàn bộ những gì đã loại trừ được.
 
 ### 18.3 Truncation: cơ chế được đo, không được giả định
 
