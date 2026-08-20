@@ -1390,7 +1390,22 @@ và **âm trên PR-AUC** (−0.0164). Đây đúng triệu chứng §5 đã ch�
 prototype cải thiện điểm vận hành nhưng phá hình học thứ hạng. Bỏ hẳn nhãn thì phải trả giá; giữ
 nhãn nhưng ép qua nút thắt K chiều thì không.
 
-### 27.3 Giới hạn
+### 27.3 Việc còn treo: chưa đối chiếu y văn
+
+Phát hiện ở §27.1 — **head phụ đi qua nút thắt K chiều cho phương sai giữa các fold thấp hơn hẳn
+head phân loại trực tiếp** (sd 0.0169 so với 0.0286) — cần đối chiếu với y văn trước khi coi là
+đóng góp. Cơ chế nghe hợp lý và có họ hàng với chính quy hoá bằng nút thắt thông tin, nên khả năng
+nó đã được mô tả ở đâu đó là **không nhỏ**.
+
+Tôi **không kiểm tra được** trong phiên này: hạn mức tìm kiếm web đã dùng hết (500/500). Muốn làm
+thì cần nâng `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`, hoặc để phiên sau.
+
+Câu hỏi cụ thể cần tra: (a) đã có ai báo cáo head phụ dạng bottleneck ổn định hơn head phẳng trong
+multi-task transfer chưa; (b) có kết quả lý thuyết nào nối chiều nút thắt với phương sai của
+gradient task phụ không; (c) trong phát hiện lỗ hổng, đã có ai dùng CWE như task phụ latent chưa.
+Kho trích dẫn đã kiểm chứng nằm ở `RESEARCH_2026-08-20_0959.md`.
+
+### 27.4 Giới hạn
 
 Tất cả vẫn trong **một backbone (CodeBERT), một source (ccpp+js), một target (Python), hai seed**.
 `latent_bottleneck` chưa được chạy qua nhiều lần rút Phase 1 như `cwe` đã làm ở §26, nên độ bền
