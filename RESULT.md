@@ -365,3 +365,57 @@ Nếu cả ba can thiệp còn lại đều thất bại thì giả thuyết "Ph
 kết luận trung thực nhất từ dữ liệu sẽ là: phương pháp có giá trị **trong chế độ backbone yếu
 hoặc target ít dữ liệu**, chứ không phải ở mọi chế độ. Bằng chứng cho hướng đó đã có trong
 mục 3: lợi ích dồn hết vào hai CWE hiếm, còn CWE-089 với 408 mẫu thì baseline thắng.
+
+---
+
+## 13. Thí nghiệm theo tỉ lệ dữ liệu target
+
+CodeBERT, folds twin, mỗi mức có **baseline riêng cũng bị cắt cùng mức** (`--max_train_samples`
+chỉ áp cho Phase 2/test/baseline, **không** áp cho Phase 1 — nếu áp sẽ cắt nhầm corpus source).
+
+| Dòng train/fold | baseline | transfer_cwe | Δ |
+| --- | --- | --- | --- |
+| 456 (100%) | 0.8281 | 0.8698 | **+0.0417** |
+| 114 (25%) | 0.6835 | 0.5781 | **−0.1054** (n=3) |
+
+Đảo dấu hoàn toàn. Ở dữ liệu đầy đủ transfer giúp; ở 25% nó **hại nặng**.
+
+### Nguyên nhân: RecAdam, không phải transfer
+
+Soi fold 1 ở mức 114 dòng:
+
+| | confusion | xác suất |
+| --- | --- | --- |
+| transfer | [[39, 38], [31, 45]] | min 0.3172 max 0.8302 **std 0.1158** |
+| baseline | [[45, 32], [18, 58]] | min 0.0022 max 0.9985 **std 0.4312** |
+
+Dự đoán **cân đối**, không suy biến. Nhưng phân bố xác suất của transfer bị nén vào [0.32, 0.83],
+độ lệch chuẩn hẹp hơn baseline gần **4 lần**. Đây là model **chưa được huấn luyện đủ**, không
+phải model sập.
+
+Cơ chế: với 114 dòng thì 8 batch/epoch × 30 epoch = **240 bước**, và best checkpoint rơi vào
+epoch 7 ≈ **bước 56**. RecAdam nhân gradient task đích với λ(t) và λ được hiệu chỉnh theo
+`total_steps`; ở bước 56 λ vẫn còn nhỏ nên model bị **giữ chặt tại nghiệm source**. Với 456
+dòng có 870 bước nên model kịp thoát ra.
+
+→ Kết quả âm ở chế độ ít dữ liệu là phát hiện về **optimizer**, không phải về transfer.
+Đang chạy `--phase2_optimizer adamw` để kiểm chứng: nếu AdamW lấy lại delta dương thì lịch
+annealing là thủ phạm.
+
+Liên hệ với quan sát gốc ở `RESEARCH_2026-08-20_0959.md` §3: λ(t) bóp learning rate hiệu dụng
+giai đoạn đầu, và không tài liệu nào nêu điều này. Đây là ca cụ thể đo được tác hại.
+
+---
+
+## 14. Nhật ký sự cố, phần 2
+
+| Sự cố | Ảnh hưởng | Xử lý |
+| --- | --- | --- |
+| LoRA inject sau `.to(device)` | Tham số LoRA ở CPU, model ở GPU → crash forward. Cả rank 8 và 32 chết, không sinh fold nào | Gọi `model.to(device)` sau inject. Smoke test cục bộ chạy CPU nên **không bắt được** — kiểm thử placement bắt buộc phải trên GPU thật |
+| `num_cwes` không truyền sang Phase 2 | Phase 1 xây 120 lớp, Phase 2 dựng lại với mặc định 4 → `size mismatch` ở **cả 10 fold**. Log trông bình thường, chỉ phát hiện vì bảng kết quả trống | Đọc `num_cwes` **từ checkpoint** thay vì từ cờ dòng lệnh |
+| Sentinel sót lại gây chạy song song | Lần PrimeVul hỏng vẫn chạy tới cuối và tạo `PV_DONE`; chain kế tiếp thấy file đó nên khởi động ngay, hai job giành GPU, còn 1113 MiB trống | Điều kiện chờ kiểm tra **cả sentinel lẫn `pgrep` tiến trình** |
+
+**Mẫu hình chung của ba lỗi đầu tiên** (`--output_dir`, `${MODES:-}`, `num_cwes`): một tham số
+được set ở một chỗ nhưng phase khác không thấy, script **chạy trót lọt và log trông bình thường**
+nhưng không sinh dữ liệu. Cách phát hiện duy nhất là đối chiếu "log nói gì" với "có bao nhiêu
+file kết quả thật".
