@@ -1973,3 +1973,48 @@ biến, và trực giao với các tín hiệu đã có.
 nhãn trở thành thứ model không nhìn thấy được. Đây là **giả thuyết cần kiểm chứ không phải khiếm
 khuyết đã biết** — §18.3 từng cho thấy một giả thuyết truncation nghe rất hợp lý mà đo ra chỉ 1.8%.
 Cách kiểm rẻ: so Δ trên nhóm cặp ngắn với nhóm cặp dài.
+
+---
+
+## 36. Mục tiêu có thể đang đặt sai — và điều đó cần bạn quyết
+
+§34 cho thấy cơ chế: phương pháp có tác dụng nhờ **lấp dư địa ở lớp CWE hiếm**, và giá trị gia
+tăng của head phụ tắt hẳn khi backbone đã tự biểu diễn được lớp đó.
+
+Nếu cơ chế này đúng thì nó kéo theo một hệ quả khó chịu về chính mục tiêu:
+
+> Một phương pháp **hoạt động bằng cách lấp dư địa** thì về bản chất **không thể** cho lợi ích như
+> nhau trên mọi backbone, vì backbone mạnh hơn để lại ít dư địa hơn. Yêu cầu "không phụ thuộc
+> pretrained" theo nghĩa *lợi ích không đổi theo backbone* có thể là **yêu cầu bất khả** đối với
+> họ phương pháp này, chứ không phải một khiếm khuyết cần sửa.
+
+### 36.1 Nhưng tôi **không** chứng minh được điều đó
+
+Chỉ có **hai** cấu hình sạch để kiểm (cùng `cls`, cùng folds twin):
+
+| Cấu hình | baseline | Δ | Δ / dư địa |
+| --- | --- | --- | --- |
+| CodeBERT cls, 5 seed | 0.8275 | +0.0362 | 0.210 |
+| CodeT5+ cls, 3 seed | 0.8806 | +0.0062 | 0.052 |
+
+**Hai điểm không fit được đường nào.** Kết luận "lợi ích tỉ lệ với dư địa" từ hai điểm chính là lỗi
+n nhỏ mà tài liệu này cảnh báo suốt — §25.1 đã cho thấy ba điểm cho Pearson r = 0.989 rồi sụp còn
+0.699 ở điểm thứ tư. Nên đây là **giả thuyết**, không phải quy luật.
+
+Muốn kiểm cần **ít nhất 4–5 backbone** trải rộng độ mạnh (ví dụ thêm GraphCodeBERT, UniXcoder,
+CodeT5-large), mỗi cái chạy theo Cổng 1 ở §30.
+
+### 36.2 Hai cách phát biểu mục tiêu, và hệ quả khác nhau
+
+| Cách phát biểu | Trạng thái hiện tại | Kiểm bằng gì |
+| --- | --- | --- |
+| **A.** Lợi ích **không đổi** theo backbone | **chưa đạt**, và có thể bất khả nếu §36 đúng | cần 4–5 backbone |
+| **B.** Phương pháp **không gây hại** trên mọi backbone, và **có lợi khi còn dư địa** | **gần đạt**: `cwe` +0.0062 trên CodeT5+ (trong nhiễu), nhánh latent −0.0086 (hại nhẹ) | §35 kiểm được |
+
+Cách **B** là thứ dữ liệu hiện có gần chạm tới, và nó vẫn là một đóng góp dùng được: biết trước khi
+nào nên dùng phương pháp và khi nào không. Cách **A** thì cần chứng minh cơ chế sai, hoặc tìm được
+tín hiệu phụ mang thông tin **backbone mạnh vẫn thiếu** — đúng thứ §35 đang chuẩn bị kiểm.
+
+**Đây là quyết định của bạn, không phải của tôi.** Tôi nêu ra vì nếu mục tiêu giữ nguyên cách A mà
+cơ chế §34 đúng thì mọi công sức tiếp theo sẽ đổ vào một đích không tới được — và điều đó đáng biết
+trước khi thuê máy trở lại.
