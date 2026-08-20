@@ -1227,18 +1227,20 @@ lần rút thứ năm `same36_rep1` sẽ quyết định, và dự đoán +0.013
 +0.0393 có thể thuộc về **hai lần rút may mắn** chứ không phải phương pháp. Bốn lần rút độc lập
 trả lời được:
 
+*Bảng dưới là bản đủ **5 lần rút** (bản trước ở 4 lần rút ghi ROC-AUC mean +0.0234, sd 0.0075):*
+
 | | Δ Macro-F1 | Δ ROC-AUC |
 | --- | --- | --- |
-| dải | +0.0311 … +0.0529 | +0.0153 … +0.0319 |
-| mean | **+0.0410** | +0.0234 |
-| sd | **0.0090** | 0.0075 |
-| số lần rút dương | **4/4** | **4/4** |
+| dải | +0.0311 … +0.0529 | +0.0109 … +0.0319 |
+| mean | **+0.0395** | **+0.0209** |
+| sd | **0.0085** | **0.0087** |
+| số lần rút dương | **5/5** | **5/5** |
 
-**Cả bốn đều dương trên cả hai metric**, và độ lệch chuẩn giữa các lần rút chỉ **0.0090** — nhỏ hơn
-bốn lần so với chính hiệu ứng (+0.0410).
+**Cả năm đều dương trên cả hai metric**, và độ lệch chuẩn giữa các lần rút chỉ **0.0085** — nhỏ hơn
+gần năm lần so với chính hiệu ứng (+0.0395).
 
 Đối chiếu quan trọng: nhiễu lần rút Phase 1 đo trên **val nguồn** có sd **0.052** (§19.3), nhưng
-nhiễu đó truyền xuống Δ transfer chỉ còn sd **0.0090**. Nghĩa là **chất lượng model nguồn dao động
+nhiễu đó truyền xuống Δ transfer chỉ còn sd **0.0085**. Nghĩa là **chất lượng model nguồn dao động
 rất mạnh, còn lợi ích transfer thì bền vững trước dao động đó.**
 
 Đây là câu trả lời cho lo ngại lớn nhất của §19.4, và nó tích cực: +0.0393 **không** thuộc về một
