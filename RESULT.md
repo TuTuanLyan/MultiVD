@@ -16,6 +16,7 @@ Tài liệu dài 26 mục vì nó ghi cả những thứ đã bị bác. Bảng 
 
 | Phát biểu | Bằng chứng | Mục |
 | --- | --- | --- |
+| **Head phụ latent tốt hơn head CWE tường minh** | `latent_bottleneck` là nhánh **duy nhất** vượt 0.05 trên cả hai kiểm định, và vá được metric xếp hạng mà `cwe` trượt | **§27** |
 | Transfer thắng baseline ở **điểm vận hành 0.5** | 10/10 fold ghép cặp, 2 seed, Wilcoxon p = 0.0020 | §20 |
 | Lợi ích **không phụ thuộc lần rút Phase 1** | 5/5 lần rút dương, sd 0.0085 so với sd 0.0521 của val nguồn | §26 |
 | Lợi ích **tập trung ở lớp CWE hiếm** | CWE-022 +0.214 và CWE-079 +0.179, mỗi lớp 9/10 fold | §23 |
@@ -27,10 +28,10 @@ Tài liệu dài 26 mục vì nó ghi cả những thứ đã bị bác. Bảng 
 
 | Câu hỏi | Tình trạng | Mục |
 | --- | --- | --- |
-| **Độ lớn trên metric xếp hạng** | ROC-AUC +0.0203 và PR-AUC +0.0213, cả hai p = 0.084 | §20.2 |
+| **Độ lớn trên metric xếp hạng** | với `cwe`: ROC-AUC và PR-AUC đều p = 0.084. `latent_bottleneck` vượt được ROC-AUC (p = 0.0059) nhưng PR-AUC vẫn 0.0645 | §20.2, §27 |
 | Lọc CWE có cứu được PrimeVul không | hướng nhất quán ~+0.026 qua hai head phụ, nhưng p = 0.31–0.44 | §21 |
 | Phương pháp có tốt nhất trên backbone mạnh không | CodeT5+ dưới cls đạt 0.8800, vẫn thua baseline mean-pool 0.8823 | §22.2 |
-| Nhánh latent có ổn định hơn `cwe` không | ROC-AUC sd 0.0086 so với 0.0286, nhưng n còn nhỏ | §20 |
+| `latent_bottleneck` có bền trước nhiễu lần rút Phase 1 không | `cwe` đã kiểm chứng 5/5 lần rút (§26); nhánh latent **chưa** — `run/latent-draws.sh` đang trong hàng đợi | §27.3 |
 
 ### Đã bị bác — chín giả thuyết
 
