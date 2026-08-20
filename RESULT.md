@@ -1656,3 +1656,40 @@ canh bạc; sau đó thì nó có cơ sở.
 dùng nhánh `cwe`. `latent_bottleneck` chưa từng chạy trên backbone nào ngoài CodeBERT, trong khi
 hai nhánh **không** hành xử giống nhau (§27: `cwe` có Δ lớn hơn, `latent_bottleneck` có p tốt hơn
 trên ROC-AUC). Câu "phương pháp không phụ thuộc pretrained" vì thế hiện mới chỉ được kiểm cho `cwe`.
+
+---
+
+## 31. Nhánh latent cũng bền trước xổ số Phase 1
+
+§27.4 để lại một giới hạn: `latent_bottleneck` chưa từng được kiểm qua nhiều lần rút Phase 1 như
+`cwe` đã làm ở §26. `run/latent-draws.sh` đóng khoảng trống đó — 4 checkpoint Phase 1 độc lập,
+Phase 2 cố định seed 36, cùng 3 fold, cùng baseline.
+
+| Lần rút | val nguồn | vân tay trọng số | Δ Macro-F1 | Δ ROC-AUC |
+| --- | --- | --- | --- | --- |
+| `latentdraw_12` | 0.6109 | `c9a3161c` | +0.0334 | +0.0124 |
+| `latentdraw_7` | 0.6212 | `3d990b3c` | +0.0377 | +0.0248 |
+| `latentdraw_36` | 0.6438 | `fecc1498` | +0.0225 | +0.0145 |
+| `latentdraw_18` | 0.6969 | `9a27567d` | +0.0377 | +0.0155 |
+
+**4/4 dương trên cả hai metric.** Đối chiếu trực tiếp với `cwe` (§26, 5 lần rút):
+
+| Nhánh | Metric | mean | **sd giữa các lần rút** | dải | dương |
+| --- | --- | --- | --- | --- | --- |
+| `cwe` | Macro-F1 | +0.0395 | 0.0085 | +0.0311 … +0.0529 | 5/5 |
+| `latent_bottleneck` | Macro-F1 | +0.0328 | **0.0072** | +0.0225 … +0.0377 | 4/4 |
+| `cwe` | ROC-AUC | +0.0209 | 0.0087 | +0.0109 … +0.0319 | 5/5 |
+| `latent_bottleneck` | ROC-AUC | +0.0163 | **0.0055** | +0.0124 … +0.0248 | 4/4 |
+
+Cùng hình dạng như trên trục fold: `cwe` có **trung bình cao hơn**, `latent_bottleneck` có **phân
+tán nhỏ hơn** — lần này trên ROC-AUC thì sd chỉ bằng **0.63 lần** (0.0055 so với 0.0087).
+
+### 31.1 Nhưng đừng lặp lại sai lầm §27
+
+§27 đã dùng đúng lập luận "phương sai nhỏ hơn" để kết luận nhánh latent **hơn** `cwe`, rồi §29 phải
+rút lại khi seed 7 làm sd nở từ 0.0169 lên 0.0248. Lần này là **trục khác** (nhiễu lần rút, không
+phải nhiễu fold) và **n=4**, nên nó chưa mạnh hơn lần trước là bao.
+
+Phát biểu được phép: **`latent_bottleneck` bền trước nhiễu lần rút Phase 1 ngang `cwe`** — 4/4 dương,
+sd cùng bậc hoặc nhỏ hơn. Đó là điều §27.4 cần và giờ đã có. Còn "latent ổn định **hơn**" thì vẫn
+**chưa xác lập**, và sẽ chỉ xác lập được nếu nó sống sót qua nhiều lần rút hơn.
