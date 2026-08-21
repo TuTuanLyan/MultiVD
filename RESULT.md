@@ -2436,8 +2436,8 @@ CodeT5+) gần như hoàn toàn do vocab. **So sánh backbone không bị nhiễ
 ### 41.3 λ_cwe: biến chưa từng được đo, và nó cải thiện **đều +0.026** trên cả hai model T5
 
 > **ĐÍNH CHÍNH — xem §42.** Con số +0.0105 của CodeT5-base là **một seed** và
-> **không lặp lại**: seed 7 cho −0.0162 (0/4 fold) và seed 12 cho −0.0132 (1/2).
-> Gộp 3 seed còn −0.0063 với sd giữa seed 0.0146. Phần "lật được dấu" dưới đây
+> **không lặp lại**: seed 7 cho −0.0156 (âm 0/5 fold) và seed 12 cho −0.0020 (2/3).
+> Gộp 3 seed còn −0.0024 với sd giữa seed 0.0130. Phần "lật được dấu" dưới đây
 > **đã bị rút**. Phần λ cải thiện đều ~+0.026 so với λ=0.2 vẫn đứng.
 
 | model | λ=0.2 | λ=0.05 | chênh |
@@ -2516,11 +2516,12 @@ mạnh hơn hẳn và kiểm chứng được.
 | seed | n fold | head phụ cộng thêm | dương | từng fold |
 | --- | --- | --- | --- | --- |
 | 42 | 5 | **+0.0105** | 4/5 | −0.0001, +0.0198, +0.0139, +0.0060, +0.0128 |
-| **7** | 4 | **−0.0162** | **0/4** | −0.0197, −0.0393, −0.0059, −0.0001 |
-| **12** | 2 | **−0.0132** | 1/2 | +0.0132, −0.0396 |
+| **7** | 5 | **−0.0156** | **0/5** | −0.0197, −0.0393, −0.0059, −0.0001, −0.0131 |
+| **12** | 3 | **−0.0020** | 2/3 | +0.0132, −0.0396, +0.0204 |
 
-**Gộp 3 seed: −0.0063, sd giữa seed 0.0146, dương 1/3 seed.** Độ lệch giữa seed lớn gấp **2.3 lần**
-hiệu ứng. Phát biểu đúng là: *hạ λ không làm head phụ có tác dụng trên CodeT5-base; nó chỉ mở rộng
+**Gộp 3 seed: −0.0024, sd giữa seed 0.0130, dương 1/3 seed.** Độ lệch giữa seed lớn gấp **5.4 lần**
+hiệu ứng. Seed 7 đủ 5 fold và **âm 0/5** — đó không phải nhiễu trong một seed mà là một seed nhất
+quán âm, đối lại một seed nhất quán dương. Chênh lệch nằm ở **trục seed**, đúng chỗ khó chữa nhất. Phát biểu đúng là: *hạ λ không làm head phụ có tác dụng trên CodeT5-base; nó chỉ mở rộng
 dải kết quả đủ để một seed rơi vào vùng dương.*
 
 Đây là **đúng cái bẫy đã bác CodeT5+ ở §33** — ở đó `cwe` trải từ −0.0132 (seed 18) tới +0.0279
