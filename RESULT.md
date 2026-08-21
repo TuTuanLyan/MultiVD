@@ -2435,9 +2435,14 @@ CodeT5+) gần như hoàn toàn do vocab. **So sánh backbone không bị nhiễ
 
 ### 41.3 λ_cwe: biến chưa từng được đo, và nó cải thiện **đều +0.026** trên cả hai model T5
 
+> **ĐÍNH CHÍNH — xem §42.** Con số +0.0105 của CodeT5-base là **một seed** và
+> **không lặp lại**: seed 7 cho −0.0162 (0/4 fold) và seed 12 cho −0.0132 (1/2).
+> Gộp 3 seed còn −0.0063 với sd giữa seed 0.0146. Phần "lật được dấu" dưới đây
+> **đã bị rút**. Phần λ cải thiện đều ~+0.026 so với λ=0.2 vẫn đứng.
+
 | model | λ=0.2 | λ=0.05 | chênh |
 | --- | --- | --- | --- |
-| CodeT5-base · mean | −0.0181 (1/4, sập 1 fold) | **+0.0105** (4/5, không sập) | **+0.0286** |
+| CodeT5-base · mean | −0.0181 (1/4, sập 1 fold) | +0.0105 (4/5, không sập) *(chỉ seed 42)* | **+0.0286** |
 | CodeT5+ · mean | −0.0373 (0/5) | −0.0107 (2/5) | **+0.0266** |
 
 Hai model độc lập, cùng một mức cải thiện tới chữ số thứ ba. Nhưng chỉ CodeT5-base **lật được dấu**;
@@ -2500,3 +2505,57 @@ nhất cần hạ λ xuống 1/4 mới đạt được.
 Mục tiêu "không phụ thuộc pretrained" **vẫn chưa đạt**, nhưng bức tranh đã đổi: trước đây nó là "một
 checkpoint chạy được, mọi thứ khác không", giờ là "một **họ kiến trúc** chạy được". Đó là phát biểu
 mạnh hơn hẳn và kiểm chứng được.
+
+---
+
+## 42. Đính chính trong ngày: λ=0.05 trên CodeT5-base là một lần rút thăm may
+
+§41.3 viết rằng hạ λ_cwe xuống 0.05 **lật được dấu** của head phụ trên CodeT5-base. Con số đó
+(+0.0105, dương 4/5 fold) là **một seed**. Chạy thêm hai seed ngay trong ngày:
+
+| seed | n fold | head phụ cộng thêm | dương | từng fold |
+| --- | --- | --- | --- | --- |
+| 42 | 5 | **+0.0105** | 4/5 | −0.0001, +0.0198, +0.0139, +0.0060, +0.0128 |
+| **7** | 4 | **−0.0162** | **0/4** | −0.0197, −0.0393, −0.0059, −0.0001 |
+| **12** | 2 | **−0.0132** | 1/2 | +0.0132, −0.0396 |
+
+**Gộp 3 seed: −0.0063, sd giữa seed 0.0146, dương 1/3 seed.** Độ lệch giữa seed lớn gấp **2.3 lần**
+hiệu ứng. Phát biểu đúng là: *hạ λ không làm head phụ có tác dụng trên CodeT5-base; nó chỉ mở rộng
+dải kết quả đủ để một seed rơi vào vùng dương.*
+
+Đây là **đúng cái bẫy đã bác CodeT5+ ở §33** — ở đó `cwe` trải từ −0.0132 (seed 18) tới +0.0279
+(seed 42), sd giữa seed 0.0206 so với hiệu ứng +0.0062. Cùng họ backbone, cùng hình dạng, và tôi
+bước vào lần thứ hai. Lần này chu kỳ phát hiện chỉ mất vài giờ thay vì vài phiên, vì §30 đã bắt buộc
+chạy đủ fold rồi mới sang seed và `src/report_seeds.py` trả thẳng phán quyết "không kết luận được"
+thay vì in ra một trung bình trông có vẻ dứt khoát.
+
+### 42.1 Cùng tiêu chuẩn phải áp cho kết quả TỐT nhất của ngày
+
+UniXcoder cho +0.0185 (dương 4/5 fold, `cwe` dương 5/5, `none` dương 5/5) — và cũng **chỉ một seed**.
+Nếu một seed không đủ để giữ CodeT5-base thì nó cũng không đủ để tuyên bố UniXcoder. Tín hiệu của
+UniXcoder sạch hơn hẳn (5/5 so với 4/5, và `none` cũng 5/5), nhưng "sạch hơn ở một seed" không phải
+"lặp lại qua seed".
+
+Điều duy nhất của ngày 21/8 đứng vững không cần dè dặt là **CodeBERT**, và nó đứng nhờ 5 seed sẵn có
+từ §33 (gộp +0.0362, sd giữa seed 0.0117), không nhờ run hôm nay.
+
+### 42.2 Trạng thái bằng chứng cuối ngày 21/8
+
+| kết quả | trạng thái |
+| --- | --- |
+| CodeBERT: head phụ có tác dụng | **vững** — 5 seed, sd 0.0117 |
+| CodeBERT vẫn dương ở λ=0.05 (+0.0169, 4/5) | **đủ dùng** — 1 seed, nhưng nền CodeBERT đã chắc |
+| UniXcoder: head phụ có tác dụng (+0.0185) | **hứa hẹn, CHƯA tuyên bố** — 1 seed |
+| CodeT5-base λ=0.05 | **không lặp lại** — 1/3 seed dương |
+| CodeT5+ mọi cấu hình đã thử | **âm** |
+| Nhóm CWE theo pillar gốc | **bị bác** |
+| λ=0.05 hơn λ=0.2 khoảng +0.026 trên T5 | **đứng** — hai model độc lập cùng mức |
+
+### 42.3 Việc đầu tiên khi có máy trở lại
+
+**Seed thứ hai và thứ ba cho UniXcoder ở λ=0.2**, không phải đào tiếp CodeT5-base hay CodeT5+.
+
+Lý do: UniXcoder là kết quả duy nhất còn khả năng nâng phát biểu từ "một checkpoint chạy được" lên
+"một họ kiến trúc chạy được", và nó đang mắc đúng điểm yếu vừa làm CodeT5-base sụp. Còn họ T5 đã có
+hai lần bằng chứng âm độc lập (§33 cho CodeT5+, §42 cho CodeT5-base), nên thêm cấu hình cho họ đó là
+đào vào chỗ đã đào hai lần.
