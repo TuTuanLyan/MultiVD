@@ -1,0 +1,64 @@
+2026-08-21 08:28:09 - INFO - Using device: cuda
+2026-08-21 08:28:09 - INFO - Run started | Run: headroom_js_codebert | Method: transfer_cwe | Phase: phase1 | Fold: 1 | Seed: 42 | Device: cuda
+2026-08-21 08:28:09 - INFO - Loading Phase-1 source data: data/ccpp_primevul_paired_common.jsonl
+2026-08-21 08:28:09 - INFO - Detected Phase-1 languages: ['ccpp']
+2026-08-21 08:28:09 - INFO - Auxiliary CWE vocabulary built from source | Classes: 73 | Sample: {'CWE-020': 0, 'CWE-022': 1, 'CWE-059': 2, 'CWE-061': 3, 'CWE-074': 4, 'CWE-077': 5}
+2026-08-21 08:28:09 - INFO - Source split | Language: ccpp | Conservative pairs: 1484 | Singletons: 7 | Stratified: False | Ratio: 90/10 | Seed: 42
+2026-08-21 08:28:09 - INFO - Combined source split | Languages: ['ccpp'] | Train: 2675 | Validation: 300
+2026-08-21 08:28:09 - WARNING - No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+2026-08-21 08:28:09 - INFO - Data split: source_train | Total: 2675 | Labels: {0: 1338, 1: 1337} | CWEs: {'CWE-022': 655, 'CWE-078': 70, 'CWE-079': 36, 'CWE-089': 12} | Languages: {'ccpp': 2675} | Invalid CWE: 0
+2026-08-21 08:28:09 - INFO - Data split: source_val | Total: 300 | Labels: {0: 150, 1: 150} | CWEs: {'CWE-022': 90, 'CWE-078': 10} | Languages: {'ccpp': 300} | Invalid CWE: 0
+2026-08-21 08:28:11 - INFO - Environment: {"components": {"backbone": {"frozen": 0, "total": 124645632, "trainable": 124645632}, "cwe_head": {"frozen": 0, "total": 56137, "trainable": 56137}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 1, "frozen_parameters": 0, "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER", "hyperparameters": {"anneal_fun": "sigmoid", "anneal_k": 0.05, "anneal_t0_ratio": 0.05, "anneal_w": 1.0, "aux_mode": "cwe", "batch_size": 16, "checkpoint_path": "model/headroom_js_codebert/transfer_cwe/seed_42/source/best.pt", "cwe_vocab": "source", "data_path": "data/ccpp_primevul_paired_common.jsonl", "data_root": "data/js_twin", "epochs": 15, "eval_batch_size": 16, "fold": 1, "freeze_backbone_layers": 0, "freeze_prototypes_steps": 0, "lambda_cwe": 0.2, "latent_temperature": 0.1, "learning_rate": 2e-05, "lora_rank": 0, "lp_epochs": 0, "lp_learning_rate": 0.001, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "transfer_cwe", "min_epochs": 3, "model_name": "microsoft/codebert-base", "num_cwes": 73, "num_latent": 8, "num_workers": 0, "output_dir": "results/headroom_js_codebert/transfer_cwe", "patience": 5, "phase": "phase1", "phase2_optimizer": "recadam", "pooling": "cls", "pretrain_cof": 5000.0, "result_path": "results/headroom_js_codebert/transfer_cwe/seed_42/fold1.json", "run_name": "headroom_js_codebert", "seed": 42, "selection_metric": "macro_f1", "source_checkpoint": null, "source_interpolation": 1.0, "strict_determinism": false, "target_lang": "js", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "phase1_train", "model_name": "microsoft/codebert-base", "seed": 42, "sklearn": "1.7.2", "torch": "2.11.0+cu128", "trainable_parameters": 124703307, "transformers": "4.57.1"}
+2026-08-21 08:28:11 - INFO - Training started | Phase: phase1 | Epochs: 15
+2026-08-21 08:29:07 - INFO - Epoch 1/15 | Train loss: 1.331289 | Val loss: 1.248939 | LR: 2.00e-05 | Best epoch: 1 | Patience: 0 | Train: 53.55s | Validation: 2.24s | Epoch: 56.20s | Total: 56.20s
+2026-08-21 08:29:07 - INFO - Phase-1 losses | Vulnerability: 0.721759 | CWE: 3.047651 | Total: 1.331289
+2026-08-21 08:29:07 - INFO - Latent structure | Slots used: 17/8 | Largest slot: 0.813 | NMI vs CWE: 0.0449 | NMI vs binary: 0.0039
+2026-08-21 08:29:07 - INFO - [Classification Report - split=train epoch=1 - threshold=0.50]
+2026-08-21 08:29:07 - INFO -                 precision    recall  f1-score   support
+2026-08-21 08:29:07 - INFO - 
+2026-08-21 08:29:07 - INFO -       safe (0)     0.5039    0.4865    0.4951      1338
+2026-08-21 08:29:07 - INFO - vulnerable (1)     0.5033    0.5206    0.5118      1337
+2026-08-21 08:29:07 - INFO - 
+2026-08-21 08:29:07 - INFO -       accuracy                         0.5036      2675
+2026-08-21 08:29:07 - INFO -      macro avg     0.5036    0.5036    0.5034      2675
+2026-08-21 08:29:07 - INFO -   weighted avg     0.5036    0.5036    0.5034      2675
+2026-08-21 08:29:07 - INFO - Confusion matrix - [[tn=651, fp=687], [fn=641, tp=696]]
+2026-08-21 08:29:07 - INFO - probability_positive min=0.2246 mean=0.5056 std=0.0997 max=0.8127 predicted_0=1292 predicted_1=1383
+2026-08-21 08:29:07 - INFO - [Classification Report - split=validation epoch=1 - threshold=0.50]
+2026-08-21 08:29:07 - INFO -                 precision    recall  f1-score   support
+2026-08-21 08:29:07 - INFO - 
+2026-08-21 08:29:07 - INFO -       safe (0)     0.0000    0.0000    0.0000       150
+2026-08-21 08:29:07 - INFO - vulnerable (1)     0.5000    1.0000    0.6667       150
+2026-08-21 08:29:07 - INFO - 
+2026-08-21 08:29:07 - INFO -       accuracy                         0.5000       300
+2026-08-21 08:29:07 - INFO -      macro avg     0.2500    0.5000    0.3333       300
+2026-08-21 08:29:07 - INFO -   weighted avg     0.2500    0.5000    0.3333       300
+2026-08-21 08:29:07 - INFO - Confusion matrix - [[tn=0, fp=150], [fn=0, tp=150]]
+2026-08-21 08:29:07 - INFO - probability_positive min=0.5223 mean=0.5487 std=0.0101 max=0.5784 predicted_0=0 predicted_1=300
+2026-08-21 08:29:07 - INFO - New best model | Macro-F1: 0.333333 | Epoch: 1
+2026-08-21 08:30:03 - INFO - Epoch 2/15 | Train loss: 1.266421 | Val loss: 1.236717 | LR: 2.00e-05 | Best epoch: 2 | Patience: 0 | Train: 53.43s | Validation: 2.26s | Epoch: 56.19s | Total: 112.40s
+2026-08-21 08:30:03 - INFO - Phase-1 losses | Vulnerability: 0.708255 | CWE: 2.790828 | Total: 1.266421
+2026-08-21 08:30:03 - INFO - Latent structure | Slots used: 4/8 | Largest slot: 0.813 | NMI vs CWE: 0.0178 | NMI vs binary: 0.0001
+2026-08-21 08:30:04 - INFO - [Classification Report - split=train epoch=2 - threshold=0.50]
+2026-08-21 08:30:04 - INFO -                 precision    recall  f1-score   support
+2026-08-21 08:30:04 - INFO - 
+2026-08-21 08:30:04 - INFO -       safe (0)     0.5011    0.4948    0.4979      1338
+2026-08-21 08:30:04 - INFO - vulnerable (1)     0.5007    0.5071    0.5039      1337
+2026-08-21 08:30:04 - INFO - 
+2026-08-21 08:30:04 - INFO -       accuracy                         0.5009      2675
+2026-08-21 08:30:04 - INFO -      macro avg     0.5009    0.5009    0.5009      2675
+2026-08-21 08:30:04 - INFO -   weighted avg     0.5009    0.5009    0.5009      2675
+2026-08-21 08:30:04 - INFO - Confusion matrix - [[tn=662, fp=676], [fn=659, tp=678]]
+2026-08-21 08:30:04 - INFO - probability_positive min=0.2559 mean=0.5047 std=0.0849 max=0.7673 predicted_0=1321 predicted_1=1354
+2026-08-21 08:30:04 - INFO - [Classification Report - split=validation epoch=2 - threshold=0.50]
+2026-08-21 08:30:04 - INFO -                 precision    recall  f1-score   support
+2026-08-21 08:30:04 - INFO - 
+2026-08-21 08:30:04 - INFO -       safe (0)     0.5098    0.1733    0.2587       150
+2026-08-21 08:30:04 - INFO - vulnerable (1)     0.5020    0.8333    0.6266       150
+2026-08-21 08:30:04 - INFO - 
+2026-08-21 08:30:04 - INFO -       accuracy                         0.5033       300
+2026-08-21 08:30:04 - INFO -      macro avg     0.5059    0.5033    0.4426       300
+2026-08-21 08:30:04 - INFO -   weighted avg     0.5059    0.5033    0.4426       300
+2026-08-21 08:30:04 - INFO - Confusion matrix - [[tn=26, fp=124], [fn=25, tp=125]]
+2026-08-21 08:30:04 - INFO - probability_positive min=0.4880 mean=0.5169 std=0.0148 max=0.5715 predicted_0=51 predicted_1=249
+2026-08-21 08:30:04 - INFO - New best model | Macro-F1: 0.442636 | Epoch: 2

@@ -1,0 +1,311 @@
+2026-08-21 04:30:32 - INFO - Using device: cuda
+2026-08-21 04:30:32 - INFO - Run started | Run: edit_ref_t5p | Method: transfer_cwe | Phase: phase2 | Fold: 4 | Seed: 42 | Device: cuda
+2026-08-21 04:30:32 - INFO - Loading Python training data: data/sven_python_twin/fold4/train.jsonl
+2026-08-21 04:30:32 - INFO - Loading Python validation data: data/sven_python_twin/fold4/val.jsonl
+2026-08-21 04:30:32 - INFO - Data split: python_train | Total: 459 | Labels: {0: 233, 1: 226} | CWEs: {'CWE-022': 40, 'CWE-078': 123, 'CWE-079': 50, 'CWE-089': 246} | Languages: {'python': 459} | Invalid CWE: 0
+2026-08-21 04:30:32 - INFO - Data split: python_val | Total: 150 | Labels: {0: 77, 1: 73} | CWEs: {'CWE-022': 13, 'CWE-078': 40, 'CWE-079': 16, 'CWE-089': 81} | Languages: {'python': 150} | Invalid CWE: 0
+2026-08-21 04:30:33 - INFO - Auxiliary head width taken from checkpoint: 4
+2026-08-21 04:30:35 - INFO - Loaded source checkpoint: model/edit_ref_t5p/transfer_cwe/seed_42/source/best.pt | Best epoch: 14 | Best Val Macro-F1: 0.687222
+2026-08-21 04:30:35 - INFO - RecAdam schedule | Total steps: 870 | Steps/epoch: 29 | Anneal t0: 43 | Weights: {1: 0.10909682119561293, 29: 0.3318122278318339, 43: 0.5, 870: 1.0}
+2026-08-21 04:30:35 - INFO - Environment: {"components": {"backbone": {"frozen": 0, "total": 109607040, "trainable": 109607040}, "cwe_head": {"frozen": 3076, "total": 3076, "trainable": 0}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 4, "frozen_parameters": 3076, "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER", "hyperparameters": {"anneal_fun": "sigmoid", "anneal_k": 0.05, "anneal_t0_ratio": 0.05, "anneal_w": 1.0, "aux_mode": "cwe", "batch_size": 16, "checkpoint_path": "model/edit_ref_t5p/transfer_cwe/seed_42/fold4/best.pt", "cwe_vocab": "fixed4", "data_path": "data/train_ccpp_filtered.jsonl", "data_root": "data/sven_python_twin", "epochs": 30, "eval_batch_size": 16, "fold": 4, "freeze_backbone_layers": 0, "freeze_prototypes_steps": 0, "lambda_cwe": 0.2, "latent_temperature": 0.1, "learning_rate": 2e-05, "lora_rank": 0, "lp_epochs": 0, "lp_learning_rate": 0.001, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "transfer_cwe", "min_epochs": 3, "model_name": "Salesforce/codet5p-220m", "num_cwes": 4, "num_latent": 8, "num_workers": 0, "output_dir": "results/edit_ref_t5p/transfer_cwe", "patience": 5, "phase": "phase2", "phase2_optimizer": "recadam", "pooling": "cls", "pretrain_cof": 5000.0, "result_path": "results/edit_ref_t5p/transfer_cwe/seed_42/fold4.json", "run_name": "edit_ref_t5p", "seed": 42, "selection_metric": "macro_f1", "source_checkpoint": "model/edit_ref_t5p/transfer_cwe/seed_42/source/best.pt", "source_interpolation": 1.0, "strict_determinism": false, "target_lang": "python", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "phase2_train", "model_name": "Salesforce/codet5p-220m", "seed": 42, "sklearn": "1.7.2", "torch": "2.11.0+cu128", "trainable_parameters": 109608578, "transformers": "4.57.1"}
+2026-08-21 04:30:35 - INFO - Training started | Phase: phase2 | Epochs: 30
+2026-08-21 04:30:36 - INFO - RecAdam first-step safety checks passed
+2026-08-21 04:30:47 - INFO - Epoch 1/30 | Train loss: 0.838515 | Val loss: 0.703493 | LR: 2.00e-05 | Best epoch: 1 | Patience: 0 | Train: 9.89s | Validation: 1.03s | Epoch: 11.21s | Total: 11.21s
+2026-08-21 04:30:47 - INFO - RecAdam target-task weight at epoch end: 0.331812
+2026-08-21 04:30:47 - INFO - [Classification Report - split=train epoch=1 - threshold=0.50]
+2026-08-21 04:30:47 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:30:47 - INFO - 
+2026-08-21 04:30:47 - INFO -       safe (0)     0.6636    0.3047    0.4176       233
+2026-08-21 04:30:47 - INFO - vulnerable (1)     0.5398    0.8407    0.6574       226
+2026-08-21 04:30:47 - INFO - 
+2026-08-21 04:30:47 - INFO -       accuracy                         0.5686       459
+2026-08-21 04:30:47 - INFO -      macro avg     0.6017    0.5727    0.5375       459
+2026-08-21 04:30:47 - INFO -   weighted avg     0.6026    0.5686    0.5357       459
+2026-08-21 04:30:47 - INFO - Confusion matrix - [[tn=71, fp=162], [fn=36, tp=190]]
+2026-08-21 04:30:47 - INFO - probability_positive min=0.0346 mean=0.6780 std=0.2334 max=0.9826 predicted_0=107 predicted_1=352
+2026-08-21 04:30:47 - INFO - [Classification Report - split=validation epoch=1 - threshold=0.50]
+2026-08-21 04:30:47 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:30:47 - INFO - 
+2026-08-21 04:30:47 - INFO -       safe (0)     0.6226    0.4286    0.5077        77
+2026-08-21 04:30:47 - INFO - vulnerable (1)     0.5464    0.7260    0.6235        73
+2026-08-21 04:30:47 - INFO - 
+2026-08-21 04:30:47 - INFO -       accuracy                         0.5733       150
+2026-08-21 04:30:47 - INFO -      macro avg     0.5845    0.5773    0.5656       150
+2026-08-21 04:30:47 - INFO -   weighted avg     0.5855    0.5733    0.5641       150
+2026-08-21 04:30:47 - INFO - Confusion matrix - [[tn=33, fp=44], [fn=20, tp=53]]
+2026-08-21 04:30:47 - INFO - probability_positive min=0.0639 mean=0.5736 std=0.2289 max=0.9464 predicted_0=53 predicted_1=97
+2026-08-21 04:30:47 - INFO - New best model | Macro-F1: 0.565611 | Epoch: 1
+2026-08-21 04:30:58 - INFO - Epoch 2/30 | Train loss: 0.664043 | Val loss: 0.602588 | LR: 2.00e-05 | Best epoch: 2 | Patience: 0 | Train: 9.75s | Validation: 1.03s | Epoch: 11.22s | Total: 22.45s
+2026-08-21 04:30:58 - INFO - RecAdam target-task weight at epoch end: 0.679179
+2026-08-21 04:30:58 - INFO - [Classification Report - split=train epoch=2 - threshold=0.50]
+2026-08-21 04:30:58 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:30:58 - INFO - 
+2026-08-21 04:30:58 - INFO -       safe (0)     0.6058    0.6266    0.6160       233
+2026-08-21 04:30:58 - INFO - vulnerable (1)     0.6009    0.5796    0.5901       226
+2026-08-21 04:30:58 - INFO - 
+2026-08-21 04:30:58 - INFO -       accuracy                         0.6035       459
+2026-08-21 04:30:58 - INFO -      macro avg     0.6034    0.6031    0.6031       459
+2026-08-21 04:30:58 - INFO -   weighted avg     0.6034    0.6035    0.6033       459
+2026-08-21 04:30:58 - INFO - Confusion matrix - [[tn=146, fp=87], [fn=95, tp=131]]
+2026-08-21 04:30:58 - INFO - probability_positive min=0.0122 mean=0.4869 std=0.2060 max=0.9342 predicted_0=241 predicted_1=218
+2026-08-21 04:30:58 - INFO - [Classification Report - split=validation epoch=2 - threshold=0.50]
+2026-08-21 04:30:58 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:30:58 - INFO - 
+2026-08-21 04:30:58 - INFO -       safe (0)     0.7593    0.5325    0.6260        77
+2026-08-21 04:30:58 - INFO - vulnerable (1)     0.6250    0.8219    0.7101        73
+2026-08-21 04:30:58 - INFO - 
+2026-08-21 04:30:58 - INFO -       accuracy                         0.6733       150
+2026-08-21 04:30:58 - INFO -      macro avg     0.6921    0.6772    0.6680       150
+2026-08-21 04:30:58 - INFO -   weighted avg     0.6939    0.6733    0.6669       150
+2026-08-21 04:30:58 - INFO - Confusion matrix - [[tn=41, fp=36], [fn=13, tp=60]]
+2026-08-21 04:30:58 - INFO - probability_positive min=0.0312 mean=0.5741 std=0.2315 max=0.9579 predicted_0=54 predicted_1=96
+2026-08-21 04:30:58 - INFO - New best model | Macro-F1: 0.668007 | Epoch: 2
+2026-08-21 04:31:09 - INFO - Epoch 3/30 | Train loss: 0.552640 | Val loss: 0.442636 | LR: 2.00e-05 | Best epoch: 3 | Patience: 0 | Train: 9.76s | Validation: 1.04s | Epoch: 11.23s | Total: 33.69s
+2026-08-21 04:31:09 - INFO - RecAdam target-task weight at epoch end: 0.900250
+2026-08-21 04:31:09 - INFO - [Classification Report - split=train epoch=3 - threshold=0.50]
+2026-08-21 04:31:09 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:09 - INFO - 
+2026-08-21 04:31:09 - INFO -       safe (0)     0.7306    0.6867    0.7080       233
+2026-08-21 04:31:09 - INFO - vulnerable (1)     0.6958    0.7389    0.7167       226
+2026-08-21 04:31:09 - INFO - 
+2026-08-21 04:31:09 - INFO -       accuracy                         0.7124       459
+2026-08-21 04:31:09 - INFO -      macro avg     0.7132    0.7128    0.7124       459
+2026-08-21 04:31:09 - INFO -   weighted avg     0.7135    0.7124    0.7123       459
+2026-08-21 04:31:09 - INFO - Confusion matrix - [[tn=160, fp=73], [fn=59, tp=167]]
+2026-08-21 04:31:09 - INFO - probability_positive min=0.0062 mean=0.4976 std=0.2454 max=0.9744 predicted_0=219 predicted_1=240
+2026-08-21 04:31:09 - INFO - [Classification Report - split=validation epoch=3 - threshold=0.50]
+2026-08-21 04:31:09 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:09 - INFO - 
+2026-08-21 04:31:09 - INFO -       safe (0)     0.8689    0.6883    0.7681        77
+2026-08-21 04:31:09 - INFO - vulnerable (1)     0.7303    0.8904    0.8025        73
+2026-08-21 04:31:09 - INFO - 
+2026-08-21 04:31:09 - INFO -       accuracy                         0.7867       150
+2026-08-21 04:31:09 - INFO -      macro avg     0.7996    0.7894    0.7853       150
+2026-08-21 04:31:09 - INFO -   weighted avg     0.8014    0.7867    0.7848       150
+2026-08-21 04:31:09 - INFO - Confusion matrix - [[tn=53, fp=24], [fn=8, tp=65]]
+2026-08-21 04:31:09 - INFO - probability_positive min=0.0067 mean=0.5467 std=0.3087 max=0.9932 predicted_0=61 predicted_1=89
+2026-08-21 04:31:09 - INFO - New best model | Macro-F1: 0.785293 | Epoch: 3
+2026-08-21 04:31:20 - INFO - Epoch 4/30 | Train loss: 0.428012 | Val loss: 0.303767 | LR: 2.00e-05 | Best epoch: 4 | Patience: 0 | Train: 9.77s | Validation: 1.04s | Epoch: 11.24s | Total: 44.94s
+2026-08-21 04:31:20 - INFO - RecAdam target-task weight at epoch end: 0.974667
+2026-08-21 04:31:20 - INFO - [Classification Report - split=train epoch=4 - threshold=0.50]
+2026-08-21 04:31:20 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:20 - INFO - 
+2026-08-21 04:31:20 - INFO -       safe (0)     0.7873    0.7468    0.7665       233
+2026-08-21 04:31:20 - INFO - vulnerable (1)     0.7521    0.7920    0.7716       226
+2026-08-21 04:31:20 - INFO - 
+2026-08-21 04:31:20 - INFO -       accuracy                         0.7691       459
+2026-08-21 04:31:20 - INFO -      macro avg     0.7697    0.7694    0.7690       459
+2026-08-21 04:31:20 - INFO -   weighted avg     0.7700    0.7691    0.7690       459
+2026-08-21 04:31:20 - INFO - Confusion matrix - [[tn=174, fp=59], [fn=47, tp=179]]
+2026-08-21 04:31:20 - INFO - probability_positive min=0.0044 mean=0.4856 std=0.3243 max=0.9952 predicted_0=221 predicted_1=238
+2026-08-21 04:31:20 - INFO - [Classification Report - split=validation epoch=4 - threshold=0.50]
+2026-08-21 04:31:20 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:20 - INFO - 
+2026-08-21 04:31:20 - INFO -       safe (0)     0.8904    0.8442    0.8667        77
+2026-08-21 04:31:20 - INFO - vulnerable (1)     0.8442    0.8904    0.8667        73
+2026-08-21 04:31:20 - INFO - 
+2026-08-21 04:31:20 - INFO -       accuracy                         0.8667       150
+2026-08-21 04:31:20 - INFO -      macro avg     0.8673    0.8673    0.8667       150
+2026-08-21 04:31:20 - INFO -   weighted avg     0.8679    0.8667    0.8667       150
+2026-08-21 04:31:20 - INFO - Confusion matrix - [[tn=65, fp=12], [fn=8, tp=65]]
+2026-08-21 04:31:20 - INFO - probability_positive min=0.0011 mean=0.4705 std=0.3991 max=0.9981 predicted_0=73 predicted_1=77
+2026-08-21 04:31:20 - INFO - New best model | Macro-F1: 0.866667 | Epoch: 4
+2026-08-21 04:31:31 - INFO - Epoch 5/30 | Train loss: 0.267053 | Val loss: 0.299702 | LR: 2.00e-05 | Best epoch: 5 | Patience: 0 | Train: 9.77s | Validation: 1.04s | Epoch: 11.21s | Total: 56.17s
+2026-08-21 04:31:31 - INFO - RecAdam target-task weight at epoch end: 0.993940
+2026-08-21 04:31:31 - INFO - [Classification Report - split=train epoch=5 - threshold=0.50]
+2026-08-21 04:31:31 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:31 - INFO - 
+2026-08-21 04:31:31 - INFO -       safe (0)     0.9000    0.8498    0.8742       233
+2026-08-21 04:31:31 - INFO - vulnerable (1)     0.8536    0.9027    0.8774       226
+2026-08-21 04:31:31 - INFO - 
+2026-08-21 04:31:31 - INFO -       accuracy                         0.8758       459
+2026-08-21 04:31:31 - INFO -      macro avg     0.8768    0.8762    0.8758       459
+2026-08-21 04:31:31 - INFO -   weighted avg     0.8771    0.8758    0.8758       459
+2026-08-21 04:31:31 - INFO - Confusion matrix - [[tn=198, fp=35], [fn=22, tp=204]]
+2026-08-21 04:31:31 - INFO - probability_positive min=0.0014 mean=0.5012 std=0.3976 max=0.9983 predicted_0=220 predicted_1=239
+2026-08-21 04:31:32 - INFO - [Classification Report - split=validation epoch=5 - threshold=0.50]
+2026-08-21 04:31:32 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:32 - INFO - 
+2026-08-21 04:31:32 - INFO -       safe (0)     0.9545    0.8182    0.8811        77
+2026-08-21 04:31:32 - INFO - vulnerable (1)     0.8333    0.9589    0.8917        73
+2026-08-21 04:31:32 - INFO - 
+2026-08-21 04:31:32 - INFO -       accuracy                         0.8867       150
+2026-08-21 04:31:32 - INFO -      macro avg     0.8939    0.8885    0.8864       150
+2026-08-21 04:31:32 - INFO -   weighted avg     0.8956    0.8867    0.8863       150
+2026-08-21 04:31:32 - INFO - Confusion matrix - [[tn=63, fp=14], [fn=3, tp=70]]
+2026-08-21 04:31:32 - INFO - probability_positive min=0.0007 mean=0.5345 std=0.4465 max=0.9991 predicted_0=66 predicted_1=84
+2026-08-21 04:31:32 - INFO - New best model | Macro-F1: 0.886419 | Epoch: 5
+2026-08-21 04:31:43 - INFO - Epoch 6/30 | Train loss: 0.233596 | Val loss: 0.381419 | LR: 2.00e-05 | Best epoch: 6 | Patience: 0 | Train: 9.77s | Validation: 1.04s | Epoch: 11.24s | Total: 67.43s
+2026-08-21 04:31:43 - INFO - RecAdam target-task weight at epoch end: 0.998572
+2026-08-21 04:31:43 - INFO - [Classification Report - split=train epoch=6 - threshold=0.50]
+2026-08-21 04:31:43 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:43 - INFO - 
+2026-08-21 04:31:43 - INFO -       safe (0)     0.9204    0.8927    0.9063       233
+2026-08-21 04:31:43 - INFO - vulnerable (1)     0.8927    0.9204    0.9063       226
+2026-08-21 04:31:43 - INFO - 
+2026-08-21 04:31:43 - INFO -       accuracy                         0.9063       459
+2026-08-21 04:31:43 - INFO -      macro avg     0.9065    0.9065    0.9063       459
+2026-08-21 04:31:43 - INFO -   weighted avg     0.9067    0.9063    0.9063       459
+2026-08-21 04:31:43 - INFO - Confusion matrix - [[tn=208, fp=25], [fn=18, tp=208]]
+2026-08-21 04:31:43 - INFO - probability_positive min=0.0008 mean=0.4965 std=0.4262 max=0.9988 predicted_0=226 predicted_1=233
+2026-08-21 04:31:43 - INFO - [Classification Report - split=validation epoch=6 - threshold=0.50]
+2026-08-21 04:31:43 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:43 - INFO - 
+2026-08-21 04:31:43 - INFO -       safe (0)     0.9412    0.8312    0.8828        77
+2026-08-21 04:31:43 - INFO - vulnerable (1)     0.8415    0.9452    0.8903        73
+2026-08-21 04:31:43 - INFO - 
+2026-08-21 04:31:43 - INFO -       accuracy                         0.8867       150
+2026-08-21 04:31:43 - INFO -      macro avg     0.8913    0.8882    0.8865       150
+2026-08-21 04:31:43 - INFO -   weighted avg     0.8926    0.8867    0.8864       150
+2026-08-21 04:31:43 - INFO - Confusion matrix - [[tn=64, fp=13], [fn=4, tp=69]]
+2026-08-21 04:31:43 - INFO - probability_positive min=0.0006 mean=0.5451 std=0.4634 max=0.9994 predicted_0=68 predicted_1=82
+2026-08-21 04:31:43 - INFO - New best model | Macro-F1: 0.886541 | Epoch: 6
+2026-08-21 04:31:54 - INFO - Epoch 7/30 | Train loss: 0.162925 | Val loss: 0.328447 | LR: 2.00e-05 | Best epoch: 7 | Patience: 0 | Train: 9.77s | Validation: 1.03s | Epoch: 11.24s | Total: 78.69s
+2026-08-21 04:31:54 - INFO - RecAdam target-task weight at epoch end: 0.999665
+2026-08-21 04:31:54 - INFO - [Classification Report - split=train epoch=7 - threshold=0.50]
+2026-08-21 04:31:54 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:54 - INFO - 
+2026-08-21 04:31:54 - INFO -       safe (0)     0.9295    0.9056    0.9174       233
+2026-08-21 04:31:54 - INFO - vulnerable (1)     0.9052    0.9292    0.9170       226
+2026-08-21 04:31:54 - INFO - 
+2026-08-21 04:31:54 - INFO -       accuracy                         0.9172       459
+2026-08-21 04:31:54 - INFO -      macro avg     0.9173    0.9174    0.9172       459
+2026-08-21 04:31:54 - INFO -   weighted avg     0.9175    0.9172    0.9172       459
+2026-08-21 04:31:54 - INFO - Confusion matrix - [[tn=211, fp=22], [fn=16, tp=210]]
+2026-08-21 04:31:54 - INFO - probability_positive min=0.0006 mean=0.4947 std=0.4511 max=0.9991 predicted_0=227 predicted_1=232
+2026-08-21 04:31:54 - INFO - [Classification Report - split=validation epoch=7 - threshold=0.50]
+2026-08-21 04:31:54 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:31:54 - INFO - 
+2026-08-21 04:31:54 - INFO -       safe (0)     0.9452    0.8961    0.9200        77
+2026-08-21 04:31:54 - INFO - vulnerable (1)     0.8961    0.9452    0.9200        73
+2026-08-21 04:31:54 - INFO - 
+2026-08-21 04:31:54 - INFO -       accuracy                         0.9200       150
+2026-08-21 04:31:54 - INFO -      macro avg     0.9207    0.9207    0.9200       150
+2026-08-21 04:31:54 - INFO -   weighted avg     0.9213    0.9200    0.9200       150
+2026-08-21 04:31:54 - INFO - Confusion matrix - [[tn=69, fp=8], [fn=4, tp=69]]
+2026-08-21 04:31:54 - INFO - probability_positive min=0.0004 mean=0.5154 std=0.4748 max=0.9995 predicted_0=73 predicted_1=77
+2026-08-21 04:31:54 - INFO - New best model | Macro-F1: 0.920000 | Epoch: 7
+2026-08-21 04:32:05 - INFO - Epoch 8/30 | Train loss: 0.123508 | Val loss: 0.290738 | LR: 2.00e-05 | Best epoch: 7 | Patience: 1 | Train: 9.77s | Validation: 1.04s | Epoch: 10.81s | Total: 89.52s
+2026-08-21 04:32:05 - INFO - RecAdam target-task weight at epoch end: 0.999921
+2026-08-21 04:32:05 - INFO - [Classification Report - split=train epoch=8 - threshold=0.50]
+2026-08-21 04:32:05 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:05 - INFO - 
+2026-08-21 04:32:05 - INFO -       safe (0)     0.9409    0.9571    0.9489       233
+2026-08-21 04:32:05 - INFO - vulnerable (1)     0.9550    0.9381    0.9464       226
+2026-08-21 04:32:05 - INFO - 
+2026-08-21 04:32:05 - INFO -       accuracy                         0.9477       459
+2026-08-21 04:32:05 - INFO -      macro avg     0.9479    0.9476    0.9477       459
+2026-08-21 04:32:05 - INFO -   weighted avg     0.9478    0.9477    0.9477       459
+2026-08-21 04:32:05 - INFO - Confusion matrix - [[tn=223, fp=10], [fn=14, tp=212]]
+2026-08-21 04:32:05 - INFO - probability_positive min=0.0005 mean=0.4875 std=0.4705 max=0.9991 predicted_0=237 predicted_1=222
+2026-08-21 04:32:05 - INFO - [Classification Report - split=validation epoch=8 - threshold=0.50]
+2026-08-21 04:32:05 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:05 - INFO - 
+2026-08-21 04:32:05 - INFO -       safe (0)     0.9012    0.9481    0.9241        77
+2026-08-21 04:32:05 - INFO - vulnerable (1)     0.9420    0.8904    0.9155        73
+2026-08-21 04:32:05 - INFO - 
+2026-08-21 04:32:05 - INFO -       accuracy                         0.9200       150
+2026-08-21 04:32:05 - INFO -      macro avg     0.9216    0.9192    0.9198       150
+2026-08-21 04:32:05 - INFO -   weighted avg     0.9211    0.9200    0.9199       150
+2026-08-21 04:32:05 - INFO - Confusion matrix - [[tn=73, fp=4], [fn=8, tp=65]]
+2026-08-21 04:32:05 - INFO - probability_positive min=0.0003 mean=0.4806 std=0.4680 max=0.9995 predicted_0=81 predicted_1=69
+2026-08-21 04:32:16 - INFO - Epoch 9/30 | Train loss: 0.114366 | Val loss: 0.400240 | LR: 2.00e-05 | Best epoch: 7 | Patience: 2 | Train: 9.78s | Validation: 1.04s | Epoch: 10.81s | Total: 100.34s
+2026-08-21 04:32:16 - INFO - RecAdam target-task weight at epoch end: 0.999982
+2026-08-21 04:32:16 - INFO - [Classification Report - split=train epoch=9 - threshold=0.50]
+2026-08-21 04:32:16 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:16 - INFO - 
+2026-08-21 04:32:16 - INFO -       safe (0)     0.9451    0.9614    0.9532       233
+2026-08-21 04:32:16 - INFO - vulnerable (1)     0.9595    0.9425    0.9509       226
+2026-08-21 04:32:16 - INFO - 
+2026-08-21 04:32:16 - INFO -       accuracy                         0.9521       459
+2026-08-21 04:32:16 - INFO -      macro avg     0.9523    0.9519    0.9520       459
+2026-08-21 04:32:16 - INFO -   weighted avg     0.9522    0.9521    0.9521       459
+2026-08-21 04:32:16 - INFO - Confusion matrix - [[tn=224, fp=9], [fn=13, tp=213]]
+2026-08-21 04:32:16 - INFO - probability_positive min=0.0003 mean=0.4893 std=0.4766 max=0.9994 predicted_0=237 predicted_1=222
+2026-08-21 04:32:16 - INFO - [Classification Report - split=validation epoch=9 - threshold=0.50]
+2026-08-21 04:32:16 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:16 - INFO - 
+2026-08-21 04:32:16 - INFO -       safe (0)     0.9200    0.8961    0.9079        77
+2026-08-21 04:32:16 - INFO - vulnerable (1)     0.8933    0.9178    0.9054        73
+2026-08-21 04:32:16 - INFO - 
+2026-08-21 04:32:16 - INFO -       accuracy                         0.9067       150
+2026-08-21 04:32:16 - INFO -      macro avg     0.9067    0.9070    0.9067       150
+2026-08-21 04:32:16 - INFO -   weighted avg     0.9070    0.9067    0.9067       150
+2026-08-21 04:32:16 - INFO - Confusion matrix - [[tn=69, fp=8], [fn=6, tp=67]]
+2026-08-21 04:32:16 - INFO - probability_positive min=0.0002 mean=0.4990 std=0.4853 max=0.9996 predicted_0=75 predicted_1=75
+2026-08-21 04:32:26 - INFO - Epoch 10/30 | Train loss: 0.088363 | Val loss: 0.368674 | LR: 2.00e-05 | Best epoch: 7 | Patience: 3 | Train: 9.78s | Validation: 1.04s | Epoch: 10.82s | Total: 111.16s
+2026-08-21 04:32:26 - INFO - RecAdam target-task weight at epoch end: 0.999996
+2026-08-21 04:32:26 - INFO - [Classification Report - split=train epoch=10 - threshold=0.50]
+2026-08-21 04:32:26 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:26 - INFO - 
+2026-08-21 04:32:26 - INFO -       safe (0)     0.9697    0.9614    0.9655       233
+2026-08-21 04:32:26 - INFO - vulnerable (1)     0.9605    0.9690    0.9648       226
+2026-08-21 04:32:26 - INFO - 
+2026-08-21 04:32:26 - INFO -       accuracy                         0.9651       459
+2026-08-21 04:32:26 - INFO -      macro avg     0.9651    0.9652    0.9651       459
+2026-08-21 04:32:26 - INFO -   weighted avg     0.9652    0.9651    0.9651       459
+2026-08-21 04:32:26 - INFO - Confusion matrix - [[tn=224, fp=9], [fn=7, tp=219]]
+2026-08-21 04:32:26 - INFO - probability_positive min=0.0003 mean=0.4909 std=0.4863 max=0.9996 predicted_0=231 predicted_1=228
+2026-08-21 04:32:26 - INFO - [Classification Report - split=validation epoch=10 - threshold=0.50]
+2026-08-21 04:32:26 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:26 - INFO - 
+2026-08-21 04:32:26 - INFO -       safe (0)     0.9103    0.9221    0.9161        77
+2026-08-21 04:32:26 - INFO - vulnerable (1)     0.9167    0.9041    0.9103        73
+2026-08-21 04:32:26 - INFO - 
+2026-08-21 04:32:26 - INFO -       accuracy                         0.9133       150
+2026-08-21 04:32:26 - INFO -      macro avg     0.9135    0.9131    0.9132       150
+2026-08-21 04:32:26 - INFO -   weighted avg     0.9134    0.9133    0.9133       150
+2026-08-21 04:32:26 - INFO - Confusion matrix - [[tn=71, fp=6], [fn=7, tp=66]]
+2026-08-21 04:32:26 - INFO - probability_positive min=0.0002 mean=0.4819 std=0.4843 max=0.9997 predicted_0=78 predicted_1=72
+2026-08-21 04:32:37 - INFO - Epoch 11/30 | Train loss: 0.102215 | Val loss: 0.373722 | LR: 2.00e-05 | Best epoch: 7 | Patience: 4 | Train: 9.78s | Validation: 1.04s | Epoch: 10.81s | Total: 121.99s
+2026-08-21 04:32:37 - INFO - RecAdam target-task weight at epoch end: 0.999999
+2026-08-21 04:32:37 - INFO - [Classification Report - split=train epoch=11 - threshold=0.50]
+2026-08-21 04:32:37 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:37 - INFO - 
+2026-08-21 04:32:37 - INFO -       safe (0)     0.9654    0.9571    0.9612       233
+2026-08-21 04:32:37 - INFO - vulnerable (1)     0.9561    0.9646    0.9604       226
+2026-08-21 04:32:37 - INFO - 
+2026-08-21 04:32:37 - INFO -       accuracy                         0.9608       459
+2026-08-21 04:32:37 - INFO -      macro avg     0.9608    0.9608    0.9608       459
+2026-08-21 04:32:37 - INFO -   weighted avg     0.9608    0.9608    0.9608       459
+2026-08-21 04:32:37 - INFO - Confusion matrix - [[tn=223, fp=10], [fn=8, tp=218]]
+2026-08-21 04:32:37 - INFO - probability_positive min=0.0002 mean=0.4980 std=0.4874 max=0.9997 predicted_0=231 predicted_1=228
+2026-08-21 04:32:37 - INFO - [Classification Report - split=validation epoch=11 - threshold=0.50]
+2026-08-21 04:32:37 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:37 - INFO - 
+2026-08-21 04:32:37 - INFO -       safe (0)     0.9211    0.9091    0.9150        77
+2026-08-21 04:32:37 - INFO - vulnerable (1)     0.9054    0.9178    0.9116        73
+2026-08-21 04:32:37 - INFO - 
+2026-08-21 04:32:37 - INFO -       accuracy                         0.9133       150
+2026-08-21 04:32:37 - INFO -      macro avg     0.9132    0.9134    0.9133       150
+2026-08-21 04:32:37 - INFO -   weighted avg     0.9134    0.9133    0.9133       150
+2026-08-21 04:32:37 - INFO - Confusion matrix - [[tn=70, fp=7], [fn=6, tp=67]]
+2026-08-21 04:32:37 - INFO - probability_positive min=0.0002 mean=0.4877 std=0.4791 max=0.9998 predicted_0=76 predicted_1=74
+2026-08-21 04:32:48 - INFO - Epoch 12/30 | Train loss: 0.083047 | Val loss: 0.396893 | LR: 2.00e-05 | Best epoch: 7 | Patience: 5 | Train: 9.78s | Validation: 1.04s | Epoch: 10.82s | Total: 132.81s
+2026-08-21 04:32:48 - INFO - RecAdam target-task weight at epoch end: 1.000000
+2026-08-21 04:32:48 - INFO - [Classification Report - split=train epoch=12 - threshold=0.50]
+2026-08-21 04:32:48 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:48 - INFO - 
+2026-08-21 04:32:48 - INFO -       safe (0)     0.9660    0.9742    0.9701       233
+2026-08-21 04:32:48 - INFO - vulnerable (1)     0.9732    0.9646    0.9689       226
+2026-08-21 04:32:48 - INFO - 
+2026-08-21 04:32:48 - INFO -       accuracy                         0.9695       459
+2026-08-21 04:32:48 - INFO -      macro avg     0.9696    0.9694    0.9695       459
+2026-08-21 04:32:48 - INFO -   weighted avg     0.9695    0.9695    0.9695       459
+2026-08-21 04:32:48 - INFO - Confusion matrix - [[tn=227, fp=6], [fn=8, tp=218]]
+2026-08-21 04:32:48 - INFO - probability_positive min=0.0002 mean=0.4944 std=0.4890 max=0.9997 predicted_0=235 predicted_1=224
+2026-08-21 04:32:48 - INFO - [Classification Report - split=validation epoch=12 - threshold=0.50]
+2026-08-21 04:32:48 - INFO -                 precision    recall  f1-score   support
+2026-08-21 04:32:48 - INFO - 
+2026-08-21 04:32:48 - INFO -       safe (0)     0.9079    0.8961    0.9020        77
+2026-08-21 04:32:48 - INFO - vulnerable (1)     0.8919    0.9041    0.8980        73
+2026-08-21 04:32:48 - INFO - 
+2026-08-21 04:32:48 - INFO -       accuracy                         0.9000       150
+2026-08-21 04:32:48 - INFO -      macro avg     0.8999    0.9001    0.9000       150
+2026-08-21 04:32:48 - INFO -   weighted avg     0.9001    0.9000    0.9000       150
+2026-08-21 04:32:48 - INFO - Confusion matrix - [[tn=69, fp=8], [fn=7, tp=66]]
+2026-08-21 04:32:48 - INFO - probability_positive min=0.0002 mean=0.4872 std=0.4840 max=0.9998 predicted_0=76 predicted_1=74
+2026-08-21 04:32:48 - INFO - Early stopping | Epoch: 12 | Best epoch: 7
+2026-08-21 04:32:48 - INFO - Best checkpoint saved | Path: model/edit_ref_t5p/transfer_cwe/seed_42/fold4/best.pt | Epoch: 7 | Val macro_f1: 0.920000
+2026-08-21 04:32:48 - INFO - Training finished | Elapsed: 132.82s
+2026-08-21 04:32:48 - INFO - Run finished | Phase: phase2 | Fold: 4 | Seed: 42 | Elapsed: 135.69s

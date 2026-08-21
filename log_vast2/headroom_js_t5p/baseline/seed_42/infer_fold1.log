@@ -1,0 +1,143 @@
+2026-08-21 05:24:23 - INFO - Using device: cuda
+2026-08-21 05:24:23 - INFO - Run started | Run: headroom_js_t5p | Method: baseline | Phase: baseline_infer | Fold: 1 | Seed: 42 | Device: cuda
+2026-08-21 05:24:24 - INFO - Loading Python validation data: data/js_twin/fold1/val.jsonl
+2026-08-21 05:24:24 - INFO - Loading Python test data: data/js_twin/fold1/test.jsonl
+2026-08-21 05:24:24 - INFO - Data split: python_val | Total: 229 | Labels: {0: 115, 1: 114} | CWEs: {'CWE-022': 15, 'CWE-078': 29, 'CWE-079': 160, 'CWE-089': 25} | Languages: {'js': 229} | Invalid CWE: 0
+2026-08-21 05:24:24 - INFO - Data split: python_test | Total: 230 | Labels: {0: 117, 1: 113} | CWEs: {'CWE-022': 15, 'CWE-078': 29, 'CWE-079': 160, 'CWE-089': 26} | Languages: {'js': 230} | Invalid CWE: 0
+2026-08-21 05:24:26 - INFO - Environment: {"components": {"backbone": {"frozen": 0, "total": 109607040, "trainable": 109607040}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 1, "frozen_parameters": 0, "gpu": "NVIDIA GeForce RTX 4070 Ti SUPER", "hyperparameters": {"batch_size": 16, "checkpoint_path": "model/headroom_js_t5p/baseline/seed_42/fold1/best.pt", "data_root": "data/js_twin", "epochs": 10, "eval_batch_size": 16, "fold": 1, "learning_rate": 2e-05, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "baseline", "min_epochs": 3, "model_name": "Salesforce/codet5p-220m", "num_workers": 0, "patience": 5, "phase": "infer", "pooling": "cls", "result_path": "results/headroom_js_t5p/baseline/seed_42/fold1.json", "run_name": "headroom_js_t5p", "seed": 42, "target_lang": "js", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "baseline_inference_no_optimizer", "model_name": "Salesforce/codet5p-220m", "seed": 42, "sklearn": "1.7.2", "torch": "2.11.0+cu128", "trainable_parameters": 109608578, "transformers": "4.57.1"}
+2026-08-21 05:24:28 - INFO - Evaluation time | Split: validation+threshold | Seconds: 2.31
+2026-08-21 05:24:28 - INFO - [Classification Report - split=validation - threshold=0.50]
+2026-08-21 05:24:28 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:28 - INFO - 
+2026-08-21 05:24:28 - INFO -       safe (0)     0.6034    0.6087    0.6061       115
+2026-08-21 05:24:28 - INFO - vulnerable (1)     0.6018    0.5965    0.5991       114
+2026-08-21 05:24:28 - INFO - 
+2026-08-21 05:24:28 - INFO -       accuracy                         0.6026       229
+2026-08-21 05:24:28 - INFO -      macro avg     0.6026    0.6026    0.6026       229
+2026-08-21 05:24:28 - INFO -   weighted avg     0.6026    0.6026    0.6026       229
+2026-08-21 05:24:28 - INFO - Confusion matrix - [[tn=70, fp=45], [fn=46, tp=68]]
+2026-08-21 05:24:28 - INFO - probability_positive min=0.0021 mean=0.4997 std=0.3862 max=0.9988 predicted_0=116 predicted_1=113
+2026-08-21 05:24:28 - INFO - [Classification Report - split=validation_calibrated - threshold=0.67]
+2026-08-21 05:24:28 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:28 - INFO - 
+2026-08-21 05:24:28 - INFO -       safe (0)     0.5970    0.6957    0.6426       115
+2026-08-21 05:24:28 - INFO - vulnerable (1)     0.6316    0.5263    0.5742       114
+2026-08-21 05:24:28 - INFO - 
+2026-08-21 05:24:28 - INFO -       accuracy                         0.6114       229
+2026-08-21 05:24:28 - INFO -      macro avg     0.6143    0.6110    0.6084       229
+2026-08-21 05:24:28 - INFO -   weighted avg     0.6142    0.6114    0.6085       229
+2026-08-21 05:24:28 - INFO - Confusion matrix - [[tn=80, fp=35], [fn=54, tp=60]]
+2026-08-21 05:24:28 - INFO - probability_positive min=0.0021 mean=0.4997 std=0.3862 max=0.9988 predicted_0=134 predicted_1=95
+2026-08-21 05:24:30 - INFO - Evaluation time | Split: test | Seconds: 1.62
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test - threshold=0.50]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.5772    0.6068    0.5917       117
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.5701    0.5398    0.5545       113
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.5739       230
+2026-08-21 05:24:30 - INFO -      macro avg     0.5737    0.5733    0.5731       230
+2026-08-21 05:24:30 - INFO -   weighted avg     0.5737    0.5739    0.5734       230
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=71, fp=46], [fn=52, tp=61]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0023 mean=0.4803 std=0.3966 max=0.9977 predicted_0=123 predicted_1=107
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_valcal - threshold=0.67]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.5786    0.6923    0.6304       117
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.6000    0.4779    0.5320       113
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.5870       230
+2026-08-21 05:24:30 - INFO -      macro avg     0.5893    0.5851    0.5812       230
+2026-08-21 05:24:30 - INFO -   weighted avg     0.5891    0.5870    0.5820       230
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=81, fp=36], [fn=59, tp=54]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0023 mean=0.4803 std=0.3966 max=0.9977 predicted_0=140 predicted_1=90
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_0.5_CWE-022 - threshold=0.50]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.5455    0.8571    0.6667         7
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.7500    0.3750    0.5000         8
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.6000        15
+2026-08-21 05:24:30 - INFO -      macro avg     0.6477    0.6161    0.5833        15
+2026-08-21 05:24:30 - INFO -   weighted avg     0.6545    0.6000    0.5778        15
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=6, fp=1], [fn=5, tp=3]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0110 mean=0.3630 std=0.3712 max=0.9941 predicted_0=11 predicted_1=4
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_0.5_CWE-078 - threshold=0.50]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.7500    0.5625    0.6429        16
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.5882    0.7692    0.6667        13
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.6552        29
+2026-08-21 05:24:30 - INFO -      macro avg     0.6691    0.6659    0.6548        29
+2026-08-21 05:24:30 - INFO -   weighted avg     0.6775    0.6552    0.6535        29
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=9, fp=7], [fn=3, tp=10]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0275 mean=0.5786 std=0.3759 max=0.9963 predicted_0=12 predicted_1=17
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_0.5_CWE-079 - threshold=0.50]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.5904    0.5904    0.5904        83
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.5584    0.5584    0.5584        77
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.5750       160
+2026-08-21 05:24:30 - INFO -      macro avg     0.5744    0.5744    0.5744       160
+2026-08-21 05:24:30 - INFO -   weighted avg     0.5750    0.5750    0.5750       160
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=49, fp=34], [fn=34, tp=43]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0023 mean=0.4992 std=0.3990 max=0.9977 predicted_0=83 predicted_1=77
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_0.5_CWE-089 - threshold=0.50]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.4118    0.6364    0.5000        11
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.5556    0.3333    0.4167        15
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.4615        26
+2026-08-21 05:24:30 - INFO -      macro avg     0.4837    0.4848    0.4583        26
+2026-08-21 05:24:30 - INFO -   weighted avg     0.4947    0.4615    0.4519        26
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=7, fp=4], [fn=10, tp=5]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0091 mean=0.3217 std=0.3587 max=0.9973 predicted_0=17 predicted_1=9
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_valcal_CWE-022 - threshold=0.67]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.5455    0.8571    0.6667         7
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.7500    0.3750    0.5000         8
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.6000        15
+2026-08-21 05:24:30 - INFO -      macro avg     0.6477    0.6161    0.5833        15
+2026-08-21 05:24:30 - INFO -   weighted avg     0.6545    0.6000    0.5778        15
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=6, fp=1], [fn=5, tp=3]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0110 mean=0.3630 std=0.3712 max=0.9941 predicted_0=11 predicted_1=4
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_valcal_CWE-078 - threshold=0.67]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.6875    0.6875    0.6875        16
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.6154    0.6154    0.6154        13
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.6552        29
+2026-08-21 05:24:30 - INFO -      macro avg     0.6514    0.6514    0.6514        29
+2026-08-21 05:24:30 - INFO -   weighted avg     0.6552    0.6552    0.6552        29
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=11, fp=5], [fn=5, tp=8]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0275 mean=0.5786 std=0.3759 max=0.9963 predicted_0=16 predicted_1=13
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_valcal_CWE-079 - threshold=0.67]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.5914    0.6627    0.6250        83
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.5821    0.5065    0.5417        77
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.5875       160
+2026-08-21 05:24:30 - INFO -      macro avg     0.5867    0.5846    0.5833       160
+2026-08-21 05:24:30 - INFO -   weighted avg     0.5869    0.5875    0.5849       160
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=55, fp=28], [fn=38, tp=39]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0023 mean=0.4992 std=0.3990 max=0.9977 predicted_0=93 predicted_1=67
+2026-08-21 05:24:30 - INFO - [Classification Report - split=test_at_valcal_CWE-089 - threshold=0.67]
+2026-08-21 05:24:30 - INFO -                 precision    recall  f1-score   support
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       safe (0)     0.4500    0.8182    0.5806        11
+2026-08-21 05:24:30 - INFO - vulnerable (1)     0.6667    0.2667    0.3810        15
+2026-08-21 05:24:30 - INFO - 
+2026-08-21 05:24:30 - INFO -       accuracy                         0.5000        26
+2026-08-21 05:24:30 - INFO -      macro avg     0.5583    0.5424    0.4808        26
+2026-08-21 05:24:30 - INFO -   weighted avg     0.5750    0.5000    0.4654        26
+2026-08-21 05:24:30 - INFO - Confusion matrix - [[tn=9, fp=2], [fn=11, tp=4]]
+2026-08-21 05:24:30 - INFO - probability_positive min=0.0091 mean=0.3217 std=0.3587 max=0.9973 predicted_0=20 predicted_1=6
+2026-08-21 05:24:30 - INFO - Baseline inference result saved: results/headroom_js_t5p/baseline/seed_42/fold1.json
+2026-08-21 05:24:30 - INFO - Run finished | Phase: baseline_infer | Fold: 1 | Seed: 42 | Elapsed: 6.69s
