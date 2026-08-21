@@ -2392,3 +2392,111 @@ phần lợi ở lớp hiếm, đủ bền để nghiêng cả quỹ đạo về
 
 Cần `--recadam_anchor pretrained` (đã thêm) và `PHASE2_EXTRA` trong `gated.sh` (đã thêm). Chạy sau
 khi hai run T5 hiện tại xong, theo đúng quy trình bốn cổng: seed 42, 5 fold, chung một baseline.
+
+---
+
+## 41. Ngày 21/8: backbone thứ ba trả lời câu hỏi họ kiến trúc, và trọng số head phụ hoá ra là biến bị bỏ quên
+
+Toàn bộ mục này chạy trên **bộ fold gốc** `sven_python_folds_norm`, **target Python**, **seed 42**,
+đủ **5 fold**, source `train_ccpp_js.jsonl` trừ chỗ ghi rõ khác. Cột quyết định là **head phụ cộng
+thêm** = Δ(`cwe`) − Δ(`none`), tức phần thuộc về head phụ sau khi trừ phần do pretrain source mang lại.
+
+### 41.1 Bảng tổng
+
+| model | pooling | λ_cwe | source | `none` | **head phụ cộng thêm** |
+| --- | --- | --- | --- | --- | --- |
+| CodeBERT | cls | 0.2 | ccpp_js | +0.0019 | **+0.0270** |
+| **UniXcoder** | cls | 0.2 | ccpp_js | +0.0253 (5/5) | **+0.0185** (4/5) |
+| **CodeT5-base** | mean | **0.05** | ccpp_js | +0.0079 | **+0.0105** (4/5) |
+| UniXcoder `latent_bot` | cls | 0.2 | ccpp_js | — | +0.0027 (2/5) |
+| CodeT5+ | cls | 0.2 | ccpp_js | +0.0186 (4/5) | −0.0027 (2/5) |
+| CodeT5+ | mean | 0.05 | ccpp_js | +0.0194 | −0.0107 (2/5) |
+| CodeT5+ · CWE 73 lớp | mean | 0.2 | primevul_common | +0.0027 | −0.0099 (3/5) |
+| CodeT5-base | mean | 0.2 | ccpp_js | +0.0079 | −0.0181 (1/4) |
+| CodeT5+ · **pillar 9 lớp** | mean | 0.2 | primevul_common | +0.0027 | −0.0212 (2/5) |
+| CodeT5+ | mean | 0.2 | ccpp_js | +0.0194 (3/5) | **−0.0373** (0/5) |
+
+### 41.2 UniXcoder: hiệu ứng thuộc về **họ kiến trúc**, không phải riêng CodeBERT
+
+| nhánh | Δ vs baseline | dương | head phụ cộng thêm |
+| --- | --- | --- | --- |
+| `none` | +0.0253 | **5/5** | — |
+| `cwe` | **+0.0438** | **5/5** | **+0.0185** (4/5) |
+| `latent_bottleneck` | +0.0280 | 4/5 | +0.0027 (2/5) |
+
+Trước hôm nay, mọi tuyên bố "phương pháp có tác dụng" đều dựa trên **đúng một checkpoint**. §33 gộp
+5 seed nhưng cả 5 đều là CodeBERT, nên không tách được "đặc điểm họ RoBERTa" khỏi "đặc điểm riêng
+CodeBERT". UniXcoder là RoBERTa nhưng pretrain hoàn toàn khác (đa phương thức, có mục tiêu tương
+phản) và nó **lặp lại được hiệu ứng**.
+
+Thông số đọc từ checkpoint (`src/inspect_backbone.py`): tham số **ngoài embedding** của cả bốn
+backbone nằm trong khoảng 84.9M–86.4M. Chênh lệch ở tổng tham số (126M của UniXcoder so với 110M của
+CodeT5+) gần như hoàn toàn do vocab. **So sánh backbone không bị nhiễu bởi dung lượng model.**
+
+### 41.3 λ_cwe: biến chưa từng được đo, và nó cải thiện **đều +0.026** trên cả hai model T5
+
+| model | λ=0.2 | λ=0.05 | chênh |
+| --- | --- | --- | --- |
+| CodeT5-base · mean | −0.0181 (1/4, sập 1 fold) | **+0.0105** (4/5, không sập) | **+0.0286** |
+| CodeT5+ · mean | −0.0373 (0/5) | −0.0107 (2/5) | **+0.0266** |
+
+Hai model độc lập, cùng một mức cải thiện tới chữ số thứ ba. Nhưng chỉ CodeT5-base **lật được dấu**;
+CodeT5+ xuất phát quá thấp nên vẫn âm.
+
+λ = 0.2 được đặt từ đầu dự án và giữ nguyên qua **toàn bộ** thí nghiệm trước đó. Nó chưa từng được
+quét. Trên CodeT5-base nó vừa gây hại vừa làm huấn luyện mất ổn định — hạ xuống 0.05 xoá hẳn hiện
+tượng sập fold.
+
+### 41.4 Pooling của CodeT5+: đo được rồi, và số liệu **ngược quy ước học thuật**
+
+| pooling | `none` | `cwe` | head phụ cộng thêm |
+| --- | --- | --- | --- |
+| cls | +0.0186 | +0.0159 | **−0.0027** |
+| mean | +0.0194 | −0.0179 | **−0.0373** |
+
+`none` gần như y hệt (+0.0186 so với +0.0194) nhưng head phụ chênh **0.0346** — gấp bảy lần ngưỡng
+nhiễu 0.005. **Pooling không ảnh hưởng transfer; nó ảnh hưởng riêng head phụ.**
+
+§28 và mục sửa docstring ở `src/model.py` lập luận rằng `mean` là chuẩn cho họ T5 vì span corruption
+không huấn luyện vị trí 0 thành biểu diễn chuỗi. Lập luận đó vẫn đúng về cơ chế pretrain. Nhưng khi
+đó bằng chứng số cho `cls` là +0.0039 so với −0.0184 trên fold twin — nằm trong nhiễu, nên chuyển
+sang quy ước là quyết định hợp lý. Đo lại trên bộ báo cáo với nhánh ghép cặp thì chênh lệch **ra
+ngoài nhiễu rất xa và nghiêng về `cls`**. Quy ước và số liệu không đồng ý với nhau ở đây, và số liệu
+là thứ phải báo cáo.
+
+### 41.5 Gộp CWE theo pillar gốc: **bị bác**
+
+Source `ccpp_primevul_paired_common.jsonl` (73 CWE), nhãn pillar dựng bằng
+`src/build_parent_labels.py` từ bảng CWE Research Concept (`data/cwe_root_parents.txt`) → 9 pillar,
+100% dòng dùng được.
+
+| nhánh | Δ vs baseline | head phụ cộng thêm |
+| --- | --- | --- |
+| `cwe` 73 lớp CWE chi tiết | −0.0073 | −0.0099 (3/5) |
+| `cwe` **9 lớp pillar** | −0.0185 | **−0.0212** (2/5) |
+
+Nhãn pillar **tệ hơn** nhãn CWE chi tiết. Giả thuyết "nhãn ở mức trừu tượng cao hơn mang thông tin mà
+backbone chưa có" sai.
+
+Hai điều phải ghi lại vì suýt làm thí nghiệm này chạy sai một cách âm thầm:
+
+1. **Nguồn hiển nhiên là nguồn sai.** `train_ccpp_js` chỉ có 4 CWE, gộp parent ra 2 lớp tỉ lệ 90/10.
+   Tệ hơn, §34.2 đo được CWE-079 được +0.1202 còn CWE-078 bị −0.0256 trên CodeT5+ — hai lớp đó cùng
+   thuộc pillar CWE-707, nên gộp lại là xoá đúng phần phân biệt tạo ra lợi ích.
+2. **Đường nạp dữ liệu sẽ vứt 54% dữ liệu mà không báo.** `resolve_cwe_class` kiểm mọi nhãn với bảng
+   4 lớp cố định, nên 9 lớp pillar sẽ bị cắt còn 4 và **1594/2975 dòng bị gán −100 trong im lặng**.
+   Đã thêm `--cwe_vocab precomputed`. `build_edit_labels.py` (§37) thoát nạn này chỉ vì tình cờ sinh
+   đúng 4 nhóm.
+
+Ghi chú thêm: source `primevul_common` yếu hơn hẳn `train_ccpp_js` ở mọi nhánh — `none` chỉ +0.0027
+so với +0.0194.
+
+### 41.6 Phát biểu đúng sau ngày 21/8
+
+**Head phụ có tác dụng trên họ RoBERTa và gần như không có tác dụng trên họ T5.** Hai backbone
+RoBERTa cho +0.0270 và +0.0185; bốn cấu hình T5 cho từ −0.0373 tới +0.0105, và giá trị dương duy
+nhất cần hạ λ xuống 1/4 mới đạt được.
+
+Mục tiêu "không phụ thuộc pretrained" **vẫn chưa đạt**, nhưng bức tranh đã đổi: trước đây nó là "một
+checkpoint chạy được, mọi thứ khác không", giờ là "một **họ kiến trúc** chạy được". Đó là phát biểu
+mạnh hơn hẳn và kiểm chứng được.
