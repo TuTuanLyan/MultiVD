@@ -41,6 +41,20 @@ def delta(method_dir, base, metric):
     return statistics.mean(scores[f] - base[f] for f in folds), len(folds)
 
 
+def per_fold_added(method_dir, none_dir, base, metric):
+    """Giá trị gia tăng của head phụ, tính riêng TỪNG fold.
+
+    Trung bình một mình che mất trường hợp một fold gánh cả kết quả. Chuyện đó đã
+    xảy ra: khẳng định 'common hơn full gấp mười lần' ở RESULT.md §21 sống nhờ
+    đúng một fold và phải rút lại. Bản đầu của hàm dưới đây cũng chỉ nhìn trung
+    bình, và nó lập tức phán 'đáng chạy tiếp' cho một cấu hình chỉ dương 1/3 fold.
+    """
+    m = load(method_dir, metric)
+    n = load(none_dir, metric)
+    folds = sorted(set(m) & set(n) & set(base))
+    return {f: (m[f] - base[f]) - (n[f] - base[f]) for f in folds}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=42)
@@ -98,15 +112,55 @@ def main():
         if None in (d_none, d_cwe, d_edit):
             print(f"  {label:<10} chưa đủ ba nhánh để so")
             continue
-        add_cwe, add_edit = d_cwe - d_none, d_edit - d_none
-        if add_edit > add_cwe + NOISE:
-            verdict = "edit TỐT HƠN cwe — đáng chạy tiếp"
-        elif add_edit < add_cwe - NOISE:
-            verdict = "edit KÉM HƠN cwe"
+        del d_cwe, d_edit   # không dùng: hai trung bình này có thể khác số fold
+        # Trên fold ĐÃ GHÉP CẶP, không trừ hai trung bình tính trên số fold khác
+        # nhau. Bản trước làm đúng như vậy và cho `edit` một con số so với `none`
+        # ở n=5 trong khi `edit` mới có n=3 — cùng lỗi đã khiến khẳng định
+        # "gấp mười lần" ở RESULT.md §21 phải rút lại.
+        cwe_folds = per_fold_added(
+            f"results/edit_ref_{label}/transfer_cwe/seed_{args.seed}",
+            f"results/edit_ref_{label}/transfer_none/seed_{args.seed}",
+            base, METRICS[0])
+        edit_folds = per_fold_added(
+            f"results/edit_new_{label}/transfer_cwe/seed_{args.seed}",
+            f"results/edit_ref_{label}/transfer_none/seed_{args.seed}",
+            base, METRICS[0])
+        shared = sorted(set(cwe_folds) & set(edit_folds))
+        if not shared:
+            print(f"  {label:<10} chưa có fold nào đủ cả ba nhánh")
+            continue
+        add_cwe = statistics.mean(cwe_folds[f] for f in shared)
+        add_edit = statistics.mean(edit_folds[f] for f in shared)
+        n_edit = len(shared)
+        per_fold = per_fold_added(
+            f"results/edit_new_{label}/transfer_cwe/seed_{args.seed}",
+            f"results/edit_ref_{label}/transfer_none/seed_{args.seed}",
+            base, METRICS[0])
+        positive = sum(1 for v in per_fold.values() if v > 0)
+        total = len(per_fold)
+        drop_best = None
+        if total > 1:
+            worst_without = sorted(per_fold.values())[:-1]   # bỏ fold tốt nhất
+            drop_best = statistics.mean(worst_without)
+
+        if add_edit <= add_cwe + NOISE:
+            verdict = "KHÔNG hơn cwe — dừng"
+        elif total >= 3 and positive <= total // 2:
+            verdict = (f"trung bình dương nhưng chỉ {positive}/{total} fold — "
+                       f"KHÔNG nhất quán, chưa đủ để chạy tiếp")
+        elif drop_best is not None and drop_best <= 0:
+            verdict = (f"trung bình dương nhưng bỏ fold tốt nhất thì còn "
+                       f"{drop_best:+.4f} — một fold đang gánh cả kết quả")
         else:
-            verdict = "ngang nhau, chênh trong nhiễu"
-        print(f"  {label:<10} head phụ cộng thêm:  cwe {add_cwe:+.4f}   "
-              f"edit {add_edit:+.4f}   (n={n_edit})  →  {verdict}")
+            verdict = f"hơn cwe và dương {positive}/{total} fold — đáng chạy tiếp"
+
+        print(f"  {label:<10} head phụ cộng thêm (trên {n_edit} fold ghép cặp):  "
+              f"cwe {add_cwe:+.4f}   edit {add_edit:+.4f}   (dương {positive}/{total})")
+        print(f"  {'':<10}   từng fold: "
+              + ", ".join(f"f{f} {v:+.4f}" for f, v in sorted(per_fold.items())))
+        if drop_best is not None:
+            print(f"  {'':<10}   bỏ fold tốt nhất → {drop_best:+.4f}")
+        print(f"  {'':<10}   → {verdict}")
 
     print(f"\n  Ngưỡng nhiễu {NOISE} lấy từ sd giữa các fold của dự án (tới 0.09 trên 152 mẫu).")
     print("  Ba fold chỉ đủ để quyết định DỪNG; muốn kết luận phải đủ 5 fold.")

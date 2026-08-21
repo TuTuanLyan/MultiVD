@@ -2018,3 +2018,72 @@ tín hiệu phụ mang thông tin **backbone mạnh vẫn thiếu** — đúng t
 **Đây là quyết định của bạn, không phải của tôi.** Tôi nêu ra vì nếu mục tiêu giữ nguyên cách A mà
 cơ chế §34 đúng thì mọi công sức tiếp theo sẽ đổ vào một đích không tới được — và điều đó đáng biết
 trước khi thuê máy trở lại.
+
+---
+
+## 37. Tín hiệu kích thước sửa đổi **bị bác** — và vì sao lập luận §35 thiếu một vế
+
+`run/edit-gate.sh` chạy ba nhánh trên cùng một baseline, hai backbone, hai máy, seed 42.
+Cổng chặn phán **dừng** ở cả hai.
+
+### 37.1 Số liệu
+
+Giá trị gia tăng của head phụ, `Δ − Δ(none)`, trên fold ghép cặp:
+
+| Backbone | Metric | `cwe` | `edit` | từng fold của `edit` | bỏ fold tốt nhất |
+| --- | --- | --- | --- | --- | --- |
+| CodeBERT | Macro-F1 | **+0.0481** | +0.0101 | −0.0204, −0.0086, **+0.0593** | **−0.0145** |
+| CodeBERT | ROC-AUC | **+0.0313** | +0.0196 | — | — |
+| CodeT5+ | Macro-F1 | −0.0049 | **−0.0002** | **+0.0520**, −0.0065, −0.0133, −0.0331 | **−0.0176** |
+| CodeT5+ | ROC-AUC | −0.0017 | **−0.0073** | — | — |
+
+Ba điều, và điều thứ ba là điều quyết định:
+
+**Trên CodeBERT, `edit` kém `cwe` gần năm lần** (+0.0101 so với +0.0481). Tín hiệu mới yếu hơn hẳn
+ngay ở backbone mà phương pháp vốn hoạt động tốt.
+
+**Trên CodeT5+, `edit` bằng không** (−0.0002) và **âm trên ROC-AUC** (−0.0073) — tệ hơn cả `cwe`.
+Nó không giải quyết được vấn đề mà nó sinh ra để giải quyết.
+
+**Cả hai backbone chỉ dương ở 1/3 và 1/4 fold**, và bỏ fold tốt nhất đi thì cả hai đều âm. Trung
+bình dương của CodeBERT hoàn toàn do fold 3 (+0.0593); của CodeT5+ hoàn toàn do fold 1 (+0.0520).
+Và con số CodeT5+ **xấu dần khi thêm fold**: +0.0107 ở n=3 → −0.0002 ở n=4.
+
+### 37.2 Lập luận §35 thiếu vế nào
+
+§35 kiểm tín hiệu mới trên ba trục: dữ liệu có đủ, phân bố không suy biến, và **trực giao với CWE**
+(NMI 0.029). Cả ba đều đạt, nên tôi kết luận hướng này đáng chạy.
+
+Vế thiếu là **tính liên quan**. Trực giao với CWE nghĩa là tín hiệu mang *thông tin khác*, nhưng
+không bảo đảm thông tin đó **liên quan đến việc phát hiện lỗ hổng**. Số dòng cần sửa là một thuộc
+tính của bản vá, không phải của lỗ hổng — hai hàm cùng lỗi SQL injection có thể cần sửa 1 dòng hoặc
+20 dòng tuỳ cách viết, và sự khác biệt đó không dạy model điều gì về việc nhận ra SQL injection.
+
+Nói gọn: tôi đã đo **"tín hiệu này có mới không"** mà quên đo **"tín hiệu này có đúng thứ cần học
+không"**. Trực giao là điều kiện **cần**, không phải điều kiện **đủ**.
+
+Đây là bài học có thể kiểm được trước khi tiêu GPU lần sau: một tín hiệu phụ ứng viên phải qua
+**cả hai** cửa — trực giao với thứ backbone đã biết, **và** gắn với ngữ nghĩa lỗ hổng.
+
+### 37.3 Điều thí nghiệm này vẫn xác lập
+
+Không phải công cốc. Nhánh `cwe` chạy song song trên cùng máy, cùng baseline, và cho:
+
+| Backbone | `cwe` cộng thêm so với `none` |
+| --- | --- |
+| CodeBERT | **+0.0481** (Macro-F1), **+0.0313** (ROC-AUC) |
+| CodeT5+ | −0.0049 (Macro-F1), −0.0017 (ROC-AUC) |
+
+Đây là lần thứ tư đại lượng này được đo trên CodeT5+, qua ba GPU khác nhau, và **luôn quanh 0**.
+Cơ chế ở §34.3 — head phụ tắt tác dụng khi backbone đã tự biểu diễn được lớp hiếm — giờ đã được
+tái lập trên phần cứng mới, với baseline mới, ở n=5.
+
+### 37.4 Hai lỗi trong công cụ của chính tôi
+
+`src/report_edit_gate.py` bản đầu phán **"edit TỐT HƠN cwe — đáng chạy tiếp"** cho cấu hình chỉ
+dương 1/3 fold, vì nó chỉ nhìn trung bình. Bản sau lại **trừ hai trung bình tính trên số fold khác
+nhau** (`edit` n=3 với `none` n=5).
+
+Cả hai đúng là lỗi đã khiến khẳng định "gấp mười lần" ở §21 phải rút lại — lần này nằm trong code
+thay vì trong câu chữ. Đã sửa: phán quyết dựa trên fold ghép cặp, và kiểm cả số fold dương lẫn kết
+quả sau khi bỏ fold tốt nhất.
