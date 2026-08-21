@@ -2231,3 +2231,75 @@ phụ cho thấy kết luận không đổi khi siết chặt cách chia.
 
 Điều này cũng có nghĩa **các con số sẽ khác**, và đó là chuyện bình thường: fold khác thì baseline
 khác. Điều cần giữ nguyên là **dấu và thứ hạng giữa các nhánh**, không phải giá trị tuyệt đối.
+
+---
+
+## 39. Cơ chế dư địa được xác nhận — và mục tiêu đã đặt sai câu hỏi
+
+`run/headroom-test.sh` kiểm chính lời giải thích ở §34, không phải một ý tưởng mới. Kết quả rõ ràng
+nhất phiên này.
+
+### 39.1 Cùng backbone, cùng phương pháp, chỉ đổi target
+
+CodeT5+ trên target **JS** (baseline 0.5228, dư địa lớn), source C/C++ thuần, seed 42, n=5:
+
+| fold | baseline | `none` | `cwe` | head phụ cộng thêm |
+| --- | --- | --- | --- | --- |
+| 1 | 0.5731 | 0.4933 | 0.6174 | **+0.1241** |
+| 2 | 0.5619 | 0.5355 | 0.5439 | **+0.0084** |
+| 3 | 0.4394 | 0.4984 | 0.5924 | **+0.0940** |
+| 4 | 0.4720 | 0.5481 | 0.6062 | **+0.0581** |
+| 5 | 0.5677 | 0.4954 | 0.5929 | **+0.0975** |
+| | | | **trung bình** | **+0.0764** |
+
+**Dương 5/5 fold**, sd 0.0447, bỏ fold tốt nhất vẫn còn **+0.0645**.
+Trên ROC-AUC còn mạnh hơn: **+0.0800**, cũng **5/5 fold**, bỏ fold tốt nhất còn +0.0717.
+
+Đặt cạnh chính backbone đó trên target Python:
+
+| Target | baseline CodeT5+ | head phụ cộng thêm |
+| --- | --- | --- |
+| Python | **0.8755** | **−0.0013** |
+| **JS** | **0.5228** | **+0.0764** |
+
+**Cùng backbone. Cùng phương pháp. Cùng tín hiệu phụ. Chỉ đổi target.** Head phụ đi từ **vô dụng**
+sang **+0.076**, nhất quán ở mọi fold, trên cả hai metric.
+
+### 39.2 Bảng đầy đủ backbone × target
+
+| | Python (dư địa nhỏ) | JS (dư địa lớn) |
+| --- | --- | --- |
+| **CodeBERT** | baseline 0.83 → **+0.0477** | baseline 0.54 → **+0.0986** (n=3) |
+| **CodeT5+** | baseline 0.88 → **−0.0013** | baseline 0.52 → **+0.0764** (n=5) |
+
+Giá trị của head phụ bám theo **dư địa của baseline**, không bám theo backbone. Trên target còn dư
+địa thì **cả hai** backbone đều hưởng lợi mạnh; trên target đã bão hoà thì backbone mạnh không còn
+gì để lấy.
+
+### 39.3 Điều này sửa lại chính mục tiêu
+
+§33 kết luận "phương pháp không chuyển được sang CodeT5+" và §36 nêu nghi vấn mục tiêu có thể đặt
+sai. Số liệu ở đây **giải quyết cả hai**:
+
+**CodeT5+ không hề miễn nhiễm với phương pháp.** Nó chỉ **không còn dư địa trên Python**. Đưa sang
+target nó chưa giải được thì phương pháp hoạt động mạnh hơn cả trên CodeBERT.
+
+Nên phát biểu "phương pháp phụ thuộc pretrained" là **sai**. Phát biểu đúng:
+
+> Giá trị của head phụ được quyết định bởi **dư địa của cặp (backbone, target)**, không bởi riêng
+> backbone. Nó lớn khi baseline còn yếu và tiến về 0 khi baseline đã bão hoà — với **mọi** backbone.
+
+Đây là một quy luật **dự đoán được và đã được kiểm**: §34 suy ra nó từ dữ liệu Python, §39 kiểm nó
+trên target JS chưa từng dùng để suy ra, và nó đúng.
+
+### 39.4 Hệ quả cho bài báo
+
+Câu chuyện chuyển từ **"phương pháp thất bại trên backbone mạnh"** — một khuyết điểm — sang
+**"phương pháp bù đúng vào chỗ baseline còn yếu"** — một đặc tính có cơ chế, đo được, và nói cho
+người dùng biết **khi nào nên dùng**.
+
+Điều đó cũng đúng với phát hiện per-CWE ở §23: lợi ích tập trung ở hai lớp hiếm, tức chỗ dữ liệu
+target mỏng nhất. Hai kết quả cùng một hình dạng, ở hai mức phân giải khác nhau — theo lớp CWE và
+theo target.
+
+`gated.sh` đang chạy CodeBERT trên JS ở seed 42 để đưa ô còn lại của bảng lên n=5 trên cùng một máy.

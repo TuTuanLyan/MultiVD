@@ -28,7 +28,9 @@ export HF_HOME=/workspace/hf
 PYTHON="${PYTHON:-/venv/main/bin/python}"
 export PYTHON
 
-RUN_NAME=headroom_js SEED="${SEED:-42}" \
+SEED="${SEED:-42}"
+export SEED
+RUN_NAME=headroom_js \
   BACKBONES="t5p=Salesforce/codet5p-220m:cls" \
   MODES="none cwe" \
   DATA_ROOT=data/js_twin TARGET_LANG=js \
