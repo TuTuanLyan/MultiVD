@@ -608,6 +608,53 @@ def print_recadam_schedule(args, total_steps, anneal_t0, steps_per_epoch):
     )
 
 
+def build_recadam_anchor(named_trainable, args, device):
+    """Clone the point RecAdam pulls Phase 2 back toward.
+
+    The default anchors on the Phase-1 weights, which is what RecAdam was
+    written for. That choice is not neutral once the backbone is strong. §34.2
+    measured, per CWE class, that bare source pretraining costs CodeT5+ -0.0312
+    on CWE-078 -- 204 samples, the class it already handled well -- and that the
+    auxiliary head recovers only +0.0056 of it, against +0.0195 on CodeBERT.
+    So on a strong backbone the anchor is holding the model at the very solution
+    that damaged the common classes.
+
+    `pretrained` anchors on the untouched HF weights instead. Initialisation
+    still comes from Phase 1, so whatever the source stage bought on the rare
+    classes is still there at step 0; only the pull changes direction, back
+    toward the general representation the common classes rely on.
+
+    This is not the interpolation that §15 rejected. That one blended the
+    *starting weights* and so gave up part of the source solution before
+    training began. Here Phase 1 arrives intact and only the regulariser moves.
+    """
+    anchor = [parameter.detach().clone() for _, parameter in named_trainable]
+    if args.recadam_anchor == "source":
+        return anchor
+
+    pretrained = build_backbone(args.model_name).to(device)
+    state = pretrained.state_dict()
+    replaced, kept = 0, 0
+    for index, (name, parameter) in enumerate(named_trainable):
+        prefix = "backbone."
+        original = state.get(name[len(prefix):]) if name.startswith(prefix) else None
+        if original is None or original.shape != parameter.shape:
+            # Heads have no pretrained counterpart, so they stay anchored on
+            # Phase 1. Leaving them unanchored would let the classifier drift
+            # freely while the backbone is held, which is a different
+            # experiment from the one being run.
+            kept += 1
+            continue
+        anchor[index] = original.detach().clone().to(parameter.device)
+        replaced += 1
+    del pretrained
+    logger.info(
+        "RecAdam anchor: pretrained | Tensors from original weights: %d | Left on Phase 1: %d",
+        replaced, kept,
+    )
+    return anchor
+
+
 def interpolate_backbone(model, args, device):
     """Blend the Phase-1 backbone back toward its original pretrained weights.
 
@@ -722,9 +769,15 @@ def run_phase2(args, device):
     if args.lp_epochs > 0:
         run_linear_probe(args, model, train_records, val_records, tokenizer, device)
 
-    current_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    # Take names alongside the tensors: the anchor may need to swap individual
+    # backbone entries for their pretrained originals, which needs the name.
+    # named_parameters() and parameters() iterate in the same order, so the
+    # index alignment RecAdam relies on is preserved.
+    named_trainable = [(name, parameter) for name, parameter in model.named_parameters()
+                       if parameter.requires_grad]
+    current_params = [parameter for _, parameter in named_trainable]
     # This is the immutable RecAdam anchor, cloned before any Python optimizer step.
-    pretrain_params = [parameter.detach().clone() for parameter in current_params]
+    pretrain_params = build_recadam_anchor(named_trainable, args, device)
     assert_recadam_setup(current_params, pretrain_params, model)
 
     train_loader = build_dataloader(
@@ -984,6 +1037,10 @@ def parse_args():
     recadam.add_argument("--anneal_t0_ratio", type=float, default=0.05,
                          help="anneal midpoint as a fraction of total Phase-2 steps")
     recadam.add_argument("--anneal_w", type=float, default=1.0, help="maximum target-task weight")
+    recadam.add_argument("--recadam_anchor", choices=("source", "pretrained"), default="source",
+                         help="what RecAdam pulls back toward: the Phase-1 weights (default) "
+                              "or the untouched pretrained weights. Initialisation is the "
+                              "Phase-1 checkpoint either way")
     recadam.add_argument("--pretrain_cof", type=float, default=5000.0,
                          help="quadratic source-anchor coefficient")
 

@@ -2303,3 +2303,92 @@ target mỏng nhất. Hai kết quả cùng một hình dạng, ở hai mức ph
 theo target.
 
 `gated.sh` đang chạy CodeBERT trên JS ở seed 42 để đưa ô còn lại của bảng lên n=5 trên cùng một máy.
+
+---
+
+## 40. Đo độ dịch trọng số: cơ chế §34 có mặt số, và một ý tưởng bị số học giết trước khi tốn GPU
+
+§34 giải thích phương pháp hỏng trên CodeT5+ bằng "hết dư địa", đo qua điểm số per-CWE. Mục này đo
+**trực tiếp trên trọng số**, không qua metric: Phase 1 đẩy backbone đi bao xa khỏi trọng số
+pretrained gốc, tính bằng `||θ_phase1 − θ_pretrained|| / ||θ_pretrained||` theo từng tensor.
+
+Cùng seed 42, cùng source `train_ccpp_js.jsonl`, cùng lịch Phase 1. Chạy trên CPU, không tốn GPU.
+
+### 40.1 Backbone mạnh bị đẩy đi xa gần gấp đôi
+
+| Backbone | nhánh | độ dịch (trọng số theo tham số) | so với CodeBERT |
+| --- | --- | --- | --- |
+| CodeBERT | `none` | 0.011876 | — |
+| CodeBERT | `cwe` | **0.010556** | — |
+| CodeT5+ | `none` | 0.022105 | **1.86×** |
+| CodeT5+ | `cwe` | **0.020844** | **1.97×** |
+
+Cùng một công thức Phase 1 làm CodeT5+ dịch xa gần gấp đôi CodeBERT. Đây là mặt số của điều §34.2
+đo được qua metric: `none` gây hại −0.0312 trên CWE-078 của CodeT5+.
+
+### 40.2 Head phụ **là** một bộ hãm dịch chuyển — nhưng trên CodeT5+ nó yếu đi một nửa
+
+| Backbone | `none` → `cwe` | mức hãm |
+| --- | --- | --- |
+| CodeBERT | 0.011876 → 0.010556 | **−11.1%** |
+| CodeT5+ | 0.022105 → 0.020844 | **−5.7%** |
+
+Đây là bằng chứng trực tiếp đầu tiên cho cơ chế §23.2 phát biểu bằng metric ("head phụ gỡ thiệt hại
+mà pretrain trần gây ra"): head phụ **giữ backbone gần trọng số gốc hơn**. Và nó cho biết vì sao
+phương pháp hỏng trên backbone mạnh — **thiệt hại gấp đôi, phần sửa chữa còn một nửa**.
+
+**Tôi ghi dự đoán trước khi có số và trượt.** Dự đoán: nếu "hãm dịch chuyển" là cơ chế phân biệt
+thành/bại thì trên CodeT5+ head phụ phải **không** hãm được, ngưỡng đặt ở ≥0.0210. Số thật là
+0.020844 — có hãm, 5.7%. Hướng đúng (yếu hơn hẳn), nhưng ngưỡng số tôi đặt là sai. Cơ chế không
+phải "tắt" mà là "yếu đi một nửa".
+
+### 40.3 Ý tưởng đổi neo RecAdam: bị bác bằng số học, không tốn giờ GPU nào
+
+Neo RecAdam hiện được nhân bản **sau** khi nạp checkpoint Phase 1 (`src/train_transfer.py:727`), tức
+nó kéo mô hình về phía source — đúng điểm đã gây hại. Ý tưởng: neo về trọng số pretrained gốc thay
+vì Phase 1, giữ khởi tạo ở Phase 1.
+
+`src/RecAdam.py:128` cho thấy lực kéo **không** đi qua chuẩn hoá của Adam:
+
+```
+p.data.add_(p.data - pp.data, alpha=-lr * (anneal_w - anneal_lambda) * pretrain_cof)
+```
+
+Hệ số mỗi bước là `lr × pretrain_cof = 2e-5 × 5000 = 0.1`. Mỗi bước đóng **10%·(1−λ)** khoảng cách
+tới điểm neo. Với `anneal_t0_ratio=0.05`, `anneal_k=0.05`, 29 bước/epoch, 30 epoch:
+
+| sau | khoảng cách tới điểm neo còn lại |
+| --- | --- |
+| 10 bước (0.3 epoch) | 40.4% |
+| 29 bước (**1 epoch**) | **9.1%** |
+| 58 bước (2 epoch) | 2.1% |
+| 87 bước (3 epoch) | 1.2% |
+
+**Neo về pretrained sẽ xoá sạch Phase 1 trong vòng một epoch** và biến run thành fine-tune trần từ
+trọng số gốc — tức đúng bằng baseline. Thí nghiệm đó là null theo thiết kế. Bác trước khi chạy.
+
+Tăng `anneal_t0_ratio` làm mọi thứ **tệ hơn**, không tốt hơn: giữ neo lâu hơn nghĩa là kéo mạnh hơn
+(t0=0.15 → còn 4.8% sau 1 epoch, so với 9.1%).
+
+### 40.4 Điều bảng trên nói về cấu hình **hiện tại**
+
+Cùng phép tính áp cho neo hiện tại (neo ở Phase 1, khoảng cách ban đầu bằng 0): neo giữ chặt mô hình
+trong khoảng **1 epoch** rồi thả gần hết từ **epoch 3** trở đi, trong tổng số 30 epoch.
+
+**RecAdam trong pipeline này đang hoạt động như một lịch warmup, không phải một bộ chính quy hoá.**
+Nó không "bảo vệ" gì suốt quá trình huấn luyện như tên gọi gợi ý.
+
+Điều này cũng bác luôn một hướng nghe hợp lý: *giữ neo lâu hơn để bảo vệ lớp phổ biến của CodeT5+*.
+Neo đặt tại θ_Phase1, mà θ_Phase1 chính là **điểm đã bị hỏng**. Giữ neo lâu hơn là **giữ lại thiệt
+hại**, không phải ngăn nó. Cấu hình thả nhanh hiện tại đã là lựa chọn đúng hướng — Phase 2 trên dữ
+liệu Python cần được tự do sửa phần hỏng đó.
+
+### 40.5 Việc còn lại có cơ sở
+
+Sau khi loại hai hướng trên, phần còn đứng là: neo về pretrained **với hệ số yếu và bền** thay vì
+mạnh và ngắn. Với `pretrain_cof=20`, `anneal_t0_ratio=0.5`, `anneal_k=0.005`, thành phần kéo chỉ trả
+lại **16%** độ dịch của Phase 1 sau trọn 30 epoch (so với 99% ở cấu hình hiện tại) — đủ nhẹ để giữ
+phần lợi ở lớp hiếm, đủ bền để nghiêng cả quỹ đạo về biểu diễn tổng quát mà lớp phổ biến dựa vào.
+
+Cần `--recadam_anchor pretrained` (đã thêm) và `PHASE2_EXTRA` trong `gated.sh` (đã thêm). Chạy sau
+khi hai run T5 hiện tại xong, theo đúng quy trình bốn cổng: seed 42, 5 fold, chung một baseline.

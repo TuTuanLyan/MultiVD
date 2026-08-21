@@ -54,6 +54,10 @@ PHASE1_EPOCHS="${PHASE1_EPOCHS:-15}"
 PHASE2_EPOCHS="${PHASE2_EPOCHS:-30}"
 LR="${LR:-2e-5}"
 LAMBDA_CWE="${LAMBDA_CWE:-0.2}"
+# Extra Phase-2 flags, passed through verbatim. Knobs that only affect the
+# RecAdam stage (anchor, anneal schedule) belong here so trying one does not
+# mean editing this driver and risking the arms diverging in something else.
+PHASE2_EXTRA="${PHASE2_EXTRA:-}"
 
 shared_args() {  # $1 = model_name, $2 = pooling
   echo --seed "$SEED" --batch_size "$BATCH_SIZE" --eval_batch_size "$BATCH_SIZE" \
@@ -143,6 +147,7 @@ run_fold() {  # $1 = fold
         --source_checkpoint "$MD/source/best.pt" \
         --checkpoint_path "$MD/fold$FOLD/best.pt" \
         --output_dir "results/$RN/$METHOD" \
+        $PHASE2_EXTRA \
         $(shared_args "$MODEL" "$POOL") >> "$LG/phase2_fold$FOLD.log" 2>&1 \
         && $PYTHON -u src/train_transfer.py --phase test \
           --run_name "$RN" --method_name "$METHOD" --fold "$FOLD" \
