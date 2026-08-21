@@ -2187,16 +2187,47 @@ Phân bố CWE giữa các fold test dao động tự nhiên hơn — CWE-089 ch
 với bộ tất định vốn được ép cho đều. **Đó là điều mong muốn**, không phải khuyết điểm: nó chính là
 tính ngẫu nhiên mà người phản biện yêu cầu, và nó làm ước lượng phương sai trung thực hơn.
 
-### 38.3 Vai trò hai bộ đảo lại
+### 38.2.1 Quyết định: giữ bộ fold gốc
+
+Bộ gốc **đã là chia ngẫu nhiên** (theo từng dòng), và tiêu chí "không rò rỉ" được chốt là
+**không có bản trùng khít nằm trong val/test**. Kiểm trên cả 5 fold, cả ba cặp split:
+
+| fold | train–val | train–test | val–test |
+| --- | --- | --- | --- |
+| 1–5 | **0** | **0** | **0** |
+
+Không một dòng nào trùng khít, kể cả sau khi chuẩn hoá khoảng trắng. **Bộ gốc đạt tiêu chí**, nên
+thí nghiệm chính chạy trên `data/sven_python_folds_norm` — không cần dựng bộ mới.
+
+`src/build_folds_random.py` và `data/sven_python_random` vẫn giữ lại. Chúng không thừa: nếu người
+phản biện chuyển sang hỏi về **trùng gần-giống** thì đã có sẵn câu trả lời chạy được, không phải
+dựng lại từ đầu.
+
+### 38.2.2 Con số cần chuẩn bị sẵn câu trả lời
+
+Ba bộ fold khác nhau ở mức trùng **gần-giống** (>0.75), tức bản vá của một hàm test nằm trong train:
+
+| Bộ | Trùng khít | Trùng gần-giống |
+| --- | --- | --- |
+| `sven_python_folds_norm` — **đang dùng** | **0** | **58%** |
+| `sven_python_twin` | 0 | 5% |
+| `sven_python_random` | 0 | 2% |
+
+Ghi lại không phải để phản đối lựa chọn — chia theo dòng là cách nhiều bài trong lĩnh vực này vẫn
+làm — mà vì đây là câu hỏi người phản biện có thể nêu, và khi đó cần con số cụ thể cùng một bộ fold
+thay thế đã chạy được. Cả hai giờ đều có.
+
+### 38.3 Vai trò các bộ
 
 | Bộ | Vai trò |
 | --- | --- |
-| **`sven_python_random`** | **thí nghiệm chính**, dùng cho báo cáo |
-| `sven_python_twin` | **side experiment** — giữ lại vì mọi kết quả §20–§37 chạy trên đó |
+| **`sven_python_folds_norm`** | **thí nghiệm chính** — chia ngẫu nhiên theo dòng, 0 trùng khít |
+| `sven_python_twin` | side experiment — mọi kết quả §20–§37 chạy trên đó |
+| `sven_python_random` | dự phòng, dùng nếu câu hỏi trùng gần-giống được nêu |
 
-Toàn bộ số liệu từ §20 đến §37 chạy trên folds twin. Chúng **không mất giá trị** — twin không rò rỉ
-và các so sánh trong đó đều nội bộ nhất quán — nhưng khi đưa vào bài, bảng chính phải là bộ ngẫu
-nhiên, còn twin xuất hiện như kiểm chứng phụ.
+Toàn bộ số liệu từ §20 đến §37 chạy trên folds twin. Chúng **không mất giá trị** — các so sánh trong
+đó đều nội bộ nhất quán — nhưng bảng chính trong bài sẽ là bộ gốc, còn twin xuất hiện như kiểm chứng
+phụ cho thấy kết luận không đổi khi siết chặt cách chia.
 
 Điều này cũng có nghĩa **các con số sẽ khác**, và đó là chuyện bình thường: fold khác thì baseline
 khác. Điều cần giữ nguyên là **dấu và thứ hạng giữa các nhánh**, không phải giá trị tuyệt đối.
