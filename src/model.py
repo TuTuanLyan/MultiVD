@@ -119,17 +119,23 @@ def merge_lora(backbone):
 def pool_hidden_states(hidden_states, attention_mask, strategy):
     """Position 0, or the attention-masked mean over the window.
 
-    An earlier version of this docstring claimed the T5 family has no token at
-    position 0 and forced mean pooling there. That is wrong: CodeT5 and CodeT5+
-    both tokenise with RobertaTokenizerFast and both emit <s> at position 0,
-    exactly as CodeBERT does. Neither model pretrains that slot as a sentence
-    summary -- RoBERTa does not either -- but fine-tuning is what teaches it to
-    aggregate in both cases.
+    Default by family: `cls` for CodeBERT, `mean` for CodeT5 and CodeT5+.
 
-    The mistake matters because pooling then moved together with the backbone in
-    every run, so no experiment separated "CodeT5 transfers worse" from "mean
-    pooling transfers worse". Both strategies are valid for both families; which
-    one to use is an experimental question, not a property of the checkpoint.
+    Both families do emit <s> at position 0 -- they share RobertaTokenizerFast,
+    and an earlier version of this docstring was right to correct the claim that
+    T5 has no token there. But having the token is not the same as having a
+    trained summary. RoBERTa pretrains <s> through a sentence-level objective, so
+    CodeBERT arrives with that slot already meaning something. T5 pretrains with
+    span corruption only, which gives position 0 no sequence-level role at all,
+    and mean pooling over encoder states is the standard readout for T5 encoders
+    used as classifiers.
+
+    The measured case for `cls` on CodeT5+ was +0.0039 against -0.0184 on the
+    twin folds at seed 36. That gap sits inside this project's own noise band
+    (per-fold sd reaches 0.09 on 152 test rows, and the cross-machine effect
+    alone is 0.028), so it was never strong enough to override the convention.
+    Treating it as decisive is how pooling ended up moving with the backbone in
+    every run, which is the confound the earlier note was written to flag.
     """
     if strategy == "cls":
         return hidden_states[:, 0, :]
