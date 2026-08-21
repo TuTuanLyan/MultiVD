@@ -2030,24 +2030,62 @@ Cổng chặn phán **dừng** ở cả hai.
 
 Giá trị gia tăng của head phụ, `Δ − Δ(none)`, trên fold ghép cặp:
 
-| Backbone | Metric | `cwe` | `edit` | từng fold của `edit` | bỏ fold tốt nhất |
+**Bảng này là bản n=5. Bản n=3 tôi viết trước đó kết luận sai — xem §37.1.1.**
+
+| Backbone | Metric | `cwe` | `edit` | dương | bỏ fold tốt nhất |
 | --- | --- | --- | --- | --- | --- |
-| CodeBERT | Macro-F1 | **+0.0481** | +0.0101 | −0.0204, −0.0086, **+0.0593** | **−0.0145** |
-| CodeBERT | ROC-AUC | **+0.0313** | +0.0196 | — | — |
-| CodeT5+ | Macro-F1 | −0.0013 | **+0.0011** | **+0.0520**, −0.0065, −0.0133, −0.0331, +0.0064 | **−0.0116** |
-| CodeT5+ | ROC-AUC | −0.0017 | **−0.0073** | — | — |
+| CodeBERT | Macro-F1 | **+0.0477** | **+0.0288** | 3/5 | **+0.0191** |
+| CodeBERT | ROC-AUC | **+0.0371** | **+0.0293** | — | — |
+| CodeT5+ | Macro-F1 | −0.0013 | +0.0011 | 2/5 | −0.0116 |
+| CodeT5+ | ROC-AUC | −0.0017 | −0.0073 | — | — |
 
-Ba điều, và điều thứ ba là điều quyết định:
+Δ từng fold của `edit`:
 
-**Trên CodeBERT, `edit` kém `cwe` gần năm lần** (+0.0101 so với +0.0481). Tín hiệu mới yếu hơn hẳn
-ngay ở backbone mà phương pháp vốn hoạt động tốt.
+```
+CodeBERT  -0.0204  -0.0086  +0.0593  +0.0460  +0.0678
+CodeT5+   +0.0520  -0.0065  -0.0133  -0.0331  +0.0064
+```
 
-**Trên CodeT5+, `edit` bằng không** (−0.0002) và **âm trên ROC-AUC** (−0.0073) — tệ hơn cả `cwe`.
-Nó không giải quyết được vấn đề mà nó sinh ra để giải quyết.
+**Trên CodeBERT, `edit` là một tín hiệu THẬT.** +0.0288 trên Macro-F1 và +0.0293 trên ROC-AUC, dương
+3/5 fold, và **sống sót phép bỏ fold tốt nhất** (+0.0191). Nó chỉ **yếu hơn** `cwe` — bằng 60% trên
+Macro-F1 và 79% trên ROC-AUC — chứ không phải nhiễu.
 
-**Cả hai backbone chỉ dương ở 1/3 và 2/5 fold**, và bỏ fold tốt nhất đi thì cả hai đều âm. Trung
-bình dương của CodeBERT hoàn toàn do fold 3 (+0.0593); của CodeT5+ hoàn toàn do fold 1 (+0.0520).
-Con số CodeT5+ dao động mạnh theo fold: +0.0107 (n=3) → −0.0002 (n=4) → **+0.0011 (n=5)**, tức cuối cùng dừng ở đúng **bằng không**, ngang `cwe` (−0.0013).
+**Trên CodeT5+, cả hai tín hiệu đều bằng không.** `cwe` −0.0013, `edit` +0.0011, và `edit` âm trên
+ROC-AUC (−0.0073).
+
+### 37.1.1 Kết luận ở n=3 của tôi sai, và sai theo hướng nào
+
+Ở n=3 tôi viết: *"`edit` kém `cwe` gần năm lần (+0.0101 so với +0.0481)"* và *"bỏ fold tốt nhất thì
+cả hai đều âm"*. Ở n=5:
+
+| | n=3 | n=5 |
+| --- | --- | --- |
+| `edit` trên CodeBERT | +0.0101 | **+0.0288** |
+| dương | 1/3 | **3/5** |
+| bỏ fold tốt nhất | **−0.0145** | **+0.0191** |
+
+Fold 4 (+0.0460) và fold 5 (+0.0678) đều mạnh, và chúng đảo hẳn bức tranh. Đây là **lần thứ năm**
+trong tài liệu này một tín hiệu ở n=3 bị đọc sai và n=5 sửa lại — lần này theo hướng **tôi đánh giá
+thấp** thay vì đánh giá cao.
+
+Bài học tương ứng: quy tắc "n=3 chỉ đủ để DỪNG, không đủ để KẾT LUẬN" ở §30 phải áp dụng **cả hai
+chiều**. Tôi đã dùng nó để tránh kết luận quá sớm rằng một thứ *hoạt động*, nhưng lại quên nó khi
+kết luận sớm rằng một thứ *không hoạt động*.
+
+### 37.1.2 Điều bức tranh n=5 thật sự nói
+
+Hai tín hiệu phụ **trực giao nhau** (NMI 0.029) đều:
+
+- **hoạt động rõ trên CodeBERT** — +0.0477 và +0.0288
+- **bằng không trên CodeT5+** — −0.0013 và +0.0011
+
+Đây là bằng chứng **mạnh hơn** cho cơ chế §34 so với trước. Nếu chỉ có `cwe` thất bại trên CodeT5+
+thì còn có thể đổ tại "nhãn CWE tình cờ dư thừa với backbone đó". Nhưng một tín hiệu **hoàn toàn
+khác** cũng thất bại y hệt, trong khi cả hai đều hoạt động trên CodeBERT, thì lời giải thích hợp lý
+không nằm ở **tín hiệu** mà nằm ở **backbone**: CodeT5+ không còn dư địa để bất kỳ head phụ nào lấp.
+
+Điều đó cũng có nghĩa: **đi tìm tín hiệu phụ thứ ba là hướng sai.** Vấn đề không phải chọn sai tín
+hiệu.
 
 ### 37.2 Lập luận §35 thiếu vế nào
 
@@ -2055,12 +2093,13 @@ Con số CodeT5+ dao động mạnh theo fold: +0.0107 (n=3) → −0.0002 (n=4)
 (NMI 0.029). Cả ba đều đạt, nên tôi kết luận hướng này đáng chạy.
 
 Vế thiếu là **tính liên quan**. Trực giao với CWE nghĩa là tín hiệu mang *thông tin khác*, nhưng
-không bảo đảm thông tin đó **liên quan đến việc phát hiện lỗ hổng**. Số dòng cần sửa là một thuộc
-tính của bản vá, không phải của lỗ hổng — hai hàm cùng lỗi SQL injection có thể cần sửa 1 dòng hoặc
-20 dòng tuỳ cách viết, và sự khác biệt đó không dạy model điều gì về việc nhận ra SQL injection.
+không bảo đảm thông tin đó **liên quan đến việc phát hiện lỗ hổng**. Ở n=3 tôi kết luận vế thiếu là **tính liên quan** — rằng số dòng cần sửa không dạy model gì về việc
+nhận ra lỗ hổng. **Số liệu n=5 bác luôn cách đọc đó**: trên CodeBERT tín hiệu này cho +0.0288, tức
+nó **có** liên quan, chỉ là kém hơn nhãn CWE.
 
-Nói gọn: tôi đã đo **"tín hiệu này có mới không"** mà quên đo **"tín hiệu này có đúng thứ cần học
-không"**. Trực giao là điều kiện **cần**, không phải điều kiện **đủ**.
+Vế thiếu thật sự nằm chỗ khác, và §37.1.2 chỉ ra: tôi giả định rằng vì `cwe` dư thừa trên backbone
+mạnh nên một tín hiệu trực giao sẽ không dư thừa. Giả định đó sai — trên CodeT5+ **cả hai** đều
+bằng không. Vấn đề không phải tín hiệu dư thừa mà là **không còn dư địa cho bất kỳ tín hiệu nào**.
 
 Đây là bài học có thể kiểm được trước khi tiêu GPU lần sau: một tín hiệu phụ ứng viên phải qua
 **cả hai** cửa — trực giao với thứ backbone đã biết, **và** gắn với ngữ nghĩa lỗ hổng.
