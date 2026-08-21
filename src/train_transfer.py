@@ -75,13 +75,24 @@ def set_seed(seed, strict=False):
     torch.backends.cudnn.benchmark = False
 
 
-def resolve_cwe_class(record):
-    """Prefer normalized cwe_class; fall back only when that field is absent."""
+def resolve_cwe_class(record, trust_precomputed=False):
+    """Prefer normalized cwe_class; fall back only when that field is absent.
+
+    `trust_precomputed` takes the field verbatim instead of checking it against
+    the four-way mapping. Needed whenever a build script writes an auxiliary
+    label that is not a CWE index at all -- the CWE-pillar grouping has nine
+    classes, and the default path would send every class above 3 to -100 while
+    reporting nothing, so the head would silently train on a quarter of the
+    taxonomy. `build_edit_labels.py` escaped that only because it happened to
+    emit exactly four buckets.
+    """
     if "cwe_class" in record:
         try:
             value = int(record["cwe_class"])
         except (TypeError, ValueError):
             return -100
+        if trust_precomputed:
+            return value if value >= 0 else -100
         return value if value in CLASS_TO_CWE else -100
     try:
         cwe_id = int(record.get("cwe_id"))
@@ -123,7 +134,7 @@ def apply_cwe_vocab(records, vocab):
         record["cwe_class"] = vocab.get(name, -100)
 
 
-def load_jsonl(path, expected_lang=None):
+def load_jsonl(path, expected_lang=None, trust_precomputed=False):
     expected_languages = None
     if expected_lang is not None:
         expected_languages = {expected_lang} if isinstance(expected_lang, str) else set(expected_lang)
@@ -164,7 +175,7 @@ def load_jsonl(path, expected_lang=None):
                     f"{path}:{line_number}: expected lang in {sorted(expected_languages)!r}, "
                     f"got {record.get('lang')!r}"
                 )
-            record["cwe_class"] = resolve_cwe_class(record)
+            record["cwe_class"] = resolve_cwe_class(record, trust_precomputed)
             record["_source_index"] = len(records)
             records.append(record)
     if not records:
@@ -533,7 +544,7 @@ def log_environment(args, model, device, mode):
 
 def run_phase1(args, device):
     logger.info("Loading Phase-1 source data: %s", args.data_path)
-    records = load_jsonl(args.data_path)
+    records = load_jsonl(args.data_path, trust_precomputed=args.cwe_vocab == "precomputed")
     logger.info("Detected Phase-1 languages: %s", sorted({record["lang"] for record in records}))
     if args.cwe_vocab == "source":
         vocab = build_cwe_vocab(records)
@@ -543,6 +554,21 @@ def run_phase1(args, device):
             "Auxiliary CWE vocabulary built from source | Classes: %d | Sample: %s",
             len(vocab),
             dict(list(vocab.items())[:6]),
+        )
+    elif args.cwe_vocab == "precomputed":
+        # The file already carries the auxiliary label. Rebuilding it from `cwe`
+        # would overwrite exactly what the build script wrote, which is how the
+        # pillar grouping would have silently run as plain CWE classification.
+        present = sorted({r["cwe_class"] for r in records if r["cwe_class"] >= 0})
+        if present != list(range(len(present))):
+            raise ValueError(
+                f"cwe_class in {args.data_path} must be 0..N-1 (or -100); got {present[:12]}"
+            )
+        args.num_cwes = max(1, len(present))
+        counts = Counter(r["cwe_class"] for r in records)
+        logger.info(
+            "Auxiliary labels taken from file | Classes: %d | Counts: %s | Ignored: %d",
+            args.num_cwes, {c: counts[c] for c in present}, counts[-100],
         )
     else:
         args.num_cwes = 4
@@ -1007,7 +1033,7 @@ def parse_args():
     training.add_argument("--lp_learning_rate", type=float, default=1e-3,
                           help="learning rate for the linear-probe stage; the head alone "
                                "tolerates a far larger step than the backbone")
-    training.add_argument("--cwe_vocab", choices=("fixed4", "source"), default="fixed4",
+    training.add_argument("--cwe_vocab", choices=("fixed4", "source", "precomputed"), default="fixed4",
                           help="fixed4 keeps the original four-way head; source builds the "
                                "auxiliary label space from whatever CWEs the Phase-1 data "
                                "contains, so a 121-CWE corpus is usable in full")
