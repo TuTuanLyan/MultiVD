@@ -2147,3 +2147,56 @@ nhau** (`edit` n=3 với `none` n=5).
 Cả hai đúng là lỗi đã khiến khẳng định "gấp mười lần" ở §21 phải rút lại — lần này nằm trong code
 thay vì trong câu chữ. Đã sửa: phán quyết dựa trên fold ghép cặp, và kiểm cả số fold dương lẫn kết
 quả sau khi bỏ fold tốt nhất.
+
+---
+
+## 38. Bộ fold **ngẫu nhiên** không rò rỉ — bản dùng để báo cáo
+
+Người phản biện yêu cầu chia fold **ngẫu nhiên**. Bộ `sven_python_twin` không rò rỉ nhưng cách gán
+fold của nó **tất định**, nên yêu cầu đó là chính đáng và phải dựng bộ mới.
+
+### 38.1 Vì sao twin không phải chia ngẫu nhiên
+
+`assign_folds` trong `build_folds.py` gọi `rng.shuffle(group)` rồi ngay sau đó
+`group.sort(key=len, reverse=True)` và gán tham lam vào fold nhẹ nhất. **Sắp xếp theo cỡ ghi đè
+lên shuffle**, nên ngẫu nhiên chỉ còn tác dụng phá hoà giữa các cụm cùng kích thước. Kết quả là
+một phép gán cân bằng thủ công, không phải mẫu ngẫu nhiên — và một người phản biện có quyền gọi
+đó là fold được dàn xếp.
+
+### 38.2 Bộ mới
+
+`src/build_folds_random.py` giữ phần đúng của twin (**gom cụm gần-giống trước** nên không rò rỉ)
+nhưng giao việc gán cho `sklearn.model_selection.StratifiedGroupKFold(shuffle=True,
+random_state=seed)` — hàm chuẩn, shuffle thật, phân tầng theo CWE, tôn trọng ranh giới nhóm.
+Không còn bước cân bằng thủ công nào. Val cũng tách theo **nhóm** bằng `GroupShuffleSplit`, vì
+tách theo dòng sẽ đưa rò rỉ trở lại đúng chỗ dùng để chọn checkpoint.
+
+Đo rò rỉ thực nghiệm (tỉ lệ hàm test có bản gần-giống >0.75 trong train, mẫu 80 test × 400 train):
+
+| Bộ fold | Rò rỉ | Cách gán fold |
+| --- | --- | --- |
+| `sven_python_folds_norm` (gốc) | **58%** | chia theo từng dòng |
+| `sven_python_twin` | 5% | tham lam cân bằng, **tất định** |
+| **`sven_python_random`** | **2%** | **`StratifiedGroupKFold(shuffle=True)`** |
+
+Bộ mới **tốt hơn twin trên cả hai tiêu chí cùng lúc**: rò rỉ thấp hơn (2% so với 5%) và cách gán
+ngẫu nhiên thật. 389 cụm, 0 nhóm bị tách giữa train/val và test ở cả 5 fold, nhãn cân bằng
+(75/71 … 76/75).
+
+Phân bố CWE giữa các fold test dao động tự nhiên hơn — CWE-089 chiếm từ 40% đến 62% tuỳ fold, so
+với bộ tất định vốn được ép cho đều. **Đó là điều mong muốn**, không phải khuyết điểm: nó chính là
+tính ngẫu nhiên mà người phản biện yêu cầu, và nó làm ước lượng phương sai trung thực hơn.
+
+### 38.3 Vai trò hai bộ đảo lại
+
+| Bộ | Vai trò |
+| --- | --- |
+| **`sven_python_random`** | **thí nghiệm chính**, dùng cho báo cáo |
+| `sven_python_twin` | **side experiment** — giữ lại vì mọi kết quả §20–§37 chạy trên đó |
+
+Toàn bộ số liệu từ §20 đến §37 chạy trên folds twin. Chúng **không mất giá trị** — twin không rò rỉ
+và các so sánh trong đó đều nội bộ nhất quán — nhưng khi đưa vào bài, bảng chính phải là bộ ngẫu
+nhiên, còn twin xuất hiện như kiểm chứng phụ.
+
+Điều này cũng có nghĩa **các con số sẽ khác**, và đó là chuyện bình thường: fold khác thì baseline
+khác. Điều cần giữ nguyên là **dấu và thứ hạng giữa các nhánh**, không phải giá trị tuyệt đối.
