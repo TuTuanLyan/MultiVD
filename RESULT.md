@@ -2034,7 +2034,7 @@ Giá trị gia tăng của head phụ, `Δ − Δ(none)`, trên fold ghép cặp
 | --- | --- | --- | --- | --- | --- |
 | CodeBERT | Macro-F1 | **+0.0481** | +0.0101 | −0.0204, −0.0086, **+0.0593** | **−0.0145** |
 | CodeBERT | ROC-AUC | **+0.0313** | +0.0196 | — | — |
-| CodeT5+ | Macro-F1 | −0.0049 | **−0.0002** | **+0.0520**, −0.0065, −0.0133, −0.0331 | **−0.0176** |
+| CodeT5+ | Macro-F1 | −0.0013 | **+0.0011** | **+0.0520**, −0.0065, −0.0133, −0.0331, +0.0064 | **−0.0116** |
 | CodeT5+ | ROC-AUC | −0.0017 | **−0.0073** | — | — |
 
 Ba điều, và điều thứ ba là điều quyết định:
@@ -2045,9 +2045,9 @@ ngay ở backbone mà phương pháp vốn hoạt động tốt.
 **Trên CodeT5+, `edit` bằng không** (−0.0002) và **âm trên ROC-AUC** (−0.0073) — tệ hơn cả `cwe`.
 Nó không giải quyết được vấn đề mà nó sinh ra để giải quyết.
 
-**Cả hai backbone chỉ dương ở 1/3 và 1/4 fold**, và bỏ fold tốt nhất đi thì cả hai đều âm. Trung
+**Cả hai backbone chỉ dương ở 1/3 và 2/5 fold**, và bỏ fold tốt nhất đi thì cả hai đều âm. Trung
 bình dương của CodeBERT hoàn toàn do fold 3 (+0.0593); của CodeT5+ hoàn toàn do fold 1 (+0.0520).
-Và con số CodeT5+ **xấu dần khi thêm fold**: +0.0107 ở n=3 → −0.0002 ở n=4.
+Con số CodeT5+ dao động mạnh theo fold: +0.0107 (n=3) → −0.0002 (n=4) → **+0.0011 (n=5)**, tức cuối cùng dừng ở đúng **bằng không**, ngang `cwe` (−0.0013).
 
 ### 37.2 Lập luận §35 thiếu vế nào
 
@@ -2078,7 +2078,28 @@ Không phải công cốc. Nhánh `cwe` chạy song song trên cùng máy, cùng
 Cơ chế ở §34.3 — head phụ tắt tác dụng khi backbone đã tự biểu diễn được lớp hiếm — giờ đã được
 tái lập trên phần cứng mới, với baseline mới, ở n=5.
 
-### 37.4 Hai lỗi trong công cụ của chính tôi
+### 37.4 Một giả thuyết tôi kiểm trước khi nêu, và nó sai
+
+Nhìn số seed 42 tôi thấy một mẫu hình hấp dẫn: trên CodeBERT `Δ(none)` là **−0.0133** (pretrain
+trần **có hại**, head phụ cứu lại), còn trên CodeT5+ là **+0.0149** (pretrain trần **đã tốt**, không
+còn gì để cứu). Nếu đúng thì nó giải thích gọn ghẽ mọi thứ: head phụ là **cơ chế sửa chữa**, và
+CodeT5+ không cần sửa.
+
+Kiểm trên toàn bộ dữ liệu đã có thì mẫu hình đó **không tồn tại**:
+
+| | Δ(none) |
+| --- | --- |
+| CodeBERT s36 / s12 / s7 / s42 / s18 | −0.0025, +0.0184, +0.0079, +0.0090, **+0.0264** |
+| CodeT5+ s42 / s18 | +0.0081, **−0.0144** |
+
+Dấu **không ổn định theo backbone** — CodeBERT phần lớn dương, CodeT5+ có cả hai dấu. Mẫu hình tôi
+thấy chỉ là đặc thù của một seed trên một máy.
+
+Đáng ghi thêm: `Δ(none)` của CodeBERT seed 42 là **+0.0090 trên máy cũ** nhưng **−0.0133 trên máy
+mới** — cùng seed, cùng cấu hình, khác máy, **đảo dấu**. Đúng bằng chênh lệch phần cứng 0.028 đã đo,
+và là lý do luật "baseline chạy lại trên mỗi máy" tồn tại.
+
+### 37.5 Hai lỗi trong công cụ của chính tôi
 
 `src/report_edit_gate.py` bản đầu phán **"edit TỐT HƠN cwe — đáng chạy tiếp"** cho cấu hình chỉ
 dương 1/3 fold, vì nó chỉ nhìn trung bình. Bản sau lại **trừ hai trung bình tính trên số fold khác
