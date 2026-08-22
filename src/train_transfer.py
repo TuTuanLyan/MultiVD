@@ -1063,6 +1063,11 @@ def parse_args():
     recadam.add_argument("--anneal_t0_ratio", type=float, default=0.05,
                          help="anneal midpoint as a fraction of total Phase-2 steps")
     recadam.add_argument("--anneal_w", type=float, default=1.0, help="maximum target-task weight")
+    recadam.add_argument("--sam_rho", type=float, default=0.0,
+                         help="Sharpness-Aware Minimization o Phase 2. 0 = tat (mac dinh, "
+                              "duong chay khong doi). >0 bat, moi buoc 2 luot forward-backward "
+                              "nen ~2x thoi gian. rho la do dai TUYET DOI cua nhieu loan, "
+                              "chuan L2 toan cuc, dung quy uoc bai bao (0.05, 0.1 la pho bien)")
     recadam.add_argument("--recadam_anchor", choices=("source", "pretrained"), default="source",
                          help="what RecAdam pulls back toward: the Phase-1 weights (default) "
                               "or the untouched pretrained weights. Initialisation is the "

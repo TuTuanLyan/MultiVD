@@ -97,8 +97,11 @@ def assert_recadam_setup(current_params, pretrain_params, model):
 
 
 def train_one_epoch_phase2(
-    model, dataloader, optimizer, device, max_grad_norm, pretrain_params, check_first_step=False
+    model, dataloader, optimizer, device, max_grad_norm, pretrain_params,
+    check_first_step=False, sam=None
 ):
+    """`sam=None` giữ nguyên đường chạy cũ từng byte; chỉ khi truyền vào một
+    SAMStep thì mỗi bước mới thành hai lượt forward-backward."""
     model.train()
     total_loss = 0.0
     examples = 0
@@ -113,6 +116,17 @@ def train_one_epoch_phase2(
         outputs = model(input_ids, attention_mask, return_cwe=False)
         loss = F.cross_entropy(outputs["vul_logits"], labels)
         loss.backward()
+
+        if sam is not None:
+            # Lượt 1 chỉ để lấy HƯỚNG leo; giá trị loss báo cáo vẫn là loss tại w.
+            trainable = [p for p in model.parameters() if p.requires_grad]
+            if sam.ascend(trainable):
+                optimizer.zero_grad(set_to_none=True)
+                out2 = model(input_ids, attention_mask, return_cwe=False)
+                F.cross_entropy(out2["vul_logits"], labels).backward()
+                # Về w TRƯỚC optimizer.step(): gradient lấy ở w+eps nhưng bước
+                # cập nhật phải áp cho w gốc, đúng như mã của Google.
+                sam.restore(trainable)
 
         if check_first_step and not checked:
             assert all(parameter.grad is None for parameter in model.aux_parameters()), (
@@ -234,6 +248,16 @@ def train_loop(
     save_checkpoint,
     pretrain_params=None,
 ):
+    # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
+    sam = None
+    if phase == "phase2" and getattr(args, "sam_rho", 0.0) > 0:
+        from sam import SAMStep
+
+        sam = SAMStep(args.sam_rho)
+        logger.info(
+            "SAM bat | rho=%.4f (tuyet doi, chuan L2 toan cuc) | moi buoc 2 luot "
+            "forward-backward, thoi gian huan luyen ~2x", args.sam_rho,
+        )
     best_score, best_epoch, patience_counter = -math.inf, 0, 0
     training_started = time.perf_counter()
     logger.info("Training started | Phase: %s | Epochs: %d", phase, args.epochs)
@@ -253,6 +277,7 @@ def train_loop(
                 args.max_grad_norm,
                 pretrain_params,
                 check_first_step=(epoch == 1),
+                sam=sam,
             )
         elif phase == "baseline":
             train = train_one_epoch_binary(
