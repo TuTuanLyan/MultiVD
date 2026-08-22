@@ -2737,10 +2737,37 @@ nhân với số giá trị ρ phải dò). Đây là lần thứ hai trong dự
 trước khi tiêu GPU — lần đầu là §40.3, nơi phép tính tay về lịch annealing bác ý tưởng đổi neo
 RecAdam mà không chạy gì.
 
-### 45.4 Giới hạn
+### 45.4 Đủ bốn backbone: độ nhọn không tương quan với BẤT KỲ đại lượng nào
 
-- **Thiếu CodeBERT và CodeT5-base.** Máy A đo sau lượt 2. CodeBERT đáng xem vì nó là backbone duy
-  nhất head phụ có tác dụng. Nhưng cặp đã đo là cặp tốt-nhất/tệ-nhất về transfer, đủ để bác dự đoán.
+| backbone | loss nền | Δ ρ=0.05 | Δ ρ=0.2 | **độ nhọn** (Δ/loss nền) | Δ `none` | head phụ |
+| --- | --- | --- | --- | --- | --- | --- |
+| CodeT5+ 220m | 0.6438 | 0.1439 | 0.6522 | **101%** | −0.0043 | −0.0341 |
+| CodeT5-base | 0.6463 | 0.1010 | 0.7526 | **116%** | **+0.0570** | −0.0712 |
+| CodeBERT | 0.6830 | 0.2892 | 0.9675 | **142%** | +0.0288 | **+0.0339** |
+| UniXcoder | 0.7425 | 0.6168 | 4.1487 | **559%** | +0.0291 | +0.0027 |
+
+Xếp theo độ nhọn: CodeT5+ → CodeT5-base → CodeBERT → UniXcoder.
+Xếp theo Δ `none`: CodeT5-base → UniXcoder → CodeBERT → CodeT5+.
+Xếp theo head phụ: CodeBERT → UniXcoder → CodeT5+ → CodeT5-base.
+
+**Ba thứ tự khác nhau hoàn toàn.** Dự đoán ban đầu sai không phải ở một cặp mà ở cả bốn điểm dữ liệu.
+CodeT5-base cho transfer mạnh nhất bảng (+0.0570) lại là backbone phẳng thứ nhì; UniXcoder nhọn gấp
+4–5 lần mọi backbone khác nhưng head phụ chỉ +0.0027.
+
+Một quan sát riêng chưa liên hệ được: **UniXcoder nhọn gấp 4–5 lần ba backbone kia** (559% so với
+101–142%), cách biệt rất xa, và nó cũng là backbone duy nhất có mục tiêu tương phản trong pretrain.
+
+### 45.5 Vì sao vẫn chạy SAM
+
+Kết luận "bỏ SAM" ở §45.3 quá mạnh và đã rút. Phép đo bác **một cơ chế** — rằng Phase 1 của backbone
+hỏng nhọn hơn — chứ không chứng minh SAM vô dụng. SAM còn một lý do độc lập: nó chữa quá khớp ở vùng
+dữ liệu ít, và Phase 2 ở đây học **456 dòng với hơn 100M tham số**, đúng vùng bài báo báo cáo lợi ích
+(các tác vụ fine-tuning).
+
+Nhưng phép đo này nói trước cách đọc kết quả SAM: **nếu SAM giúp, nó giúp qua đường chống quá khớp,
+không phải qua đường "làm nghiệm phẳng hơn"** — vì backbone hỏng nhất đã phẳng nhất rồi.
+
+### 45.6 Giới hạn
 - **Pooling khác nhau** giữa hai backbone (`mean` cho T5, `cls` cho RoBERTa) là biến lẫn nhẹ; chênh
   lệch 3–6× lớn hơn nhiều so với mức pooling có thể giải thích.
 - Bản đo **đầu tiên phải bỏ đi**: nó chạy ở `rho_mode=relative`, và với `‖w‖ ≈ 611` thì ρ=0.005 thành
