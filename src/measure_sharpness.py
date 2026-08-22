@@ -102,13 +102,20 @@ def main():
     parser.add_argument("--max_length", type=int, default=512)
     parser.add_argument("--truncation_strategy", default="head_middle_tail")
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--rhos", type=float, nargs="+", default=[0.005, 0.01, 0.02, 0.05])
+    parser.add_argument("--rhos", type=float, nargs="+", default=[0.01, 0.05, 0.1, 0.2])
     # Mã gốc của Google dùng ||eps|| = rho TUYỆT ĐỐI: dual_vector chuẩn hoá gradient
     # về chuẩn 1 rồi nhân rho, nên ||eps|| đúng bằng rho và KHÔNG tỉ lệ theo ||w||.
-    # Ở đây mặc định là 'relative' vì mục đích của phép đo là SO GIỮA các backbone,
-    # mà chúng có ||w|| khác nhau. Hai quy ước không được lẫn: các giá trị rho trong
-    # bài báo (0.05, 0.1) là theo 'absolute'. Xem docs/SAM_REFERENCE.md.
-    parser.add_argument("--rho_mode", choices=("relative", "absolute"), default="relative",
+    # Mặc định là 'absolute' vì đó là vùng SAM thực sự hoạt động. Bản đầu để
+    # 'relative' và nó cho kết quả VÔ NGHĨA: với ||w|| ~ 611, rho tương đối 0.005
+    # thành ||eps|| = 3.06, tức gấp 61 lần rho = 0.05 của bài báo. Ở biên độ đó mô
+    # hình bị phá hoàn toàn — Δloss đối kháng lên tới +106 trên một cross-entropy
+    # xuất phát từ 0.74, và mất cả tính đơn điệu theo rho (+27.9 rồi +3.8 rồi
+    # +86.9). Đó là dấu hiệu đã ra khỏi vùng tuyến tính hoá mà SAM giả định, chứ
+    # không phải phép đo độ nhọn.
+    #
+    # 'relative' vốn để so giữa các backbone có ||w|| khác nhau, nhưng ||w|| của
+    # bốn backbone ở đây chỉ lệch 5% (611 vs 640) nên absolute so được luôn.
+    parser.add_argument("--rho_mode", choices=("relative", "absolute"), default="absolute",
                         help="relative: ||eps||=rho*||w|| (so giữa backbone). "
                              "absolute: ||eps||=rho (đúng quy ước bài báo)")
     parser.add_argument("--n_random", type=int, default=3)

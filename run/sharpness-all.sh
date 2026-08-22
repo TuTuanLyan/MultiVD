@@ -34,6 +34,17 @@ case "$MAY" in
   *) echo "MAY phai la A hoac B"; exit 1 ;;
 esac
 
+# Chờ GPU thực sự trống trước khi nạp model thứ hai. Bản đầu chạy thẳng và OOM:
+# job huấn luyện chiếm 12.5 GB trên card 15.5 GB, không còn chỗ. Job đo chết còn
+# job huấn luyện sống, nhưng đó là may chứ không phải thiết kế.
+echo "cho GPU trong truoc khi do..."
+for _ in $(seq 1 120); do
+  USED=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
+  [ "${USED:-99999}" -lt 2000 ] && break
+  sleep 15
+done
+echo "GPU dang dung ${USED} MiB — bat dau"
+
 OUT="/workspace/sharpness_${MAY}.txt"
 : > "$OUT"
 for P in $PAIRS; do
