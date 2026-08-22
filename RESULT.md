@@ -2616,3 +2616,73 @@ thật là **+0.0027, tức bằng không**.
 Nguyên nhân là baseline dao động rất mạnh giữa các fold: 0.8287, 0.8220, **0.8946**, **0.8881**,
 0.8220. Fold nào baseline cao thì `none` mất tác dụng còn head phụ có vẻ cứu được; fold nào baseline
 thấp thì ngược lại. **Dư địa của từng fold chi phối kết quả mạnh hơn cả backbone lẫn nhánh.**
+
+---
+
+## 44. Ma trận họ backbone — máy A, lượt 1 (λ=0.2, seed 42, đủ 5 fold)
+
+Cùng cấu hình §43: source `train_ccpp_js.jsonl`, target Python, **bộ fold gốc** (đã xác minh bằng cỡ
+tập test suy từ chính file kết quả, khớp 5/5 với bộ gốc và 1/5 với twin).
+
+### 44.1 CodeBERT · cls — baseline TB 0.7668
+
+| nhánh | TB | Δ baseline | +/n | **head phụ cộng thêm** | +/n |
+| --- | --- | --- | --- | --- | --- |
+| `none` | 0.7956 | +0.0288 | 5/5 | — | — |
+| `cwe` | 0.8070 | +0.0402 | 5/5 | +0.0114 | 3/5 |
+| **`latent_bottleneck`** | **0.8295** | **+0.0627** | **5/5** | **+0.0339** | **5/5** |
+| `latent_proto` | 0.7650 | −0.0018 | 2/5 | −0.0306 | 1/5 |
+
+### 44.2 CodeT5-base · mean — baseline TB 0.7995
+
+| nhánh | TB | Δ baseline | +/n | **head phụ cộng thêm** | +/n |
+| --- | --- | --- | --- | --- | --- |
+| **`none`** | **0.8566** | **+0.0570** | **5/5** | — | — |
+| `latent_bottleneck` | 0.7853 | −0.0142 | 1/5 | −0.0712 | 0/5 |
+| `cwe` | 0.7758 | −0.0237 | 0/5 | −0.0807 | 0/5 |
+| `latent_proto` | — | −0.1156 | 1/2 | −0.1651 | 0/2 (**sập f2, f3, f5**) |
+
+### 44.3 Bảng bốn backbone, cùng seed, cùng source, cùng bộ fold
+
+| backbone | họ | baseline | `none` | `cwe` | `latent_bot` | `latent_proto` |
+| --- | --- | --- | --- | --- | --- | --- |
+| CodeBERT | RoBERTa | 0.7668 | +0.0288 | **+0.0114** | **+0.0339** | −0.0306 |
+| UniXcoder | RoBERTa | 0.8511 | +0.0291 | +0.0027 | −0.0039 | −0.0013 |
+| CodeT5-base | T5 | 0.7995 | +0.0570 | −0.0807 | −0.0712 | sập |
+| CodeT5+ | T5 | 0.8547 | −0.0043 | −0.0209 | −0.0341 | −0.0113 |
+
+*(cột `none` là Δ so với baseline; ba cột còn lại là giá trị gia tăng của head phụ)*
+
+### 44.4 Ba kết luận, và một cách đóng khung phải bỏ
+
+**1. `latent_bottleneck` trên CodeBERT là ô mạnh nhất toàn ma trận** — head phụ cộng thêm **+0.0339,
+dương 5/5 fold**, và tổng Δ baseline +0.0627 cũng cao nhất. Đây là nhánh §33 đã chỉ ra là **ổn định
+nhất qua 5 seed** (sd 0.0043 so với 0.0117 của `cwe`), giờ nó cũng là nhánh mạnh nhất trên bộ báo cáo.
+
+**2. `none` là nhánh tốt nhất trên ba trong bốn backbone.** Chỉ CodeBERT có head phụ vượt được nó.
+Trên CodeT5-base, `none` cho **+0.0570 dương 5/5** — cao thứ nhì toàn bảng — mà mọi head phụ đều âm
+**0/5 fold**. Tức trên backbone đó, pretrain đa nhiệm hoạt động rất tốt còn head phụ phá nó.
+
+**3. Cách đóng khung theo HỌ BACKBONE phải bỏ.** Bốn backbone không tách thành hai nhóm theo họ:
+
+| | head phụ dương? | `none` dương? |
+| --- | --- | --- |
+| CodeBERT (RoBERTa) | **có** (+0.0339) | có |
+| UniXcoder (RoBERTa) | không (≈0) | có |
+| CodeT5-base (T5) | không (−0.08) | **có, mạnh nhất** |
+| CodeT5+ (T5) | không | không |
+
+Hai model RoBERTa nằm ở hai nhóm khác nhau, hai model T5 cũng vậy. Biến giải thích tốt hơn là
+**baseline**: CodeBERT có baseline **thấp nhất** (0.7668) và là backbone duy nhất head phụ có tác
+dụng; CodeT5+ có baseline **cao nhất** (0.8547) và là backbone duy nhất ngay cả `none` cũng âm. Đó là
+cơ chế dư địa §34, không phải cơ chế họ kiến trúc.
+
+Điều này thay thế phát biểu ở §41.6 ("head phụ có tác dụng trên họ RoBERTa"). Phát biểu đó dựa trên
+đúng một model RoBERTa; thêm model thứ hai thì nó không còn đúng.
+
+### 44.5 `latent_proto` không dùng được trên hai backbone
+
+Sập ở f2, f3, f5 của CodeT5-base (0.4450, 0.4802 và một fold nữa) và âm trên CodeBERT (−0.0306) dù
+chính nó cho Δ cao nhất trong dữ liệu cũ (+0.0635, CodeBERT seed 36). Cả hai lần sập đều đi kèm val
+Phase 1 yếu (0.5346 và 0.5357), nên ngưỡng cảnh báo 0.55 **có giá trị dự báo** — dù quyết định không
+dùng nó để loại vẫn đúng, vì trên UniXcoder và CodeT5+ thì `latent_proto` có Phase 1 bình thường.

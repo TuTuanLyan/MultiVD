@@ -22,6 +22,16 @@ COLLAPSE = 0.55
 
 # run_dir -> (backbone, pooling, lambda_cwe, source Phase 1, ghi chú)
 RUNS = [
+    # === MA TRAN HO BACKBONE (22/08) — source train_ccpp_js, target Python, fold goc ===
+    ("results_famA/fam1_codebert",   "CodeBERT",     "cls",  "0.2",  "train_ccpp_js", "ma tran luot 1"),
+    ("results_famA/fam1_codet5",     "CodeT5-base",  "mean", "0.2",  "train_ccpp_js", "ma tran luot 1"),
+    ("results_famB/fam1_unixcoder",  "UniXcoder",    "cls",  "0.2",  "train_ccpp_js", "ma tran luot 1"),
+    ("results_famB/fam1_t5p",        "CodeT5+ 220m", "mean", "0.2",  "train_ccpp_js", "ma tran luot 1"),
+    ("results_famB/fam2_unixcoder",  "UniXcoder",    "cls",  "0.05", "train_ccpp_js", "ma tran luot 2"),
+    ("results_famB/fam2_t5p",        "CodeT5+ 220m", "mean", "0.05", "train_ccpp_js", "ma tran luot 2"),
+]
+
+RUNS_CU = [
     ("results_vast2/unix_unixcoder",      "UniXcoder",   "cls",  "0.2",  "train_ccpp_js", ""),
     ("results_vast2/cb_lam_codebert",     "CodeBERT",    "cls",  "0.05", "train_ccpp_js", ""),
     ("results_vast/lam_ref_t5p",          "CodeT5+ 220m", "cls",  "0.2",  "train_ccpp_js", ""),
@@ -47,6 +57,7 @@ RUNS = [
     ("results_vast/backbone_codet5p",     "CodeT5+ 220m", "mean", "0.2", "train_ccpp_js",
      "trước khi sửa pooling"),
 ]
+RUNS = RUNS + RUNS_CU
 
 # Nhánh nào mượn baseline/none từ run khác (cùng máy, cùng seed, cùng fold).
 BORROW = {
