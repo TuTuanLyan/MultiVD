@@ -21,13 +21,19 @@ SEED="${SEED:-42}"; export SEED
 RHO="${RHO:-0.05}"
 MODES="${MODES:-none cwe}"
 
-case "$MAY" in
-  A) BACKBONES="codebert=microsoft/codebert-base:cls" ;;
-  B) BACKBONES="t5p=Salesforce/codet5p-220m:mean" ;;
-  *) echo "MAY phai la A hoac B"; exit 1 ;;
-esac
+# BB cho phep chi dinh thang mot backbone, de chay SAM tren backbone khac ma
+# khong phai sua script. Mac dinh giu nguyen theo may.
+if [[ -n "${BB:-}" ]]; then
+  BACKBONES="$BB"
+else
+  case "$MAY" in
+    A) BACKBONES="codebert=microsoft/codebert-base:cls" ;;
+    B) BACKBONES="t5p=Salesforce/codet5p-220m:mean" ;;
+    *) echo "MAY phai la A hoac B"; exit 1 ;;
+  esac
+fi
 
-RUN_NAME="sam"
+RUN_NAME="${RUN_NAME_OVERRIDE:-sam}"
 
 echo "################################################################"
 echo "  SAM Phase 2 — may $MAY, rho $RHO, seed $SEED"
@@ -59,4 +65,4 @@ RUN_NAME="$RUN_NAME" BACKBONES="$BACKBONES" MODES="$MODES" \
   GATE_FOLDS="1 2 3" REST_FOLDS="4 5" \
   bash run/gated.sh
 
-touch "/workspace/SAM_${MAY}_DONE"
+touch "/workspace/SAM_${MAY}_$(date -u +%H%M)_DONE"

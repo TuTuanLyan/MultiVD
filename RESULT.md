@@ -2773,3 +2773,78 @@ không phải qua đường "làm nghiệm phẳng hơn"** — vì backbone hỏ
 - Bản đo **đầu tiên phải bỏ đi**: nó chạy ở `rho_mode=relative`, và với `‖w‖ ≈ 611` thì ρ=0.005 thành
   `‖ε‖ = 3.06` — gấp 61 lần ρ của bài báo. Ở biên độ đó Δloss lên +106 và mất cả tính đơn điệu theo ρ
   (+27.9, +3.8, +86.9). Đó là mô hình đã bị phá, không phải phép đo độ nhọn.
+
+---
+
+## 46. codet5p-110m-embedding: tách được đúng biến "pretrain", lần đầu
+
+Mọi lần đổi backbone trước đây đều đổi **kiến trúc, cỡ và vocab cùng lúc**, nên không lần nào tách
+được "vì pretrain" khỏi "vì kiến trúc". Checkpoint này tách được:
+
+| | **codet5p-110m-embedding** | **codet5p-220m** |
+| --- | --- | --- |
+| lớp nạp về | `T5Stack` (lấy `.encoder`) | `T5EncoderModel` |
+| **tham số ngoài embedding** | **84,954,240** | **84,954,240** |
+| hidden / lớp | 768 / 12 | 768 / 12 |
+| tokenizer | RobertaTokenizerFast | RobertaTokenizerFast |
+| vocab | 32,103 | 32,100 |
+
+Encoder **giống hệt đến từng tham số**. Khác biệt duy nhất là bản embedding có **thêm một giai đoạn
+pretrain** (contrastive/embedding).
+
+Ràng buộc kỹ thuật: `AutoModel` của checkpoint này trả về một vector 256 chiều đã chuẩn hoá chứ không
+phải chuỗi hidden states, nên `pool_hidden_states` không áp được. `build_backbone` có một nhánh **khoá
+theo tên model** lấy `.encoder` của nó; mọi backbone khác đi nguyên đường cũ.
+
+### 46.1 Kết quả (target Python, bộ fold gốc, seed 42, source train_ccpp_js)
+
+baseline TB **0.8005**
+
+| nhánh | λ=0.2 Δbase | λ=0.2 head phụ | λ=0.05 Δbase | **λ=0.05 head phụ** |
+| --- | --- | --- | --- | --- |
+| `none` | **+0.0349** (5/5) | — | +0.0349 (5/5) | — |
+| `cwe` | −0.0008 (2/5) | −0.0357 | +0.0389 (3/5) | **+0.0040** |
+| `latent_bottleneck` | −0.0145 (1/5) | −0.0494 | **+0.0440** (4/5) | **+0.0091** |
+| `latent_proto` | +0.0229 (3/5) | −0.0120 | +0.0283 (4/5) | −0.0066 |
+
+### 46.2 Điều này chứng minh
+
+**Cùng một encoder, chỉ đổi pretrain, transfer đi từ vô dụng sang có tác dụng:**
+
+| | 110m-embedding | 220m |
+| --- | --- | --- |
+| baseline | **0.8005** | 0.8547 |
+| `none` | **+0.0349** (5/5) | −0.0043 (3/5) |
+
+Bản embedding có baseline **thấp hơn 0.054** — tức còn dư địa — và transfer lập tức có tác dụng. Đây
+là bằng chứng sạch nhất cho cơ chế dư địa §34 trong toàn bộ tài liệu này, vì kiến trúc bị giữ cố định
+tuyệt đối.
+
+### 46.3 Và λ=0.05 lật dấu head phụ trên chính backbone này
+
+Chênh lệch λ=0.2 → λ=0.05 là **+0.0397** (`cwe`) và **+0.0585** (`latent_bottleneck`) — lớn hơn hẳn
+mức +0.026 đo trên CodeT5-base và CodeT5+ (§41.3), và lần này đủ để lật dấu.
+
+**Nhưng đây là một seed.** §42 ghi lại đúng bài học này: λ=0.05 trên CodeT5-base dương ở seed 42
+(+0.0105, 4/5) rồi âm **0/5** ở seed 7, gộp ba seed còn −0.0021. Con số +0.0091 lần này chỉ gấp đôi
+ngưỡng nhiễu, nên **chưa đủ để tuyên bố**. Phần đứng vững là `none` **+0.0349 dương 5/5 fold**.
+
+---
+
+## 47. SAM trên CodeT5+ 220m: hỗn hợp, và giúp đúng nhánh KHÔNG có head phụ
+
+ρ=0.05, Phase 2, đủ 5 fold, dùng lại Phase 1 và baseline của `fam1` nên chỉ đổi đúng một biến.
+
+| nhánh | không SAM | **có SAM** | chênh |
+| --- | --- | --- | --- |
+| `none` | −0.0043 | **+0.0042** | **+0.0085** |
+| `cwe` | −0.0252 | −0.0370 | **−0.0118** |
+
+**SAM giúp `none` và làm hại `cwe`.**
+
+Nếu bền, nó gợi ý SAM và head phụ **cạnh tranh cùng một thứ** — cả hai đều là chính quy hoá, chồng
+lên nhau thành quá tay. Nhưng cả hai hiệu ứng đều ~0.01 ở **một seed**, trong khi §33 đo sd giữa seed
+của CodeT5+ là **0.0206** — lớn hơn cả hai. Chưa kết luận được.
+
+Và §45.4 đã nói trước cách đọc: nếu SAM giúp thì **không phải qua đường "làm nghiệm phẳng hơn"**, vì
+CodeT5+ đã là backbone phẳng nhất trong bốn.
