@@ -103,6 +103,14 @@ def main():
     parser.add_argument("--truncation_strategy", default="head_middle_tail")
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--rhos", type=float, nargs="+", default=[0.005, 0.01, 0.02, 0.05])
+    # Mã gốc của Google dùng ||eps|| = rho TUYỆT ĐỐI: dual_vector chuẩn hoá gradient
+    # về chuẩn 1 rồi nhân rho, nên ||eps|| đúng bằng rho và KHÔNG tỉ lệ theo ||w||.
+    # Ở đây mặc định là 'relative' vì mục đích của phép đo là SO GIỮA các backbone,
+    # mà chúng có ||w|| khác nhau. Hai quy ước không được lẫn: các giá trị rho trong
+    # bài báo (0.05, 0.1) là theo 'absolute'. Xem docs/SAM_REFERENCE.md.
+    parser.add_argument("--rho_mode", choices=("relative", "absolute"), default="relative",
+                        help="relative: ||eps||=rho*||w|| (so giữa backbone). "
+                             "absolute: ||eps||=rho (đúng quy ước bài báo)")
     parser.add_argument("--n_random", type=int, default=3)
     parser.add_argument("--aux_mode", default="cwe")
     args = parser.parse_args()
@@ -129,9 +137,11 @@ def main():
     grads, g_norm = grad_direction(model, loader, device)
     saved = copy.deepcopy(model.state_dict())
 
-    print(f"  {'rho':>7}{'||eps||':>11}{'ngẫu nhiên Δloss':>20}{'đối kháng Δloss':>19}{'tỉ lệ đk/nn':>13}")
+    print(f"  che do rho: {args.rho_mode}"
+          f"   ({'||eps|| = rho*||w||' if args.rho_mode == 'relative' else '||eps|| = rho, dung quy uoc bai bao'})")
+    print(f"  {'rho':>7}{'||eps||':>11}{'rho tuyet doi':>15}{'ngẫu nhiên Δloss':>20}{'đối kháng Δloss':>19}")
     for rho in args.rhos:
-        eps_norm = rho * w_norm
+        eps_norm = rho * w_norm if args.rho_mode == "relative" else rho
 
         increases = []
         for k in range(args.n_random):
@@ -155,7 +165,10 @@ def main():
 
         mean_random = sum(increases) / len(increases)
         ratio = adversarial / mean_random if abs(mean_random) > 1e-9 else float("nan")
-        print(f"  {rho:>7.3f}{eps_norm:>11.2f}{mean_random:>+20.6f}{adversarial:>+19.6f}{ratio:>13.1f}")
+        # In cả hai quy ước ở mọi dòng để không bao giờ phải đoán đơn vị về sau.
+        del ratio
+        print(f"  {rho:>7.3f}{eps_norm:>11.3f}{eps_norm:>15.3f}"
+              f"{mean_random:>+20.6f}{adversarial:>+19.6f}")
 
     print("\n  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.")
     print("  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone")
