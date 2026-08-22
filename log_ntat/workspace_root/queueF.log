@@ -1,0 +1,373 @@
+2026-08-22 10:01:03 UTC | bat dau. moc chot 2026-08-22 16:00:00 UTC (16:00 UTC)
+2026-08-22 12:53:38 UTC | khong con job nao dang chay
+2026-08-22 12:53:38 UTC | job #1 bat dau (con 186 phut truoc moc chot): bash run/sharpness-all.sh A
+cho GPU trong truoc khi do...
+GPU dang dung 0 MiB — bat dau
+=== 2026-08-22 12:53:39 UTC | do do nhon: codet5 (Salesforce/codet5-base, mean) ===
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### Salesforce/codet5-base   pooling=mean
+  checkpoint     model/fam1_codet5/transfer_cwe/seed_42/source/best.pt
+  best epoch     14   val Macro-F1 0.6449
+  ||w||          1874.80
+  loss tại w     0.646316
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           -0.000001          +0.014245
+    0.050      0.050          0.050           -0.000007          +0.101046
+    0.100      0.100          0.100           -0.000014          +0.279994
+    0.200      0.200          0.200           -0.000027          +0.752613
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+=== 2026-08-22 12:54:22 UTC | do do nhon: codebert (microsoft/codebert-base, cls) ===
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### microsoft/codebert-base   pooling=cls
+  checkpoint     model/fam1_codebert/transfer_cwe/seed_42/source/best.pt
+  best epoch     12   val Macro-F1 0.6586
+  ||w||          957.12
+  loss tại w     0.682986
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           +0.000001          +0.041774
+    0.050      0.050          0.050           +0.000004          +0.289219
+    0.100      0.100          0.100           +0.000009          +0.672750
+    0.200      0.200          0.200           +0.000017          +0.967519
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+
+So hai backbone o CUNG rho. Delta loss lon hon = cuc tieu NHON hon.
+2026-08-22 12:55:02 UTC | job #1 xong
+2026-08-22 12:55:02 UTC | job #2 bat dau (con 184 phut truoc moc chot): env MAY=A SEED=42 LAM=0.2 bash run/norecadam-matrix.sh
+################################################################
+  MA TRAN KHONG RECADAM — may A, lambda 0.2, seed 42
+  Phase 2 dung AdamW thuong, KHONG co luc keo ve diem neo
+################################################################
+  sao chep baseline cua codet5
+  dung lai Phase 1 cua codet5/none
+  dung lai Phase 1 cua codet5/cwe
+  dung lai Phase 1 cua codet5/latent_bottleneck
+  dung lai Phase 1 cua codet5/latent_proto
+  sao chep baseline cua codebert
+  dung lai Phase 1 cua codebert/none
+  dung lai Phase 1 cua codebert/cwe
+  dung lai Phase 1 cua codebert/latent_bottleneck
+  dung lai Phase 1 cua codebert/latent_proto
+[32mActivated conda/uv virtual environment at [36m/venv/main[0m
+=== 2026-08-22 12:55:03 | phase1 codet5/none | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codet5/cwe | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codet5/latent_bottleneck | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codet5/latent_proto | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codebert/none | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codebert/cwe | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codebert/latent_bottleneck | da co, bo qua ===
+=== 2026-08-22 12:55:03 | phase1 codebert/latent_proto | da co, bo qua ===
+
+############ FOLD 1 ############
+=== 2026-08-22 12:55:03 | fold 1 | codet5 baseline | da co ===
+=== 2026-08-22 12:55:03 | fold 1 | codebert baseline | da co ===
+=== 2026-08-22 12:55:03 | fold 1 | codet5/none ===
+=== 2026-08-22 12:58:02 | fold 1 | codebert/none ===
+=== 2026-08-22 13:00:54 | fold 1 | codet5/cwe ===
+=== 2026-08-22 13:07:28 | fold 1 | codebert/cwe ===
+=== 2026-08-22 13:10:53 | fold 1 | codet5/latent_bottleneck ===
+=== 2026-08-22 13:16:11 | fold 1 | codebert/latent_bottleneck ===
+=== 2026-08-22 13:20:40 | fold 1 | codet5/latent_proto ===
+=== 2026-08-22 13:28:32 | fold 1 | codebert/latent_proto ===
+---- bang sau fold 1 ----
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082       --       --       --       --   0.8082   +0.0573
+            latent_bottleneck        0.8476       --       --       --       --   0.8476   +0.0967
+            latent_proto             0.8078       --       --       --       --   0.8078   +0.0569
+            none                     0.8206       --       --       --       --   0.8206   +0.0697
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818       --       --       --       --   0.7818   -0.0208
+            latent_bottleneck        0.8158       --       --       --       --   0.8158   +0.0132
+            latent_proto             0.8421       --       --       --       --   0.8421   +0.0395
+            none                     0.8206       --       --       --       --   0.8206   +0.0180
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993       --       --       --       --   0.8993   +0.0496
+            latent_bottleneck        0.9035       --       --       --       --   0.9035   +0.0537
+            latent_proto             0.8621       --       --       --       --   0.8621   +0.0123
+            none                     0.8567       --       --       --       --   0.8567   +0.0070
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734       --       --       --       --   0.8734   -0.0174
+            latent_bottleneck        0.8793       --       --       --       --   0.8793   -0.0115
+            latent_proto             0.9223       --       --       --       --   0.9223   +0.0315
+            none                     0.8870       --       --       --       --   0.8870   -0.0038
+
+############ FOLD 2 ############
+=== 2026-08-22 13:33:35 | fold 2 | codet5 baseline | da co ===
+=== 2026-08-22 13:33:35 | fold 2 | codebert baseline | da co ===
+=== 2026-08-22 13:33:35 | fold 2 | codet5/none ===
+=== 2026-08-22 13:41:28 | fold 2 | codebert/none ===
+=== 2026-08-22 13:44:04 | fold 2 | codet5/cwe ===
+=== 2026-08-22 13:50:18 | fold 2 | codebert/cwe ===
+=== 2026-08-22 13:53:59 | fold 2 | codet5/latent_bottleneck ===
+=== 2026-08-22 14:03:08 | fold 2 | codebert/latent_bottleneck ===
+=== 2026-08-22 14:09:17 | fold 2 | codet5/latent_proto ===
+=== 2026-08-22 14:19:26 | fold 2 | codebert/latent_proto ===
+---- bang sau fold 2 ----
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082   0.8146       --       --       --   0.8114   +0.0478
+            latent_bottleneck        0.8476   0.8486       --       --       --   0.8481   +0.0845
+            latent_proto             0.8078   0.8082       --       --       --   0.8080   +0.0444
+            none                     0.8206   0.7829       --       --       --   0.8018   +0.0382
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818   0.7945       --       --       --   0.7882   -0.0243
+            latent_bottleneck        0.8158   0.8158       --       --       --   0.8158   +0.0033
+            latent_proto             0.8421   0.8421       --       --       --   0.8421   +0.0296
+            none                     0.8206   0.8421       --       --       --   0.8314   +0.0189
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993   0.8865       --       --       --   0.8929   +0.0356
+            latent_bottleneck        0.9035   0.8933       --       --       --   0.8984   +0.0411
+            latent_proto             0.8621   0.8598       --       --       --   0.8609   +0.0036
+            none                     0.8567   0.8685       --       --       --   0.8626   +0.0053
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734   0.8966       --       --       --   0.8850   +0.0001
+            latent_bottleneck        0.8793   0.8550       --       --       --   0.8672   -0.0178
+            latent_proto             0.9223   0.9002       --       --       --   0.9112   +0.0263
+            none                     0.8870   0.8805       --       --       --   0.8837   -0.0012
+
+############ FOLD 3 ############
+=== 2026-08-22 14:25:20 | fold 3 | codet5 baseline | da co ===
+=== 2026-08-22 14:25:20 | fold 3 | codebert baseline | da co ===
+=== 2026-08-22 14:25:20 | fold 3 | codet5/none ===
+=== 2026-08-22 14:30:36 | fold 3 | codebert/none ===
+=== 2026-08-22 14:33:20 | fold 3 | codet5/cwe ===
+=== 2026-08-22 14:43:29 | fold 3 | codebert/cwe ===
+=== 2026-08-22 14:46:37 | fold 3 | codet5/latent_bottleneck ===
+=== 2026-08-22 14:56:47 | fold 3 | codebert/latent_bottleneck ===
+=== 2026-08-22 15:01:16 | fold 3 | codet5/latent_proto ===
+=== 2026-08-22 15:09:27 | fold 3 | codebert/latent_proto ===
+---- bang sau fold 3 ----
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082   0.8146   0.8287       --       --   0.8172   +0.0582
+            latent_bottleneck        0.8476   0.8486   0.8021       --       --   0.8328   +0.0738
+            latent_proto             0.8078   0.8082   0.7484       --       --   0.7881   +0.0292
+            none                     0.8206   0.7829   0.8158       --       --   0.8064   +0.0474
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818   0.7945   0.7950       --       --   0.7904   -0.0049
+            latent_bottleneck        0.8158   0.8158   0.7865       --       --   0.8060   +0.0107
+            latent_proto             0.8421   0.8421   0.8288       --       --   0.8377   +0.0423
+            none                     0.8206   0.8421   0.8812       --       --   0.8480   +0.0526
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993   0.8865   0.8964       --       --   0.8941   +0.0370
+            latent_bottleneck        0.9035   0.8933   0.8998       --       --   0.8989   +0.0418
+            latent_proto             0.8621   0.8598   0.8396       --       --   0.8538   -0.0033
+            none                     0.8567   0.8685   0.8748       --       --   0.8667   +0.0096
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734   0.8966   0.8672       --       --   0.8791   -0.0062
+            latent_bottleneck        0.8793   0.8550   0.8946       --       --   0.8763   -0.0090
+            latent_proto             0.9223   0.9002   0.9297       --       --   0.9174   +0.0321
+            none                     0.8870   0.8805   0.9388       --       --   0.9021   +0.0168
+
+################ CONG CHAN SAU FOLD 1,2,3 ################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082   0.8146   0.8287       --       --   0.8172   +0.0582
+            latent_bottleneck        0.8476   0.8486   0.8021       --       --   0.8328   +0.0738
+            latent_proto             0.8078   0.8082   0.7484       --       --   0.7881   +0.0292
+            none                     0.8206   0.7829   0.8158       --       --   0.8064   +0.0474
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818   0.7945   0.7950       --       --   0.7904   -0.0049
+            latent_bottleneck        0.8158   0.8158   0.7865       --       --   0.8060   +0.0107
+            latent_proto             0.8421   0.8421   0.8288       --       --   0.8377   +0.0423
+            none                     0.8206   0.8421   0.8812       --       --   0.8480   +0.0526
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993   0.8865   0.8964       --       --   0.8941   +0.0370
+            latent_bottleneck        0.9035   0.8933   0.8998       --       --   0.8989   +0.0418
+            latent_proto             0.8621   0.8598   0.8396       --       --   0.8538   -0.0033
+            none                     0.8567   0.8685   0.8748       --       --   0.8667   +0.0096
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734   0.8966   0.8672       --       --   0.8791   -0.0062
+            latent_bottleneck        0.8793   0.8550   0.8946       --       --   0.8763   -0.0090
+            latent_proto             0.9223   0.9002   0.9297       --       --   0.9174   +0.0321
+            none                     0.8870   0.8805   0.9388       --       --   0.9021   +0.0168
+
+========================================================================
+ĐỌC XU HƯỚNG (theo Macro-F1)
+========================================================================
+  codebert   cwe                  Δ  +0.0582   MẠNH — dương 3/3 fold, chạy tiếp
+  codebert   latent_bottleneck    Δ  +0.0738   MẠNH — dương 3/3 fold, chạy tiếp
+  codebert   latent_proto         Δ  +0.0292   YẾU — chỉ 2/3 fold dương, cân nhắc bỏ
+  codebert   none                 Δ  +0.0474   MẠNH — dương 3/3 fold, chạy tiếp
+  codet5     cwe                  Δ  -0.0049   NGANG BASELINE — |Δ| < 0.005, nằm trong nhiễu
+  codet5     latent_bottleneck    Δ  +0.0107   YẾU — chỉ 2/3 fold dương, cân nhắc bỏ
+  codet5     latent_proto         Δ  +0.0423   MẠNH — dương 3/3 fold, chạy tiếp
+  codet5     none                 Δ  +0.0526   MẠNH — dương 3/3 fold, chạy tiếp
+
+  Ngưỡng nhiễu 0.005 lấy từ dự án này: sd giữa các fold tới 0.09 trên
+  tập test 152 mẫu, nên Δ cỡ 0.00x không phân biệt được với nhiễu.
+  Ba fold chỉ đủ để QUYẾT ĐỊNH DỪNG. Muốn KẾT LUẬN thì phải đủ 5 fold —
+  tài liệu này có bốn lần tín hiệu n=3 đảo dấu ở n=5 (RESULT.md §30.1).
+
+############ FOLD 4 ############
+=== 2026-08-22 15:13:40 | fold 4 | codet5 baseline | da co ===
+=== 2026-08-22 15:13:40 | fold 4 | codebert baseline | da co ===
+=== 2026-08-22 15:13:40 | fold 4 | codet5/none ===
+=== 2026-08-22 15:17:59 | fold 4 | codebert/none ===
+=== 2026-08-22 15:23:00 | fold 4 | codet5/cwe ===
+=== 2026-08-22 15:31:49 | fold 4 | codebert/cwe ===
+=== 2026-08-22 15:38:45 | fold 4 | codet5/latent_bottleneck ===
+=== 2026-08-22 15:44:42 | fold 4 | codebert/latent_bottleneck ===
+=== 2026-08-22 15:47:49 | fold 4 | codet5/latent_proto ===
+=== 2026-08-22 15:52:46 | fold 4 | codebert/latent_proto ===
+---- bang sau fold 4 ----
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082   0.8146   0.8287   0.7950       --   0.8116   +0.0418
+            latent_bottleneck        0.8476   0.8486   0.8021   0.8421       --   0.8351   +0.0653
+            latent_proto             0.8078   0.8082   0.7484   0.8279       --   0.7981   +0.0283
+            none                     0.8206   0.7829   0.8158   0.8282       --   0.8119   +0.0420
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818   0.7945   0.7950   0.8085       --   0.7950   -0.0038
+            latent_bottleneck        0.8158   0.8158   0.7865   0.7895       --   0.8019   +0.0032
+            latent_proto             0.8421   0.8421   0.8288   0.8420       --   0.8387   +0.0400
+            none                     0.8206   0.8421   0.8812   0.8815       --   0.8564   +0.0576
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993   0.8865   0.8964   0.9199       --   0.9005   +0.0291
+            latent_bottleneck        0.9035   0.8933   0.8998   0.9401       --   0.9092   +0.0378
+            latent_proto             0.8621   0.8598   0.8396   0.9066       --   0.8670   -0.0044
+            none                     0.8567   0.8685   0.8748   0.9075       --   0.8769   +0.0055
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734   0.8966   0.8672   0.9221       --   0.8898   -0.0095
+            latent_bottleneck        0.8793   0.8550   0.8946   0.9068       --   0.8839   -0.0154
+            latent_proto             0.9223   0.9002   0.9297   0.9460       --   0.9246   +0.0252
+            none                     0.8870   0.8805   0.9388   0.9577       --   0.9160   +0.0166
+
+############ FOLD 5 ############
+=== 2026-08-22 15:58:53 | fold 5 | codet5 baseline | da co ===
+=== 2026-08-22 15:58:53 | fold 5 | codebert baseline | da co ===
+=== 2026-08-22 15:58:53 | fold 5 | codet5/none ===
+=== 2026-08-22 16:02:33 | fold 5 | codebert/none ===
+=== 2026-08-22 16:07:02 | fold 5 | codet5/cwe ===
+=== 2026-08-22 16:15:14 | fold 5 | codebert/cwe ===
+=== 2026-08-22 16:21:54 | fold 5 | codet5/latent_bottleneck ===
+=== 2026-08-22 16:32:05 | fold 5 | codebert/latent_bottleneck ===
+=== 2026-08-22 16:35:28 | fold 5 | codet5/latent_proto ===
+=== 2026-08-22 16:44:02 | fold 5 | codebert/latent_proto ===
+---- bang sau fold 5 ----
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082   0.8146   0.8287   0.7950   0.7960   0.8085   +0.0417
+            latent_bottleneck        0.8476   0.8486   0.8021   0.8421   0.7956   0.8272   +0.0604
+            latent_proto             0.8078   0.8082   0.7484   0.8279   0.6577   0.7700   +0.0032
+            none                     0.8206   0.7829   0.8158   0.8282   0.8158   0.8127   +0.0458
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818   0.7945   0.7950   0.8085   0.7894   0.7939   -0.0057
+            latent_bottleneck        0.8158   0.8158   0.7865   0.7895   0.8088   0.8033   +0.0038
+            latent_proto             0.8421   0.8421   0.8288   0.8420   0.8214   0.8353   +0.0358
+            none                     0.8206   0.8421   0.8812   0.8815   0.8421   0.8535   +0.0540
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993   0.8865   0.8964   0.9199   0.8898   0.8984   +0.0312
+            latent_bottleneck        0.9035   0.8933   0.8998   0.9401   0.8908   0.9055   +0.0383
+            latent_proto             0.8621   0.8598   0.8396   0.9066   0.7905   0.8517   -0.0155
+            none                     0.8567   0.8685   0.8748   0.9075   0.8562   0.8728   +0.0056
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734   0.8966   0.8672   0.9221   0.8670   0.8853   -0.0088
+            latent_bottleneck        0.8793   0.8550   0.8946   0.9068   0.8847   0.8841   -0.0100
+            latent_proto             0.9223   0.9002   0.9297   0.9460   0.9142   0.9225   +0.0284
+            none                     0.8870   0.8805   0.9388   0.9577   0.9045   0.9137   +0.0196
+
+################ DU 5 FOLD ################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.7509   0.7763   0.7498   0.8023   0.7548   0.7668         —
+            cwe                      0.8082   0.8146   0.8287   0.7950   0.7960   0.8085   +0.0417
+            latent_bottleneck        0.8476   0.8486   0.8021   0.8421   0.7956   0.8272   +0.0604
+            latent_proto             0.8078   0.8082   0.7484   0.8279   0.6577   0.7700   +0.0032
+            none                     0.8206   0.7829   0.8158   0.8282   0.8158   0.8127   +0.0458
+codet5      baseline                 0.8026   0.8224   0.7611   0.8088   0.8026   0.7995         —
+            cwe                      0.7818   0.7945   0.7950   0.8085   0.7894   0.7939   -0.0057
+            latent_bottleneck        0.8158   0.8158   0.7865   0.7895   0.8088   0.8033   +0.0038
+            latent_proto             0.8421   0.8421   0.8288   0.8420   0.8214   0.8353   +0.0358
+            none                     0.8206   0.8421   0.8812   0.8815   0.8421   0.8535   +0.0540
+
+[test_roc_auc]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean         Δ
+--------------------------------------------------------------------------------------------------
+codebert    baseline                 0.8498   0.8649   0.8566   0.9144   0.8503   0.8672         —
+            cwe                      0.8993   0.8865   0.8964   0.9199   0.8898   0.8984   +0.0312
+            latent_bottleneck        0.9035   0.8933   0.8998   0.9401   0.8908   0.9055   +0.0383
+            latent_proto             0.8621   0.8598   0.8396   0.9066   0.7905   0.8517   -0.0155
+            none                     0.8567   0.8685   0.8748   0.9075   0.8562   0.8728   +0.0056
+codet5      baseline                 0.8908   0.8791   0.8859   0.9417   0.8729   0.8941         —
+            cwe                      0.8734   0.8966   0.8672   0.9221   0.8670   0.8853   -0.0088
+            latent_bottleneck        0.8793   0.8550   0.8946   0.9068   0.8847   0.8841   -0.0100
+            latent_proto             0.9223   0.9002   0.9297   0.9460   0.9142   0.9225   +0.0284
+            none                     0.8870   0.8805   0.9388   0.9577   0.9045   0.9137   +0.0196
+
+========================================================================
+ĐỌC XU HƯỚNG (theo Macro-F1)
+========================================================================
+  codebert   cwe                  Δ  +0.0417   YẾU — chỉ 4/5 fold dương, cân nhắc bỏ
+  codebert   latent_bottleneck    Δ  +0.0604   MẠNH — dương 5/5 fold, chạy tiếp
+  codebert   latent_proto         Δ  +0.0032   NGANG BASELINE — |Δ| < 0.005, nằm trong nhiễu
+  codebert   none                 Δ  +0.0458   MẠNH — dương 5/5 fold, chạy tiếp
+  codet5     cwe                  Δ  -0.0057   ÂM — bỏ, tìm phương án khác
+  codet5     latent_bottleneck    Δ  +0.0038   NGANG BASELINE — |Δ| < 0.005, nằm trong nhiễu
+  codet5     latent_proto         Δ  +0.0358   MẠNH — dương 5/5 fold, chạy tiếp
+  codet5     none                 Δ  +0.0540   MẠNH — dương 5/5 fold, chạy tiếp
+
+  Ngưỡng nhiễu 0.005 lấy từ dự án này: sd giữa các fold tới 0.09 trên
+  tập test 152 mẫu, nên Δ cỡ 0.00x không phân biệt được với nhiễu.
+  Ba fold chỉ đủ để QUYẾT ĐỊNH DỪNG. Muốn KẾT LUẬN thì phải đủ 5 fold —
+  tài liệu này có bốn lần tín hiệu n=3 đảo dấu ở n=5 (RESULT.md §30.1).
+2026-08-22 16:47:27 UTC | job #2 xong
+2026-08-22 16:47:27 UTC | HET HANG DOI — tat ca da chay xong truoc moc chot.

@@ -1,0 +1,49 @@
+2026-08-22 09:17:11 UTC | bat dau. moc chot 2026-08-22 16:00:00 UTC (16:00 UTC)
+2026-08-22 09:17:11 UTC | khong con job nao dang chay
+2026-08-22 09:17:11 UTC | job #1 bat dau (con 402 phut truoc moc chot): bash run/sharpness-all.sh B
+cho GPU trong truoc khi do...
+GPU dang dung 0 MiB — bat dau
+=== 2026-08-22 09:17:11 UTC | do do nhon: t5p (Salesforce/codet5p-220m, mean) ===
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### Salesforce/codet5p-220m   pooling=mean
+  checkpoint     model/fam1_t5p/transfer_cwe/seed_42/source/best.pt
+  best epoch     13   val Macro-F1 0.7078
+  ||w||          611.54
+  loss tại w     0.643793
+
+  che do rho: relative   (||eps|| = rho*||w||)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.005      3.058          3.058           +0.000418          +3.674054
+    0.010      6.115          6.115           +0.000896          +4.137822
+    0.020     12.231         12.231           +0.002031          +5.559722
+    0.050     30.577         30.577           +0.006987          +7.543844
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+=== 2026-08-22 09:17:33 UTC | do do nhon: unixcoder (microsoft/unixcoder-base, cls) ===
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### microsoft/unixcoder-base   pooling=cls
+  checkpoint     model/fam1_unixcoder/transfer_cwe/seed_42/source/best.pt
+  best epoch     13   val Macro-F1 0.6668
+  ||w||          640.53
+  loss tại w     0.742532
+
+  che do rho: relative   (||eps|| = rho*||w||)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.005      3.203          3.203           +0.000659         +27.954643
+    0.010      6.405          6.405           +0.001186          +3.837508
+    0.020     12.811         12.811           +0.001854         +86.868662
+    0.050     32.027         32.027           +0.000729        +106.716482
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+
+So hai backbone o CUNG rho. Delta loss lon hon = cuc tieu NHON hon.
+2026-08-22 09:17:52 UTC | job #1 xong
+2026-08-22 09:17:52 UTC | HET HANG DOI — tat ca da chay xong truoc moc chot.

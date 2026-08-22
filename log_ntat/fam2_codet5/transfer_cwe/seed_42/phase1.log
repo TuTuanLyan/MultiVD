@@ -1,0 +1,400 @@
+2026-08-22 09:12:02 - INFO - Using device: cuda
+2026-08-22 09:12:02 - INFO - Run started | Run: fam2_codet5 | Method: transfer_cwe | Phase: phase1 | Fold: 1 | Seed: 42 | Device: cuda
+2026-08-22 09:12:02 - INFO - Loading Phase-1 source data: data/train_ccpp_js.jsonl
+2026-08-22 09:12:02 - INFO - Detected Phase-1 languages: ['ccpp', 'js']
+2026-08-22 09:12:02 - INFO - Auxiliary CWE vocabulary: fixed four-way {'CWE-022': 0, 'CWE-078': 1, 'CWE-079': 2, 'CWE-089': 3}
+2026-08-22 09:12:02 - INFO - Source split | Language: ccpp | Conservative pairs: 73 | Singletons: 0 | Stratified: True | Ratio: 90/10 | Seed: 42
+2026-08-22 09:12:02 - INFO - Source split | Language: js | Conservative pairs: 565 | Singletons: 8 | Stratified: True | Ratio: 90/10 | Seed: 43
+2026-08-22 09:12:02 - INFO - Combined source split | Languages: ['ccpp', 'js'] | Train: 1152 | Validation: 132
+2026-08-22 09:12:02 - WARNING - No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+2026-08-22 09:12:02 - INFO - Data split: source_train | Total: 1152 | Labels: {0: 577, 1: 575} | CWEs: {'CWE-022': 118, 'CWE-078': 168, 'CWE-079': 744, 'CWE-089': 122} | Languages: {'ccpp': 130, 'js': 1022} | Invalid CWE: 0
+2026-08-22 09:12:02 - INFO - Data split: source_val | Total: 132 | Labels: {0: 66, 1: 66} | CWEs: {'CWE-022': 14, 'CWE-078': 20, 'CWE-079': 86, 'CWE-089': 12} | Languages: {'ccpp': 16, 'js': 116} | Invalid CWE: 0
+2026-08-22 09:12:05 - INFO - Environment: {"components": {"backbone": {"frozen": 0, "total": 109607040, "trainable": 109607040}, "cwe_head": {"frozen": 0, "total": 3076, "trainable": 3076}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 1, "frozen_parameters": 0, "gpu": "NVIDIA GeForce RTX 5060 Ti", "hyperparameters": {"anneal_fun": "sigmoid", "anneal_k": 0.05, "anneal_t0_ratio": 0.05, "anneal_w": 1.0, "aux_mode": "cwe", "batch_size": 16, "checkpoint_path": "model/fam2_codet5/transfer_cwe/seed_42/source/best.pt", "cwe_vocab": "fixed4", "data_path": "data/train_ccpp_js.jsonl", "data_root": "data/sven_python_folds_norm", "epochs": 15, "eval_batch_size": 16, "fold": 1, "freeze_backbone_layers": 0, "freeze_prototypes_steps": 0, "lambda_cwe": 0.05, "latent_temperature": 0.1, "learning_rate": 2e-05, "lora_rank": 0, "lp_epochs": 0, "lp_learning_rate": 0.001, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "transfer_cwe", "min_epochs": 3, "model_name": "Salesforce/codet5-base", "num_cwes": 4, "num_latent": 8, "num_workers": 0, "output_dir": "results/fam2_codet5/transfer_cwe", "patience": 5, "phase": "phase1", "phase2_optimizer": "recadam", "pooling": "mean", "pretrain_cof": 5000.0, "recadam_anchor": "source", "result_path": "results/fam2_codet5/transfer_cwe/seed_42/fold1.json", "run_name": "fam2_codet5", "seed": 42, "selection_metric": "macro_f1", "source_checkpoint": null, "source_interpolation": 1.0, "strict_determinism": false, "target_lang": "python", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "phase1_train", "model_name": "Salesforce/codet5-base", "seed": 42, "sklearn": "1.9.0", "torch": "2.11.0+cu128", "trainable_parameters": 109611654, "transformers": "4.57.1"}
+2026-08-22 09:12:05 - INFO - Training started | Phase: phase1 | Epochs: 15
+2026-08-22 09:12:53 - INFO - Epoch 1/15 | Train loss: 0.760724 | Val loss: 0.746964 | LR: 2.00e-05 | Best epoch: 1 | Patience: 0 | Train: 45.12s | Validation: 1.79s | Epoch: 47.24s | Total: 47.24s
+2026-08-22 09:12:53 - INFO - Phase-1 losses | Vulnerability: 0.698025 | CWE: 1.253976 | Total: 0.760724
+2026-08-22 09:12:53 - INFO - Latent structure | Slots used: 4/8 | Largest slot: 0.863 | NMI vs CWE: 0.0036 | NMI vs binary: 0.0043
+2026-08-22 09:12:53 - INFO - [Classification Report - split=train epoch=1 - threshold=0.50]
+2026-08-22 09:12:53 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:12:53 - INFO - 
+2026-08-22 09:12:53 - INFO -       safe (0)     0.4848    0.5789    0.5276       577
+2026-08-22 09:12:53 - INFO - vulnerable (1)     0.4752    0.3826    0.4239       575
+2026-08-22 09:12:53 - INFO - 
+2026-08-22 09:12:53 - INFO -       accuracy                         0.4809      1152
+2026-08-22 09:12:53 - INFO -      macro avg     0.4800    0.4807    0.4758      1152
+2026-08-22 09:12:53 - INFO -   weighted avg     0.4800    0.4809    0.4759      1152
+2026-08-22 09:12:53 - INFO - Confusion matrix - [[tn=334, fp=243], [fn=355, tp=220]]
+2026-08-22 09:12:53 - INFO - probability_positive min=0.4064 mean=0.4938 std=0.0263 max=0.5682 predicted_0=689 predicted_1=463
+2026-08-22 09:12:53 - INFO - [Classification Report - split=validation epoch=1 - threshold=0.50]
+2026-08-22 09:12:53 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:12:53 - INFO - 
+2026-08-22 09:12:53 - INFO -       safe (0)     0.5714    0.1212    0.2000        66
+2026-08-22 09:12:53 - INFO - vulnerable (1)     0.5085    0.9091    0.6522        66
+2026-08-22 09:12:53 - INFO - 
+2026-08-22 09:12:53 - INFO -       accuracy                         0.5152       132
+2026-08-22 09:12:53 - INFO -      macro avg     0.5400    0.5152    0.4261       132
+2026-08-22 09:12:53 - INFO -   weighted avg     0.5400    0.5152    0.4261       132
+2026-08-22 09:12:53 - INFO - Confusion matrix - [[tn=8, fp=58], [fn=6, tp=60]]
+2026-08-22 09:12:53 - INFO - probability_positive min=0.4857 mean=0.5182 std=0.0152 max=0.5665 predicted_0=14 predicted_1=118
+2026-08-22 09:12:53 - INFO - New best model | Macro-F1: 0.426087 | Epoch: 1
+2026-08-22 09:13:39 - INFO - Epoch 2/15 | Train loss: 0.751666 | Val loss: 0.749466 | LR: 2.00e-05 | Best epoch: 1 | Patience: 0 | Train: 44.50s | Validation: 1.79s | Epoch: 46.29s | Total: 93.55s
+2026-08-22 09:13:39 - INFO - Phase-1 losses | Vulnerability: 0.697805 | CWE: 1.077229 | Total: 0.751666
+2026-08-22 09:13:39 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:13:39 - INFO - [Classification Report - split=train epoch=2 - threshold=0.50]
+2026-08-22 09:13:39 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:13:39 - INFO - 
+2026-08-22 09:13:39 - INFO -       safe (0)     0.5222    0.4489    0.4828       577
+2026-08-22 09:13:39 - INFO - vulnerable (1)     0.5152    0.5878    0.5491       575
+2026-08-22 09:13:39 - INFO - 
+2026-08-22 09:13:39 - INFO -       accuracy                         0.5182      1152
+2026-08-22 09:13:39 - INFO -      macro avg     0.5187    0.5183    0.5160      1152
+2026-08-22 09:13:39 - INFO -   weighted avg     0.5187    0.5182    0.5159      1152
+2026-08-22 09:13:39 - INFO - Confusion matrix - [[tn=259, fp=318], [fn=237, tp=338]]
+2026-08-22 09:13:39 - INFO - probability_positive min=0.3257 mean=0.4909 std=0.0622 max=0.6024 predicted_0=496 predicted_1=656
+2026-08-22 09:13:39 - INFO - [Classification Report - split=validation epoch=2 - threshold=0.50]
+2026-08-22 09:13:39 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:13:39 - INFO - 
+2026-08-22 09:13:39 - INFO -       safe (0)     0.5039    0.9848    0.6667        66
+2026-08-22 09:13:39 - INFO - vulnerable (1)     0.6667    0.0303    0.0580        66
+2026-08-22 09:13:39 - INFO - 
+2026-08-22 09:13:39 - INFO -       accuracy                         0.5076       132
+2026-08-22 09:13:39 - INFO -      macro avg     0.5853    0.5076    0.3623       132
+2026-08-22 09:13:39 - INFO -   weighted avg     0.5853    0.5076    0.3623       132
+2026-08-22 09:13:39 - INFO - Confusion matrix - [[tn=65, fp=1], [fn=64, tp=2]]
+2026-08-22 09:13:39 - INFO - probability_positive min=0.3960 mean=0.4367 std=0.0259 max=0.5124 predicted_0=129 predicted_1=3
+2026-08-22 09:14:26 - INFO - Epoch 3/15 | Train loss: 0.748241 | Val loss: 0.740363 | LR: 2.00e-05 | Best epoch: 3 | Patience: 0 | Train: 44.58s | Validation: 1.79s | Epoch: 47.04s | Total: 140.60s
+2026-08-22 09:14:26 - INFO - Phase-1 losses | Vulnerability: 0.696207 | CWE: 1.040677 | Total: 0.748241
+2026-08-22 09:14:26 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:14:26 - INFO - [Classification Report - split=train epoch=3 - threshold=0.50]
+2026-08-22 09:14:26 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:14:26 - INFO - 
+2026-08-22 09:14:26 - INFO -       safe (0)     0.5052    0.4194    0.4583       577
+2026-08-22 09:14:26 - INFO - vulnerable (1)     0.5022    0.5878    0.5417       575
+2026-08-22 09:14:26 - INFO - 
+2026-08-22 09:14:26 - INFO -       accuracy                         0.5035      1152
+2026-08-22 09:14:26 - INFO -      macro avg     0.5037    0.5036    0.5000      1152
+2026-08-22 09:14:26 - INFO -   weighted avg     0.5037    0.5035    0.4999      1152
+2026-08-22 09:14:26 - INFO - Confusion matrix - [[tn=242, fp=335], [fn=237, tp=338]]
+2026-08-22 09:14:26 - INFO - probability_positive min=0.3920 mean=0.5082 std=0.0449 max=0.6073 predicted_0=479 predicted_1=673
+2026-08-22 09:14:26 - INFO - [Classification Report - split=validation epoch=3 - threshold=0.50]
+2026-08-22 09:14:26 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:14:26 - INFO - 
+2026-08-22 09:14:26 - INFO -       safe (0)     0.6190    0.1970    0.2989        66
+2026-08-22 09:14:26 - INFO - vulnerable (1)     0.5225    0.8788    0.6554        66
+2026-08-22 09:14:26 - INFO - 
+2026-08-22 09:14:26 - INFO -       accuracy                         0.5379       132
+2026-08-22 09:14:26 - INFO -      macro avg     0.5708    0.5379    0.4771       132
+2026-08-22 09:14:26 - INFO -   weighted avg     0.5708    0.5379    0.4771       132
+2026-08-22 09:14:26 - INFO - Confusion matrix - [[tn=13, fp=53], [fn=8, tp=58]]
+2026-08-22 09:14:26 - INFO - probability_positive min=0.4800 mean=0.5183 std=0.0199 max=0.5736 predicted_0=21 predicted_1=111
+2026-08-22 09:14:26 - INFO - New best model | Macro-F1: 0.477109 | Epoch: 3
+2026-08-22 09:15:12 - INFO - Epoch 4/15 | Train loss: 0.743204 | Val loss: 0.739099 | LR: 2.00e-05 | Best epoch: 3 | Patience: 1 | Train: 44.59s | Validation: 1.79s | Epoch: 46.38s | Total: 187.01s
+2026-08-22 09:15:12 - INFO - Phase-1 losses | Vulnerability: 0.692595 | CWE: 1.012181 | Total: 0.743204
+2026-08-22 09:15:12 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:15:12 - INFO - [Classification Report - split=train epoch=4 - threshold=0.50]
+2026-08-22 09:15:12 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:15:12 - INFO - 
+2026-08-22 09:15:12 - INFO -       safe (0)     0.5317    0.4211    0.4700       577
+2026-08-22 09:15:12 - INFO - vulnerable (1)     0.5194    0.6278    0.5685       575
+2026-08-22 09:15:12 - INFO - 
+2026-08-22 09:15:12 - INFO -       accuracy                         0.5243      1152
+2026-08-22 09:15:12 - INFO -      macro avg     0.5256    0.5245    0.5193      1152
+2026-08-22 09:15:12 - INFO -   weighted avg     0.5256    0.5243    0.5192      1152
+2026-08-22 09:15:12 - INFO - Confusion matrix - [[tn=243, fp=334], [fn=214, tp=361]]
+2026-08-22 09:15:12 - INFO - probability_positive min=0.3769 mean=0.5025 std=0.0472 max=0.6043 predicted_0=457 predicted_1=695
+2026-08-22 09:15:12 - INFO - [Classification Report - split=validation epoch=4 - threshold=0.50]
+2026-08-22 09:15:12 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:15:12 - INFO - 
+2026-08-22 09:15:12 - INFO -       safe (0)     0.6667    0.1212    0.2051        66
+2026-08-22 09:15:12 - INFO - vulnerable (1)     0.5167    0.9394    0.6667        66
+2026-08-22 09:15:12 - INFO - 
+2026-08-22 09:15:12 - INFO -       accuracy                         0.5303       132
+2026-08-22 09:15:12 - INFO -      macro avg     0.5917    0.5303    0.4359       132
+2026-08-22 09:15:12 - INFO -   weighted avg     0.5917    0.5303    0.4359       132
+2026-08-22 09:15:12 - INFO - Confusion matrix - [[tn=8, fp=58], [fn=4, tp=62]]
+2026-08-22 09:15:12 - INFO - probability_positive min=0.4810 mean=0.5232 std=0.0174 max=0.5668 predicted_0=12 predicted_1=120
+2026-08-22 09:15:59 - INFO - Epoch 5/15 | Train loss: 0.742597 | Val loss: 0.747503 | LR: 2.00e-05 | Best epoch: 3 | Patience: 2 | Train: 44.59s | Validation: 1.79s | Epoch: 46.38s | Total: 233.40s
+2026-08-22 09:15:59 - INFO - Phase-1 losses | Vulnerability: 0.693177 | CWE: 0.988401 | Total: 0.742597
+2026-08-22 09:15:59 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:15:59 - INFO - [Classification Report - split=train epoch=5 - threshold=0.50]
+2026-08-22 09:15:59 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:15:59 - INFO - 
+2026-08-22 09:15:59 - INFO -       safe (0)     0.5269    0.4922    0.5090       577
+2026-08-22 09:15:59 - INFO - vulnerable (1)     0.5220    0.5565    0.5387       575
+2026-08-22 09:15:59 - INFO - 
+2026-08-22 09:15:59 - INFO -       accuracy                         0.5243      1152
+2026-08-22 09:15:59 - INFO -      macro avg     0.5245    0.5244    0.5238      1152
+2026-08-22 09:15:59 - INFO -   weighted avg     0.5245    0.5243    0.5238      1152
+2026-08-22 09:15:59 - INFO - Confusion matrix - [[tn=284, fp=293], [fn=255, tp=320]]
+2026-08-22 09:15:59 - INFO - probability_positive min=0.3770 mean=0.5019 std=0.0439 max=0.6063 predicted_0=539 predicted_1=613
+2026-08-22 09:15:59 - INFO - [Classification Report - split=validation epoch=5 - threshold=0.50]
+2026-08-22 09:15:59 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:15:59 - INFO - 
+2026-08-22 09:15:59 - INFO -       safe (0)     0.5039    0.9848    0.6667        66
+2026-08-22 09:15:59 - INFO - vulnerable (1)     0.6667    0.0303    0.0580        66
+2026-08-22 09:15:59 - INFO - 
+2026-08-22 09:15:59 - INFO -       accuracy                         0.5076       132
+2026-08-22 09:15:59 - INFO -      macro avg     0.5853    0.5076    0.3623       132
+2026-08-22 09:15:59 - INFO -   weighted avg     0.5853    0.5076    0.3623       132
+2026-08-22 09:15:59 - INFO - Confusion matrix - [[tn=65, fp=1], [fn=64, tp=2]]
+2026-08-22 09:15:59 - INFO - probability_positive min=0.3713 mean=0.4225 std=0.0291 max=0.5027 predicted_0=129 predicted_1=3
+2026-08-22 09:16:46 - INFO - Epoch 6/15 | Train loss: 0.737485 | Val loss: 0.732203 | LR: 2.00e-05 | Best epoch: 6 | Patience: 0 | Train: 44.54s | Validation: 1.79s | Epoch: 46.96s | Total: 280.38s
+2026-08-22 09:16:46 - INFO - Phase-1 losses | Vulnerability: 0.689440 | CWE: 0.960910 | Total: 0.737485
+2026-08-22 09:16:46 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:16:46 - INFO - [Classification Report - split=train epoch=6 - threshold=0.50]
+2026-08-22 09:16:46 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:16:46 - INFO - 
+2026-08-22 09:16:46 - INFO -       safe (0)     0.5375    0.6586    0.5919       577
+2026-08-22 09:16:46 - INFO - vulnerable (1)     0.5573    0.4313    0.4863       575
+2026-08-22 09:16:46 - INFO - 
+2026-08-22 09:16:46 - INFO -       accuracy                         0.5451      1152
+2026-08-22 09:16:46 - INFO -      macro avg     0.5474    0.5449    0.5391      1152
+2026-08-22 09:16:46 - INFO -   weighted avg     0.5474    0.5451    0.5392      1152
+2026-08-22 09:16:46 - INFO - Confusion matrix - [[tn=380, fp=197], [fn=327, tp=248]]
+2026-08-22 09:16:46 - INFO - probability_positive min=0.3843 mean=0.4881 std=0.0388 max=0.6236 predicted_0=707 predicted_1=445
+2026-08-22 09:16:46 - INFO - [Classification Report - split=validation epoch=6 - threshold=0.50]
+2026-08-22 09:16:46 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:16:46 - INFO - 
+2026-08-22 09:16:46 - INFO -       safe (0)     0.5238    0.6667    0.5867        66
+2026-08-22 09:16:46 - INFO - vulnerable (1)     0.5417    0.3939    0.4561        66
+2026-08-22 09:16:46 - INFO - 
+2026-08-22 09:16:46 - INFO -       accuracy                         0.5303       132
+2026-08-22 09:16:46 - INFO -      macro avg     0.5327    0.5303    0.5214       132
+2026-08-22 09:16:46 - INFO -   weighted avg     0.5327    0.5303    0.5214       132
+2026-08-22 09:16:46 - INFO - Confusion matrix - [[tn=44, fp=22], [fn=40, tp=26]]
+2026-08-22 09:16:46 - INFO - probability_positive min=0.3961 mean=0.4924 std=0.0288 max=0.5768 predicted_0=84 predicted_1=48
+2026-08-22 09:16:46 - INFO - New best model | Macro-F1: 0.521404 | Epoch: 6
+2026-08-22 09:17:32 - INFO - Epoch 7/15 | Train loss: 0.733230 | Val loss: 0.730304 | LR: 2.00e-05 | Best epoch: 6 | Patience: 1 | Train: 44.55s | Validation: 1.79s | Epoch: 46.34s | Total: 326.75s
+2026-08-22 09:17:32 - INFO - Phase-1 losses | Vulnerability: 0.687506 | CWE: 0.914480 | Total: 0.733230
+2026-08-22 09:17:32 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:17:32 - INFO - [Classification Report - split=train epoch=7 - threshold=0.50]
+2026-08-22 09:17:32 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:17:32 - INFO - 
+2026-08-22 09:17:32 - INFO -       safe (0)     0.5531    0.6412    0.5939       577
+2026-08-22 09:17:32 - INFO - vulnerable (1)     0.5714    0.4800    0.5217       575
+2026-08-22 09:17:32 - INFO - 
+2026-08-22 09:17:32 - INFO -       accuracy                         0.5608      1152
+2026-08-22 09:17:32 - INFO -      macro avg     0.5622    0.5606    0.5578      1152
+2026-08-22 09:17:32 - INFO -   weighted avg     0.5622    0.5608    0.5579      1152
+2026-08-22 09:17:32 - INFO - Confusion matrix - [[tn=370, fp=207], [fn=299, tp=276]]
+2026-08-22 09:17:32 - INFO - probability_positive min=0.2839 mean=0.4831 std=0.0586 max=0.6582 predicted_0=669 predicted_1=483
+2026-08-22 09:17:32 - INFO - [Classification Report - split=validation epoch=7 - threshold=0.50]
+2026-08-22 09:17:32 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:17:32 - INFO - 
+2026-08-22 09:17:32 - INFO -       safe (0)     0.7273    0.1212    0.2078        66
+2026-08-22 09:17:32 - INFO - vulnerable (1)     0.5207    0.9545    0.6738        66
+2026-08-22 09:17:32 - INFO - 
+2026-08-22 09:17:32 - INFO -       accuracy                         0.5379       132
+2026-08-22 09:17:32 - INFO -      macro avg     0.6240    0.5379    0.4408       132
+2026-08-22 09:17:32 - INFO -   weighted avg     0.6240    0.5379    0.4408       132
+2026-08-22 09:17:32 - INFO - Confusion matrix - [[tn=8, fp=58], [fn=3, tp=63]]
+2026-08-22 09:17:32 - INFO - probability_positive min=0.3585 mean=0.5551 std=0.0445 max=0.6568 predicted_0=11 predicted_1=121
+2026-08-22 09:18:19 - INFO - Epoch 8/15 | Train loss: 0.719768 | Val loss: 0.714370 | LR: 2.00e-05 | Best epoch: 8 | Patience: 0 | Train: 44.56s | Validation: 1.79s | Epoch: 47.00s | Total: 373.76s
+2026-08-22 09:18:19 - INFO - Phase-1 losses | Vulnerability: 0.676421 | CWE: 0.866933 | Total: 0.719768
+2026-08-22 09:18:19 - INFO - Latent structure | Slots used: 1/8 | Largest slot: 1.000 | NMI vs CWE: 0.0000 | NMI vs binary: 0.0000
+2026-08-22 09:18:19 - INFO - [Classification Report - split=train epoch=8 - threshold=0.50]
+2026-08-22 09:18:19 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:18:19 - INFO - 
+2026-08-22 09:18:19 - INFO -       safe (0)     0.5857    0.4263    0.4935       577
+2026-08-22 09:18:19 - INFO - vulnerable (1)     0.5478    0.6974    0.6136       575
+2026-08-22 09:18:19 - INFO - 
+2026-08-22 09:18:19 - INFO -       accuracy                         0.5616      1152
+2026-08-22 09:18:19 - INFO -      macro avg     0.5668    0.5619    0.5535      1152
+2026-08-22 09:18:19 - INFO -   weighted avg     0.5668    0.5616    0.5534      1152
+2026-08-22 09:18:19 - INFO - Confusion matrix - [[tn=246, fp=331], [fn=174, tp=401]]
+2026-08-22 09:18:19 - INFO - probability_positive min=0.1758 mean=0.5137 std=0.0877 max=0.7061 predicted_0=420 predicted_1=732
+2026-08-22 09:18:19 - INFO - [Classification Report - split=validation epoch=8 - threshold=0.50]
+2026-08-22 09:18:19 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:18:19 - INFO - 
+2026-08-22 09:18:19 - INFO -       safe (0)     0.5846    0.5758    0.5802        66
+2026-08-22 09:18:19 - INFO - vulnerable (1)     0.5821    0.5909    0.5865        66
+2026-08-22 09:18:19 - INFO - 
+2026-08-22 09:18:19 - INFO -       accuracy                         0.5833       132
+2026-08-22 09:18:19 - INFO -      macro avg     0.5834    0.5833    0.5833       132
+2026-08-22 09:18:19 - INFO -   weighted avg     0.5834    0.5833    0.5833       132
+2026-08-22 09:18:19 - INFO - Confusion matrix - [[tn=38, fp=28], [fn=27, tp=39]]
+2026-08-22 09:18:19 - INFO - probability_positive min=0.1341 mean=0.4790 std=0.0942 max=0.6258 predicted_0=65 predicted_1=67
+2026-08-22 09:18:19 - INFO - New best model | Macro-F1: 0.583309 | Epoch: 8
+2026-08-22 09:19:06 - INFO - Epoch 9/15 | Train loss: 0.700375 | Val loss: 0.702019 | LR: 2.00e-05 | Best epoch: 8 | Patience: 1 | Train: 44.58s | Validation: 1.79s | Epoch: 46.37s | Total: 420.16s
+2026-08-22 09:19:06 - INFO - Phase-1 losses | Vulnerability: 0.659633 | CWE: 0.814856 | Total: 0.700375
+2026-08-22 09:19:06 - INFO - Latent structure | Slots used: 3/8 | Largest slot: 0.961 | NMI vs CWE: 0.0844 | NMI vs binary: 0.0006
+2026-08-22 09:19:06 - INFO - [Classification Report - split=train epoch=9 - threshold=0.50]
+2026-08-22 09:19:06 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:19:06 - INFO - 
+2026-08-22 09:19:06 - INFO -       safe (0)     0.6199    0.4749    0.5378       577
+2026-08-22 09:19:06 - INFO - vulnerable (1)     0.5732    0.7078    0.6335       575
+2026-08-22 09:19:06 - INFO - 
+2026-08-22 09:19:06 - INFO -       accuracy                         0.5911      1152
+2026-08-22 09:19:06 - INFO -      macro avg     0.5966    0.5913    0.5856      1152
+2026-08-22 09:19:06 - INFO -   weighted avg     0.5966    0.5911    0.5855      1152
+2026-08-22 09:19:06 - INFO - Confusion matrix - [[tn=274, fp=303], [fn=168, tp=407]]
+2026-08-22 09:19:06 - INFO - probability_positive min=0.0855 mean=0.4904 std=0.1134 max=0.7061 predicted_0=442 predicted_1=710
+2026-08-22 09:19:06 - INFO - [Classification Report - split=validation epoch=9 - threshold=0.50]
+2026-08-22 09:19:06 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:19:06 - INFO - 
+2026-08-22 09:19:06 - INFO -       safe (0)     0.6818    0.2273    0.3409        66
+2026-08-22 09:19:06 - INFO - vulnerable (1)     0.5364    0.8939    0.6705        66
+2026-08-22 09:19:06 - INFO - 
+2026-08-22 09:19:06 - INFO -       accuracy                         0.5606       132
+2026-08-22 09:19:06 - INFO -      macro avg     0.6091    0.5606    0.5057       132
+2026-08-22 09:19:06 - INFO -   weighted avg     0.6091    0.5606    0.5057       132
+2026-08-22 09:19:06 - INFO - Confusion matrix - [[tn=15, fp=51], [fn=7, tp=59]]
+2026-08-22 09:19:06 - INFO - probability_positive min=0.1126 mean=0.5418 std=0.0972 max=0.7140 predicted_0=22 predicted_1=110
+2026-08-22 09:19:53 - INFO - Epoch 10/15 | Train loss: 0.685902 | Val loss: 0.684881 | LR: 2.00e-05 | Best epoch: 10 | Patience: 0 | Train: 44.58s | Validation: 1.79s | Epoch: 47.01s | Total: 467.18s
+2026-08-22 09:19:53 - INFO - Phase-1 losses | Vulnerability: 0.647448 | CWE: 0.769097 | Total: 0.685902
+2026-08-22 09:19:53 - INFO - Latent structure | Slots used: 3/8 | Largest slot: 0.911 | NMI vs CWE: 0.1690 | NMI vs binary: 0.0024
+2026-08-22 09:19:53 - INFO - [Classification Report - split=train epoch=10 - threshold=0.50]
+2026-08-22 09:19:53 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:19:53 - INFO - 
+2026-08-22 09:19:53 - INFO -       safe (0)     0.6036    0.5199    0.5587       577
+2026-08-22 09:19:53 - INFO - vulnerable (1)     0.5771    0.6574    0.6146       575
+2026-08-22 09:19:53 - INFO - 
+2026-08-22 09:19:53 - INFO -       accuracy                         0.5885      1152
+2026-08-22 09:19:53 - INFO -      macro avg     0.5904    0.5887    0.5866      1152
+2026-08-22 09:19:53 - INFO -   weighted avg     0.5904    0.5885    0.5866      1152
+2026-08-22 09:19:53 - INFO - Confusion matrix - [[tn=300, fp=277], [fn=197, tp=378]]
+2026-08-22 09:19:53 - INFO - probability_positive min=0.0575 mean=0.5010 std=0.1281 max=0.7830 predicted_0=497 predicted_1=655
+2026-08-22 09:19:53 - INFO - [Classification Report - split=validation epoch=10 - threshold=0.50]
+2026-08-22 09:19:53 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:19:53 - INFO - 
+2026-08-22 09:19:53 - INFO -       safe (0)     0.5778    0.7879    0.6667        66
+2026-08-22 09:19:53 - INFO - vulnerable (1)     0.6667    0.4242    0.5185        66
+2026-08-22 09:19:53 - INFO - 
+2026-08-22 09:19:53 - INFO -       accuracy                         0.6061       132
+2026-08-22 09:19:53 - INFO -      macro avg     0.6222    0.6061    0.5926       132
+2026-08-22 09:19:53 - INFO -   weighted avg     0.6222    0.6061    0.5926       132
+2026-08-22 09:19:53 - INFO - Confusion matrix - [[tn=52, fp=14], [fn=38, tp=28]]
+2026-08-22 09:19:53 - INFO - probability_positive min=0.0345 mean=0.4526 std=0.1460 max=0.7578 predicted_0=90 predicted_1=42
+2026-08-22 09:19:53 - INFO - New best model | Macro-F1: 0.592593 | Epoch: 10
+2026-08-22 09:20:40 - INFO - Epoch 11/15 | Train loss: 0.653880 | Val loss: 0.677060 | LR: 2.00e-05 | Best epoch: 11 | Patience: 0 | Train: 44.52s | Validation: 1.79s | Epoch: 46.96s | Total: 514.17s
+2026-08-22 09:20:40 - INFO - Phase-1 losses | Vulnerability: 0.617419 | CWE: 0.729220 | Total: 0.653880
+2026-08-22 09:20:40 - INFO - Latent structure | Slots used: 3/8 | Largest slot: 0.865 | NMI vs CWE: 0.2189 | NMI vs binary: 0.0003
+2026-08-22 09:20:40 - INFO - [Classification Report - split=train epoch=11 - threshold=0.50]
+2026-08-22 09:20:40 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:20:40 - INFO - 
+2026-08-22 09:20:40 - INFO -       safe (0)     0.6375    0.5546    0.5931       577
+2026-08-22 09:20:40 - INFO - vulnerable (1)     0.6046    0.6835    0.6416       575
+2026-08-22 09:20:40 - INFO - 
+2026-08-22 09:20:40 - INFO -       accuracy                         0.6189      1152
+2026-08-22 09:20:40 - INFO -      macro avg     0.6210    0.6190    0.6174      1152
+2026-08-22 09:20:40 - INFO -   weighted avg     0.6211    0.6189    0.6173      1152
+2026-08-22 09:20:40 - INFO - Confusion matrix - [[tn=320, fp=257], [fn=182, tp=393]]
+2026-08-22 09:20:40 - INFO - probability_positive min=0.0219 mean=0.4985 std=0.1724 max=0.9274 predicted_0=502 predicted_1=650
+2026-08-22 09:20:40 - INFO - [Classification Report - split=validation epoch=11 - threshold=0.50]
+2026-08-22 09:20:40 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:20:40 - INFO - 
+2026-08-22 09:20:40 - INFO -       safe (0)     0.5897    0.6970    0.6389        66
+2026-08-22 09:20:40 - INFO - vulnerable (1)     0.6296    0.5152    0.5667        66
+2026-08-22 09:20:40 - INFO - 
+2026-08-22 09:20:40 - INFO -       accuracy                         0.6061       132
+2026-08-22 09:20:40 - INFO -      macro avg     0.6097    0.6061    0.6028       132
+2026-08-22 09:20:40 - INFO -   weighted avg     0.6097    0.6061    0.6028       132
+2026-08-22 09:20:40 - INFO - Confusion matrix - [[tn=46, fp=20], [fn=32, tp=34]]
+2026-08-22 09:20:40 - INFO - probability_positive min=0.0179 mean=0.4713 std=0.1935 max=0.9072 predicted_0=78 predicted_1=54
+2026-08-22 09:20:40 - INFO - New best model | Macro-F1: 0.602778 | Epoch: 11
+2026-08-22 09:21:26 - INFO - Epoch 12/15 | Train loss: 0.621000 | Val loss: 0.677618 | LR: 2.00e-05 | Best epoch: 11 | Patience: 1 | Train: 44.49s | Validation: 1.79s | Epoch: 46.28s | Total: 560.48s
+2026-08-22 09:21:26 - INFO - Phase-1 losses | Vulnerability: 0.585395 | CWE: 0.712086 | Total: 0.621000
+2026-08-22 09:21:26 - INFO - Latent structure | Slots used: 3/8 | Largest slot: 0.843 | NMI vs CWE: 0.2543 | NMI vs binary: 0.0024
+2026-08-22 09:21:26 - INFO - [Classification Report - split=train epoch=12 - threshold=0.50]
+2026-08-22 09:21:26 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:21:26 - INFO - 
+2026-08-22 09:21:26 - INFO -       safe (0)     0.6457    0.6222    0.6337       577
+2026-08-22 09:21:26 - INFO - vulnerable (1)     0.6342    0.6574    0.6456       575
+2026-08-22 09:21:26 - INFO - 
+2026-08-22 09:21:26 - INFO -       accuracy                         0.6398      1152
+2026-08-22 09:21:26 - INFO -      macro avg     0.6400    0.6398    0.6397      1152
+2026-08-22 09:21:26 - INFO -   weighted avg     0.6400    0.6398    0.6396      1152
+2026-08-22 09:21:26 - INFO - Confusion matrix - [[tn=359, fp=218], [fn=197, tp=378]]
+2026-08-22 09:21:26 - INFO - probability_positive min=0.0132 mean=0.5005 std=0.2032 max=0.9548 predicted_0=556 predicted_1=596
+2026-08-22 09:21:26 - INFO - [Classification Report - split=validation epoch=12 - threshold=0.50]
+2026-08-22 09:21:26 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:21:26 - INFO - 
+2026-08-22 09:21:26 - INFO -       safe (0)     0.5843    0.7879    0.6710        66
+2026-08-22 09:21:26 - INFO - vulnerable (1)     0.6744    0.4394    0.5321        66
+2026-08-22 09:21:26 - INFO - 
+2026-08-22 09:21:26 - INFO -       accuracy                         0.6136       132
+2026-08-22 09:21:26 - INFO -      macro avg     0.6293    0.6136    0.6015       132
+2026-08-22 09:21:26 - INFO -   weighted avg     0.6293    0.6136    0.6015       132
+2026-08-22 09:21:26 - INFO - Confusion matrix - [[tn=52, fp=14], [fn=37, tp=29]]
+2026-08-22 09:21:26 - INFO - probability_positive min=0.0084 mean=0.4347 std=0.2057 max=0.9577 predicted_0=89 predicted_1=43
+2026-08-22 09:22:13 - INFO - Epoch 13/15 | Train loss: 0.591203 | Val loss: 0.658456 | LR: 2.00e-05 | Best epoch: 13 | Patience: 0 | Train: 44.48s | Validation: 1.79s | Epoch: 46.94s | Total: 607.43s
+2026-08-22 09:22:13 - INFO - Phase-1 losses | Vulnerability: 0.556437 | CWE: 0.695320 | Total: 0.591203
+2026-08-22 09:22:13 - INFO - Latent structure | Slots used: 3/8 | Largest slot: 0.840 | NMI vs CWE: 0.2924 | NMI vs binary: 0.0001
+2026-08-22 09:22:13 - INFO - [Classification Report - split=train epoch=13 - threshold=0.50]
+2026-08-22 09:22:13 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:22:13 - INFO - 
+2026-08-22 09:22:13 - INFO -       safe (0)     0.6868    0.6308    0.6576       577
+2026-08-22 09:22:13 - INFO - vulnerable (1)     0.6576    0.7113    0.6834       575
+2026-08-22 09:22:13 - INFO - 
+2026-08-22 09:22:13 - INFO -       accuracy                         0.6710      1152
+2026-08-22 09:22:13 - INFO -      macro avg     0.6722    0.6711    0.6705      1152
+2026-08-22 09:22:13 - INFO -   weighted avg     0.6722    0.6710    0.6705      1152
+2026-08-22 09:22:13 - INFO - Confusion matrix - [[tn=364, fp=213], [fn=166, tp=409]]
+2026-08-22 09:22:13 - INFO - probability_positive min=0.0084 mean=0.5021 std=0.2403 max=0.9801 predicted_0=530 predicted_1=622
+2026-08-22 09:22:13 - INFO - [Classification Report - split=validation epoch=13 - threshold=0.50]
+2026-08-22 09:22:13 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:22:13 - INFO - 
+2026-08-22 09:22:13 - INFO -       safe (0)     0.6269    0.6364    0.6316        66
+2026-08-22 09:22:13 - INFO - vulnerable (1)     0.6308    0.6212    0.6260        66
+2026-08-22 09:22:13 - INFO - 
+2026-08-22 09:22:13 - INFO -       accuracy                         0.6288       132
+2026-08-22 09:22:13 - INFO -      macro avg     0.6288    0.6288    0.6288       132
+2026-08-22 09:22:13 - INFO -   weighted avg     0.6288    0.6288    0.6288       132
+2026-08-22 09:22:13 - INFO - Confusion matrix - [[tn=42, fp=24], [fn=25, tp=41]]
+2026-08-22 09:22:13 - INFO - probability_positive min=0.0055 mean=0.5243 std=0.2476 max=0.9750 predicted_0=67 predicted_1=65
+2026-08-22 09:22:13 - INFO - New best model | Macro-F1: 0.628767 | Epoch: 13
+2026-08-22 09:23:00 - INFO - Epoch 14/15 | Train loss: 0.548885 | Val loss: 0.669721 | LR: 2.00e-05 | Best epoch: 14 | Patience: 0 | Train: 44.54s | Validation: 1.79s | Epoch: 46.98s | Total: 654.44s
+2026-08-22 09:23:00 - INFO - Phase-1 losses | Vulnerability: 0.514759 | CWE: 0.682531 | Total: 0.548885
+2026-08-22 09:23:00 - INFO - Latent structure | Slots used: 3/8 | Largest slot: 0.837 | NMI vs CWE: 0.3040 | NMI vs binary: 0.0002
+2026-08-22 09:23:00 - INFO - [Classification Report - split=train epoch=14 - threshold=0.50]
+2026-08-22 09:23:00 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:23:00 - INFO - 
+2026-08-22 09:23:00 - INFO -       safe (0)     0.7009    0.6863    0.6935       577
+2026-08-22 09:23:00 - INFO - vulnerable (1)     0.6917    0.7061    0.6988       575
+2026-08-22 09:23:00 - INFO - 
+2026-08-22 09:23:00 - INFO -       accuracy                         0.6962      1152
+2026-08-22 09:23:00 - INFO -      macro avg     0.6963    0.6962    0.6962      1152
+2026-08-22 09:23:00 - INFO -   weighted avg     0.6963    0.6962    0.6962      1152
+2026-08-22 09:23:00 - INFO - Confusion matrix - [[tn=396, fp=181], [fn=169, tp=406]]
+2026-08-22 09:23:00 - INFO - probability_positive min=0.0049 mean=0.5051 std=0.2616 max=0.9818 predicted_0=565 predicted_1=587
+2026-08-22 09:23:00 - INFO - [Classification Report - split=validation epoch=14 - threshold=0.50]
+2026-08-22 09:23:00 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:23:00 - INFO - 
+2026-08-22 09:23:00 - INFO -       safe (0)     0.6615    0.6515    0.6565        66
+2026-08-22 09:23:00 - INFO - vulnerable (1)     0.6567    0.6667    0.6617        66
+2026-08-22 09:23:00 - INFO - 
+2026-08-22 09:23:00 - INFO -       accuracy                         0.6591       132
+2026-08-22 09:23:00 - INFO -      macro avg     0.6591    0.6591    0.6591       132
+2026-08-22 09:23:00 - INFO -   weighted avg     0.6591    0.6591    0.6591       132
+2026-08-22 09:23:00 - INFO - Confusion matrix - [[tn=43, fp=23], [fn=22, tp=44]]
+2026-08-22 09:23:00 - INFO - probability_positive min=0.0034 mean=0.5240 std=0.2834 max=0.9872 predicted_0=65 predicted_1=67
+2026-08-22 09:23:00 - INFO - New best model | Macro-F1: 0.659071 | Epoch: 14
+2026-08-22 09:23:47 - INFO - Epoch 15/15 | Train loss: 0.518507 | Val loss: 0.715808 | LR: 2.00e-05 | Best epoch: 15 | Patience: 0 | Train: 44.57s | Validation: 1.79s | Epoch: 47.01s | Total: 701.48s
+2026-08-22 09:23:47 - INFO - Phase-1 losses | Vulnerability: 0.485115 | CWE: 0.667841 | Total: 0.518507
+2026-08-22 09:23:47 - INFO - Latent structure | Slots used: 4/8 | Largest slot: 0.817 | NMI vs CWE: 0.3496 | NMI vs binary: 0.0039
+2026-08-22 09:23:47 - INFO - [Classification Report - split=train epoch=15 - threshold=0.50]
+2026-08-22 09:23:47 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:23:47 - INFO - 
+2026-08-22 09:23:47 - INFO -       safe (0)     0.7113    0.7002    0.7057       577
+2026-08-22 09:23:47 - INFO - vulnerable (1)     0.7038    0.7148    0.7092       575
+2026-08-22 09:23:47 - INFO - 
+2026-08-22 09:23:47 - INFO -       accuracy                         0.7075      1152
+2026-08-22 09:23:47 - INFO -      macro avg     0.7075    0.7075    0.7075      1152
+2026-08-22 09:23:47 - INFO -   weighted avg     0.7075    0.7075    0.7075      1152
+2026-08-22 09:23:47 - INFO - Confusion matrix - [[tn=404, fp=173], [fn=164, tp=411]]
+2026-08-22 09:23:47 - INFO - probability_positive min=0.0034 mean=0.4948 std=0.2814 max=0.9898 predicted_0=568 predicted_1=584
+2026-08-22 09:23:47 - INFO - [Classification Report - split=validation epoch=15 - threshold=0.50]
+2026-08-22 09:23:47 - INFO -                 precision    recall  f1-score   support
+2026-08-22 09:23:47 - INFO - 
+2026-08-22 09:23:47 - INFO -       safe (0)     0.7091    0.5909    0.6446        66
+2026-08-22 09:23:47 - INFO - vulnerable (1)     0.6494    0.7576    0.6993        66
+2026-08-22 09:23:47 - INFO - 
+2026-08-22 09:23:47 - INFO -       accuracy                         0.6742       132
+2026-08-22 09:23:47 - INFO -      macro avg     0.6792    0.6742    0.6720       132
+2026-08-22 09:23:47 - INFO -   weighted avg     0.6792    0.6742    0.6720       132
+2026-08-22 09:23:47 - INFO - Confusion matrix - [[tn=39, fp=27], [fn=16, tp=50]]
+2026-08-22 09:23:47 - INFO - probability_positive min=0.0026 mean=0.5480 std=0.3104 max=0.9932 predicted_0=55 predicted_1=77
+2026-08-22 09:23:47 - INFO - New best model | Macro-F1: 0.671964 | Epoch: 15
+2026-08-22 09:23:47 - INFO - Best checkpoint saved | Path: model/fam2_codet5/transfer_cwe/seed_42/source/best.pt | Epoch: 15 | Val macro_f1: 0.671964
+2026-08-22 09:23:47 - INFO - Training finished | Elapsed: 701.51s
+2026-08-22 09:23:47 - INFO - Run finished | Phase: phase1 | Fold: 1 | Seed: 42 | Elapsed: 704.60s
