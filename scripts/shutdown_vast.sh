@@ -40,9 +40,13 @@ for M in $MACHINES; do
   timeout 600 rsync -az -e "$SSH" --include='*.txt' --include='*.log' --exclude='*' \
       root@"$HOST":/workspace/ "log_$LABEL/workspace_root/" || true
 
-  rem=$(timeout 60 $SSH root@"$HOST" 'cd /workspace/MultiVD/results 2>/dev/null && find . -name "fold*.json" -printf "%p %s\n" | sort' 2>/dev/null)
-  loc=$( (cd "results_$LABEL" && find . -name 'fold*.json' -printf '%p %s\n' | sort) 2>/dev/null )
-  miss=$(comm -23 <(echo "$rem") <(echo "$loc") | grep -c . || true)
+  # LC_ALL=C bat buoc: `sort` tren may thue va `sort` o day co the dung locale
+  # khac nhau, va khi do `comm` doc nham thu tu roi bao thieu file khong he thieu.
+  # Da xay ra that: ntat2 bi bao "thieu=15" trong khi doi chieu lai la 223/223.
+  # Suyt bo lo mot lan huy, va neu tin nguoc lai thi da huy khi thieu that.
+  rem=$(timeout 60 $SSH root@"$HOST" 'cd /workspace/MultiVD/results 2>/dev/null && find . -name "fold*.json" -printf "%p %s\n" | LC_ALL=C sort' 2>/dev/null)
+  loc=$( (cd "results_$LABEL" && find . -name 'fold*.json' -printf '%p %s\n' | LC_ALL=C sort) 2>/dev/null )
+  miss=$(LC_ALL=C comm -23 <(echo "$rem") <(echo "$loc") | grep -c . || true)
   nres=$(echo "$rem" | grep -c . || true)
   nck=$(find "model_$LABEL" -name 'best.pt' 2>/dev/null | wc -l)
   echo "  rsync_ok=$ok  ket qua tren may=$nres  thieu=$miss  checkpoint nguon tai ve=$nck"
