@@ -58,7 +58,7 @@ for P in $PAIRS; do
   $PYTHON src/measure_sharpness.py \
     --checkpoint "$CKPT" --model_name "$MODEL" --pooling "$POOL" \
     --aux_mode cwe --seed "$SEED" --batch_size 16 \
-    --rho_mode relative --rhos 0.005 0.01 0.02 0.05 --n_random 3 \
+    --rho_mode absolute --rhos 0.01 0.05 0.1 0.2 --n_random 3 \
     2>&1 | tee -a "$OUT"
 done
 

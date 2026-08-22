@@ -2686,3 +2686,63 @@ Sập ở f2, f3, f5 của CodeT5-base (0.4450, 0.4802 và một fold nữa) và
 chính nó cho Δ cao nhất trong dữ liệu cũ (+0.0635, CodeBERT seed 36). Cả hai lần sập đều đi kèm val
 Phase 1 yếu (0.5346 và 0.5357), nên ngưỡng cảnh báo 0.55 **có giá trị dự báo** — dù quyết định không
 dùng nó để loại vẫn đúng, vì trên UniXcoder và CodeT5+ thì `latent_proto` có Phase 1 bình thường.
+
+---
+
+## 45. Đo độ nhọn cực tiểu Phase 1: giả thuyết SAM bị bác trong 40 giây GPU
+
+§40 đưa ra một cơ chế: Phase 1 đẩy CodeT5+ đi xa khỏi trọng số gốc gấp 1.86 lần CodeBERT, và head
+phụ hoạt động bằng cách hãm dịch chuyển. Nếu cực tiểu Phase 1 của backbone mạnh **nhọn** thì bước
+Phase 2 phá nó nhiều hơn — và SAM (Foret et al., ICLR 2021), vốn cực tiểu giá trị lớn nhất của loss
+trong lân cận bán kính ρ, sẽ có một mục tiêu thật.
+
+Dự đoán được ghi vào `src/measure_sharpness.py` **trước khi có số**:
+
+> *Nếu Phase 1 của CodeT5+ nhọn hơn thì Phase 2 phá nó nhiều hơn, và SAM có một mục tiêu thật.*
+
+### 45.1 Kết quả
+
+Nhánh `cwe`, seed 42, cùng máy. `‖ε‖ = ρ` tuyệt đối theo đúng quy ước bài báo; hướng đối kháng là
+`ρ·g/‖g‖`, chính là bước leo của SAM.
+
+| ρ | **CodeT5+ 220m** | **UniXcoder** | tỉ lệ | chuẩn hoá theo loss nền |
+| --- | --- | --- | --- | --- |
+| 0.01 | +0.0282 | +0.0871 | 3.08× | 4% vs 12% |
+| 0.05 | +0.1439 | +0.6168 | 4.29× | 22% vs 83% |
+| 0.10 | +0.2945 | +1.5757 | 5.35× | 46% vs 212% |
+| 0.20 | +0.6522 | +4.1487 | **6.36×** | 101% vs **559%** |
+
+Nhiễu loạn theo hướng **ngẫu nhiên** gần như không làm gì ở cả hai (1e-6 đến 4.5e-5) — đúng như dự
+đoán trong không gian nhiều chiều, nơi hướng ngẫu nhiên gần trực giao với các hướng nhọn.
+
+### 45.2 Dự đoán sai, và sai theo hướng có ý nghĩa
+
+**CodeT5+ là backbone PHẲNG NHẤT, không phải nhọn nhất.** Và nó là backbone mà transfer thất bại
+(`none` −0.0043). UniXcoder nhọn hơn 3–6 lần và là backbone transfer chạy tốt nhất (`none` +0.0291).
+
+Độ nhọn không giải thích được thất bại — nó **đi ngược chiều**.
+
+### 45.3 Hệ quả cho SAM
+
+| chẩn đoán | trạng thái |
+| --- | --- |
+| §40 — nghiệm nhọn nên Phase 2 phá nhiều | **không được ủng hộ** |
+| §34 — tín hiệu CWE thừa vì backbone mạnh đã biểu diễn được lớp đó | **vẫn đứng, và là chẩn đoán duy nhất còn lại** |
+
+SAM chỉ chạm tới cơ chế §40: nó làm nghiệm phẳng hơn. CodeT5+ đã phẳng nhất và vẫn hỏng, nên làm nó
+phẳng hơn nữa không có lý do để giúp. **Bỏ SAM.**
+
+Chi phí đi tới kết luận này: **40 giây GPU**, so với vài giờ nếu chạy SAM (2× thời gian huấn luyện,
+nhân với số giá trị ρ phải dò). Đây là lần thứ hai trong dự án một phép đo rẻ bác được một hướng
+trước khi tiêu GPU — lần đầu là §40.3, nơi phép tính tay về lịch annealing bác ý tưởng đổi neo
+RecAdam mà không chạy gì.
+
+### 45.4 Giới hạn
+
+- **Thiếu CodeBERT và CodeT5-base.** Máy A đo sau lượt 2. CodeBERT đáng xem vì nó là backbone duy
+  nhất head phụ có tác dụng. Nhưng cặp đã đo là cặp tốt-nhất/tệ-nhất về transfer, đủ để bác dự đoán.
+- **Pooling khác nhau** giữa hai backbone (`mean` cho T5, `cls` cho RoBERTa) là biến lẫn nhẹ; chênh
+  lệch 3–6× lớn hơn nhiều so với mức pooling có thể giải thích.
+- Bản đo **đầu tiên phải bỏ đi**: nó chạy ở `rho_mode=relative`, và với `‖w‖ ≈ 611` thì ρ=0.005 thành
+  `‖ε‖ = 3.06` — gấp 61 lần ρ của bài báo. Ở biên độ đó Δloss lên +106 và mất cả tính đơn điệu theo ρ
+  (+27.9, +3.8, +86.9). Đó là mô hình đã bị phá, không phải phép đo độ nhọn.

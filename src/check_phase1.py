@@ -19,8 +19,21 @@ import os
 
 import torch
 
-FAIL_F1 = 0.55      # dưới mức này thì head nhị phân của Phase 1 gần như đoán mù
-MIN_EPOCH = 2       # best epoch 1 nghĩa là không epoch nào cải thiện được
+# HAI mức, và gộp chúng lại là sai.
+#
+# SẬP: best epoch <= 1 nghĩa là không epoch nào cải thiện được so với epoch đầu —
+#      quá trình huấn luyện hỏng, checkpoint gần như là trọng số khởi tạo. Đây mới
+#      là thứ phải LOẠI.
+#
+# YẾU: val thấp nhưng đã huấn luyện qua nhiều epoch. KHÔNG được loại, chỉ đánh dấu.
+#      Lý do cụ thể: `latent_proto` là mục tiêu KHÔNG NHÃN, nó không hỗ trợ head nhị
+#      phân của Phase 1 nên val nguồn của nó thấp một cách hệ thống — trong khi trên
+#      CodeBERT seed 36 chính nhánh này cho Δ Phase 2 CAO NHẤT bảng (+0.0635). Và số
+#      đo hôm nay còn cho thấy chất lượng Phase 1 có vẻ NGƯỢC dấu với lợi ích Phase 2
+#      (UniXcoder: cwe 0.6668 < none 0.6912 nhưng Phase 2 thì ngược lại). Lấy val
+#      nguồn làm tiêu chí loại sẽ ném đi đúng những nhánh đáng giá nhất.
+WEAK_F1 = 0.55      # dưới mức này thì đánh dấu để chú ý, KHÔNG loại
+CRASH_EPOCH = 1     # best epoch <= mức này nghĩa là huấn luyện không đi đâu cả
 
 
 def main():
@@ -52,10 +65,10 @@ def main():
         score = blob.get("best_val_macro_f1")
         if score is None:
             verdict, flag = "thieu best_val_macro_f1", True
-        elif score < FAIL_F1:
-            verdict, flag = f"PHASE 1 HONG — val {score:.4f} < {FAIL_F1}", True
-        elif epoch is not None and epoch < MIN_EPOCH:
-            verdict, flag = f"PHASE 1 HONG — dung o epoch {epoch}", True
+        elif epoch is not None and epoch <= CRASH_EPOCH:
+            verdict, flag = f"SAP — best epoch {epoch}, huan luyen khong cai thien", True
+        elif score < WEAK_F1:
+            verdict, flag = f"yeu (val {score:.4f}) — VAN DUNG, chi danh dau", False
         else:
             verdict, flag = "dung duoc", False
         print(f"{label:<52}{str(epoch):>12}{(f'{score:.4f}' if score is not None else '—'):>14}"
@@ -65,12 +78,12 @@ def main():
 
     print("-" * 100)
     if bad:
-        print(f"\n{len(bad)} nhanh co Phase 1 hong — LOAI khoi bang, khong bao cao nhu ket qua am:")
+        print(f"\n{len(bad)} nhanh co Phase 1 SAP — chay lai, dung bao cao nhu ket qua am:")
         for label in bad:
             print(f"   {label}")
-        print("\nChay lai Phase 1 cua chung (doi seed hoac tang patience) roi chay lai Phase 2.")
     else:
-        print("\nMoi nhanh co Phase 1 dung duoc.")
+        print("\nKhong nhanh nao SAP. Nhanh danh dau 'yeu' van chay va van bao cao —")
+        print("val nguon thap khong co nghia la transfer kem, xem ghi chu dau file.")
 
 
 if __name__ == "__main__":

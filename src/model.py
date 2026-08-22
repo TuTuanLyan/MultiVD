@@ -16,6 +16,19 @@ def build_backbone(model_name):
     T5-family checkpoints (CodeT5, CodeT5+) would otherwise drag in decoder
     weights that this classifier never runs.
     """
+    # Nhánh RIÊNG cho codet5p-*-embedding, khoá theo TÊN model để mọi backbone
+    # khác đi đúng đường cũ, không đổi một byte nào. Checkpoint đó đính kèm
+    # modeling file riêng nên AutoConfig thường sẽ treo ở prompt y/N; và
+    # AutoModel của nó trả về một vector 256 chiều đã chuẩn hoá chứ không phải
+    # chuỗi hidden states, nên pool_hidden_states không áp được.
+    #
+    # Lấy `.encoder` của nó: cho ra (batch, seq, 768) đúng như các backbone khác,
+    # và có ĐÚNG 84,954,240 tham số ngoài embedding — bằng từng tham số với
+    # encoder của codet5p-220m. Nhờ vậy kiến trúc và cách đọc giữ nguyên, chỉ
+    # PRETRAIN là khác, tức tách được đúng biến cần tách.
+    if "codet5p" in model_name and model_name.endswith("embedding"):
+        return AutoModel.from_pretrained(model_name, trust_remote_code=True).encoder
+
     config = AutoConfig.from_pretrained(model_name)
     if getattr(config, "is_encoder_decoder", False):
         from transformers import T5EncoderModel
