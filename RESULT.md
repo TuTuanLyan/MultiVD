@@ -2848,3 +2848,69 @@ của CodeT5+ là **0.0206** — lớn hơn cả hai. Chưa kết luận đượ
 
 Và §45.4 đã nói trước cách đọc: nếu SAM giúp thì **không phải qua đường "làm nghiệm phẳng hơn"**, vì
 CodeT5+ đã là backbone phẳng nhất trong bốn.
+
+---
+
+## 48. Bỏ RecAdam làm TỐT HƠN — và một dự đoán ghi trước bị bác
+
+Ma trận y hệt §44, chỉ đổi **đúng một biến**: `--phase2_optimizer adamw`, tức Phase 2 không còn lực
+kéo về điểm neo. Phase 1 và baseline dùng lại nguyên của `fam1` vì cả hai không phụ thuộc optimizer
+của Phase 2.
+
+### 48.1 Gộp toàn bộ, so trên cùng fold
+
+| backbone | có RecAdam | **bỏ RecAdam (AdamW)** | chênh |
+| --- | --- | --- | --- |
+| CodeBERT (17 ô) | +0.0340 | **+0.0453** | **+0.0113** |
+| CodeT5-base (17 ô) | **−0.0443** | **+0.0252** | **+0.0695** |
+
+### 48.2 Theo từng nhánh
+
+| backbone | nhánh | RecAdam | AdamW | chênh |
+| --- | --- | --- | --- | --- |
+| CodeBERT | `none` | +0.0288 | **+0.0458** | +0.0171 |
+| CodeBERT | `cwe` | +0.0400 | +0.0418 | +0.0018 |
+| CodeBERT | `latent_bottleneck` | +0.0549 | **+0.0653** | +0.0103 |
+| CodeBERT | `latent_proto` | +0.0137 | +0.0283 | +0.0145 |
+| CodeT5-base | `none` | +0.0570 | +0.0540 | −0.0030 |
+| CodeT5-base | `cwe` | −0.0279 | −0.0038 | +0.0241 |
+| CodeT5-base | `latent_bottleneck` | −0.0095 | +0.0032 | +0.0126 |
+| CodeT5-base | `latent_proto` | −0.1156 | **+0.0363** | **+0.1519** |
+
+**7/8 nhánh tốt hơn khi bỏ RecAdam.**
+
+### 48.3 RecAdam là thứ gây sập
+
+| nhánh | RecAdam sập ở fold | AdamW sập ở fold |
+| --- | --- | --- |
+| `codet5/latent_proto` | **2, 3, 5** | **không fold nào** |
+
+Toàn bộ hiện tượng sập của `latent_proto` trên CodeT5-base — thứ §44.5 ghi là "nhánh không dùng được
+trên hai backbone" — **biến mất khi bỏ RecAdam**. §44.5 phải đọc lại: đó không phải khuyết tật của
+nhánh latent mà là **tương tác giữa nhánh đó với RecAdam**.
+
+### 48.4 Dự đoán ghi trước, và nó sai
+
+`run/norecadam-matrix.sh` viết trước khi chạy:
+
+> *NẾU tính toán đó đúng thì bỏ RecAdam phải làm thay đổi RẤT ÍT.*
+
+Dựa trên §40.3: hệ số kéo `lr × pretrain_cof = 2e-5 × 5000 = 0.1`, nên neo thả 91% sau 1 epoch và
+99% sau 3 epoch trên tổng 30 — kết luận khi đó là "RecAdam hoạt động như một lịch warmup".
+
+**Phép tính về tốc độ thả neo vẫn đúng. Suy luận từ nó thì sai.** Một epoch đầu bị ghìm chặt đủ để
+đổi hẳn quỹ đạo, và trên CodeT5-base nó đổi theo hướng xấu tới **−0.0695**. "Thả nhanh" không đồng
+nghĩa "ảnh hưởng ít" — giai đoạn đầu của fine-tuning quyết định nghiệm cuối nhiều hơn tôi giả định.
+
+### 48.5 Ý nghĩa và giới hạn
+
+RecAdam là thành phần trung tâm của phương pháp từ đầu dự án. Trên bộ fold báo cáo, dữ liệu này nói
+nó **đang làm hại ở cả hai backbone**, và nó là nguyên nhân của hiện tượng sập từng bị quy cho nhánh
+latent.
+
+Giới hạn: **một seed, hai backbone**, các nhánh aux có 4/5 fold. Nhưng biên độ trên CodeT5-base
+(+0.0695) lớn gấp hơn ba lần sd giữa seed đã đo (0.0206), nên khó là nhiễu.
+
+**Đây là ứng viên số một cho đợt chạy tiếp**, và là điều BẮT BUỘC kiểm chứng nhiều seed trước khi đưa
+vào báo cáo — vì nếu nó đứng vững thì phương pháp phải bỏ RecAdam, và mọi con số trong tài liệu này
+tính tới §47 đều là con số của phiên bản kém hơn.
