@@ -2560,3 +2560,59 @@ Lý do: UniXcoder là kết quả duy nhất còn khả năng nâng phát biểu
 "một họ kiến trúc chạy được", và nó đang mắc đúng điểm yếu vừa làm CodeT5-base sụp. Còn họ T5 đã có
 hai lần bằng chứng âm độc lập (§33 cho CodeT5+, §42 cho CodeT5-base), nên thêm cấu hình cho họ đó là
 đào vào chỗ đã đào hai lần.
+
+---
+
+## 43. Ma trận họ backbone — máy B, lượt 1 (λ=0.2, seed 42, đủ 5 fold)
+
+Source `train_ccpp_js.jsonl`, target Python, bộ fold gốc. Hai backbone chạy trên cùng một máy
+(RTX 5070 Ti) nên so sánh liên-họ không lẫn hiệu ứng phần cứng.
+
+### 43.1 UniXcoder · cls — baseline TB 0.8511
+
+| nhánh | TB | Δ baseline | +/n | **head phụ cộng thêm** | +/n |
+| --- | --- | --- | --- | --- | --- |
+| `none` | 0.8802 | +0.0291 | 3/5 | — | — |
+| `cwe` | **0.8828** | **+0.0318** | 4/5 | **+0.0027** | 2/5 |
+| `latent_proto` | 0.8788 | +0.0278 | 4/5 | −0.0013 | 2/5 |
+| `latent_bottleneck` | 0.8763 | +0.0252 | 4/5 | −0.0039 | 2/5 |
+
+### 43.2 CodeT5+ 220m · mean — baseline TB 0.8547
+
+| nhánh | TB | Δ baseline | +/n | **head phụ cộng thêm** | +/n |
+| --- | --- | --- | --- | --- | --- |
+| `none` | 0.8504 | −0.0043 | 3/5 | — | — |
+| `latent_proto` | 0.8392 | −0.0156 | 2/5 | −0.0113 | 1/5 |
+| `cwe` | 0.8296 | −0.0252 | 1/5 | −0.0209 | 1/5 |
+| `latent_bottleneck` | 0.8163 | −0.0384 | 0/5 | −0.0341 | 0/5 |
+
+### 43.3 Điều này nói gì
+
+**Transfer có tác dụng trên UniXcoder và không có trên CodeT5+** — Δ baseline +0.0291 so với
+−0.0043 ở nhánh `none`. Đó là phần lặp lại được của quy luật họ backbone.
+
+**Nhưng head phụ gần như bằng không trên CẢ HAI.** Trên UniXcoder, giá trị gia tăng của ba nhánh
+head phụ là +0.0027, −0.0013, −0.0039 — cả ba nằm trong nhiễu (ngưỡng 0.005) và cả ba chỉ dương
+2/5 fold. Đối chiếu CodeBERT ở §41: `none` chỉ +0.0019 còn head phụ **+0.0270**.
+
+Hai model **cùng họ RoBERTa** mà nguồn lợi ích nằm ở hai chỗ khác hẳn nhau:
+
+| | `none` (pretrain trần) | head phụ cộng thêm |
+| --- | --- | --- |
+| CodeBERT (§41) | +0.0019 | **+0.0270** |
+| **UniXcoder** | **+0.0291** | **+0.0027** |
+
+Điều này **bác cách đóng khung "họ RoBERTa hợp phương pháp"** mà tài liệu này đã dùng ở §41.2. Phát
+biểu đúng hơn: *pretrain đa nhiệm trên source có tác dụng trên cả hai model RoBERTa, nhưng head phụ
+chỉ có tác dụng trên CodeBERT.* Và CodeBERT là backbone có baseline **thấp nhất** trong bốn
+(0.7509 ở fold 1 so với 0.8287 của UniXcoder) — khớp cơ chế dư địa §34 hơn là khớp họ kiến trúc.
+
+### 43.4 Một cảnh báo về đọc theo fold
+
+Ở cổng 3 fold tôi đã kết luận sai hai lần theo hai chiều ngược nhau: sau fold 2 là "head phụ vô dụng
+trên UniXcoder", sau fold 3 là "head phụ đảo dấu thành dương". Đủ 5 fold thì cả hai đều sai — con số
+thật là **+0.0027, tức bằng không**.
+
+Nguyên nhân là baseline dao động rất mạnh giữa các fold: 0.8287, 0.8220, **0.8946**, **0.8881**,
+0.8220. Fold nào baseline cao thì `none` mất tác dụng còn head phụ có vẻ cứu được; fold nào baseline
+thấp thì ngược lại. **Dư địa của từng fold chi phối kết quả mạnh hơn cả backbone lẫn nhánh.**
