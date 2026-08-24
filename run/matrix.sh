@@ -116,6 +116,31 @@ shared_args() {  # $1 = model_name, $2 = pooling
        --model_name "$1" --pooling "$2"
 }
 
+# Checkpoint Phase 1 CÓ TỒN TẠI chưa đủ để dùng lại — phải xem nó có gì bên trong.
+#
+# Một job Phase 1 bị giết giữa chừng ở phiên bản cũ (ghi thẳng vào best.pt) để lại
+# một file hợp lệ về mặt cú pháp nhưng dừng ở epoch 1. Đo được thật: bốn file như
+# vậy còn sót sau đợt tranh GPU, trong đó `t5pe__none` có val 0.4309 — DƯỚI mức
+# ngẫu nhiên. Và `none` là nhánh đối chứng của mọi nhánh khác, nên nó hỏng thì cả
+# backbone đó vô nghĩa mà không có dấu hiệu gì để nhận ra từ kết quả.
+#
+# Hai tiêu chí, cả hai đều bảo thủ để không vứt nhầm một lần rút yếu nhưng thật:
+#   best_epoch <= 1  -> gần như chắc chắn là file bị cắt ngang
+#   val < 0.55       -> ngang ngẫu nhiên, không dùng được dù vì lý do gì
+phase1_usable() {
+  [[ -f "$1" ]] || return 1
+  $PYTHON - "$1" <<'PYEOF' 2>/dev/null
+import sys, torch
+try:
+    ck = torch.load(sys.argv[1], map_location="cpu", weights_only=False)
+except Exception:
+    sys.exit(1)
+epoch = ck.get("best_epoch") or 0
+val = float(ck.get("best_val_macro_f1") or 0.0)
+sys.exit(0 if epoch > 1 and val >= 0.55 else 1)
+PYEOF
+}
+
 banner() {
   echo ""
   echo "################################################################"
@@ -142,8 +167,12 @@ for BB in $BACKBONES; do
   for MODE in $MODES; do
     CKPT="$PHASE1_STORE/${LABEL}__${MODE}${ARM_TAG}/seed_$SEED/best.pt"
     if [[ -f "$CKPT" ]]; then
-      echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
-      continue
+      if phase1_usable "$CKPT"; then
+        echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
+        continue
+      fi
+      echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | CO NHUNG HONG, huan luyen lai ==="
+      rm -f "$CKPT"
     fi
     mkdir -p "$(dirname "$CKPT")"
     echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE ==="

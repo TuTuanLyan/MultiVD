@@ -18,7 +18,16 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_NAME="${RUN_NAME:?can RUN_NAME}"
 BACKBONES="${BACKBONES:?can BACKBONES}"
 SEED="${SEED:-42}"
-SEED2="${SEED2:-7}"
+# Seed phụ. MẶC ĐỊNH RỖNG, và đó là chủ ý.
+#
+# Quy trình sàng lọc của dự án xếp đa seed ở bước CUỐI: seed 42 trước, chứng minh
+# phương pháp trên nhiều model đã, rồi mới loại trừ may rủi bằng seed. Lấy seed ra
+# lấp thời gian GPU trống là làm sai thứ tự — nó nhân ba chi phí của một câu hỏi
+# chưa đến lượt, trong khi câu hỏi đang cần trả lời là "phương pháp có chạy trên
+# model khác không".
+#
+# Muốn thêm việc cho một máy nhanh thì thêm BACKBONE, không thêm seed.
+EXTRA_SEEDS="${EXTRA_SEEDS:-}"
 FOLDS="${FOLDS:-1 2 3 4 5}"
 export PYTHON="${PYTHON:-/venv/main/bin/python}"
 export HF_HOME="${HF_HOME:-/workspace/hf}"
@@ -158,15 +167,14 @@ step "04_measure005" measure "_l05" "$SEED"
 
 free_disk_if_needed
 
-# 5. Seed thứ hai — bước sau cùng của quy trình sàng lọc. Tự chứa: Phase 1,
-#    baseline và mọi nhánh của seed này đều nằm trên chính máy này.
-step "05_seed${SEED2}_lambda020" matrix 0.2 "" "none cwe latent_bottleneck latent_proto" "$SEED2"
-step "06_measure_seed${SEED2}"   measure ""  "$SEED2"
-
-free_disk_if_needed
-
-# 7. λ=0.05 ở seed thứ hai — chỉ tới đây nếu đêm còn dài.
-step "07_seed${SEED2}_lambda005" matrix 0.05 "_l05" "cwe latent_bottleneck latent_proto" "$SEED2"
+# 5+. Seed phụ — CHỈ chạy khi EXTRA_SEEDS được đặt tường minh. Đây là cổng cuối
+# của quy trình sàng lọc, không phải thứ dùng để lấp GPU trống.
+for S in $EXTRA_SEEDS; do
+  step "s${S}_lambda020"  matrix 0.2  ""     "none cwe latent_bottleneck latent_proto" "$S"
+  step "s${S}_measure020" measure ""   "$S"
+  step "s${S}_lambda005"  matrix 0.05 "_l05" "cwe latent_bottleneck latent_proto"      "$S"
+  free_disk_if_needed
+done
 
 log "########## HET HANG DOI — moi buoc da chay ##########"
 [[ -f "$STATE/failed.txt" ]] && { log "cac buoc hong:"; cat "$STATE/failed.txt"; }

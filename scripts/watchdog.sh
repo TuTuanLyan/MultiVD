@@ -22,7 +22,7 @@ STATE="${STATE:-/workspace/overnight_${RUN_NAME}}"
 QUEUE_LOG="${QUEUE_LOG:-/workspace/overnight_${RUN_NAME}.log}"
 INTERVAL="${INTERVAL:-300}"
 WD_LOG="${WD_LOG:-/workspace/watchdog_${RUN_NAME}.log}"
-export PYTHON HF_HOME BACKBONES RUN_NAME SEED SEED2 FOLDS STATE
+export PYTHON HF_HOME BACKBONES RUN_NAME SEED EXTRA_SEEDS FOLDS STATE
 
 log() { echo "[$(date -u '+%F %T')] $*" >> "$WD_LOG"; }
 
