@@ -92,6 +92,21 @@ PHASE2_EXTRA="${PHASE2_EXTRA:-}"
 
 PHASE1_STORE="model/$RUN_NAME/phase1"
 
+# Đếm job hỏng và TRẢ VỀ MÃ LỖI KHÁC 0 ở cuối. Không có cái này thì một đợt hỏng
+# 332/375 job vẫn thoát 0, và bất cứ lớp điều phối nào ở trên cũng ghi nó là "đã
+# xong" rồi không bao giờ chạy lại. Đó là cách một lỗi tranh GPU biến thành một
+# khoảng trống dữ liệu im lặng.
+FAILED=0
+
+# Nhật ký từng job. Trước đây output đi thẳng /dev/null nên "THAT BAI" không kèm
+# lý do, và phải chạy lại mới biết vì sao — mà chạy lại thì thường không tái hiện.
+JOBLOG="log/$RUN_NAME"
+mkdir -p "$JOBLOG"
+
+# Giảm phân mảnh bộ nhớ GPU; các lần OOM đã gặp đều báo có vùng reserved-nhưng-
+# chưa-dùng.
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
+
 shared_args() {  # $1 = model_name, $2 = pooling
   echo --seed "$SEED" --batch_size "$BATCH_SIZE" --eval_batch_size "$BATCH_SIZE" \
        --max_length "$MAX_LENGTH" --truncation_strategy head_middle_tail \
@@ -179,13 +194,17 @@ run_fold() {
     $PYTHON -u src/train_baseline.py --phase train \
       --run_name "$RN" --method_name baseline --fold "$FOLD" \
       --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" --checkpoint_path "$CK/best.pt" \
-      $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
+      $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_baseline_fold${FOLD}.log" 2>&1 \
       && $PYTHON -u src/train_baseline.py --phase infer \
         --run_name "$RN" --method_name baseline --fold "$FOLD" \
         --checkpoint_path "$CK/best.pt" \
-        $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
-      || echo "  !! $LABEL baseline fold$FOLD THAT BAI"
+        $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_baseline_fold${FOLD}.log" 2>&1
     rm -rf "$CK"
+    if [[ ! -f "$RES/fold$FOLD.json" ]]; then
+      FAILED=$((FAILED + 1))
+      echo "  !! $LABEL baseline fold$FOLD THAT BAI — xem $JOBLOG/${LABEL}_baseline_fold${FOLD}.log"
+      tail -2 "$JOBLOG/${LABEL}_baseline_fold${FOLD}.log" | sed 's/^/       /'
+    fi
   done
 
   # 2) mọi nhánh. Vòng trong là backbone nên với mỗi (nhánh, optimizer) thì các
@@ -216,14 +235,18 @@ run_fold() {
           --source_checkpoint "$SRC" --checkpoint_path "$CK/best.pt" \
           --output_dir "results/$RN/$ARM" \
           $PHASE2_EXTRA \
-          $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
+          $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log" 2>&1 \
           && $PYTHON -u src/train_transfer.py --phase test \
             --run_name "$RN" --method_name "$ARM" --fold "$FOLD" \
             --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
             --checkpoint_path "$CK/best.pt" --output_dir "results/$RN/$ARM" \
-            $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
-          || echo "  !! $LABEL/${MODE}${ARM_TAG}/$OPT fold$FOLD THAT BAI"
+            $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log" 2>&1
         rm -rf "$CK"
+        if [[ ! -f "$RES/fold$FOLD.json" ]]; then
+          FAILED=$((FAILED + 1))
+          echo "  !! $LABEL/${MODE}${ARM_TAG}/$OPT fold$FOLD THAT BAI — xem $JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log"
+          tail -2 "$JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log" | sed 's/^/       /'
+        fi
       done
     done
   done
@@ -234,6 +257,10 @@ run_fold() {
 
 for FOLD in $FOLDS; do run_fold "$FOLD"; done
 
-banner "XONG — fold: $FOLDS"
+banner "XONG — fold: $FOLDS   (job hong: $FAILED)"
 $PYTHON src/report_fold.py --prefix "${RUN_NAME}_" --seed "$SEED" || true
+if (( FAILED > 0 )); then
+  echo "!! $FAILED job khong sinh ra ket qua — TRA VE MA LOI de lop tren khong ghi la da xong"
+  exit 1
+fi
 touch "${DONE_FLAG:-/tmp/${RUN_NAME}${ARM_TAG}_DONE}"

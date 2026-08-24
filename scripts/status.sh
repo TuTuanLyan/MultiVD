@@ -11,8 +11,8 @@ SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
 
 # nhãn|host|port|thư mục|file log|backbone
 MACHINES=(
-  "ntat2|1.54.247.106|30634|/workspace/MultiVD|/workspace/m1.log|t5 t5p t5pe"
-  "dung |115.73.216.179|53259|/workspace/ntat_MultiVD|/workspace/ntat_MultiVD/r1.log|codebert unixcoder"
+  "ntat2|1.54.247.106|30634|/workspace/MultiVD|/workspace/overnight_m1.log|t5 t5p t5pe"
+  "dung |115.73.216.179|53259|/workspace/ntat_MultiVD|/workspace/ntat_MultiVD/overnight_r1.log|codebert unixcoder"
 )
 echo "=============== TRANG THAI $(date -u '+%F %T UTC') ==============="
 

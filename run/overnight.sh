@@ -76,7 +76,13 @@ matrix() {  # $1 = lambda, $2 = arm tag, $3 = modes, $4 = seed
 # checkpoint, forward/backward, không huấn luyện) và đóng hai ô đang trống trong
 # FACTS.md. Chạy NGAY SAU khối sinh ra checkpoint, trước khi kho bị dọn.
 measure() {  # $1 = arm tag, $2 = seed
-  local tag="$1" seed="$2" out="$STATE/measure${tag}_seed${seed}.txt"
+  # Ba dòng riêng, KHÔNG gộp thành một `local`: bash khai triển mọi từ của dòng
+  # lệnh trước khi builtin `local` gán, nên `out="...${tag}..."` trên cùng dòng
+  # sẽ đọc một `tag` chưa tồn tại và `set -u` giết cả script — đã xảy ra thật,
+  # và watchdog khi đó bật lại một hàng đợi chết mãi không thôi.
+  local tag="$1"
+  local seed="$2"
+  local out="$STATE/measure${tag}_seed${seed}.txt"
   : > "$out"
   local pairs=()
   for BB in $BACKBONES; do
@@ -98,6 +104,38 @@ measure() {  # $1 = arm tag, $2 = seed
   echo "model/$RUN_NAME/phase1" > "$STATE/measured${tag}_seed${seed}"
   cat "$out"
 }
+
+# Mutex khoi dong bang KHOA FILE PID, khong quet ten tien trinh.
+#
+# Hai hang doi cung chay tren mot card 16 GB lam CA HAI OOM — do la nguyen nhan
+# that su cua 332 job hong o lan chay dau, khong phai loi khoa hoc nao ca.
+#
+# Ban dau mutex nay quet `ps` tim tien trinh ten `bash run/overnight.sh`, va no
+# TU CHAN CHINH MINH: moi lan bash fork cho mot command substitution, tien trinh
+# con mang y nguyen dong lenh do nhung PID khac, nen phep loai tru theo `$$`
+# khong bat duoc no. Khoa file khong co lop hong nay: PID duoc ghi ra tuong minh,
+# va `kill -0` phan biet duoc khoa cu cua mot tien trinh da chet.
+LOCK="$STATE/queue.pid"
+if [[ -f "$LOCK" ]]; then
+  OLD_PID=$(cat "$LOCK" 2>/dev/null)
+  if [[ -n "$OLD_PID" && "$OLD_PID" != "$$" ]] && kill -0 "$OLD_PID" 2>/dev/null; then
+    log "DA CO hang doi dang chay (PID $OLD_PID) — thoat, khong chay chong len"
+    exit 0
+  fi
+  log "khoa cu cua PID ${OLD_PID:-?} da chet — chiem lai"
+fi
+echo $$ > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT
+
+# Don ca hai tang con con sot lai: `bash run/matrix.sh` va tien trinh python.
+# Giet moi tang python la chua du — matrix.sh con song se sinh job ke tiep ngay.
+for ORPHAN in $(ps -eo pid,args --no-headers \
+                | awk '$2=="bash" && $3 ~ /run\/matrix\.sh/ {print $1}'); do
+  kill -9 "$ORPHAN" 2>/dev/null && log "don matrix.sh mo coi PID $ORPHAN truoc khi bat dau"
+done
+for ORPHAN in $(pgrep -f 'src/train_transfer\.py|src/train_baseline\.py' 2>/dev/null); do
+  kill -9 "$ORPHAN" 2>/dev/null && log "don job mo coi PID $ORPHAN truoc khi bat dau"
+done
 
 log "########## HANG DOI QUA DEM — $RUN_NAME ##########"
 log "backbone : $BACKBONES"

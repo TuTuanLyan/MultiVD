@@ -51,8 +51,21 @@ while true; do
     # khi giết hàng đợi, bash kịp sinh job kế tiếp rồi mới chết, nên mồ côi là
     # trường hợp THƯỜNG GẶP chứ không phải hiếm.
     #
-    # Giết theo PID tường minh, không dùng `pkill -f`: chuỗi tìm kiếm của pkill
-    # khớp cả dòng lệnh SSH đang gọi nó và tự giết phiên của chính mình.
+    # Phải dọn CẢ HAI tầng con, không chỉ tầng python. Chuỗi gọi là
+    #     bash run/overnight.sh  ->  bash run/matrix.sh  ->  python train_*.py
+    # nên giết mỗi tiến trình python là chưa đủ: `matrix.sh` còn sống sẽ sinh
+    # job tiếp theo ngay, và hàng đợi mới cộng với nó thành hai luồng trên một
+    # card 16 GB. Đo được thật: một `bash run/matrix.sh` mồ côi sống qua ba lần
+    # dọn liên tiếp vì bộ lọc chỉ tìm chuỗi "overnight", còn nó thì không mang
+    # chuỗi đó.
+    #
+    # Lọc theo VỊ TRÍ chứ không theo chuỗi tự do — xem chú thích ở nhánh kiểm tra
+    # phía trên. Ở trong script này thì `pgrep -f` vẫn an toàn cho tầng python,
+    # vì dòng lệnh của chính nó chỉ là `bash scripts/watchdog.sh`.
+    for ORPHAN in $(ps -eo pid,args --no-headers \
+                    | awk '$2=="bash" && $3 ~ /run\/matrix\.sh/ {print $1}'); do
+      kill -9 "$ORPHAN" 2>/dev/null && log "  da giet matrix.sh mo coi PID $ORPHAN"
+    done
     for ORPHAN in $(pgrep -f 'src/train_transfer\.py|src/train_baseline\.py' 2>/dev/null); do
       kill -9 "$ORPHAN" 2>/dev/null && log "  da giet job mo coi PID $ORPHAN"
     done
