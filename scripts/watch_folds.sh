@@ -72,7 +72,12 @@ while true; do
       DETAIL="$DETAIL f$f=$c"
     done
 
-    if [[ "${PREV[$NAME.folds]:--1}" != "$COMPLETE" && "${PREV[$NAME.folds]:--1}" != "-1" ]]; then
+    # Khi mot khoi moi bat dau, no them nhanh vao fold 1 truoc, nen EXPECT tang va
+    # cac fold da xong cua khoi TRUOC bong trong nhu chua du. So lieu dung nhung
+    # cach doc sai — bao ro la "khoi moi", dung bao la "xong fold".
+    if [[ "${PREV[$NAME.expect]:--1}" != "$EXPECT" && "${PREV[$NAME.expect]:--1}" != "-1" ]]; then
+      echo "[$NAME] KHOI MOI bat dau — so nhanh moi fold tang ${PREV[$NAME.expect]} -> $EXPECT.$DETAIL"
+    elif [[ "${PREV[$NAME.folds]:--1}" != "$COMPLETE" && "${PREV[$NAME.folds]:--1}" != "-1" ]]; then
       echo "[$NAME] XONG FOLD — da du $COMPLETE/5 fold (moi fold $EXPECT nhanh:$DETAIL). Keo ve: bash scripts/pull_results.sh"
     fi
     if [[ "${PREV[$NAME.steps]:--1}" != "$STEPS" && "${PREV[$NAME.steps]:--1}" != "-1" ]]; then
@@ -91,7 +96,7 @@ while true; do
       echo "[$NAME] ALL_DONE — het hang doi. Tai ve: bash scripts/pull_results.sh --with-phase1"
     fi
 
-    PREV[$NAME.folds]=$COMPLETE; PREV[$NAME.steps]=$STEPS
+    PREV[$NAME.folds]=$COMPLETE; PREV[$NAME.steps]=$STEPS; PREV[$NAME.expect]=$EXPECT
     PREV[$NAME.fail]=$FAIL; PREV[$NAME.jobfail]=$JF; PREV[$NAME.all]=$ALL
   done
   sleep "$INTERVAL"
