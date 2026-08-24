@@ -75,6 +75,18 @@ PHASE2_EPOCHS="${PHASE2_EPOCHS:-30}"
 LR="${LR:-2e-5}"
 PATIENCE="${PATIENCE:-5}"
 MIN_EPOCHS="${MIN_EPOCHS:-3}"
+# Hậu tố gắn vào TÊN NHÁNH và vào khoá kho Phase 1. Dùng khi một run cần chứa hai
+# giá trị của cùng một siêu tham số — ví dụ λ=0.2 và λ=0.05 — mà vẫn DÙNG CHUNG
+# baseline và nhánh `none`.
+#
+# Vì sao dùng chung được, và vì sao đó không phải lối tắt cẩu thả: baseline không
+# đọc dữ liệu source và không có λ; còn `none` thì src/train.py cho aux_loss = None
+# nên λ KHÔNG xuất hiện trong hàm loss. Hai thứ đó giống hệt ở mọi λ.
+#
+# Cách đúng là để chúng nằm CHUNG một thư mục run và được bỏ qua vì đã tồn tại —
+# KHÔNG phải `cp` kết quả từ run này sang run kia. Chính lối `cp` đó đã hỏng im
+# lặng ở sam-gate.sh và làm một phép so đổi ba biến thay vì một.
+ARM_TAG="${ARM_TAG:-}"
 PHASE1_EXTRA="${PHASE1_EXTRA:-}"
 PHASE2_EXTRA="${PHASE2_EXTRA:-}"
 
@@ -101,6 +113,7 @@ echo "  backbone   : $(echo "$BACKBONES" | tr ' ' '\n' | cut -d= -f1 | tr '\n' '
 echo "  nhanh      : $MODES"
 echo "  optimizer  : $OPTIMIZERS"
 echo "  source     : $PHASE1_DATA_PATH   lambda $LAMBDA_CWE   vocab $CWE_VOCAB"
+[[ -n "$ARM_TAG" ]] && echo "  hau to     : $ARM_TAG (nhanh va kho Phase 1 deu mang hau to nay)"
 echo "  target     : $DATA_ROOT ($TARGET_LANG)"
 echo "  Phase 1 kho: $PHASE1_STORE"
 
@@ -112,23 +125,37 @@ banner "PHASE 1 — kho dung chung"
 for BB in $BACKBONES; do
   LABEL="${BB%%=*}"; REST="${BB#*=}"; MODEL="${REST%%:*}"; POOL="${REST##*:}"
   for MODE in $MODES; do
-    CKPT="$PHASE1_STORE/${LABEL}__${MODE}/seed_$SEED/best.pt"
+    CKPT="$PHASE1_STORE/${LABEL}__${MODE}${ARM_TAG}/seed_$SEED/best.pt"
     if [[ -f "$CKPT" ]]; then
       echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
       continue
     fi
     mkdir -p "$(dirname "$CKPT")"
     echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE ==="
+    # Ghi vào đường dẫn tạm rồi mới đổi tên: một job Phase 1 bị giết giữa chừng
+    # KHÔNG được để lại file mà lần chạy sau coi là "đã có".
+    #
+    # Đây không phải phòng xa. Lần khởi động lại đầu tiên để lại
+    # `t5__latent_bottleneck/best.pt` ở epoch 1 với val 0.3846 — dưới mức ngẫu
+    # nhiên — và nếu nó được dùng lại thì cả 10 job của nhánh đó (5 fold × 2
+    # optimizer) sẽ thừa hưởng một checkpoint hỏng, và kết quả trông y hệt như
+    # "nhánh latent_bottleneck không hợp với backbone này".
+    PART="${CKPT}.partial"
+    rm -f "$PART"
     $PYTHON -u src/train_transfer.py --phase phase1 \
-      --run_name "$RUN_NAME" --method_name "phase1_${LABEL}_${MODE}" \
+      --run_name "$RUN_NAME" --method_name "phase1_${LABEL}_${MODE}${ARM_TAG}" \
       --data_path "$PHASE1_DATA_PATH" \
       --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
       --latent_temperature "$LATENT_TEMPERATURE" \
       --epochs "$PHASE1_EPOCHS" --learning_rate "$LR" --lambda_cwe "$LAMBDA_CWE" \
-      --checkpoint_path "$CKPT" \
+      --checkpoint_path "$PART" \
       $PHASE1_EXTRA \
       $(shared_args "$MODEL" "$POOL") 2>&1 | tail -3
-    [[ -f "$CKPT" ]] || echo "  !! phase1 $LABEL/$MODE THAT BAI — moi nhanh cua no se bi bo qua"
+    if [[ -f "$PART" ]]; then
+      mv "$PART" "$CKPT"
+    else
+      echo "  !! phase1 $LABEL/$MODE THAT BAI — moi nhanh cua no se bi bo qua"
+    fi
   done
 done
 
@@ -169,17 +196,17 @@ run_fold() {
       local SUFFIX=""; [[ "$OPT" == "adamw" ]] && SUFFIX="_adamw"
       for BB in $BACKBONES; do
         local LABEL="${BB%%=*}" REST="${BB#*=}"; local MODEL="${REST%%:*}" POOL="${REST##*:}"
-        local RN="${RUN_NAME}_${LABEL}" ARM="transfer_${MODE}${SUFFIX}"
+        local RN="${RUN_NAME}_${LABEL}" ARM="transfer_${MODE}${ARM_TAG}${SUFFIX}"
         local RES="results/$RN/$ARM/seed_$SEED"; mkdir -p "$RES"
         if [[ -f "$RES/fold$FOLD.json" ]]; then
-          echo "=== fold $FOLD | $LABEL/$MODE/$OPT | da co ==="; continue
+          echo "=== fold $FOLD | $LABEL/${MODE}${ARM_TAG}/$OPT | da co ==="; continue
         fi
-        local SRC="$PHASE1_STORE/${LABEL}__${MODE}/seed_$SEED/best.pt"
+        local SRC="$PHASE1_STORE/${LABEL}__${MODE}${ARM_TAG}/seed_$SEED/best.pt"
         if [[ ! -f "$SRC" ]]; then
-          echo "  fold $FOLD $LABEL/$MODE/$OPT bo qua — thieu Phase 1 $SRC"; continue
+          echo "  fold $FOLD $LABEL/${MODE}${ARM_TAG}/$OPT bo qua — thieu Phase 1 $SRC"; continue
         fi
         local CK="model/$RN/$ARM/seed_$SEED/fold$FOLD"; mkdir -p "$CK"
-        echo "=== $(date -u '+%F %T') | fold $FOLD | $LABEL/$MODE/$OPT ==="
+        echo "=== $(date -u '+%F %T') | fold $FOLD | $LABEL/${MODE}${ARM_TAG}/$OPT ==="
         $PYTHON -u src/train_transfer.py --phase phase2 \
           --run_name "$RN" --method_name "$ARM" --fold "$FOLD" \
           --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
@@ -195,7 +222,7 @@ run_fold() {
             --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
             --checkpoint_path "$CK/best.pt" --output_dir "results/$RN/$ARM" \
             $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
-          || echo "  !! $LABEL/$MODE/$OPT fold$FOLD THAT BAI"
+          || echo "  !! $LABEL/${MODE}${ARM_TAG}/$OPT fold$FOLD THAT BAI"
         rm -rf "$CK"
       done
     done
@@ -209,4 +236,4 @@ for FOLD in $FOLDS; do run_fold "$FOLD"; done
 
 banner "XONG — fold: $FOLDS"
 $PYTHON src/report_fold.py --prefix "${RUN_NAME}_" --seed "$SEED" || true
-touch "${DONE_FLAG:-/tmp/${RUN_NAME}_DONE}"
+touch "${DONE_FLAG:-/tmp/${RUN_NAME}${ARM_TAG}_DONE}"
