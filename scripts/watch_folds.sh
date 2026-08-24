@@ -77,8 +77,14 @@ while true; do
     # goi la "xong fold" thi bon fold cu bong trong nhu thut lui, con goi la "khoi
     # moi bat dau" thi lan thu hai tro di lai sai. Khi nguong con dang doi thi chi
     # bao TIEN DO tho, khong ket luan gi — cho no on dinh roi hay noi "xong fold".
-    if [[ "${PREV[$NAME.expect]:--1}" != "$EXPECT" && "${PREV[$NAME.expect]:--1}" != "-1" ]]; then
-      echo "[$NAME] tien do khoi dang chay — nhanh moi fold ${PREV[$NAME.expect]} -> $EXPECT.$DETAIL"
+    # Nguong con dang bo len => IM LANG. Khong bao gi ca.
+    #
+    # Truoc do no bao moi lan nhich, va da bao sai hai lan lien: mot khoi moi lap
+    # day fold 1 dan dan nen nguong nhich lien tuc, moi buoc nhich lai la mot su
+    # kien vo nghia. Cadence nguoi dung can la ~2 fold mot lan, khong phai moi lan
+    # them mot job. Trang thai chi tiet luon lay duoc bang scripts/status.sh.
+    if [[ "${PREV[$NAME.expect]:--1}" != "$EXPECT" ]]; then
+      :
     elif [[ "${PREV[$NAME.folds]:--1}" != "$COMPLETE" && "${PREV[$NAME.folds]:--1}" != "-1" ]]; then
       echo "[$NAME] XONG FOLD — da du $COMPLETE/5 fold (moi fold $EXPECT nhanh:$DETAIL). Keo ve: bash scripts/pull_results.sh"
     fi
