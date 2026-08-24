@@ -61,21 +61,30 @@ step() {
 
 free_disk_if_needed() {
   local avail; avail=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
-  if (( avail < DISK_FLOOR_GB )); then
-    log "dia con ${avail}GB < ${DISK_FLOOR_GB}GB — don kho Phase 1 cua khoi da do xong"
-    for tag in "$STATE"/measured_*; do
-      [[ -f "$tag" ]] || continue
-      local dir; dir=$(cat "$tag")
-      [[ -d "$dir" ]] && rm -rf "$dir" && log "  da xoa $dir"
-    done
-    df -h / | tail -1
-  fi
+  (( avail >= DISK_FLOOR_GB )) && return 0
+  log "dia con ${avail}GB < ${DISK_FLOOR_GB}GB - don cac thu muc Phase 1 DA DO xong"
+  # Xoa TUNG thu muc da ghi, khong quet sach ca kho.
+  #
+  # Ban dau file danh dau chi chua "model/$RUN_NAME/phase1", tuc CA KHO, nen mot
+  # lan don dia se xoa MOI checkpoint - ke ca cai ma khoi sau con dang can. Dem
+  # nay tinh co vo hai vi thu tu buoc, nhung chi can doi thu tu hoac bat them seed
+  # la no xoa dung thu dang dung, va hong kieu do khong de lai dau hieu gi.
+  local marker dir
+  for marker in "$STATE"/measured*; do
+    [[ -f "$marker" ]] || continue
+    while IFS= read -r dir; do
+      [[ -n "$dir" && -d "$dir" ]] || continue
+      rm -rf "$dir" && log "  da xoa $dir"
+    done < "$marker"
+  done
+  df -h / | tail -1
 }
 
-matrix() {  # $1 = lambda, $2 = arm tag, $3 = modes, $4 = seed, $5 = cờ thêm cho Phase 1
+matrix() {  # $1 lambda, $2 arm tag, $3 modes, $4 seed, $5 co Phase1, $6 co Phase2, $7 khoa Phase1
   env RUN_NAME="$RUN_NAME" SEED="$4" FOLDS="$FOLDS" BACKBONES="$BACKBONES" \
       MODES="$3" OPTIMIZERS="recadam adamw" LAMBDA_CWE="$1" ARM_TAG="$2" \
-      PHASE1_EXTRA="${5:-}" \
+      PHASE1_TAG="${7-$2}" \
+      PHASE1_EXTRA="${5:-}" PHASE2_EXTRA="${6:-}" \
       CWE_VOCAB=fixed4 DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
       PHASE1_DATA_PATH=data/train_ccpp_js.jsonl \
       PYTHON="$PYTHON" HF_HOME="$HF_HOME" \
@@ -111,7 +120,17 @@ measure() {  # $1 = arm tag, $2 = seed
     echo "===== dich chuyen trong so =====" >> "$out"
     $PYTHON src/measure_drift.py --pairs "${pairs[@]}" >> "$out" 2>&1
   fi
-  echo "model/$RUN_NAME/phase1" > "$STATE/measured${tag}_seed${seed}"
+  # Ghi ra DUNG cac thu muc thuoc khoi nay, moi dong mot cai, de free_disk chi
+  # xoa phan da do xong chu khong quet sach ca kho.
+  : > "$STATE/measured${tag}_seed${seed}"
+  local BB2 L2 m2 d2
+  for BB2 in $BACKBONES; do
+    L2="${BB2%%=*}"
+    for m2 in none cwe latent_bottleneck latent_proto; do
+      d2="model/$RUN_NAME/phase1/${L2}__${m2}${tag}"
+      [[ -d "$d2" ]] && echo "$d2" >> "$STATE/measured${tag}_seed${seed}"
+    done
+  done
   cat "$out"
 }
 
@@ -185,7 +204,31 @@ step "05_lambda_hoc_duoc" matrix 0.2 "_uw" "cwe latent_bottleneck latent_proto" 
      "--aux_weight_mode uncertainty --aux_weight_lr 1e-2"
 step "06_measure_uw" measure "_uw" "$SEED"
 
+# 7. SAM o Phase 2 - Foret et al., ICLR 2021, ban port o src/sam.py tu ma JAX goc.
+#
+# PHASE1_TAG="" la chi tiet QUAN TRONG NHAT o day: SAM chi dung toi Phase 2, nen
+# Phase 1 cua no phai la DUNG checkpoint cua khoi lambda=0.2, khong phai mot lan
+# rut moi. Khong tach khoa nay thi phep so "chi doi SAM" doi hai bien, va do dung
+# la cach run `same_emb` da hong ma khong ai thay.
+#
+# Chay ca 4 nhanh: FACTS muc 12 ghi SAM moi tung chay `none` va `cwe`, chua tung
+# chay hai nhanh latent. Va `latent_proto` lai dang la nhanh DUY NHAT giup duoc ho
+# CodeT5 (t5pe +0.0200 4/5 fold), nen do chinh la o dang thieu.
+#
+# Chay ca hai optimizer vi docs/SAM_REFERENCE.md canh bao SAM va RecAdam CHONG LAN
+# nhau - ca hai deu sua buoc cap nhat. SAM+AdamW moi la phep thu sach cua rieng SAM.
+#
+# rho=0.05 tuyet doi, dung quy uoc bai bao. Moi buoc 2 luot forward-backward nen
+# khoi nay ~2x thoi gian: 120 job, uoc ~10 gio.
+step "07_sam" matrix 0.2 "_sam" "none cwe latent_bottleneck latent_proto" "$SEED" \
+     "" "--sam_rho 0.05" ""
+# KHONG co buoc do rieng cho SAM: Phase 1 cua no CHINH LA kho lambda=0.2, va kho
+# do da duoc do o buoc 02. Do lai cung mot checkpoint chi ton thoi gian va tao ra
+# mot bang thu hai y het bang cu.
+
+# Gio moi don dia duoc: khong buoc nao con doc kho Phase 1 nua.
 free_disk_if_needed
+
 
 # 7+. Seed phụ — CHỈ chạy khi EXTRA_SEEDS được đặt tường minh. Đây là cổng cuối
 # của quy trình sàng lọc, không phải thứ dùng để lấp GPU trống.

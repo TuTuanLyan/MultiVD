@@ -87,6 +87,16 @@ MIN_EPOCHS="${MIN_EPOCHS:-3}"
 # KHÔNG phải `cp` kết quả từ run này sang run kia. Chính lối `cp` đó đã hỏng im
 # lặng ở sam-gate.sh và làm một phép so đổi ba biến thay vì một.
 ARM_TAG="${ARM_TAG:-}"
+
+# Khoa cua kho Phase 1. MAC DINH bang ARM_TAG, nhung phai TACH DUOC.
+#
+# Mot can thiep chi dung toi Phase 2 - SAM la vi du - co Phase 1 GIONG HET khoi
+# goc. Neu khoa Phase 1 di theo ten nhanh thi nhanh `_sam` se khong tim thay kho,
+# tu huan luyen mot Phase 1 KHAC, va phep so "chi doi SAM" thuc ra doi hai bien.
+# Do dung la chuyen da xay ra voi run `same_emb`, noi Phase 1 va ca baseline deu
+# khac ma khong ai thay. Dat PHASE1_TAG="" cho cac can thiep Phase 2 de chung
+# DUNG LAI dung checkpoint cua khoi goc.
+PHASE1_TAG="${PHASE1_TAG-$ARM_TAG}"
 PHASE1_EXTRA="${PHASE1_EXTRA:-}"
 PHASE2_EXTRA="${PHASE2_EXTRA:-}"
 
@@ -153,7 +163,8 @@ echo "  backbone   : $(echo "$BACKBONES" | tr ' ' '\n' | cut -d= -f1 | tr '\n' '
 echo "  nhanh      : $MODES"
 echo "  optimizer  : $OPTIMIZERS"
 echo "  source     : $PHASE1_DATA_PATH   lambda $LAMBDA_CWE   vocab $CWE_VOCAB"
-[[ -n "$ARM_TAG" ]] && echo "  hau to     : $ARM_TAG (nhanh va kho Phase 1 deu mang hau to nay)"
+[[ -n "$ARM_TAG" ]] && echo "  hau to nhanh: $ARM_TAG"
+[[ "$PHASE1_TAG" != "$ARM_TAG" ]] && echo "  kho Phase 1 : hau to [$PHASE1_TAG] - DUNG LAI cua khoi khac"
 echo "  target     : $DATA_ROOT ($TARGET_LANG)"
 echo "  Phase 1 kho: $PHASE1_STORE"
 
@@ -165,7 +176,7 @@ banner "PHASE 1 — kho dung chung"
 for BB in $BACKBONES; do
   LABEL="${BB%%=*}"; REST="${BB#*=}"; MODEL="${REST%%:*}"; POOL="${REST##*:}"
   for MODE in $MODES; do
-    CKPT="$PHASE1_STORE/${LABEL}__${MODE}${ARM_TAG}/seed_$SEED/best.pt"
+    CKPT="$PHASE1_STORE/${LABEL}__${MODE}${PHASE1_TAG}/seed_$SEED/best.pt"
     if [[ -f "$CKPT" ]]; then
       if phase1_usable "$CKPT"; then
         echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
@@ -187,7 +198,7 @@ for BB in $BACKBONES; do
     PART="${CKPT}.partial"
     rm -f "$PART"
     $PYTHON -u src/train_transfer.py --phase phase1 \
-      --run_name "$RUN_NAME" --method_name "phase1_${LABEL}_${MODE}${ARM_TAG}" \
+      --run_name "$RUN_NAME" --method_name "phase1_${LABEL}_${MODE}${PHASE1_TAG}" \
       --data_path "$PHASE1_DATA_PATH" \
       --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
       --latent_temperature "$LATENT_TEMPERATURE" \
@@ -249,7 +260,7 @@ run_fold() {
         if [[ -f "$RES/fold$FOLD.json" ]]; then
           echo "=== fold $FOLD | $LABEL/${MODE}${ARM_TAG}/$OPT | da co ==="; continue
         fi
-        local SRC="$PHASE1_STORE/${LABEL}__${MODE}${ARM_TAG}/seed_$SEED/best.pt"
+        local SRC="$PHASE1_STORE/${LABEL}__${MODE}${PHASE1_TAG}/seed_$SEED/best.pt"
         if [[ ! -f "$SRC" ]]; then
           echo "  fold $FOLD $LABEL/${MODE}${ARM_TAG}/$OPT bo qua — thieu Phase 1 $SRC"; continue
         fi
