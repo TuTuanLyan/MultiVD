@@ -7,12 +7,17 @@
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
+SSHOPT="-o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes"
 
-# nhãn|host|port|thư mục|file log|backbone
+# Địa chỉ giải theo NHÃN tại thời điểm gọi — IP công khai của instance vast đổi
+# khi nó được dời máy chủ, và một script hardcode IP sẽ timeout trong khi máy vẫn
+# đang chạy bình thường.
+source "$(dirname "${BASH_SOURCE[0]}")/endpoints.sh"
+
+# nhãn|thư mục|file log|backbone
 MACHINES=(
-  "ntat2|1.54.247.106|30634|/workspace/MultiVD|/workspace/overnight_m1.log|t5 t5p t5pe"
-  "dung |115.73.216.179|53259|/workspace/ntat_MultiVD|/workspace/ntat_MultiVD/overnight_r1.log|codebert unixcoder"
+  "ntat2|/workspace/MultiVD|/workspace/overnight_m1.log|t5 t5p t5pe"
+  "dung|/workspace/ntat_MultiVD|/workspace/ntat_MultiVD/overnight_r1.log|codebert unixcoder"
 )
 echo "=============== TRANG THAI $(date -u '+%F %T UTC') ==============="
 
@@ -27,8 +32,14 @@ done
 nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader | sed 's/^/  GPU: /'
 
 for M in "${MACHINES[@]}"; do
-  IFS='|' read -r NAME HOST PORT DIR LOG BB <<< "$M"
-  printf "\n--- %s · backbone: %s ---\n" "$(echo "$NAME" | tr -d ' ')" "$BB"
+  IFS='|' read -r NAME DIR LOG BB <<< "$M"
+  printf "\n--- %s · backbone: %s ---\n" "$NAME" "$BB"
+  if ! read -r HOST PORT <<< "$(vast_endpoint "$NAME")" || [[ -z "${HOST:-}" ]]; then
+    echo "  KHONG GIAI DUOC DIA CHI — trang thai instance: $(vast_state "$NAME")"
+    continue
+  fi
+  SSH="ssh $SSHOPT -p $PORT"
+  echo "  ssh $HOST:$PORT"
   # shellcheck disable=SC2059
   OUT=$($SSH -p "$PORT" "root@$HOST" "
     pgrep -f plan_two_lambda.sh >/dev/null && echo '  dang chay' || echo '  KHONG CO TIEN TRINH'

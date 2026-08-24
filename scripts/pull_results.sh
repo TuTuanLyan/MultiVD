@@ -16,15 +16,22 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WITH_PHASE1=0
 [[ "${1:-}" == "--with-phase1" ]] && WITH_PHASE1=1
 
-# nhãn|host|port|thư mục từ xa|thư mục local
+# Địa chỉ giải theo nhãn tại thời điểm gọi; xem scripts/endpoints.sh.
+source "$(dirname "${BASH_SOURCE[0]}")/endpoints.sh"
+
+# nhãn|thư mục từ xa|thư mục local
 MACHINES=(
-  "ntat2|1.54.247.106|30634|/workspace/MultiVD|results_m1"
-  "dung|115.73.216.179|53259|/workspace/ntat_MultiVD|results_r1"
+  "ntat2|/workspace/MultiVD|results_m1"
+  "dung|/workspace/ntat_MultiVD|results_r1"
 )
 
 for M in "${MACHINES[@]}"; do
-  IFS='|' read -r NAME HOST PORT RDIR LDIR <<< "$M"
+  IFS='|' read -r NAME RDIR LDIR <<< "$M"
   mkdir -p "$LDIR"
+  if ! read -r HOST PORT <<< "$(vast_endpoint "$NAME")" || [[ -z "${HOST:-}" ]]; then
+    echo "$(date -u '+%F %T') $NAME: KHONG GIAI DUOC DIA CHI — instance $(vast_state "$NAME")"
+    continue
+  fi
   SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o BatchMode=yes -p $PORT"
 
   # Phan biet "may khong voi toi duoc" voi "may song nhung chua co ket qua".
