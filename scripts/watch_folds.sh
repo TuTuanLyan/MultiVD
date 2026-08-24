@@ -88,13 +88,17 @@ while true; do
     elif [[ "${PREV[$NAME.folds]:--1}" != "$COMPLETE" && "${PREV[$NAME.folds]:--1}" != "-1" ]]; then
       echo "[$NAME] XONG FOLD — da du $COMPLETE/5 fold (moi fold $EXPECT nhanh:$DETAIL). Keo ve: bash scripts/pull_results.sh"
     fi
-    if [[ "${PREV[$NAME.steps]:--1}" != "$STEPS" && "${PREV[$NAME.steps]:--1}" != "-1" ]]; then
+    # CHI bao khi TANG. Ba bo dem nay deu co the GIAM, va giam luon co nghia la
+    # "vua khoi dong lai" chu khong phai su co: xoa mot co XONG sai lam so buoc
+    # tut xuong, va bo dem job hong reset ve 0 moi lan hang doi chay lai. Bao ca
+    # chieu giam thi moi lan sua chua deu sinh ra ba bao dong gia.
+    if (( STEPS > ${PREV[$NAME.steps]:-0} )) && [[ -n "${PREV[$NAME.steps]:-}" ]]; then
       echo "[$NAME] XONG MOT KHOI (buoc $STEPS cua hang doi)"
     fi
-    if [[ "${PREV[$NAME.fail]:--1}" != "$FAIL" && "${PREV[$NAME.fail]:--1}" != "-1" ]]; then
+    if (( FAIL > ${PREV[$NAME.fail]:-0} )); then
       echo "[$NAME] BUOC HONG — tong $FAIL. Xem $STATE/failed.txt"
     fi
-    if [[ "${PREV[$NAME.jobfail]:--1}" != "$JF" && "${PREV[$NAME.jobfail]:--1}" != "-1" ]]; then
+    if (( JF > ${PREV[$NAME.jobfail]:-0} )); then
       echo "[$NAME] JOB HONG — $JF job khong sinh ra ket qua tu lan khoi dong gan nhat"
     fi
     if [[ "$Q" == "0" && "$ALL" == "0" ]]; then
