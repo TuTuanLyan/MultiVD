@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# Ma trận chính: vòng ngoài là FOLD, trong mỗi fold chạy trọn baseline + mọi
+# nhánh của MỌI backbone, rồi in bảng ngay.
+#
+# Vì sao vòng ngoài là fold chứ không phải backbone: mọi Δ đều quy về baseline
+# của CHÍNH backbone đó, CHÍNH fold đó, CHÍNH máy đó — chênh lệch phần cứng đo
+# được là 0.028 Macro-F1, lớn hơn hiệu ứng đang đo. Chạy trọn một fold rồi mới
+# sang fold sau nghĩa là sau fold thứ hai đã có một bảng đọc được, và một nhánh
+# hỏng bị phát hiện sau ~2 giờ thay vì sau cả đợt.
+#
+# Fold khác nhau chạy máy khác nhau thì HỢP LỆ và nhanh gấp đôi: đặt FOLDS="1 3 5"
+# ở máy này và FOLDS="2 4" ở máy kia. Điều duy nhất cấm là lấy baseline máy này
+# ghép với nhánh máy kia trong cùng một phép so — mà bố cục này không cho phép,
+# vì baseline và nhánh của một fold luôn nằm cùng chỗ.
+#
+# ---------------------------------------------------------------------------
+# Phase 1 nằm ở MỘT KHO DÙNG CHUNG, khoá theo (backbone, nhánh, seed):
+#
+#     model/$RUN/phase1/<backbone>__<mode>/seed_$SEED/best.pt
+#
+# Không sao chép giữa các thư mục nhánh nữa. Cách cũ — driver `cp` file Phase 1
+# từ run này sang run kia — đã hỏng im lặng một lần: `sam-gate.sh` tìm Phase 1 ở
+# `model/fam1_emb/...` trong khi run thật tên `emb1_emb`, lệnh cp trượt, và nhánh
+# đó tự huấn luyện một Phase 1 KHÁC. Kết quả là phép so "chỉ đổi SAM" thực ra đổi
+# hai biến, và với sd giữa các lần rút Phase 1 là 0.0521 thì hiệu ứng ~0.01 ở đó
+# không đọc được. Kho dùng chung làm lỗi ấy không xảy ra được: có file thì dùng,
+# không có thì huấn luyện, không có đường thứ ba.
+#
+# Phase 1 KHÔNG phụ thuộc fold (source không chia fold) và KHÔNG phụ thuộc
+# optimizer của Phase 2. Nên một lần huấn luyện dùng cho cả 5 fold và cả hai
+# optimizer — đó là lý do nó nằm ngoài vòng lặp fold.
+# ---------------------------------------------------------------------------
+#
+# Cách gọi:
+#   FOLDS="1 2 3 4 5" bash run/matrix.sh                 # đủ, một máy
+#   FOLDS="1 3 5" RUN_NAME=m1 bash run/matrix.sh         # máy A
+#   FOLDS="2 4"   RUN_NAME=m1 bash run/matrix.sh         # máy B, cùng RUN_NAME
+#   BACKBONES="codebert=microsoft/codebert-base:cls" FOLDS=1 bash run/matrix.sh
+set -uo pipefail
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
+PYTHON="${PYTHON:-python}"
+
+RUN_NAME="${RUN_NAME:-m1}"
+SEED="${SEED:-42}"
+FOLDS="${FOLDS:-1 2 3 4 5}"
+
+# Năm backbone. t5p = bản BIMODAL, thống nhất trong nhóm.
+# Ba checkpoint họ CodeT5+ (220m / 220m-bimodal / 110m-embedding) có cùng
+# 84,954,240 tham số ngoài embedding, nên so giữa chúng là so PRETRAIN thuần.
+BACKBONES="${BACKBONES:-\
+codebert=microsoft/codebert-base:cls \
+unixcoder=microsoft/unixcoder-base:cls \
+t5=Salesforce/codet5-base:mean \
+t5p=Salesforce/codet5p-220m-bimodal:mean \
+t5pe=Salesforce/codet5p-110m-embedding:mean}"
+
+MODES="${MODES:-none cwe latent_bottleneck latent_proto}"
+# RecAdam và AdamW là HAI NHÁNH cạnh nhau trong cùng fold, không phải hai đợt
+# chạy. Đặt cạnh nhau thì hiệu giữa chúng ghép cặp được theo fold và không dính
+# chênh lệch phần cứng.
+OPTIMIZERS="${OPTIMIZERS:-recadam adamw}"
+
+DATA_ROOT="${DATA_ROOT:-data/sven_python_folds_norm}"
+TARGET_LANG="${TARGET_LANG:-python}"
+PHASE1_DATA_PATH="${PHASE1_DATA_PATH:-data/train_ccpp_js.jsonl}"
+CWE_VOCAB="${CWE_VOCAB:-fixed4}"
+LAMBDA_CWE="${LAMBDA_CWE:-0.2}"
+NUM_LATENT="${NUM_LATENT:-8}"
+LATENT_TEMPERATURE="${LATENT_TEMPERATURE:-0.1}"
+MAX_LENGTH="${MAX_LENGTH:-512}"
+BATCH_SIZE="${BATCH_SIZE:-16}"
+PHASE1_EPOCHS="${PHASE1_EPOCHS:-15}"
+PHASE2_EPOCHS="${PHASE2_EPOCHS:-30}"
+LR="${LR:-2e-5}"
+PATIENCE="${PATIENCE:-5}"
+MIN_EPOCHS="${MIN_EPOCHS:-3}"
+PHASE1_EXTRA="${PHASE1_EXTRA:-}"
+PHASE2_EXTRA="${PHASE2_EXTRA:-}"
+
+PHASE1_STORE="model/$RUN_NAME/phase1"
+
+shared_args() {  # $1 = model_name, $2 = pooling
+  echo --seed "$SEED" --batch_size "$BATCH_SIZE" --eval_batch_size "$BATCH_SIZE" \
+       --max_length "$MAX_LENGTH" --truncation_strategy head_middle_tail \
+       --weight_decay 0.01 --patience "$PATIENCE" --min_epochs "$MIN_EPOCHS" \
+       --max_grad_norm 1.0 --num_workers 0 \
+       --data_root "$DATA_ROOT" --target_lang "$TARGET_LANG" \
+       --model_name "$1" --pooling "$2"
+}
+
+banner() {
+  echo ""
+  echo "################################################################"
+  echo "  $*"
+  echo "################################################################"
+}
+
+banner "MA TRAN — run $RUN_NAME · seed $SEED · fold: $FOLDS"
+echo "  backbone   : $(echo "$BACKBONES" | tr ' ' '\n' | cut -d= -f1 | tr '\n' ' ')"
+echo "  nhanh      : $MODES"
+echo "  optimizer  : $OPTIMIZERS"
+echo "  source     : $PHASE1_DATA_PATH   lambda $LAMBDA_CWE   vocab $CWE_VOCAB"
+echo "  target     : $DATA_ROOT ($TARGET_LANG)"
+echo "  Phase 1 kho: $PHASE1_STORE"
+
+# ---------------------------------------------------------------------------
+# Phase 1 — một lần cho mỗi (backbone, nhánh). Ngoài vòng fold, ngoài vòng
+# optimizer, vì nó không phụ thuộc cả hai.
+# ---------------------------------------------------------------------------
+banner "PHASE 1 — kho dung chung"
+for BB in $BACKBONES; do
+  LABEL="${BB%%=*}"; REST="${BB#*=}"; MODEL="${REST%%:*}"; POOL="${REST##*:}"
+  for MODE in $MODES; do
+    CKPT="$PHASE1_STORE/${LABEL}__${MODE}/seed_$SEED/best.pt"
+    if [[ -f "$CKPT" ]]; then
+      echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
+      continue
+    fi
+    mkdir -p "$(dirname "$CKPT")"
+    echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE ==="
+    $PYTHON -u src/train_transfer.py --phase phase1 \
+      --run_name "$RUN_NAME" --method_name "phase1_${LABEL}_${MODE}" \
+      --data_path "$PHASE1_DATA_PATH" \
+      --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
+      --latent_temperature "$LATENT_TEMPERATURE" \
+      --epochs "$PHASE1_EPOCHS" --learning_rate "$LR" --lambda_cwe "$LAMBDA_CWE" \
+      --checkpoint_path "$CKPT" \
+      $PHASE1_EXTRA \
+      $(shared_args "$MODEL" "$POOL") 2>&1 | tail -3
+    [[ -f "$CKPT" ]] || echo "  !! phase1 $LABEL/$MODE THAT BAI — moi nhanh cua no se bi bo qua"
+  done
+done
+
+# ---------------------------------------------------------------------------
+# Phase 2 — vòng ngoài là fold.
+# ---------------------------------------------------------------------------
+run_fold() {
+  local FOLD="$1"
+  banner "FOLD $FOLD"
+
+  # 1) baseline của TỪNG backbone, trước mọi nhánh: mọi Δ quy về nó.
+  for BB in $BACKBONES; do
+    local LABEL="${BB%%=*}" REST="${BB#*=}"; local MODEL="${REST%%:*}" POOL="${REST##*:}"
+    local RN="${RUN_NAME}_${LABEL}"
+    local RES="results/$RN/baseline/seed_$SEED"; mkdir -p "$RES"
+    if [[ -f "$RES/fold$FOLD.json" ]]; then
+      echo "=== fold $FOLD | $LABEL baseline | da co ==="; continue
+    fi
+    local CK="model/$RN/baseline/seed_$SEED/fold$FOLD"; mkdir -p "$CK"
+    echo "=== $(date -u '+%F %T') | fold $FOLD | $LABEL baseline ==="
+    $PYTHON -u src/train_baseline.py --phase train \
+      --run_name "$RN" --method_name baseline --fold "$FOLD" \
+      --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" --checkpoint_path "$CK/best.pt" \
+      $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
+      && $PYTHON -u src/train_baseline.py --phase infer \
+        --run_name "$RN" --method_name baseline --fold "$FOLD" \
+        --checkpoint_path "$CK/best.pt" \
+        $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
+      || echo "  !! $LABEL baseline fold$FOLD THAT BAI"
+    rm -rf "$CK"
+  done
+
+  # 2) mọi nhánh. Vòng trong là backbone nên với mỗi (nhánh, optimizer) thì các
+  #    backbone chạy liền nhau — dễ đọc "phương pháp này có phụ thuộc pretrained
+  #    không" ngay trong lúc chạy.
+  for MODE in $MODES; do
+    for OPT in $OPTIMIZERS; do
+      local SUFFIX=""; [[ "$OPT" == "adamw" ]] && SUFFIX="_adamw"
+      for BB in $BACKBONES; do
+        local LABEL="${BB%%=*}" REST="${BB#*=}"; local MODEL="${REST%%:*}" POOL="${REST##*:}"
+        local RN="${RUN_NAME}_${LABEL}" ARM="transfer_${MODE}${SUFFIX}"
+        local RES="results/$RN/$ARM/seed_$SEED"; mkdir -p "$RES"
+        if [[ -f "$RES/fold$FOLD.json" ]]; then
+          echo "=== fold $FOLD | $LABEL/$MODE/$OPT | da co ==="; continue
+        fi
+        local SRC="$PHASE1_STORE/${LABEL}__${MODE}/seed_$SEED/best.pt"
+        if [[ ! -f "$SRC" ]]; then
+          echo "  fold $FOLD $LABEL/$MODE/$OPT bo qua — thieu Phase 1 $SRC"; continue
+        fi
+        local CK="model/$RN/$ARM/seed_$SEED/fold$FOLD"; mkdir -p "$CK"
+        echo "=== $(date -u '+%F %T') | fold $FOLD | $LABEL/$MODE/$OPT ==="
+        $PYTHON -u src/train_transfer.py --phase phase2 \
+          --run_name "$RN" --method_name "$ARM" --fold "$FOLD" \
+          --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
+          --latent_temperature "$LATENT_TEMPERATURE" \
+          --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" \
+          --phase2_optimizer "$OPT" \
+          --source_checkpoint "$SRC" --checkpoint_path "$CK/best.pt" \
+          --output_dir "results/$RN/$ARM" \
+          $PHASE2_EXTRA \
+          $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
+          && $PYTHON -u src/train_transfer.py --phase test \
+            --run_name "$RN" --method_name "$ARM" --fold "$FOLD" \
+            --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
+            --checkpoint_path "$CK/best.pt" --output_dir "results/$RN/$ARM" \
+            $(shared_args "$MODEL" "$POOL") > /dev/null 2>&1 \
+          || echo "  !! $LABEL/$MODE/$OPT fold$FOLD THAT BAI"
+        rm -rf "$CK"
+      done
+    done
+  done
+
+  banner "BANG SAU FOLD $FOLD"
+  $PYTHON src/report_fold.py --prefix "${RUN_NAME}_" --seed "$SEED" || true
+}
+
+for FOLD in $FOLDS; do run_fold "$FOLD"; done
+
+banner "XONG — fold: $FOLDS"
+$PYTHON src/report_fold.py --prefix "${RUN_NAME}_" --seed "$SEED" || true
+touch "${DONE_FLAG:-/tmp/${RUN_NAME}_DONE}"

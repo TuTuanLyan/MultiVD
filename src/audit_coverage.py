@@ -53,7 +53,7 @@ def fold_set_of(scores):
 
 
 def main():
-    roots = ["results", "results_vast", "results_vast2"]
+    roots = ["results", "results_vast", "results_vast2", "results_ntat", "results_ntat2"]
     runs = defaultdict(dict)
     for root in roots:
         for run_dir in sorted(glob.glob(f"{root}/*")):

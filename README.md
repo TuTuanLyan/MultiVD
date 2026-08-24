@@ -7,6 +7,19 @@ MultiVD triển khai và so sánh hai phương pháp phát hiện lỗ hổng Py
 
 Chi tiết học thuật và công thức nằm trong [METHOD.md](METHOD.md).
 
+## Bản đồ tài liệu
+
+| file | vai trò | đọc khi nào |
+| --- | --- | --- |
+| [FACTS.md](FACTS.md) | **cấu hình và số liệu**, không một câu diễn giải | luôn luôn, trước khi thiết kế thí nghiệm |
+| [DEAD_ENDS.md](DEAD_ENDS.md) | giả thuyết đã bị bác + phép đo bác nó | trước khi bắt đầu một hướng mới |
+| [METHOD.md](METHOD.md) | kiến trúc và công thức | khi cần biết pipeline làm gì |
+| `records/results_all.jsonl` | mọi kết quả từng chạy, 1025 dòng | khi cần một con số cụ thể |
+| `archive/RESULT_2026-08-23.md` | nhật ký dài kèm mọi lập luận, gồm cả những lần đã rút lại | **chỉ** để truy nguồn một con số — không đọc khi thiết kế thí nghiệm mới, nó là nguồn thiên kiến |
+
+Mọi bảng trong `FACTS.md` dựng lại được từ `records/results_all.jsonl` bằng
+`python src/report_paired.py --run <run>`. Không con số nào chép tay.
+
 ## 0. Trạng thái phiên bản
 
 Branch `v1-explicit-cwe4` đóng băng phiên bản dùng **CWE head tường minh 4 lớp**

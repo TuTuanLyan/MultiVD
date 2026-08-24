@@ -16,17 +16,18 @@ def build_backbone(model_name):
     T5-family checkpoints (CodeT5, CodeT5+) would otherwise drag in decoder
     weights that this classifier never runs.
     """
-    # Nhánh RIÊNG cho codet5p-*-embedding, khoá theo TÊN model để mọi backbone
-    # khác đi đúng đường cũ, không đổi một byte nào. Checkpoint đó đính kèm
-    # modeling file riêng nên AutoConfig thường sẽ treo ở prompt y/N; và
-    # AutoModel của nó trả về một vector 256 chiều đã chuẩn hoá chứ không phải
-    # chuỗi hidden states, nên pool_hidden_states không áp được.
+    # Nhánh RIÊNG cho codet5p-*-embedding và codet5p-*-bimodal, khoá theo TÊN model
+    # để mọi backbone khác đi đúng đường cũ, không đổi một byte nào. Hai checkpoint
+    # đó đính kèm modeling file riêng nên AutoConfig treo ở prompt y/N, và AutoModel
+    # của chúng trả về một vector 256 chiều đã chuẩn hoá chứ không phải chuỗi hidden
+    # states, nên pool_hidden_states không áp được.
     #
-    # Lấy `.encoder` của nó: cho ra (batch, seq, 768) đúng như các backbone khác,
-    # và có ĐÚNG 84,954,240 tham số ngoài embedding — bằng từng tham số với
-    # encoder của codet5p-220m. Nhờ vậy kiến trúc và cách đọc giữ nguyên, chỉ
-    # PRETRAIN là khác, tức tách được đúng biến cần tách.
-    if "codet5p" in model_name and model_name.endswith("embedding"):
+    # Lấy `.encoder` của chúng: cho ra (batch, seq, 768) đúng như các backbone khác.
+    # Đã kiểm cả ba checkpoint của họ CodeT5+ — codet5p-220m, codet5p-220m-bimodal,
+    # codet5p-110m-embedding — đều có ĐÚNG 84,954,240 tham số ngoài embedding và
+    # cùng shape output. Kiến trúc vì thế cố định tuyệt đối giữa ba bản, chỉ PRETRAIN
+    # là khác, tức tách được đúng biến cần tách.
+    if "codet5p" in model_name and model_name.endswith(("embedding", "bimodal")):
         return AutoModel.from_pretrained(model_name, trust_remote_code=True).encoder
 
     config = AutoConfig.from_pretrained(model_name)
