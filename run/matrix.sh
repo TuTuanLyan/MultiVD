@@ -205,11 +205,21 @@ for BB in $BACKBONES; do
       --epochs "$PHASE1_EPOCHS" --learning_rate "$LR" --lambda_cwe "$LAMBDA_CWE" \
       --checkpoint_path "$PART" \
       $PHASE1_EXTRA \
-      $(shared_args "$MODEL" "$POOL") 2>&1 | tail -3
+      $(shared_args "$MODEL" "$POOL") > "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>&1
+    tail -3 "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>/dev/null | sed "s/^/    /"
     if [[ -f "$PART" ]]; then
       mv "$PART" "$CKPT"
     else
-      echo "  !! phase1 $LABEL/$MODE THAT BAI — moi nhanh cua no se bi bo qua"
+      # Phase 1 hong PHAI tinh la hong, khong duoc im lang.
+      #
+      # Truoc day no chi in mot dong roi di tiep, va hau qua la: moi nhanh bi bo
+      # qua vi thieu checkpoint, khong job Phase 2 nao chay, bo dem hong van bang
+      # 0, matrix.sh thoat 0, va lop tren ghi ca khoi la DA XONG trong khi no sinh
+      # ra dung 0 ket qua. Da xay ra that: ca 9 Phase 1 cua khoi lambda-hoc-duoc
+      # chet vi src/ chua duoc day len may, va khoi do van duoc danh dau hoan thanh.
+      FAILED=$((FAILED + 1))
+      echo "  !! phase1 $LABEL/$MODE THAT BAI — xem $JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log"
+      tail -3 "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>/dev/null | sed "s/^/       /"
     fi
   done
 done
@@ -262,7 +272,8 @@ run_fold() {
         fi
         local SRC="$PHASE1_STORE/${LABEL}__${MODE}${PHASE1_TAG}/seed_$SEED/best.pt"
         if [[ ! -f "$SRC" ]]; then
-          echo "  fold $FOLD $LABEL/${MODE}${ARM_TAG}/$OPT bo qua — thieu Phase 1 $SRC"; continue
+          FAILED=$((FAILED + 1))
+          echo "  fold $FOLD $LABEL/${MODE}${ARM_TAG}/$OPT THAT BAI — thieu Phase 1 $SRC"; continue
         fi
         local CK="model/$RN/$ARM/seed_$SEED/fold$FOLD"; mkdir -p "$CK"
         echo "=== $(date -u '+%F %T') | fold $FOLD | $LABEL/${MODE}${ARM_TAG}/$OPT ==="
