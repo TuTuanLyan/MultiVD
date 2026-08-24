@@ -35,7 +35,9 @@ for M in "${MACHINES[@]}"; do
     echo \"  phase1=\$(ls $DIR/model/*/phase1/*/seed_*/best.pt 2>/dev/null | wc -l) ket_qua=\$(find $DIR/results -name 'fold*.json' 2>/dev/null | wc -l)\"
     nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader | sed 's/^/  GPU: /'
     grep '^=== ' $LOG 2>/dev/null | tail -1 | sed 's/^/  /'
-    grep -c 'THAT BAI' $LOG 2>/dev/null | sed 's/^/  so job THAT BAI: /'
+    # Chi dem tu lan khoi dong hang doi GAN NHAT. Tong tich luy trong file log
+    # gom ca cac dot da bi bo di, va doc nham no thanh 'dang hong' la sai.
+    awk '/HANG DOI QUA DEM/{n=0} /THAT BAI/{n++} END{print \"  job hong tu lan khoi dong gan nhat: \" n+0}' $LOG 2>/dev/null
   " 2>/dev/null | grep -v "AI agents:\|Welcome to vast\|Have fun")
   echo "${OUT:-  khong ket noi duoc}"
 done
