@@ -72,11 +72,13 @@ while true; do
       DETAIL="$DETAIL f$f=$c"
     done
 
-    # Khi mot khoi moi bat dau, no them nhanh vao fold 1 truoc, nen EXPECT tang va
-    # cac fold da xong cua khoi TRUOC bong trong nhu chua du. So lieu dung nhung
-    # cach doc sai — bao ro la "khoi moi", dung bao la "xong fold".
+    # "So nhanh mong doi" duoc suy la lon nhat qua cac fold, va no BO LEN DAN khi
+    # mot khoi moi dang lap day fold 1. Nen moi lan no doi, hai cach doc deu sai:
+    # goi la "xong fold" thi bon fold cu bong trong nhu thut lui, con goi la "khoi
+    # moi bat dau" thi lan thu hai tro di lai sai. Khi nguong con dang doi thi chi
+    # bao TIEN DO tho, khong ket luan gi — cho no on dinh roi hay noi "xong fold".
     if [[ "${PREV[$NAME.expect]:--1}" != "$EXPECT" && "${PREV[$NAME.expect]:--1}" != "-1" ]]; then
-      echo "[$NAME] KHOI MOI bat dau — so nhanh moi fold tang ${PREV[$NAME.expect]} -> $EXPECT.$DETAIL"
+      echo "[$NAME] tien do khoi dang chay — nhanh moi fold ${PREV[$NAME.expect]} -> $EXPECT.$DETAIL"
     elif [[ "${PREV[$NAME.folds]:--1}" != "$COMPLETE" && "${PREV[$NAME.folds]:--1}" != "-1" ]]; then
       echo "[$NAME] XONG FOLD — da du $COMPLETE/5 fold (moi fold $EXPECT nhanh:$DETAIL). Keo ve: bash scripts/pull_results.sh"
     fi
