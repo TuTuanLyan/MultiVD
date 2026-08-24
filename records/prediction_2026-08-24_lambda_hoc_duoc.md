@@ -102,3 +102,50 @@ tiêu **downstream** — Karpukhin & Savchenko arXiv:2605.07756 (~30% chi phí t
 BiSSL arXiv:2410.02387 (xem RESEARCH §4.4). Kết quả này cũng cho một dự đoán kiểm được:
 nếu λ_eff ≈ 101 thì Phase 2 của nhánh `cwe_uw` phải **tệ hơn** cả λ=0.2, vì nó nằm xa
 hơn nữa về phía trọng số cao trên một trục mà số liệu đã cho thấy càng thấp càng tốt.
+
+---
+
+# KẾT QUẢ ĐỦ 9 NHÁNH — 25/08/2026
+
+## λ_eff học được, tách đôi hoàn hảo theo loại tín hiệu
+
+| backbone | `cwe` | `latent_bottleneck` | `latent_proto` |
+| --- | --- | --- | --- |
+| t5 | 101.19 | 33.21 | **1.06** |
+| t5p | 89.15 | 105.47 | **1.04** |
+| t5pe | 87.58 | 60.59 | **1.07** |
+
+**Dự đoán 1 (nhánh có nhãn học λ nhỏ hơn): BỊ BÁC ở 3/3 backbone, ngược chiều, cách nhau
+30–100 lần.**
+
+## Vì sao λ_eff của `latent_proto` bằng ~1.05 ở cả ba
+
+Từ `w = 0.5/L`: `λ_eff = w_aux/w_bin = L_bin / L_aux`. Nghĩa là uncertainty weighting
+**chỉ làm đúng một việc — cân bằng hai loss** — và λ nó "học được" hoàn toàn bị quyết
+định bởi tỉ số hai loss lúc hội tụ. Nó không mang thông tin gì về transfer.
+
+Head `latent_proto` dùng Sinkhorn với gán nhãn cân bằng theo thiết kế, nên loss của nó
+nằm cùng thang với cross-entropy nhị phân ⟹ tỉ số ≈ 1. Hai head dùng nhãn CWE thì
+thuộc lòng được task 4 lớp trên 1284 dòng, loss về ~0.006 ⟹ tỉ số ~100.
+
+## Dự đoán 2 (λ_eff cao phải tệ hơn λ=0.2): ĐƯỢC XÁC NHẬN, 11/12 ô
+
+Trục λ đủ ba điểm, `none` cùng optimizer làm đối chứng (fold 1–2):
+
+| CodeT5-base, RecAdam | λ=0.05 | λ=0.2 | λ≈101 |
+| --- | --- | --- | --- |
+| `cwe` | −0.0262 | −0.0723 | **−0.3693** |
+| `latent_bottleneck` | −0.0196 | −0.0365 | **−0.3817** (λ≈33) |
+
+## Điều quan trọng nhất: hai loại tín hiệu có DẠNG ĐƯỜNG CONG λ KHÁC NHAU
+
+- **Tín hiệu có nhãn** (`cwe`, `latent_bottleneck`): **đơn điệu giảm theo λ** trên cả ba
+  điểm đã đo. Càng đặt nhiều trọng số càng hại. Không có cực trị trong khoảng đã quét —
+  giá trị tốt nhất là giá trị nhỏ nhất từng thử.
+- **Tín hiệu không nhãn** (`latent_proto`): **có cực đại trong khoảng**, quanh λ≈0.2.
+  t5pe/RecAdam: +0.0069 (λ=0.05) → **+0.0299** (λ=0.2) → +0.0034 (λ≈1.07).
+  t5p/RecAdam: +0.0231 → **+0.0297** → −0.0006.
+
+Đây là khác biệt **về chất**, không phải về lượng. Một tín hiệu có cực đại nội tại là
+tín hiệu thật sự có ích ở đúng trọng số; một tín hiệu đơn điệu giảm là tín hiệu mà cách
+tốt nhất là bớt đi. Đây là lần đầu dự án thấy một đường cong λ có đỉnh.
