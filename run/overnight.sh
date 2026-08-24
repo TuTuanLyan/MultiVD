@@ -72,9 +72,10 @@ free_disk_if_needed() {
   fi
 }
 
-matrix() {  # $1 = lambda, $2 = arm tag, $3 = modes, $4 = seed
+matrix() {  # $1 = lambda, $2 = arm tag, $3 = modes, $4 = seed, $5 = cờ thêm cho Phase 1
   env RUN_NAME="$RUN_NAME" SEED="$4" FOLDS="$FOLDS" BACKBONES="$BACKBONES" \
       MODES="$3" OPTIMIZERS="recadam adamw" LAMBDA_CWE="$1" ARM_TAG="$2" \
+      PHASE1_EXTRA="${5:-}" \
       CWE_VOCAB=fixed4 DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
       PHASE1_DATA_PATH=data/train_ccpp_js.jsonl \
       PYTHON="$PYTHON" HF_HOME="$HF_HOME" \
@@ -165,9 +166,28 @@ step "02_measure020" measure ""   "$SEED"
 step "03_lambda005"  matrix 0.05 "_l05" "cwe latent_bottleneck latent_proto"      "$SEED"
 step "04_measure005" measure "_l05" "$SEED"
 
+# 5. λ HỌC ĐƯỢC — Kendall/Gal/Cipolla, CVPR 2018, arXiv:1705.07115.
+#
+# Hai vô hướng log-phương sai thay cho hằng số λ. Khởi tạo tại đúng λ=0.2 nên đây
+# là mở rộng thật sự của khối 1, không phải một điểm xuất phát khác.
+#
+# `--aux_weight_lr 1e-2` KHÔNG phải con số tuỳ tiện: với lr chung 2e-5, đo được là
+# qua cả một Phase 1 hai vô hướng đó chỉ dịch ~0.024, tức λ_eff đổi ~2% và thí
+# nghiệm trả về một kết quả null vô nghĩa. Mô phỏng 1200 bước cho thấy 1e-2 tới
+# đúng điểm cân bằng mà 5e-2 cũng tới.
+#
+# Baseline và `none` dùng lại của khối 1: với aux_mode=none thì không có loss phụ
+# để cân, nên cách tính trọng số không đổi được gì.
+#
+# Đại lượng đáng đọc không phải riêng F1 mà là **λ_eff mà mô hình tự chọn**, ghi
+# vào log mỗi epoch và vào checkpoint — nó so trực tiếp được với 0.2 và 0.05.
+step "05_lambda_hoc_duoc" matrix 0.2 "_uw" "cwe latent_bottleneck latent_proto" "$SEED" \
+     "--aux_weight_mode uncertainty --aux_weight_lr 1e-2"
+step "06_measure_uw" measure "_uw" "$SEED"
+
 free_disk_if_needed
 
-# 5+. Seed phụ — CHỈ chạy khi EXTRA_SEEDS được đặt tường minh. Đây là cổng cuối
+# 7+. Seed phụ — CHỈ chạy khi EXTRA_SEEDS được đặt tường minh. Đây là cổng cuối
 # của quy trình sàng lọc, không phải thứ dùng để lấp GPU trống.
 for S in $EXTRA_SEEDS; do
   step "s${S}_lambda020"  matrix 0.2  ""     "none cwe latent_bottleneck latent_proto" "$S"

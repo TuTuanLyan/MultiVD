@@ -589,12 +589,49 @@ def run_phase1(args, device):
         val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
         args.truncation_strategy
     )
-    optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
-    )
+    aux_weighter = None
+    if getattr(args, "aux_weight_mode", "fixed") == "uncertainty":
+        if args.aux_mode == "none":
+            logger.info("aux_weight_mode=uncertainty nhung aux_mode=none — khong co loss phu "
+                        "de can, chay nhu binh thuong")
+        else:
+            from uncertainty_weighting import UncertaintyWeights
+            aux_weighter = UncertaintyWeights(init_lambda=args.lambda_cwe).to(device)
+            logger.info("lambda hoc duoc BAT | khoi tao tai lambda_eff=%.4f (dung bang --lambda_cwe, "
+                        "de day nay la mo rong that su cua baseline)", args.lambda_cwe)
+
+    param_groups = [
+        {"params": list(model.parameters()), "weight_decay": args.weight_decay},
+    ]
+    if aux_weighter is not None:
+        # KHONG weight decay tren hai vo huong log-phuong sai: decay se keo chung
+        # ve 0, tuc keo sigma^2 ve 1, tuc ap dat mot lambda cu the — dung thu ma
+        # thi nghiem nay dang co gang khong ap dat.
+        #
+        # VA learning rate RIENG, lon hon nhieu. Do truc tiep: voi lr chung 2e-5,
+        # Adam di ~lr moi buoc bat ke do lon gradient, nen qua ~1200 buoc cua mot
+        # Phase 1 that thi s chi dich duoc ~0.024 — lambda_eff doi ~2%. "Lambda hoc
+        # duoc" khi do that ra la lambda co dinh, va thi nghiem se tra ve mot ket
+        # qua null khong co y nghia gi. Thu don vi cho thay lr ~5e-2 hoi tu trong
+        # ~100 buoc.
+        param_groups.append({
+            "params": list(aux_weighter.parameters()),
+            "weight_decay": 0.0,
+            "lr": args.aux_weight_lr,
+        })
+    optimizer = torch.optim.AdamW(param_groups, lr=args.learning_rate)
+
     train_loop(
-        args, model, train_loader, val_loader, optimizer, device, "phase1", save_checkpoint
+        args, model, train_loader, val_loader, optimizer, device, "phase1", save_checkpoint,
+        aux_weighter=aux_weighter,
     )
+    if aux_weighter is not None:
+        d = aux_weighter.diagnostics()
+        logger.info("lambda hoc duoc KET THUC | lambda_eff %.4f (khoi tao %.4f) | s_bin %+.4f | s_aux %+.4f",
+                    d["lambda_eff"], args.lambda_cwe, d["s_binary"], d["s_aux"])
+        args.learned_lambda_eff = d["lambda_eff"]
+        args.learned_s_binary = d["s_binary"]
+        args.learned_s_aux = d["s_aux"]
 
     if args.lora_rank > 0:
         # The best checkpoint was written mid-training and still carries LoRA
@@ -1063,6 +1100,17 @@ def parse_args():
     recadam.add_argument("--anneal_t0_ratio", type=float, default=0.05,
                          help="anneal midpoint as a fraction of total Phase-2 steps")
     recadam.add_argument("--anneal_w", type=float, default=1.0, help="maximum target-task weight")
+    recadam.add_argument("--aux_weight_mode", choices=("fixed", "uncertainty"), default="fixed",
+                         help="fixed = dung hang so --lambda_cwe (mac dinh, duong chay khong doi). "
+                              "uncertainty = hoc trong so tung task theo Kendall/Gal/Cipolla "
+                              "(CVPR 2018, arXiv:1705.07115): hai vo huong log-phuong sai hoc "
+                              "cung luc voi trong so. Khoi tao tai dung --lambda_cwe nen day la "
+                              "mo rong that su cua baseline. Chi co tac dung o Phase 1")
+    recadam.add_argument("--aux_weight_lr", type=float, default=1e-2,
+                         help="learning rate RIENG cho hai vo huong log-phuong sai khi "
+                              "--aux_weight_mode uncertainty. Phai lon hon lr cua backbone: voi "
+                              "lr chung 2e-5 thi qua ca mot Phase 1 chung chi dich duoc ~0.024, "
+                              "tuc lambda gan nhu khong hoc gi")
     recadam.add_argument("--sam_rho", type=float, default=0.0,
                          help="Sharpness-Aware Minimization o Phase 2. 0 = tat (mac dinh, "
                               "duong chay khong doi). >0 bat, moi buoc 2 luot forward-backward "

@@ -47,7 +47,8 @@ def latent_diagnostics(assignments, cwe_targets, binary_labels, num_latent):
     return diagnostics
 
 
-def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max_grad_norm):
+def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max_grad_norm,
+                           aux_weighter=None):
     model.train()
     totals = Counter()
     examples = 0
@@ -63,7 +64,12 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
         vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
         aux_loss, assignment = auxiliary_loss(outputs, cwes, model.aux_mode,
             temperature=getattr(model, "latent_temperature", 0.1))
-        loss = vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
+        if aux_weighter is None:
+            loss = vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
+        else:
+            # λ học được (Kendall/Gal/Cipolla). Hai vô hướng log-phương sai nằm
+            # trong cùng optimizer, nên chúng được cập nhật cùng nhịp với trọng số.
+            loss, _ = aux_weighter(vul_loss, aux_loss)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
@@ -247,6 +253,7 @@ def train_loop(
     phase,
     save_checkpoint,
     pretrain_params=None,
+    aux_weighter=None,
 ):
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
@@ -266,8 +273,26 @@ def train_loop(
         train_started = time.perf_counter()
         if phase == "phase1":
             train = train_one_epoch_phase1(
-                model, train_loader, optimizer, device, args.lambda_cwe, args.max_grad_norm
+                model, train_loader, optimizer, device, args.lambda_cwe, args.max_grad_norm,
+                aux_weighter=aux_weighter,
             )
+            if aux_weighter is not None:
+                d = aux_weighter.diagnostics()
+                # λ_eff là đại lượng đáng đọc nhất của thí nghiệm này: nó nói mô
+                # hình MUỐN λ bằng bao nhiêu, so trực tiếp được với 0.2 và 0.05
+                # đã quét tay.
+                logger.info(
+                    "lambda hoc duoc | epoch %d | lambda_eff %.4f | w_bin %.4f | w_aux %.4f "
+                    "| s_bin %+.4f | s_aux %+.4f",
+                    epoch, d["lambda_eff"], d["w_binary"], d["w_aux"], d["s_binary"], d["s_aux"],
+                )
+                train["lambda_eff"] = d["lambda_eff"]
+                # Gan vao args NGAY moi epoch: save_checkpoint chay ngay sau day khi
+                # epoch nay la epoch tot nhat, nen dat sau vong lap thi checkpoint
+                # se khong mang gia tri nao.
+                args.learned_lambda_eff = d["lambda_eff"]
+                args.learned_s_binary = d["s_binary"]
+                args.learned_s_aux = d["s_aux"]
         elif phase == "phase2":
             train = train_one_epoch_phase2(
                 model,
