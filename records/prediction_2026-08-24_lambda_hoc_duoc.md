@@ -49,3 +49,56 @@ checkpoint dưới khoá `learned_lambda_eff`. Đọc bằng:
 ```
 grep "lambda hoc duoc KET THUC" <log>
 ```
+
+---
+
+# KẾT QUẢ — 25/08/2026, nhánh đầu tiên (`t5/cwe_uw`)
+
+## Dự đoán BỊ BÁC, và bác theo hướng ngược hẳn
+
+Dự đoán: `cwe` sẽ học được λ_eff **nhỏ**. Thực tế:
+
+| epoch | 1 | 4 | 7 | 10 | 13 | 15 |
+| --- | --- | --- | --- | --- | --- | --- |
+| λ_eff | 0.55 | 2.18 | 13.2 | 92.5 | 136.2 | **101.2** |
+
+Khởi tạo tại 0.2, kết thúc tại **101.19** — **gấp 500 lần**, đơn điệu tăng suốt 13 epoch.
+
+## Cơ chế, kiểm bằng giải tích rồi đối chiếu số đo
+
+Cực tiểu `exp(−s)·L + s/2` theo `s` cho `w = 0.5 / L`. Từ trọng số đo được:
+
+| | trọng số học được | ⟹ loss của task |
+| --- | --- | --- |
+| nhị phân | 0.7831 | **0.6385** |
+| phụ (CWE 4 lớp) | 79.24 | **0.00631** |
+
+`λ_eff = 79.24 / 0.7831 = 101.19` — khớp đúng con số ghi trong log.
+
+Nghĩa là: **head CWE 4 lớp trên 1284 dòng hạ loss về ~0.006, tức gần như thuộc lòng.**
+Uncertainty weighting đọc loss thấp là "task ít nhiễu, đáng tin" và dồn trọng số cho nó.
+Task nhị phân kẹt ở 0.64 nên bị bỏ rơi.
+
+Hệ quả đo được: **val Macro-F1 của Phase 1 tụt còn 0.5652**, so với **0.6350** của cùng
+nhánh ở λ cố định. Phase 1 gần như ngừng học chính task cần học.
+
+## Điều này chứng minh
+
+Đúng giới hạn đã ghi trước khi chạy: **σ cân bằng loss huấn luyện, không nhìn thấy lợi
+ích transfer.** Và ở đây hai thứ đó không chỉ khác nhau mà **ngược nhau**:
+
+- Số liệu λ=0.05 đủ 5 fold nói `cwe` cần trọng số **THẤP HƠN** (giảm λ bốn lần cải thiện
+  6/6 ô, trung bình +0.0383).
+- Uncertainty weighting đẩy trọng số của đúng nhánh đó lên **CAO HƠN 500 lần**.
+
+Không phải lỗi cài đặt — đó là hành vi đúng của công thức, và công thức đang tối ưu sai
+đại lượng. Một task phụ **dễ thuộc lòng** luôn được ưu ái, bất kể nó có chuyển giao được
+gì hay không.
+
+## Hệ quả cho hướng đi
+
+Loại bỏ uncertainty weighting cho bối cảnh này. Hướng còn lại là bilevel căn theo mục
+tiêu **downstream** — Karpukhin & Savchenko arXiv:2605.07756 (~30% chi phí thêm) hoặc
+BiSSL arXiv:2410.02387 (xem RESEARCH §4.4). Kết quả này cũng cho một dự đoán kiểm được:
+nếu λ_eff ≈ 101 thì Phase 2 của nhánh `cwe_uw` phải **tệ hơn** cả λ=0.2, vì nó nằm xa
+hơn nữa về phía trọng số cao trên một trục mà số liệu đã cho thấy càng thấp càng tốt.
