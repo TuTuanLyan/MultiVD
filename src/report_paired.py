@@ -51,6 +51,21 @@ def load(path=RECORDS, metric="test_macro_f1_at_0.5"):
     return table, meta
 
 
+def reference_none(arm):
+    """Nhánh `none` nào là đối chứng ĐÚNG của nhánh này.
+
+    Giá trị gia tăng của head phụ phải so TRONG CÙNG optimizer. Ghép
+    `cwe_adamw` với `none` bản RecAdam là trộn hai biến — chênh lệch khi đó gồm
+    cả tác dụng của head phụ lẫn tác dụng của việc đổi optimizer, và không tách
+    ra được nữa.
+
+    λ thì ngược lại: `none` KHÔNG phụ thuộc λ, vì src/train.py cho aux_loss =
+    None khi aux_mode=none nên λ không xuất hiện trong hàm loss. Hậu tố λ vì thế
+    bị bỏ qua, và mọi giá trị λ dùng chung một `none`.
+    """
+    return "transfer_none" + ("_adamw" if arm.endswith("_adamw") else "")
+
+
 def describe(deltas):
     """n, trung bình, số fold dương, sd, và giá trị sau khi bỏ fold cực đoan."""
     values = [v for _, v in deltas]
@@ -194,11 +209,16 @@ def main():
     if none_key in table:
         print("\n  giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold:")
         for arm in arms:
-            if arm == "transfer_none":
+            if arm.startswith("transfer_none"):
+                continue
+            ref = reference_none(arm)
+            ref_key = (args.run, ref, args.seed)
+            if ref_key not in table:
+                print(f"  {arm.replace('transfer_',''):<34}  thiếu {ref} để so")
                 continue
             key = (args.run, arm, args.seed)
-            print(line(arm.replace("transfer_", "") + "  vs none",
-                       pair(table[none_key], table[key], False)))
+            print(line(arm.replace("transfer_", "") + f"  vs {ref.replace('transfer_','')}",
+                       pair(table[ref_key], table[key], False)))
     else:
         print("\n  ⚠ thiếu nhánh `none` → không tách được 'pretrain có tác dụng'"
               " khỏi 'head phụ có tác dụng'")
