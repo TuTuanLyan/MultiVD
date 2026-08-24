@@ -326,8 +326,22 @@ trong lịch sử git ở commit `644dc46`.
 
 ## 12. Việc còn dở
 
-**Đang chạy** — ma trận reset trên `ntat2` (RTX 4080S): 3 backbone họ CodeT5 (`t5`, `t5p` bimodal,
-`t5pe`) × 4 nhánh × 2 optimizer × 5 fold, seed 42, λ=0.2. 12 Phase 1 + 135 job.
+**Đang chạy** (cập nhật 24/08). Ma trận reset, chia theo backbone — **mỗi backbone giữ trọn
+5 fold × 2 λ × 2 optimizer và baseline của chính nó trên MỘT máy**, nên không phép so nào vắt qua
+phần cứng.
+
+| máy | GPU | backbone | thư mục | hàng đợi |
+| --- | --- | --- | --- | --- |
+| `ntat2` | RTX 4080S | `t5`, `t5p` (bimodal), `t5pe` | `/workspace/MultiVD` | `overnight_m1`, run `m1` |
+| `dung` (mượn) | RTX 5060 Ti | `codebert`, `unixcoder` | `/workspace/ntat_MultiVD` | `overnight_r1`, run `r1` |
+
+`run/overnight.sh` chạy 7 bước theo thứ tự ưu tiên: λ=0.2 → đo (độ nhọn + dịch chuyển) → λ=0.05 →
+đo → seed 7 λ=0.2 → đo → seed 7 λ=0.05. Danh sách dài hơn một đêm nên GPU không thể hết việc.
+`scripts/watchdog.sh` chạy **trên chính máy**, 5 phút một lần bật lại hàng đợi nếu nó chết, sau khi
+dọn tiến trình mồ côi ở cả tầng `matrix.sh` lẫn tầng python.
+
+Công cụ vận hành: `bash scripts/status.sh` (trạng thái ba máy), `bash scripts/pull_results.sh`
+(kéo kết quả về, gọi khi một khối xong; thêm `--with-phase1` trước khi trả máy).
 
 **Chưa chạy**
 
