@@ -22,7 +22,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/endpoints.sh"
 # nhãn|thư mục từ xa|thư mục local
 MACHINES=(
   "ntat2|/workspace/MultiVD|results_m1"
-  "dung|/workspace/ntat_MultiVD|results_r1"
 )
 
 for M in "${MACHINES[@]}"; do
@@ -62,7 +61,7 @@ for M in "${MACHINES[@]}"; do
   if (( WITH_PHASE1 )); then
     echo "  ... keo kho Phase 1 cua $NAME (nang, vai phut)"
     mkdir -p "model_run_$NAME"
-    rsync -az --partial -e "$SSH" "root@$HOST:$RDIR/model/" "model_$NAME/" 2>/dev/null \
+    rsync -az --partial -e "$SSH" "root@$HOST:$RDIR/model/" "model_run_$NAME/" 2>/dev/null \
       && du -sh "model_run_$NAME" | sed 's/^/  /'
   fi
 done

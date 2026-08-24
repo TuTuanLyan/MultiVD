@@ -17,7 +17,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/endpoints.sh"
 # nhãn|thư mục|file log|backbone
 MACHINES=(
   "ntat2|/workspace/MultiVD|/workspace/overnight_m1.log|t5 t5p t5pe"
-  "dung|/workspace/ntat_MultiVD|/workspace/ntat_MultiVD/overnight_r1.log|codebert unixcoder"
 )
 echo "=============== TRANG THAI $(date -u '+%F %T UTC') ==============="
 
@@ -56,5 +55,5 @@ done
 cat <<'TONG'
 
 Tong ket qua khi xong: 5 backbone x 5 fold x 9 (lambda 0.2) + 5 x 5 x 6 (lambda 0.05) = 375
-  ntat2: t5 t5p t5pe = 225   |   dung: codebert unixcoder = 150
+  ntat2: t5 t5p t5pe = 225. codebert/unixcoder da chay xong lam=0.2 tren `dung` (da tra may).
 TONG
