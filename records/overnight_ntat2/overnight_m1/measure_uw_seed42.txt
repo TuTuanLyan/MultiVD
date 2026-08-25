@@ -1,3 +1,198 @@
-bo qua t5: chua co model/m1/phase1/t5__cwe_uw/seed_42/best.pt
-bo qua t5p: chua co model/m1/phase1/t5p__cwe_uw/seed_42/best.pt
-bo qua t5pe: chua co model/m1/phase1/t5pe__cwe_uw/seed_42/best.pt
+===== do nhon: t5 (Salesforce/codet5-base, mean) =====
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### Salesforce/codet5-base   pooling=mean
+  checkpoint     model/m1/phase1/t5__cwe_uw/seed_42/best.pt
+  best epoch     15   val Macro-F1 0.5652
+  ||w||          1874.76
+  loss tại w     0.692239
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           -0.000000          +0.007741
+    0.050      0.050          0.050           -0.000002          +0.054423
+    0.100      0.100          0.100           -0.000004          +0.138565
+    0.200      0.200          0.200           -0.000009          +0.362953
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+===== do nhon: t5p (Salesforce/codet5p-220m-bimodal, mean) =====
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### Salesforce/codet5p-220m-bimodal   pooling=mean
+  checkpoint     model/m1/phase1/t5p__cwe_uw/seed_42/best.pt
+  best epoch     2   val Macro-F1 0.5214
+  ||w||          1828.37
+  loss tại w     0.690780
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           -0.000000          +0.001611
+    0.050      0.050          0.050           -0.000000          +0.014506
+    0.100      0.100          0.100           -0.000000          +0.044464
+    0.200      0.200          0.200           -0.000000          +0.146540
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+===== do nhon: t5pe (Salesforce/codet5p-110m-embedding, mean) =====
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### Salesforce/codet5p-110m-embedding   pooling=mean
+  checkpoint     model/m1/phase1/t5pe__cwe_uw/seed_42/best.pt
+  best epoch     2   val Macro-F1 0.5214
+  ||w||          1828.37
+  loss tại w     0.690780
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           -0.000000          +0.001611
+    0.050      0.050          0.050           -0.000000          +0.014506
+    0.100      0.100          0.100           -0.000000          +0.044464
+    0.200      0.200          0.200           -0.000000          +0.146540
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+===== dich chuyen trong so =====
+
+### t5_cwe  (Salesforce/codet5-base)
+  tensor so được: 100   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.004077
+  trung bình có trọng số theo số tham số:           0.011720
+  8 tensor dịch nhiều nhất:
+       0.0429   2,359,296  encoder.block.11.layer.1.DenseReluDense.wo.weight
+       0.0334   2,359,296  encoder.block.11.layer.1.DenseReluDense.wi.weight
+       0.0293   2,359,296  encoder.block.10.layer.1.DenseReluDense.wo.weight
+       0.0271         768  encoder.final_layer_norm.weight
+       0.0245   2,359,296  encoder.block.9.layer.1.DenseReluDense.wo.weight
+       0.0236     589,824  encoder.block.11.layer.0.SelfAttention.o.weight
+       0.0233     589,824  encoder.block.0.layer.0.SelfAttention.v.weight
+       0.0231   2,359,296  encoder.block.10.layer.1.DenseReluDense.wi.weight
+
+### t5_none  (Salesforce/codet5-base)
+  tensor so được: 100   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.003733
+  trung bình có trọng số theo số tham số:           0.011279
+  8 tensor dịch nhiều nhất:
+       0.0241   2,359,296  encoder.block.11.layer.1.DenseReluDense.wo.weight
+       0.0224     589,824  encoder.block.11.layer.0.SelfAttention.k.weight
+       0.0223     589,824  encoder.block.11.layer.0.SelfAttention.q.weight
+       0.0219     589,824  encoder.block.0.layer.0.SelfAttention.v.weight
+       0.0204     589,824  encoder.block.10.layer.0.SelfAttention.q.weight
+       0.0198     589,824  encoder.block.10.layer.0.SelfAttention.k.weight
+       0.0195     589,824  encoder.block.0.layer.0.SelfAttention.o.weight
+       0.0193   2,359,296  encoder.block.1.layer.1.DenseReluDense.wo.weight
+
+### t5p_cwe  (Salesforce/codet5p-220m-bimodal)
+  tensor so được: 99   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.001934
+  trung bình có trọng số theo số tham số:           0.008140
+  8 tensor dịch nhiều nhất:
+       0.0150     589,824  block.0.layer.0.SelfAttention.v.weight
+       0.0145   2,359,296  block.11.layer.1.DenseReluDense.wo.weight
+       0.0137     589,824  block.1.layer.0.SelfAttention.v.weight
+       0.0132     589,824  block.0.layer.0.SelfAttention.o.weight
+       0.0132     589,824  block.2.layer.0.SelfAttention.v.weight
+       0.0130     589,824  block.1.layer.0.SelfAttention.o.weight
+       0.0128     589,824  block.2.layer.0.SelfAttention.o.weight
+       0.0128     589,824  block.3.layer.0.SelfAttention.v.weight
+
+### t5p_none  (Salesforce/codet5p-220m-bimodal)
+  tensor so được: 99   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.004732
+  trung bình có trọng số theo số tham số:           0.019724
+  8 tensor dịch nhiều nhất:
+       0.0319     589,824  block.0.layer.0.SelfAttention.v.weight
+       0.0312     589,824  block.11.layer.0.SelfAttention.q.weight
+       0.0293     589,824  block.1.layer.0.SelfAttention.v.weight
+       0.0293     589,824  block.0.layer.0.SelfAttention.o.weight
+       0.0288   2,359,296  block.1.layer.1.DenseReluDense.wo.weight
+       0.0281     589,824  block.1.layer.0.SelfAttention.o.weight
+       0.0280   2,359,296  block.2.layer.1.DenseReluDense.wo.weight
+       0.0280   2,359,296  block.1.layer.1.DenseReluDense.wi.weight
+
+### t5pe_cwe  (Salesforce/codet5p-110m-embedding)
+  tensor so được: 99   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.001934
+  trung bình có trọng số theo số tham số:           0.008140
+  8 tensor dịch nhiều nhất:
+       0.0150     589,824  block.0.layer.0.SelfAttention.v.weight
+       0.0145   2,359,296  block.11.layer.1.DenseReluDense.wo.weight
+       0.0137     589,824  block.1.layer.0.SelfAttention.v.weight
+       0.0132     589,824  block.0.layer.0.SelfAttention.o.weight
+       0.0132     589,824  block.2.layer.0.SelfAttention.v.weight
+       0.0130     589,824  block.1.layer.0.SelfAttention.o.weight
+       0.0128     589,824  block.2.layer.0.SelfAttention.o.weight
+       0.0128     589,824  block.3.layer.0.SelfAttention.v.weight
+
+### t5pe_none  (Salesforce/codet5p-110m-embedding)
+  tensor so được: 99   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.004367
+  trung bình có trọng số theo số tham số:           0.018237
+  8 tensor dịch nhiều nhất:
+       0.0297     589,824  block.0.layer.0.SelfAttention.v.weight
+       0.0282     589,824  block.11.layer.0.SelfAttention.q.weight
+       0.0271     589,824  block.0.layer.0.SelfAttention.o.weight
+       0.0270     589,824  block.1.layer.0.SelfAttention.v.weight
+       0.0266   2,359,296  block.1.layer.1.DenseReluDense.wo.weight
+       0.0261   2,359,296  block.1.layer.1.DenseReluDense.wi.weight
+       0.0260   2,359,296  block.2.layer.1.DenseReluDense.wo.weight
+       0.0259     589,824  block.1.layer.0.SelfAttention.o.weight
+
+==============================================================
+ĐỐI CHIẾU
+==============================================================
+  t5_cwe       tổng thể 0.004077   trọng số 0.011720
+  t5_none      tổng thể 0.003733   trọng số 0.011279
+  t5p_cwe      tổng thể 0.001934   trọng số 0.008140
+  t5p_none     tổng thể 0.004732   trọng số 0.019724
+  t5pe_cwe     tổng thể 0.001934   trọng số 0.008140
+  t5pe_none    tổng thể 0.004367   trọng số 0.018237
+
+  Neo về pretrained chỉ đáng chạy nếu độ dịch ĐỦ LỚN để hai điểm neo
+  khác nhau thật. Dịch càng lớn thì neo hiện tại càng giữ mô hình ở xa
+  biểu diễn gốc — và đó chính là thứ §34.2 đo được là gây hại.
+
+{
+  "t5_cwe": {
+    "overall": 0.004077310418924051,
+    "weighted_mean": 0.01172040104397905,
+    "tensors": 100,
+    "skipped": 0
+  },
+  "t5_none": {
+    "overall": 0.0037329840542700446,
+    "weighted_mean": 0.011279004856587387,
+    "tensors": 100,
+    "skipped": 0
+  },
+  "t5p_cwe": {
+    "overall": 0.0019340764231532126,
+    "weighted_mean": 0.00814025389992675,
+    "tensors": 99,
+    "skipped": 0
+  },
+  "t5p_none": {
+    "overall": 0.00473239154772054,
+    "weighted_mean": 0.019724256337483637,
+    "tensors": 99,
+    "skipped": 0
+  },
+  "t5pe_cwe": {
+    "overall": 0.0019340764231532126,
+    "weighted_mean": 0.00814025389992675,
+    "tensors": 99,
+    "skipped": 0
+  },
+  "t5pe_none": {
+    "overall": 0.004366756735291104,
+    "weighted_mean": 0.018237411051840968,
+    "tensors": 99,
+    "skipped": 0
+  }
+}

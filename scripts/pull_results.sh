@@ -22,6 +22,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/endpoints.sh"
 # nhãn|thư mục từ xa|thư mục local
 MACHINES=(
   "ntat2|/workspace/MultiVD|results_m1"
+  "ntat|/workspace/MultiVD|results_n1"
 )
 
 for M in "${MACHINES[@]}"; do

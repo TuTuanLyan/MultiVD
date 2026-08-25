@@ -17,6 +17,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/endpoints.sh"
 # nhãn|thư mục|file log|backbone
 MACHINES=(
   "ntat2|/workspace/MultiVD|/workspace/overnight_m1.log|t5 t5p t5pe"
+  "ntat|/workspace/MultiVD|/workspace/overnight_n1.log|codebert unixcoder"
 )
 echo "=============== TRANG THAI $(date -u '+%F %T UTC') ==============="
 

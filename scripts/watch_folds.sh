@@ -19,6 +19,7 @@ INTERVAL="${INTERVAL:-600}"
 # nhãn|thư mục dự án|thư mục trạng thái
 MACHINES=(
   "ntat2|/workspace/MultiVD|/workspace/overnight_m1"
+  "ntat|/workspace/MultiVD|/workspace/overnight_n1"
 )
 
 declare -A PREV
