@@ -200,6 +200,25 @@ run_step() {
     04_measure005)
       step "$1" measure "_l05" "$SEED" ;;
 
+    # lambda=0.5 — MO RONG truc lambda len tren, cho ho RoBERTa.
+    #
+    # Ly do cu the tu so lieu, khong phai quet cho du: muc 4c do duoc rang bon o
+    # head co nhan cua codebert deu TOT HON o lambda=0.2 so voi 0.05, tuc duong
+    # cong cua no TANG trong khoang da do va cuc dai nam o lambda >= 0.2 — nguoc
+    # han ho CodeT5 (don dieu giam qua ba diem). Cuc dai do chua tung duoc quet.
+    #
+    # Va codebert la backbone DUY NHAT trong 5 cai ma head phu mang lai TOAN BO
+    # loi ich transfer (muc 4b: pretrain mot minh -0.0014, head phu +0.0542 5/5),
+    # nen day la cho mot diem lambda moi doi lai nhieu thong tin nhat.
+    #
+    # Baseline va `none` dung lai cua khoi lambda=0.2: ca hai doc lap voi lambda
+    # (src/train.py cho aux_loss=None khi aux_mode=none nen lambda khong xuat hien
+    # trong ham loss).
+    03b_lambda050)
+      step "$1" matrix 0.5 "_l50" "cwe latent_bottleneck latent_proto" "$SEED" ;;
+    04b_measure050)
+      step "$1" measure "_l50" "$SEED" ;;
+
     # SAM o PHASE 1 — Watts et al., ICML 2026, arXiv:2605.02105.
     #
     # Bai do dat SAM o giai doan PRETRAIN va bao checkpoint thu duoc quen it hon

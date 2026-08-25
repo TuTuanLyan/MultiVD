@@ -40,7 +40,7 @@ while true; do
       for f in 1 2 3 4 5; do
         printf 'f%s=%s ' \"\$f\" \"\$(find $DIR/results -name \"fold\$f.json\" 2>/dev/null | wc -l)\"
       done
-      printf 'steps=%s ' \"\$(ls $STATE/*.done 2>/dev/null | wc -l)\"
+      printf ' steps=%s ' \"\$(ls $STATE/*.done 2>/dev/null | wc -l)\"
       printf 'fail=%s ' \"\$(wc -l < $STATE/failed.txt 2>/dev/null || echo 0)\"
       printf 'alldone=%s ' \"\$(test -f $STATE/ALL_DONE && echo 1 || echo 0)\"
       printf 'queue=%s ' \"\$(ps -eo pid,args --no-headers | awk '\\\$2==\"bash\" && \\\$3 ~ /overnight/ {c++} END{print c+0}')\"
@@ -57,7 +57,12 @@ while true; do
     [[ "${PREV[$NAME.reach]:-1}" == "0" ]] && echo "[$NAME] ket noi lai duoc ($HOST:$PORT)"
     PREV[$NAME.reach]=1
 
-    val() { sed -n "s/.*$1=\([0-9]*\).*/\1/p" <<< "$OUT"; }
+    # Neo DAU CACH truoc ten khoa. Khong co no thi `.*` tham lam se khop lan
+    # xuat hien CUOI CUNG cua chuoi: `fail=` cung nam ben trong `jobfail=`, nen
+    # `val fail` tra ve gia tri cua jobfail. Hau qua do duoc: hai job Phase 2 tu
+    # choi chay dung nhu thiet ke lai sinh ra canh bao "BUOC HONG — tong 2"
+    # trong khi failed.txt rong tuyet doi.
+    val() { sed -n "s/.* $1=\([0-9]*\).*/\1/p" <<< "$OUT"; }
     STEPS=$(val steps); FAIL=$(val fail); ALL=$(val alldone); Q=$(val queue); JF=$(val jobfail)
 
     # Số nhánh mong đợi mỗi fold = số lớn nhất từng thấy ở một fold bất kỳ. Nó hội

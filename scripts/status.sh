@@ -62,7 +62,12 @@ if ps -eo pid,args --no-headers | awk '$2=="bash" && $3 ~ /overnight/ {f=1} END{
 else
   echo "  KHONG CO TIEN TRINH$([ -f /home/ntat/.multivd_state/overnight_l1/ALL_DONE ] && echo ' (da ALL_DONE)')"
 fi
-tail -1 /home/ntat/.multivd_state/overnight_l1.log 2>/dev/null | sed 's/^/  /'
+# Lay log MOI NHAT chu khong hardcode mot ten: hang doi local duoc phong lai
+# nhieu lan trong ngay voi STATE khac nhau (overnight_l1, overnight_l1_f23, ...),
+# va tro vao ten cu se hien dong cuoi cua mot hang doi DA KET THUC — o day no
+# hien mot loi cu phat 5 tieng truoc trong khi hang doi that dang chay binh thuong.
+LLOG=$(ls -t /home/ntat/.multivd_state/overnight_l1*.log 2>/dev/null | head -1)
+[[ -n "$LLOG" ]] && { echo "  ($(basename "$LLOG"))"; tail -1 "$LLOG" | sed 's/^/  /'; }
 
 cat <<'TONG'
 

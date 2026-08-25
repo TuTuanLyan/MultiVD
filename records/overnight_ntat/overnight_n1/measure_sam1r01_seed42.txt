@@ -1,0 +1,136 @@
+===== do nhon: codebert (microsoft/codebert-base, cls) =====
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### microsoft/codebert-base   pooling=cls
+  checkpoint     model/n1/phase1/codebert__cwe_sam1r01/seed_42/best.pt
+  best epoch     13   val Macro-F1 0.6209
+  ||w||          957.11
+  loss tại w     0.692417
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           +0.000001          +0.038471
+    0.050      0.050          0.050           +0.000005          +0.199999
+    0.100      0.100          0.100           +0.000009          +0.404892
+    0.200      0.200          0.200           +0.000018          +0.763033
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+===== do nhon: unixcoder (microsoft/unixcoder-base, cls) =====
+No upstream pair/repo/commit IDs: adjacent groups are protected, but distant near-duplicate families may still cross source train/validation
+
+### microsoft/unixcoder-base   pooling=cls
+  checkpoint     model/n1/phase1/unixcoder__cwe_sam1r01/seed_42/best.pt
+  best epoch     12   val Macro-F1 0.6792
+  ||w||          640.54
+  loss tại w     0.780445
+
+  che do rho: absolute   (||eps|| = rho, dung quy uoc bai bao)
+      rho    ||eps||  rho tuyet doi    ngẫu nhiên Δloss    đối kháng Δloss
+    0.010      0.010          0.010           +0.000001          +0.067074
+    0.050      0.050          0.050           +0.000004          +0.448704
+    0.100      0.100          0.100           +0.000008          +1.169542
+    0.200      0.200          0.200           +0.000016          +3.777007
+
+  Δloss càng lớn ở cùng rho -> cực tiểu càng NHỌN.
+  So CodeBERT với CodeT5+ ở cùng rho. SAM chỉ đáng chạy nếu backbone
+  đang hỏng (CodeT5+) nhọn hơn rõ rệt; nếu không thì §34 mới là chẩn đoán
+  đúng và SAM không chạm tới nó.
+===== dich chuyen trong so =====
+
+### codebert_cwe  (microsoft/codebert-base)
+  tensor so được: 198   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.008624
+  trung bình có trọng số theo số tham số:           0.011716
+  8 tensor dịch nhiều nhất:
+       0.0385         768  encoder.layer.11.attention.self.value.bias
+       0.0366         768  encoder.layer.5.attention.self.value.bias
+       0.0259         768  encoder.layer.6.attention.self.value.bias
+       0.0228         768  encoder.layer.8.attention.self.value.bias
+       0.0222     589,824  encoder.layer.1.attention.output.dense.weight
+       0.0220         768  encoder.layer.10.attention.self.value.bias
+       0.0213     589,824  encoder.layer.2.attention.output.dense.weight
+       0.0212   2,359,296  encoder.layer.11.output.dense.weight
+
+### codebert_none  (microsoft/codebert-base)
+  tensor so được: 198   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.008802
+  trung bình có trọng số theo số tham số:           0.011894
+  8 tensor dịch nhiều nhất:
+       0.0364         768  encoder.layer.5.attention.self.value.bias
+       0.0357         768  encoder.layer.6.attention.self.value.bias
+       0.0293         768  encoder.layer.11.attention.self.value.bias
+       0.0278         768  encoder.layer.8.attention.self.value.bias
+       0.0242         768  embeddings.token_type_embeddings.weight
+       0.0234         768  encoder.layer.4.attention.self.value.bias
+       0.0232         768  encoder.layer.9.attention.self.value.bias
+       0.0231         768  encoder.layer.7.attention.self.value.bias
+
+### unixcoder_cwe  (microsoft/unixcoder-base)
+  tensor so được: 198   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.011629
+  trung bình có trọng số theo số tham số:           0.012480
+  8 tensor dịch nhiều nhất:
+       0.0238     787,968  embeddings.position_embeddings.weight
+       0.0227     589,824  encoder.layer.0.attention.self.value.weight
+       0.0217     589,824  encoder.layer.0.attention.output.dense.weight
+       0.0213     589,824  encoder.layer.1.attention.self.value.weight
+       0.0210     589,824  encoder.layer.1.attention.output.dense.weight
+       0.0202     589,824  encoder.layer.2.attention.output.dense.weight
+       0.0201     589,824  encoder.layer.2.attention.self.value.weight
+       0.0199     589,824  encoder.layer.3.attention.output.dense.weight
+
+### unixcoder_none  (microsoft/unixcoder-base)
+  tensor so được: 198   bỏ qua: 0
+  độ dịch TỔNG THỂ (chuẩn Frobenius toàn backbone): 0.011528
+  trung bình có trọng số theo số tham số:           0.012234
+  8 tensor dịch nhiều nhất:
+       0.0262     787,968  embeddings.position_embeddings.weight
+       0.0220     589,824  encoder.layer.0.attention.self.value.weight
+       0.0211     589,824  encoder.layer.0.attention.output.dense.weight
+       0.0209     589,824  encoder.layer.1.attention.self.value.weight
+       0.0206     589,824  encoder.layer.1.attention.output.dense.weight
+       0.0203     589,824  encoder.layer.3.attention.output.dense.weight
+       0.0200     589,824  encoder.layer.2.attention.self.value.weight
+       0.0199     589,824  encoder.layer.2.attention.output.dense.weight
+
+==============================================================
+ĐỐI CHIẾU
+==============================================================
+  codebert_cwe tổng thể 0.008624   trọng số 0.011716
+  codebert_none tổng thể 0.008802   trọng số 0.011894
+  unixcoder_cwe tổng thể 0.011629   trọng số 0.012480
+  unixcoder_none tổng thể 0.011528   trọng số 0.012234
+
+  Neo về pretrained chỉ đáng chạy nếu độ dịch ĐỦ LỚN để hai điểm neo
+  khác nhau thật. Dịch càng lớn thì neo hiện tại càng giữ mô hình ở xa
+  biểu diễn gốc — và đó chính là thứ §34.2 đo được là gây hại.
+
+{
+  "codebert_cwe": {
+    "overall": 0.008624099539590075,
+    "weighted_mean": 0.011715920468084189,
+    "tensors": 198,
+    "skipped": 0
+  },
+  "codebert_none": {
+    "overall": 0.008801826756949434,
+    "weighted_mean": 0.011894344249984288,
+    "tensors": 198,
+    "skipped": 0
+  },
+  "unixcoder_cwe": {
+    "overall": 0.011629090868961698,
+    "weighted_mean": 0.012479841135443514,
+    "tensors": 198,
+    "skipped": 0
+  },
+  "unixcoder_none": {
+    "overall": 0.011527587977756694,
+    "weighted_mean": 0.012233509542000951,
+    "tensors": 198,
+    "skipped": 0
+  }
+}
