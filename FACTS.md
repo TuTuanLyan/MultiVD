@@ -478,7 +478,21 @@ ghép cặp theo fold. `ntat`, seed 42.
 codebert (mục 4b: `cwe` và `latent_bottleneck` dương 5/5 fold) và chỉ giúp nhẹ nhánh vốn yếu. Biên
 độ nhỏ so với sd giữa fold (0.014–0.041), và chỉ hai ô chạm p=0.0625 — **cả hai đều âm**.
 
-**Điều đáng chú ý hơn con số: `none` bằng đúng không.** SAM đổi hẳn checkpoint Phase 1 của
+**Đối chiếu họ CodeT5 — `none` KHÔNG bằng không.** Cùng phép so, trên `t5pe`, ρ=0.05, máy local, đủ 5 fold:
+
+| | Δ | fold dương | p |
+| --- | --- | --- | --- |
+| `t5pe/none` RecAdam | **+0.0293** | 4/5 | 0.1250 |
+| `t5pe/none` AdamW | +0.0056 | 3/5 | 0.4375 |
+
+Từng fold của cột RecAdam: +0.0330, +0.0264, +0.0340, +0.0531, **−0.0002**. Bốn fold dương chắc
+chắn và một fold **hoà tuyệt đối** — không phải một fold đi ngược. Nhưng p=0.1250 chứ không chạm mức
+sàn 0.0625, chỉ một backbone, và AdamW không có gì. **Đáng theo tiếp, chưa đủ để kết luận.**
+
+Cảnh báo về n, ghi lại vì nó lặp: ô này là +0.0311 (3/3) ở n=3 và +0.0366 (4/4) ở n=4 trước khi về
++0.0293 (4/5) ở n=5. Ngày 25/08 có **năm** hình dạng co lại khi thêm fold.
+
+**Điều đáng chú ý hơn con số: `none` của họ RoBERTa bằng đúng không.** SAM đổi hẳn checkpoint Phase 1 của
 `unixcoder/none` (val nguồn 0.7023 → 0.6944) mà Δ transfer **không nhúc nhích** qua 5 fold. Nên tác
 dụng của SAM ở Phase 1 — dù dương hay âm — chỉ xuất hiện **khi có head phụ**, tức nó tác động qua
 việc thay đổi cách tín hiệu phụ định hình biểu diễn, không phải qua độ phẳng tự thân.
