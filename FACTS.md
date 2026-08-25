@@ -249,6 +249,36 @@ thành phần đảo ngược nhau:
 Câu "transfer chỉ chạy được với họ RoBERTa" trong tài liệu cũ vì thế **gộp hai cơ chế khác nhau vào
 một tên**. Đây là seed 42, một bộ fold — chưa loại trừ được may rủi giữa seed.
 
+## 4c. Trục λ trên họ RoBERTa — ngược chiều họ CodeT5
+
+`ntat`, seed 42, đủ 5 fold ở **cả hai** giá trị λ. Giá trị riêng của head phụ (vs `none`, cùng optimizer):
+
+| | λ=0.2 | λ=0.05 | |
+| --- | --- | --- | --- |
+| codebert `cwe` RecAdam | **+0.0542 (5/5)** | +0.0411 (4/5) | λ=0.2 hơn |
+| codebert `cwe` AdamW | **+0.0325 (5/5)** | +0.0283 (5/5) | λ=0.2 hơn |
+| codebert `latent_bottleneck` RecAdam | **+0.0514 (5/5)** | +0.0226 (4/5) | λ=0.2 hơn |
+| codebert `latent_bottleneck` AdamW | **+0.0322 (5/5)** | +0.0150 (4/5) | λ=0.2 hơn |
+| codebert `latent_proto` RecAdam | +0.0129 (3/5) | +0.0174 (4/5) | λ=0.05 hơn |
+| codebert `latent_proto` AdamW | +0.0145 (3/5) | +0.0076 (2/5) | λ=0.2 hơn |
+| unixcoder — cả 6 ô | ≈ 0 | ≈ 0 hoặc kém hơn | không đọc được |
+
+**Bốn ô head có nhãn của codebert: λ=0.2 hơn λ=0.05 ở cả 4.** Họ CodeT5 thì ngược — giảm λ từ 0.2
+xuống 0.05 cải thiện `cwe` và `latent_bottleneck` ở 6/6 ô. Nên trên trục λ, hai họ backbone đi
+**ngược chiều nhau** cho cùng một loại head phụ:
+
+| | dạng đường cong λ của head **có nhãn** |
+| --- | --- |
+| họ CodeT5 (3 điểm: 0.05, 0.2, ≈101) | **đơn điệu giảm** — tốt nhất là nhỏ nhất từng thử |
+| codebert (2 điểm: 0.05, 0.2) | **tăng** trong khoảng này — cực đại nằm ở λ ≥ 0.2, chưa quét tới |
+
+**Điều này bác một con số vẫn được trích trong tài liệu cũ**: "CodeBERT `cwe` head phụ +0.0328 (5/5)
+ở λ=0.05 so với +0.0114 (3/5) ở λ=0.2". Trong ma trận reset, cùng backbone và cùng bộ fold, kết quả
+đảo chiều. Số cũ đến từ run `fam2_*`, mà mục 9 đã ghi là có một nhánh Phase 1 hỏng.
+
+Việc chưa làm: quét λ **lớn hơn 0.2** cho codebert. Cực đại của nó nằm ngoài khoảng đã đo, và đó là
+backbone duy nhất trong 5 cái mà head phụ mang lại toàn bộ lợi ích transfer (mục 4b).
+
 ## 5. Độ nhọn cực tiểu Phase 1
 
 Nhánh `cwe`, seed 42. `‖ε‖ = ρ` tuyệt đối, chuẩn L2 toàn cục, hướng đối kháng `ρ·g/‖g‖` — chính
@@ -563,9 +593,8 @@ Công cụ vận hành: `bash scripts/status.sh` (trạng thái ba máy), `bash 
   có run nào**. Đây là ô trống đáng giá nhất hiện tại: ICML 2026 (arXiv:2605.02105) đo SAM ở giai
   đoạn **pretrain** cho "quên ít hơn tới 80%" trên mô hình 20M–150M tham số, còn mọi run SAM của
   dự án — kể cả khối 07 đang chạy — đều ở Phase 2. Bài đó **không** so trực tiếp hai chỗ đặt.
-- **λ=0.05 trong ma trận reset.** Số cũ cho thấy λ là biến hạng nhất: CodeBERT `cwe` head phụ
-  +0.0328 (5/5) ở λ=0.05 so với +0.0114 (3/5) ở λ=0.2; t5pe `latent_bottleneck` +0.0091 (4/5) ở
-  λ=0.05 so với −0.0494 (0/5) ở λ=0.2.
+- ~~λ=0.05 trong ma trận reset~~ — đã chạy đủ 5 fold trên cả 5 backbone. Kết quả **bác** con số cũ
+  cho CodeBERT; xem mục 4c. Việc còn lại là quét λ **lớn hơn 0.2** cho codebert.
 - **Đa seed.** Toàn bộ mục 4 là seed 42. Seed 7 mới có fold 1–3 trên hai backbone.
 - **SAM ở Phase 2** — khối 07 trên `ntat2` đang chạy đủ 4 nhánh × 2 optimizer × 3 backbone lần đầu
   (trước đó mới có `none` và `cwe`, và run t5pe hỏng — mục 9). Chưa quét ρ, mới thử ρ=0.05.
