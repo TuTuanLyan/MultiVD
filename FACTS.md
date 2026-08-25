@@ -346,6 +346,37 @@ Ba điều rút ra:
    nguồn **không** dự báo Δ transfer, nên con số này chưa nói SAM-Phase-1 tốt hay xấu — Phase 2 mới
    trả lời.
 
+### 5c-1. SAM ở Phase 2 — đủ 5 fold, họ CodeT5, khối đầy đủ đầu tiên
+
+`ntat2`, ρ=0.05 (đúng thang cho họ này, mục 5b), 3 backbone × 4 nhánh × 2 optimizer × 5 fold.
+Δ = nhánh có SAM ở Phase 2 − nhánh tương ứng không SAM, **cùng checkpoint Phase 1**, ghép cặp theo fold.
+
+| nhóm | kết quả |
+| --- | --- |
+| head **có nhãn** (`cwe`, `latent_bottleneck`), 12 ô | 9/12 dương, trung bình **+0.0009** |
+| head **không nhãn** (`latent_proto`), 6 ô | **1/6 dương**, trung bình −0.0414 *(−0.0088 nếu bỏ ô sập)* |
+| **`none`**, 6 ô | 3/6, trung bình **+0.0020** |
+
+**SAM ở Phase 2 không làm gì.** +0.0009 và +0.0020 là số không. Thứ duy nhất nhất quán là nó **hại**
+`latent_proto` (1/6 ô dương).
+
+**Cú sập không phải nhiễu — nó tái lập.** `t5/latent_proto/RecAdam`:
+
+| fold | không SAM | + SAM | |
+| --- | --- | --- | --- |
+| 1 | 0.8090 | 0.8476 | +0.0386 |
+| 2 | 0.8417 | **0.4545** | −0.3872 |
+| 3 | 0.8420 | **0.5060** | −0.3360 |
+| 4 | 0.8880 | **0.5355** | −0.3525 |
+| 5 | 0.5577 | 0.5709 | +0.0132 |
+
+**3/5 fold sập xuống mức gần ngẫu nhiên.** Đây là hỏng lưỡng cực (chạy được hoặc sập), không phải
+nhiễu quanh một trung bình — nên sd 0.2116 của ô đó khiến Δ trung bình vô nghĩa. `docs/SAM_REFERENCE.md`
+đã cảnh báo SAM và RecAdam chồng lấn vì cả hai sửa bước cập nhật; đây là bằng chứng đo được.
+
+*Cảnh báo về n:* ở n=4 nhóm có-nhãn là 11/12 dương với trung bình +0.0098; ở n=5 còn 9/12 và +0.0009.
+Đây là lần thứ ba trong ngày 25/08 một hình dạng co lại khi thêm một fold.
+
 ### 5c-2. SAM ở Phase 1 có giúp transfer không — đủ 5 fold, họ RoBERTa
 
 Δ = nhánh có SAM ở Phase 1 (ρ=0.01) − nhánh tương ứng không SAM, **cùng máy, cùng λ, cùng Phase 2**,
