@@ -276,6 +276,16 @@ xuống 0.05 cải thiện `cwe` và `latent_bottleneck` ở 6/6 ô. Nên trên 
 ở λ=0.05 so với +0.0114 (3/5) ở λ=0.2". Trong ma trận reset, cùng backbone và cùng bộ fold, kết quả
 đảo chiều. Số cũ đến từ run `fam2_*`, mà mục 9 đã ghi là có một nhánh Phase 1 hỏng.
 
+**λ=0.5 (đo 25/08, `ntat`):** hai head dùng nhãn chịu được — `cwe` val nguồn 0.6393, `latent_bottleneck`
+0.6363. Head **không nhãn** thì sập: `latent_proto` dừng ở **epoch 2, val 0.5234**, bị cổng từ chối.
+Nhất quán với cực đại nội tại quanh λ≈0.2 của `latent_proto` đã thấy trên họ CodeT5 — đi lên quá thì
+hỏng hẳn chứ không kém dần. Δ transfer của λ=0.5 xem kết quả Phase 2.
+
+*Bẫy khi đọc bảng val nguồn:* val nguồn **giảm đều theo λ** ở cả ba nhánh (`cwe` 0.6519 → 0.6396 →
+0.6393; `latent_bottleneck` 0.6889 → 0.6577 → 0.6363), nhưng mục 8 đã đo rằng val nguồn **không** dự
+báo Δ transfer. Bảng đó **không** nói λ=0.05 tốt hơn — chính λ=0.2 mới cho Δ transfer cao nhất ở cả
+4 ô head có nhãn.
+
 Việc chưa làm: quét λ **lớn hơn 0.2** cho codebert. Cực đại của nó nằm ngoài khoảng đã đo, và đó là
 backbone duy nhất trong 5 cái mà head phụ mang lại toàn bộ lợi ích transfer (mục 4b).
 
@@ -437,6 +447,28 @@ việc thay đổi cách tín hiệu phụ định hình biểu diễn, không p
 Đây là mục thứ ba cùng nói một điều: **độ phẳng không phải là đại lượng điều khiển transfer** —
 mục 4 (thứ tự độ nhọn không khớp thứ tự nào), mục 5b (họ hỏng lại phẳng hơn), và giờ là 5c-2 (cố ý
 làm phẳng cũng không đổi gì khi không có head phụ).
+
+### 5c-3. Nhánh `none` là nhánh dễ vỡ nhất dưới SAM ở Phase 1 — đếm được, chưa giải thích được
+
+Đếm mọi lần rút Phase 1 có SAM đã chạy trong ngày 25/08, trên cả 5 backbone:
+
+| nhánh | lần rút hỏng / tổng |
+| --- | --- |
+| có head phụ (`cwe`, `latent_bottleneck`, `latent_proto`) | **0 / 15** |
+| `none` | **2 / 5** — `codebert` (ρ=0.01) và `t5` (ρ=0.05) |
+
+Cả hai lần hỏng đều là cùng một dạng: val Macro-F1 kẹt ở mức đoán-một-lớp, dừng sớm, bị
+`phase1_usable` từ chối.
+
+**Giới hạn phải nói kèm.** Hai họ chạy ở **ρ khác nhau** (0.01 cho RoBERTa vì 0.05 phá huỷ chúng,
+0.05 cho CodeT5), nên 20 lần rút này không nằm trên một trục so sánh duy nhất. Và giả thuyết dạng
+mạnh — *"không có head phụ thì SAM luôn nhấn chìm tín hiệu nhị phân"* — **đã bị bác**: `unixcoder/none`,
+`t5p/none`, `t5pe/none` đều sống. Thứ số liệu đỡ được chỉ là dạng yếu: mục tiêu Phase 1 **không có
+head phụ** là mục tiêu **dễ vỡ nhất**, không phải luôn vỡ.
+
+Cách kiểm rẻ cho lần sau: chạy riêng nhánh `none` của một backbone ở vài mức ρ (0.002, 0.005, 0.01,
+0.02) và xem ngưỡng vỡ nằm ở đâu so với nhánh `cwe` của chính nó. Không cần Phase 2, chỉ cần val
+nguồn — mỗi điểm ~5 phút.
 
 **Hàng bị nhiễm, phải loại khỏi mọi tổng hợp SAM-Phase-1:** `n1_codebert/transfer_none_sam1r01`
 và `..._sam1r01_adamw` (6 hàng, fold 1–3). Phase 1 của chúng là checkpoint val 0.3333 đã nêu ở
