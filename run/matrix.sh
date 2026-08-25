@@ -208,7 +208,24 @@ for BB in $BACKBONES; do
       $(shared_args "$MODEL" "$POOL") > "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>&1
     tail -3 "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>/dev/null | sed "s/^/    /"
     if [[ -f "$PART" ]]; then
-      mv "$PART" "$CKPT"
+      # Cong chat luong phai chay o CA HAI duong, khong chi duong tai dung.
+      #
+      # Truoc day `phase1_usable` chi duoc goi khi checkpoint DA CO san tu truoc.
+      # Mot lan rut MOI hoan tat binh thuong thi duoc `mv` thang vao cho, du no
+      # vo dung. Da xay ra that: `codebert__none_sam1r01` ket o val 0.3333 (doan
+      # mot lop), duoc cong bo, va 6 job Phase 2 chay tren no cho ra -0.43 —
+      # trong y het mot ket qua that.
+      #
+      # Doi ten thanh .rejected chu khong xoa: bang chung con lai, nhung glob tim
+      # `best.pt` khong bat duoc nua nen khong nhanh nao thua huong no.
+      if phase1_usable "$PART"; then
+        mv "$PART" "$CKPT"
+      else
+        mv "$PART" "${CKPT}.rejected"
+        FAILED=$((FAILED + 1))
+        echo "  !! phase1 $LABEL/$MODE KHONG DAT (best_epoch<=1 hoac val<0.55) — da doi thanh ${CKPT}.rejected"
+        grep -E "New best model" "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>/dev/null | tail -1 | sed "s/^/       /"
+      fi
     else
       # Phase 1 hong PHAI tinh la hong, khong duoc im lang.
       #

@@ -346,6 +346,12 @@ Ba điều rút ra:
    nguồn **không** dự báo Δ transfer, nên con số này chưa nói SAM-Phase-1 tốt hay xấu — Phase 2 mới
    trả lời.
 
+**Hàng bị nhiễm, phải loại khỏi mọi tổng hợp SAM-Phase-1:** `n1_codebert/transfer_none_sam1r01`
+và `..._sam1r01_adamw` (6 hàng, fold 1–3). Phase 1 của chúng là checkpoint val 0.3333 đã nêu ở
+trên; Δ của chúng là **−0.4278 / −0.4436**, và đó là số đo của "fine-tune từ một checkpoint ngang
+ngẫu nhiên", **không phải** số đo của SAM ở Phase 1. Giữ lại trong `results_all.jsonl` vì chúng là
+phép đo thật của một hiện tượng khác, nhưng gộp chúng vào là sai.
+
 **Hệ quả cho khối 07 (SAM ở Phase 2).** Khối đó chạy ρ=0.05 trên họ CodeT5, tức vùng nhẹ, nên nó
 hợp lệ. Nhưng chưa từng chạy SAM Phase 2 trên họ RoBERTa, và nếu chạy thì **không được dùng ρ=0.05**.
 
