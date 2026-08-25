@@ -62,9 +62,16 @@ for M in "${MACHINES[@]}"; do
   if (( WITH_PHASE1 )); then
     echo "  ... keo kho Phase 1 cua $NAME (nang, vai phut)"
     mkdir -p "model_run_$NAME"
-    rsync -az --partial -e "$SSH" "root@$HOST:$RDIR/model/" "model_run_$NAME/" 2>/dev/null \
-      && du -sh "model_run_$NAME" | sed 's/^/  /'
+    # CHI kho Phase 1. Thu muc model/ con chua checkpoint Phase 2 cua TUNG fold
+    # (5 fold x moi nhanh), nang gap nhieu lan va khong dung lai duoc — Phase 2
+    # phai chay lai tu dau moi khi doi bat cu thu gi.
+    rsync -az --partial -e "$SSH" \
+      --include='*/' --include='phase1/**/best.pt' --exclude='*' \
+      "root@$HOST:$RDIR/model/" "model_run_$NAME/" 2>/dev/null \
+      && echo "  $(find "model_run_$NAME" -path '*phase1*' -name best.pt | wc -l) checkpoint Phase 1, $(du -sh "model_run_$NAME" | cut -f1)"
   fi
 done
 
-echo "tong ket qua da ve local: $(find results_m1 results_r1 -name 'fold*.json' 2>/dev/null | wc -l)"
+# Dem TAT CA cay results, khong chi hai cai. Ban truoc bo sot results_n1 va
+# results/ (run local), nen con so in ra thap hon thuc te ma khong ai biet.
+echo "tong ket qua da ve local: $(find results results_* -name 'fold*.json' 2>/dev/null | wc -l)"

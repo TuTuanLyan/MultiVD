@@ -1,71 +1,126 @@
 #!/usr/bin/env bash
-# Tải hết về rồi HỦY cả hai instance vast. Chạy được độc lập, không cần phiên Claude.
+# Tải hết về rồi HỦY các instance vast. Chạy được độc lập, không cần phiên Claude.
 #
-# Vì sao script này tồn tại: việc hủy là BẮT BUỘC để không hết quota vast, nhưng
-# mọi cơ chế tự động khác (monitor, cron) đều chết theo phiên. Đây là bản chạy tay
-# một lệnh, và cũng là bản mà lớp tự động gọi vào.
+# Vì sao script này tồn tại: hủy là BẮT BUỘC vào giờ nghỉ, nhưng mọi cơ chế tự
+# động khác (monitor, cron) đều chết theo phiên. Đây là bản chạy tay một lệnh.
 #
-# Bài học từ lần tắt máy hôm qua: chỉ tải `results/` và `log/` thì MẤT checkpoint
-# Phase 1, và mọi phân tích trên không gian trọng số (§40, đo độ nhọn) phải chạy
-# lại Phase 1 mới làm được. Lần này tải cả `model/*/source/best.pt`.
+# KHÔNG hủy nếu đối chiếu không khớp — thà trả tiền thêm còn hơn mất dữ liệu.
 #
-# KHÔNG hủy nếu đối chiếu file không khớp — thà trả tiền thêm còn hơn mất dữ liệu.
+# --------------------------------------------------------------------------
+# Ba lỗi của bản trước, cả ba đều sẽ hỏng IM LẶNG đúng lúc cần nhất:
+#
+#  1. Hardcode `id:port:host` của máy hôm trước. IP công khai của vast ĐỔI khi
+#     instance được dời máy chủ, và id thì đổi mỗi lần thuê lại. Bản cũ còn giữ
+#     id 48356959/48357013 — hai máy không còn tồn tại. Nay giải theo NHÃN.
+#  2. Kéo `model/*/source/best.pt`, trong khi kho hiện tại là
+#     `model/*/phase1/<backbone>__<nhánh>/seed_*/best.pt`. Nó sẽ tải về 0
+#     checkpoint, in `checkpoint nguon tai ve=0`, rồi vẫn HỦY vì phép đối chiếu
+#     chỉ nhìn file kết quả.
+#  3. Ghi vào `results_$LABEL`/`model_$LABEL`, khác hẳn thư mục mà
+#     `pull_results.sh` và `build_records.py` đọc. Dữ liệu về đúng đĩa nhưng
+#     không cây phân tích nào thấy.
+#
+# Nay: dùng thẳng `pull_results.sh --with-phase1` cho phần tải, nên chỉ có MỘT
+# định nghĩa về "kéo về đâu", rồi đối chiếu CẢ kết quả LẪN checkpoint Phase 1
+# trước khi hủy.
+# --------------------------------------------------------------------------
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source scripts/endpoints.sh
 
-# label:id:port:host
-MACHINES="${MACHINES:-ntat:48356959:56613:115.73.216.179 ntat2:48357013:48318:115.78.134.198}"
+LABELS="${LABELS:-ntat ntat2}"
 FORCE="${FORCE:-0}"
+ACTION="${ACTION:-destroy}"        # destroy | stop | none
+
+# DUNG HANG DOI TRUOC KHI KEO. Khong co buoc nay thi phep doi chieu KHONG BAO GIO
+# khop: may van sinh file moi trong luc rsync chay, nen lan nao cung "thieu" vai
+# file va script tu choi huy mai mai. Do dung la thu da xay ra o lan chay thu.
+#
+# Giet ca ba tang (watchdog -> overnight.sh -> matrix.sh -> python) va loc theo VI
+# TRI, khong dung `pkill -f`: dong lenh SSH cua chinh phien nay cung chua cac chuoi
+# do, va pkill -f se giet luon phien dang chay lenh.
+if [[ "${STOP_QUEUES:-1}" == "1" ]]; then
+  echo "########## DUNG HANG DOI — $(date -u '+%F %T') UTC ##########"
+  for LABEL in $LABELS; do
+    read -r H P <<< "$(vast_endpoint "$LABEL")" || continue
+    [[ -z "${H:-}" ]] && continue
+    echo "--- $LABEL ---"
+    timeout 60 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -p "$P" "root@$H" '
+      for pat in watchdog overnight "run/matrix.sh"; do
+        for pid in $(ps -eo pid,args --no-headers | awk -v p="$pat" '"'"'$2=="bash" && $3 ~ p {print $1}'"'"'); do
+          kill -9 "$pid" 2>/dev/null && echo "  giet [$pat] PID $pid"
+        done
+      done
+      for pid in $(pgrep -f "src/train_transfer\.py|src/train_baseline\.py" 2>/dev/null); do
+        kill -9 "$pid" 2>/dev/null && echo "  giet job PID $pid"
+      done
+      sleep 3; echo "  con lai: $(ps -eo args --no-headers | grep -c "[s]rc/train_") job"
+    ' 2>/dev/null | grep -v "^Welcome\|^Have fun\|^AI agents"
+  done
+fi
+
+echo "########## TAI VE TRUOC KHI HUY — $(date -u '+%F %T') UTC ##########"
+bash scripts/pull_results.sh --with-phase1
 
 all_ok=1
-for M in $MACHINES; do
-  LABEL="${M%%:*}"; R="${M#*:}"; ID="${R%%:*}"; R="${R#*:}"; PORT="${R%%:*}"; HOST="${R##*:}"
-  SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -p $PORT"
-  echo "=========== $LABEL (id $ID, $HOST:$PORT) ==========="
-
-  if ! timeout 40 $SSH root@"$HOST" 'echo ok' >/dev/null 2>&1; then
-    echo "  KHONG SSH DUOC — bo qua, KHONG huy (co the mat du lieu)"
+for LABEL in $LABELS; do
+  echo ""
+  echo "=========== $LABEL ==========="
+  if ! read -r HOST PORT <<< "$(vast_endpoint "$LABEL")" || [[ -z "${HOST:-}" ]]; then
+    echo "  KHONG GIAI DUOC DIA CHI (trang thai: $(vast_state "$LABEL")) — KHONG lam gi"
     all_ok=0; continue
   fi
+  SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o BatchMode=yes -p $PORT"
+  ID=$(python3 -c "
+import json,sys
+for i in json.load(open('$VAST_CACHE')):
+    if i.get('label')=='$LABEL': print(i.get('id')); break")
+  [[ -z "$ID" ]] && { echo "  khong tim duoc id"; all_ok=0; continue; }
 
-  mkdir -p "results_$LABEL" "log_$LABEL" "model_$LABEL"
+  # Thư mục local tương ứng — phải khớp với bảng trong pull_results.sh.
+  case "$LABEL" in
+    ntat2) LRES=results_m1 ;;
+    ntat)  LRES=results_n1 ;;
+    *)     LRES="results_$LABEL" ;;
+  esac
+  LMOD="model_run_$LABEL"
+
+  # LC_ALL=C bắt buộc: `sort` trên máy thuê và `sort` ở đây có thể dùng locale
+  # khác nhau, và khi đó `comm` đọc nhầm thứ tự rồi báo thiếu file không hề
+  # thiếu. Đã xảy ra thật: ntat2 bị báo "thieu=15" trong khi đối chiếu lại là
+  # 223/223 — suýt bỏ lỡ một lần hủy, và nếu tin ngược lại thì đã hủy khi thiếu thật.
+  cmp_set() {  # $1 = lệnh find từ xa, $2 = thư mục local, $3 = tên để in
+    local rem loc miss n
+    rem=$(timeout 120 $SSH "root@$HOST" "$1" 2>/dev/null | LC_ALL=C sort)
+    loc=$( eval "$2" 2>/dev/null | LC_ALL=C sort )
+    n=$(echo "$rem" | grep -c . || true)
+    miss=$(LC_ALL=C comm -23 <(echo "$rem") <(echo "$loc") | grep -c . || true)
+    echo "  $3: tren may=$n  thieu o local=$miss"
+    [[ "$miss" == "0" && "$n" -gt 0 ]]
+  }
+
   ok=1
-  timeout 1800 rsync -az -e "$SSH" root@"$HOST":/workspace/MultiVD/results/ "results_$LABEL/" || ok=0
-  timeout 1800 rsync -az -e "$SSH" root@"$HOST":/workspace/MultiVD/log/     "log_$LABEL/"     || ok=0
-  # Chi lay checkpoint NGUON. gated.sh da tu xoa checkpoint tung fold sau khi dung,
-  # nen thu muc model/ chi con source — khoang 438 MB moi cai.
-  timeout 3600 rsync -az -e "$SSH" --include='*/' --include='source/best.pt' --exclude='*' \
-      root@"$HOST":/workspace/MultiVD/model/ "model_$LABEL/" || ok=0
-  # Cac file ket qua phu nam thang o /workspace
-  timeout 600 rsync -az -e "$SSH" --include='*.txt' --include='*.log' --exclude='*' \
-      root@"$HOST":/workspace/ "log_$LABEL/workspace_root/" || true
+  cmp_set \
+    'cd /workspace/MultiVD/results 2>/dev/null && find . -name "fold*.json" -printf "%p %s\n"' \
+    "cd $LRES && find . -name 'fold*.json' -printf '%p %s\n'" \
+    "ket qua" || ok=0
+  cmp_set \
+    'cd /workspace/MultiVD/model 2>/dev/null && find . -path "*phase1*" -name "best.pt" -printf "%p\n"' \
+    "cd $LMOD && find . -path '*phase1*' -name 'best.pt' -printf '%p\n'" \
+    "checkpoint Phase 1" || ok=0
 
-  # LC_ALL=C bat buoc: `sort` tren may thue va `sort` o day co the dung locale
-  # khac nhau, va khi do `comm` doc nham thu tu roi bao thieu file khong he thieu.
-  # Da xay ra that: ntat2 bi bao "thieu=15" trong khi doi chieu lai la 223/223.
-  # Suyt bo lo mot lan huy, va neu tin nguoc lai thi da huy khi thieu that.
-  rem=$(timeout 60 $SSH root@"$HOST" 'cd /workspace/MultiVD/results 2>/dev/null && find . -name "fold*.json" -printf "%p %s\n" | LC_ALL=C sort' 2>/dev/null)
-  loc=$( (cd "results_$LABEL" && find . -name 'fold*.json' -printf '%p %s\n' | LC_ALL=C sort) 2>/dev/null )
-  miss=$(LC_ALL=C comm -23 <(echo "$rem") <(echo "$loc") | grep -c . || true)
-  nres=$(echo "$rem" | grep -c . || true)
-  nck=$(find "model_$LABEL" -name 'best.pt' 2>/dev/null | wc -l)
-  echo "  rsync_ok=$ok  ket qua tren may=$nres  thieu=$miss  checkpoint nguon tai ve=$nck"
-
-  if [[ "$ok" == "1" && "$miss" == "0" ]] || [[ "$FORCE" == "1" ]]; then
-    echo "  -> HUY instance $ID"
-    vastai destroy instance "$ID" -y
+  if [[ "$ok" == "1" || "$FORCE" == "1" ]]; then
+    case "$ACTION" in
+      destroy) echo "  -> HUY instance $ID"; vastai destroy instance "$ID" -y ;;
+      stop)    echo "  -> STOP instance $ID"; vastai stop instance "$ID" ;;
+      none)    echo "  -> doi chieu KHOP, khong lam gi (ACTION=none)" ;;
+    esac
   else
-    echo "  -> KHONG huy: doi chieu khong khop. Sua roi chay lai, hoac FORCE=1 de bo qua."
+    echo "  -> KHONG $ACTION: doi chieu khong khop. Sua roi chay lai, hoac FORCE=1."
     all_ok=0
   fi
 done
 
 echo ""
-echo "=========== con lai tren vast ==========="
-vastai show instances --raw 2>/dev/null | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-print('(khong con instance nao)' if not d else '')
-for i in d: print(i['id'], i.get('label'), i.get('actual_status'), i.get('gpu_name'))
-"
-[[ "$all_ok" == "1" ]] || { echo ""; echo "CO MAY CHUA HUY — xem o tren."; exit 1; }
+[[ "$all_ok" == "1" ]] && echo "TAT CA KHOP." || echo "CO MAY CHUA XU LY — doc lai o tren."
+exit $(( all_ok == 1 ? 0 : 1 ))
