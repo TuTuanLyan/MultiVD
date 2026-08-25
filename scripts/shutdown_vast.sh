@@ -56,8 +56,9 @@ if [[ "${STOP_QUEUES:-1}" == "1" ]]; then
       done
       # Dem bang pgrep chu khong bang `ps | grep`: chinh dong lenh SSH nay CHUA
       # chuoi "src/train_" (trong mau pgrep o tren), nen phep dem kia luon cong
-      # them 2 va bao con job trong khi da sach.
-      sleep 3; echo "  con lai: $(pgrep -cf 'src/train_(transfer|baseline)\.py' 2>/dev/null || echo 0) job"
+      # them 2 va bao con job trong khi da sach. Mau giu nguyen dang co `\.` —
+      # dong lenh SSH mang backslash that nen KHONG khop chinh no.
+      sleep 3; echo "  con lai: $(pgrep -cf "src/train_transfer\.py|src/train_baseline\.py" 2>/dev/null || echo 0) job"
     ' 2>/dev/null | grep -v "^Welcome\|^Have fun\|^AI agents"
   done
 fi
