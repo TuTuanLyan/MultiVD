@@ -38,6 +38,41 @@ một con số, **không** đọc khi đang thiết kế thí nghiệm mới.
 
 ---
 
+## C2. Về cách chọn λ
+
+| # | Giả thuyết | Phép đo bác nó | Mở lại khi nào |
+| --- | --- | --- | --- |
+| 13 | λ học được bằng uncertainty weighting (Kendall/Gal/Cipolla, arXiv:1705.07115) tìm được λ tốt hơn hằng số chọn tay | **Bác ở 9/9 nhánh, ngược chiều, cách 30–100 lần.** λ_eff học được: `cwe` 87–101, `latent_bottleneck` 33–105, `latent_proto` 1.04–1.07 — trong khi trục λ quét tay nói `cwe` cần λ **thấp hơn** 0.05. Phase-1 val của `t5/cwe_uw` tụt còn **0.5652** so với 0.6350 cùng nhánh ở λ cố định | Không. Xem lý do bên dưới — đây là hành vi đúng của công thức. |
+
+**Vì sao đây là ngõ cụt CẤU TRÚC, không phải chỉnh sai siêu tham số.**
+
+Cực tiểu `exp(−s)·L + s/2` theo `s` cho `w = 0.5/L`, nên
+
+    λ_eff = w_aux / w_bin = L_bin / L_aux
+
+tức trọng số tối ưu **tỉ lệ nghịch với chính loss của task**. Kirchdorfer et al.
+(arXiv:2408.07985) giải tường minh đúng nghiệm này — `σ_k = L_k` (công thức 2), cho
+`L = Σ (1/sg[L_k])·L_k` (công thức 3) — và ghi rằng nó **trùng với IMTL-L, dual-balancing,
+và EMA ở β=1**. Nghĩa là cả một họ phương pháp cùng hội tụ về đúng quy tắc này.
+
+Hệ quả: uncertainty weighting **bắt buộc** ưu ái task có loss thấp hơn. Một head 4 lớp trên
+1284 dòng hạ loss về **0.00631** (gần như thuộc lòng) trong khi task nhị phân kẹt ở **0.6385**,
+nên tỉ số là ~100 và không siêu tham số nào đổi được điều đó. `latent_proto` ra λ_eff ≈ 1.05 ở
+cả ba backbone vì Sinkhorn gán nhãn cân bằng theo thiết kế, giữ loss của nó cùng thang với
+cross-entropy nhị phân — cũng thuần tuý là tỉ số loss, không mang thông tin gì về transfer.
+
+Nói gọn: σ cân bằng **độ khó của loss huấn luyện Phase 1**. Đại lượng cần tối ưu là **Macro-F1
+trên target sau Phase 2**, mà σ không nhìn thấy. Ở đây hai đại lượng đó không chỉ khác nhau mà
+**ngược nhau**. Hướng còn lại là bilevel căn theo downstream — Karpukhin & Savchenko
+arXiv:2605.07756, BiSSL arXiv:2410.02387 (xem `RESEARCH_2026-08-20_0959.md` §4.4).
+
+**Sản phẩm phụ đáng giữ:** trục λ ba điểm cho thấy hai loại tín hiệu có **dạng đường cong khác
+nhau về chất** — tín hiệu **có nhãn** đơn điệu giảm theo λ (càng nặng càng hại), tín hiệu
+**không nhãn** có **cực đại nội tại** quanh λ≈0.2. Đây là lần đầu dự án thấy một đường cong λ
+có đỉnh. Chi tiết ở `records/prediction_2026-08-24_lambda_hoc_duoc.md`.
+
+---
+
 ## D. Lỗi phương pháp đã tìm ra trong chính tài liệu cũ
 
 Không phải giả thuyết, mà là **cách đo sai** — đáng ghi vì cả bốn cùng một dạng: một quy ước

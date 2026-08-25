@@ -326,17 +326,21 @@ trong lịch sử git ở commit `644dc46`.
 
 ## 12. Việc còn dở
 
-**Đang chạy** (cập nhật 24/08). Ma trận reset, chia theo backbone — **mỗi backbone giữ trọn
+**Đang chạy** (cập nhật 25/08). Ma trận reset, chia theo backbone — **mỗi backbone giữ trọn
 5 fold × 2 λ × 2 optimizer và baseline của chính nó trên MỘT máy**, nên không phép so nào vắt qua
 phần cứng.
 
-| máy | GPU | backbone | thư mục | hàng đợi |
-| --- | --- | --- | --- | --- |
-| `ntat2` | RTX 4080S | `t5`, `t5p` (bimodal), `t5pe` | `/workspace/MultiVD` | `overnight_m1`, run `m1` |
-| `dung` (mượn) | RTX 5060 Ti | `codebert`, `unixcoder` | `/workspace/ntat_MultiVD` | `overnight_r1`, run `r1` |
+| máy | GPU | backbone | thư mục | hàng đợi | đang ở bước |
+| --- | --- | --- | --- | --- | --- |
+| `ntat2` | RTX 4080S | `t5`, `t5p` (bimodal), `t5pe` | `/workspace/MultiVD` | `overnight_m1`, run `m1` | 07 SAM Phase 2 (fold 1/5) |
+| `ntat` | RTX 4070S Ti | `codebert`, `unixcoder` | `/workspace/MultiVD` | `overnight_n1`, run `n1` | 01 λ=0.2 (fold 1/5) |
+
+`ntat` **dùng lại 8 checkpoint Phase 1 của máy `dung` đã trả** (đã kiểm: cả 8 có `best_epoch ≥ 3`
+và val ≥ 0.5979), nên nó bỏ qua toàn bộ Phase 1 của khối λ=0.2. Cả hai máy nằm trên **cùng một
+host vật lý** `42.116.251.183` nhưng **khác GPU**, nên vẫn không được so chéo hai máy.
 
 `run/overnight.sh` chạy 7 bước theo thứ tự ưu tiên: λ=0.2 → đo (độ nhọn + dịch chuyển) → λ=0.05 →
-đo → seed 7 λ=0.2 → đo → seed 7 λ=0.05. Danh sách dài hơn một đêm nên GPU không thể hết việc.
+đo → λ học được → đo → SAM Phase 2. Danh sách dài hơn một đêm nên GPU không thể hết việc.
 `scripts/watchdog.sh` chạy **trên chính máy**, 5 phút một lần bật lại hàng đợi nếu nó chết, sau khi
 dọn tiến trình mồ côi ở cả tầng `matrix.sh` lẫn tầng python.
 
@@ -345,13 +349,17 @@ Công cụ vận hành: `bash scripts/status.sh` (trạng thái ba máy), `bash 
 
 **Chưa chạy**
 
-- `codebert` và `unixcoder` trong ma trận reset — chưa có máy.
+- **SAM ở PHASE 1.** `src/train.py` nay cho phép (`PHASE1_EXTRA="--sam_rho 0.05"`), nhưng **chưa
+  có run nào**. Đây là ô trống đáng giá nhất hiện tại: ICML 2026 (arXiv:2605.02105) đo SAM ở giai
+  đoạn **pretrain** cho "quên ít hơn tới 80%" trên mô hình 20M–150M tham số, còn mọi run SAM của
+  dự án — kể cả khối 07 đang chạy — đều ở Phase 2. Bài đó **không** so trực tiếp hai chỗ đặt.
 - **λ=0.05 trong ma trận reset.** Số cũ cho thấy λ là biến hạng nhất: CodeBERT `cwe` head phụ
   +0.0328 (5/5) ở λ=0.05 so với +0.0114 (3/5) ở λ=0.2; t5pe `latent_bottleneck` +0.0091 (4/5) ở
   λ=0.05 so với −0.0494 (0/5) ở λ=0.2.
 - **Đa seed.** Toàn bộ mục 4 là seed 42. Seed 7 mới có fold 1–3 trên hai backbone.
-- **SAM** — mới chạy nhánh `none` và `cwe`, chưa chạy hai nhánh latent; và run trên t5pe hỏng
-  (mục 9). Chưa quét ρ, mới thử ρ=0.05.
+- **SAM ở Phase 2** — khối 07 trên `ntat2` đang chạy đủ 4 nhánh × 2 optimizer × 3 backbone lần đầu
+  (trước đó mới có `none` và `cwe`, và run t5pe hỏng — mục 9). Chưa quét ρ, mới thử ρ=0.05.
+  Chưa chạy trên `codebert`/`unixcoder`.
 - **Độ nhọn của `codet5p-220m-bimodal`**; **dịch chuyển trọng số** của UniXcoder, CodeT5-base, t5pe.
 - **Bộ fold `sven_python_random`** — chưa có run nào.
 - **Pooling cho họ T5**: dùng `mean` theo quy ước học thuật. Đo trên bộ gốc với `codet5p-220m`:
