@@ -216,6 +216,34 @@ run_step() {
     05_sam_phase1)
       step "$1" matrix 0.2 "_sam1" "none cwe latent_bottleneck latent_proto" "$SEED" \
            "--sam_rho 0.05" ;;
+    # SAM o PHASE 1 voi rho=0.01 — cho ho RoBERTa.
+    #
+    # rho=0.05 la gia tri cua bai bao, do tren ResNet/ViT anh. Tren ho RoBERTa o
+    # day no KHONG phai mot phep tham do lan can ma la mot cu nhay ra khoi long
+    # chao. Do truc tiep (FACTS 5b): tai rho=0.05, Dloss doi khang cua CodeBERT
+    # la 0.8095 trong khi chinh loss cua no la 0.8707 — buoc leo gan nhu nhan doi
+    # loss. Do la ly do do duoc cua that bai da quan sat:
+    #
+    #   codebert/none + SAM rho=0.05 : train loss ket o 0.703 (= ln2, ngau nhien),
+    #                                  val Macro-F1 0.3333 (doan mot lop), dung
+    #                                  som o epoch 7, best_epoch=1 -> bi cong
+    #                                  phase1_usable tu choi.
+    #   codebert/cwe  + SAM rho=0.05 : val 0.4586 o epoch 4, so voi 0.6396 cua
+    #                                  ban khong SAM.
+    #
+    # rho=0.01 dua muc nhieu loan ve ngang ho CodeT5 dang chiu o rho=0.05:
+    #   codebert  rho=0.01 -> Dloss 0.1393 (16% cua loss)
+    #   unixcoder rho=0.01 -> Dloss 0.0775 (11%)
+    #   ho CodeT5 rho=0.05 -> Dloss 0.05-0.08 (8-12%)
+    #
+    # Tag rieng `_sam1r01`, KHONG dung chung `_sam1`: hai gia tri rho khac nhau
+    # tren hai may ma cung mot ten nhanh la cach chac chan de sau nay gop nham.
+    05b_sam_phase1_r01)
+      step "$1" matrix 0.2 "_sam1r01" "none cwe latent_bottleneck latent_proto" "$SEED" \
+           "--sam_rho 0.01" ;;
+    06b_measure_sam1r01)
+      step "$1" measure "_sam1r01" "$SEED" ;;
+
     # Do nhon cua chinh checkpoint SAM-Phase-1: SAM co that su cho cuc tieu phang
     # hon khong. Dong thang voi FACTS muc 4 (do nhon KHONG du bao transfer) — neu
     # SAM lam phang that ma transfer khong doi, muc 4 duoc xac nhan lan hai.

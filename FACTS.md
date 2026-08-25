@@ -306,6 +306,49 @@ Ghi chú cần kiểm: `‖w‖` của `codet5p-220m-bimodal` và `codet5p-110m-
 số (1828.13) dù val và Δloss khác nhau. Dịch chuyển Phase 1 gần như trực giao với `w` nên `‖w‖` đổi
 rất ít, nhưng trùng đến mức này thì đáng xác minh chứ chưa nên coi là đã hiểu.
 
+## 5c. SAM ở PHASE 1 — ρ phải chia thang theo backbone
+
+Watts et al. (ICML 2026, arXiv:2605.02105) đặt SAM ở giai đoạn pretrain. `src/train.py` nay cho phép
+(`PHASE1_EXTRA="--sam_rho ..."`). Kết quả rút Phase 1, `ntat`, seed 42:
+
+**ρ=0.05 (giá trị bài báo) làm hỏng họ RoBERTa.** Không phải suy đoán — đo được ở mục 5b: Δloss đối
+kháng của CodeBERT tại ρ=0.05 là **0.8095** trong khi chính loss của nó là **0.8707**. Bước leo gần
+như nhân đôi loss, tức nhảy ra khỏi lòng chảo chứ không thăm dò lân cận. Quan sát:
+
+| | ρ=0.05 |
+| --- | --- |
+| `codebert/none` | train loss kẹt 0.703 (= ln 2), val 0.3333 (đoán một lớp), dừng sớm epoch 7 |
+| `codebert/cwe` | val 0.4586 ở epoch 4, so với 0.6396 bản không SAM |
+
+**ρ=0.01 đưa nhiễu loạn về ngang họ CodeT5 ở ρ=0.05** (codebert Δloss 0.1393 ≈ 16% loss, unixcoder
+0.0775 ≈ 11%, họ CodeT5 ở ρ=0.05 là 8–12%), và 7/8 nhánh chạy được:
+
+| nhánh | thường | + SAM ρ=0.01 | chênh |
+| --- | --- | --- | --- |
+| `codebert/none` | ep15 0.6283 | ep7 **0.3333** | **−0.2949 · BỊ TỪ CHỐI** |
+| `codebert/cwe` | ep15 0.6396 | ep13 0.6209 | −0.0187 |
+| `codebert/latent_bottleneck` | ep14 0.6577 | ep14 0.6423 | −0.0154 |
+| `codebert/latent_proto` | ep15 0.6758 | ep14 0.6123 | −0.0635 |
+| `unixcoder/none` | ep12 0.7023 | ep15 0.6944 | −0.0078 |
+| `unixcoder/cwe` | ep13 0.6953 | ep12 0.6792 | −0.0161 |
+| `unixcoder/latent_bottleneck` | ep13 0.6883 | ep13 **0.6912** | **+0.0029** |
+
+Ba điều rút ra:
+
+1. **ρ tuyệt đối không chuyển được giữa các backbone.** Cùng ρ=0.05 là nhiễu loạn nhẹ với họ CodeT5
+   và là phá huỷ với họ RoBERTa. Bất kỳ so sánh SAM nào dùng chung một ρ cho nhiều backbone đều
+   đang so hai chế độ khác nhau. Đây là lý do tag `_sam1r01` tách khỏi `_sam1`.
+2. **Chỉ đúng một tổ hợp chết: `codebert × none`.** Đó là backbone nhọn nhất trong 5 (mục 5b) gặp
+   mục tiêu Phase 1 yếu nhất trong bốn nhánh của chính nó (0.6283, thấp nhất). Mô tả, chưa phải cơ
+   chế. Giả thuyết "thiếu head phụ nên SAM nhấn chìm tín hiệu nhị phân" **đã bị bác** bởi
+   `unixcoder/none`, cũng không có head phụ mà vẫn về 0.6944.
+3. **Giá phải trả ở val nguồn là nhỏ** (−0.008 đến −0.064, một ô dương). Và mục 8 đã đo rằng val
+   nguồn **không** dự báo Δ transfer, nên con số này chưa nói SAM-Phase-1 tốt hay xấu — Phase 2 mới
+   trả lời.
+
+**Hệ quả cho khối 07 (SAM ở Phase 2).** Khối đó chạy ρ=0.05 trên họ CodeT5, tức vùng nhẹ, nên nó
+hợp lệ. Nhưng chưa từng chạy SAM Phase 2 trên họ RoBERTa, và nếu chạy thì **không được dùng ρ=0.05**.
+
 ## 6. Dịch chuyển trọng số sau Phase 1
 
 `‖θ_phase1 − θ_pretrained‖ / ‖θ_pretrained‖`, trung bình có trọng số theo tham số, seed 42,
