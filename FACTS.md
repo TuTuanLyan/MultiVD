@@ -334,6 +334,11 @@ phần cứng.
 | --- | --- | --- | --- | --- | --- |
 | `ntat2` | RTX 4080S | `t5`, `t5p` (bimodal), `t5pe` | `/workspace/MultiVD` | `overnight_m1`, run `m1` | 07 SAM Phase 2 (fold 1/5) |
 | `ntat` | RTX 4070S Ti | `codebert`, `unixcoder` | `/workspace/MultiVD` | `overnight_n1`, run `n1` | 01 λ=0.2 (fold 1/5) |
+| local | RTX A4000 | `t5pe` | `~/workspace/MultiVD` | `~/.multivd_state/overnight_l1`, run `l1` | 01 λ=0.2, **chỉ fold 1** |
+
+Máy local là **server dùng chung** (23 người). Quy tắc riêng cho nó: đúng **một** process,
+`nice -n 15`, `OMP_NUM_THREADS=2`, `num_workers 0`, và **không watchdog** — hàng đợi local
+luôn hữu hạn (`FOLDS=1`) để nó tự dừng thay vì giữ GPU vô thời hạn. Chủ máy luôn được nhường.
 
 `ntat` **dùng lại 8 checkpoint Phase 1 của máy `dung` đã trả** (đã kiểm: cả 8 có `best_epoch ≥ 3`
 và val ≥ 0.5979), nên nó bỏ qua toàn bộ Phase 1 của khối λ=0.2. Cả hai máy nằm trên **cùng một
