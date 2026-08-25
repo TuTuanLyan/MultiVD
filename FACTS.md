@@ -289,10 +289,20 @@ xuống 0.05 cải thiện `cwe` và `latent_bottleneck` ở 6/6 ô. Nên trên 
 | `latent_proto` RecAdam | +0.0174 (4/5) | +0.0129 (3/5) | *(Phase 1 bị từ chối)* |
 | `latent_proto` AdamW | +0.0076 (2/5) | +0.0145 (3/5) | *(Phase 1 bị từ chối)* |
 
-**`cwe` có cực đại nội tại tại λ=0.2 ở cả hai optimizer.** `latent_bottleneck` **vẫn đang lên ở
-λ=0.5** (5/5 fold cả hai optimizer, p=0.0625 — mức sàn của Wilcoxon ở n=5), nên đỉnh của nó nằm trên
-0.5. Ô mạnh nhất dự án đo được cho tới nay: `codebert/latent_bottleneck/RecAdam` ở λ=0.5, **+0.0593
-so với `none` cùng optimizer, dương cả 5/5 fold**.
+**`cwe` có cực đại nội tại tại λ=0.2 ở cả hai optimizer.**
+
+`latent_bottleneck` được quét thêm **λ=1.0**, đủ 5 fold, và đỉnh đã được **kẹp**:
+
+| `latent_bottleneck` | λ=0.05 | λ=0.2 | λ=0.5 | λ=1.0 |
+| --- | --- | --- | --- | --- |
+| RecAdam | +0.0226 (4/5) | +0.0514 (5/5) | **+0.0593 (5/5)** | +0.0472 (5/5) |
+| AdamW | +0.0150 (4/5) | +0.0322 (5/5) | +0.0333 (5/5) | **+0.0456 (5/5)** |
+
+RecAdam có cực đại nội tại tại **λ≈0.5**; AdamW vẫn đang lên ở λ=1.0 nên đỉnh của nó ở trên 1.0.
+
+**Đây là kết quả bền nhất dự án có:** `codebert/latent_bottleneck` dương ở **5/5 fold tại mọi λ từ
+0.2 đến 1.0, trên cả hai optimizer** — tám ô liên tiếp cùng dấu, mỗi ô p=0.0625 (mức sàn của Wilcoxon
+ở n=5). So với `none` cùng optimizer, cùng máy, cùng bộ fold.
 
 **Điều này rút lại một cách đọc đã dùng trong các mục trước.** Tài liệu này từng mô tả tín hiệu **có
 nhãn** là "đơn điệu giảm theo λ" và tín hiệu **không nhãn** là "có cực đại nội tại", coi đó là khác
