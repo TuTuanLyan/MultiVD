@@ -429,6 +429,7 @@ Chi tiết ở `records/run_timing_2026-08-22.md`.
 | `same_emb` (SAM trên t5pe) | `sam-gate.sh` tìm Phase 1 và baseline ở `model/fam1_emb/`, nhưng run thật tên `emb1_emb`; cả hai lệnh `cp` trượt im lặng | Nhánh tự huấn luyện **Phase 1 khác** (val 0.6647/0.7197 vs 0.6589/0.7119) **và baseline khác** (0.7972 vs 0.8005). Phép so "chỉ đổi SAM" thực ra đổi **ba** biến — không đọc được |
 | `sam_t5p`, `samu_unixcoder` | — | Tái dùng **đúng** (val và best_epoch trùng khít với `fam1_*`) |
 | `fam2_codebert/latent_bottleneck` | Phase 1 dừng ở epoch 2 với val **0.5109** (ngang ngẫu nhiên) | Kết quả λ=0.05 của nhánh đó thừa hưởng một lần rút hỏng. `check_phase1.py` chỉ bắt `best_epoch ≤ 1` nên lọt |
+| `run/matrix.sh` cổng chất lượng Phase 1 | `phase1_usable` **chỉ chạy trên đường tái dùng**, không chạy sau khi huấn luyện mới — nó chặn file bị cắt ngang, không chặn file hoàn chỉnh mà ngang ngẫu nhiên | `codebert__none_sam1r01` kết ở val **0.3333** (đoán một lớp), được công bố, **6 job Phase 2** chạy trên nó cho ra **−0.43**. Đã vá 25/08: cổng chạy ở cả hai đường, không đạt thì đổi thành `.rejected` và tính vào `FAILED` |
 | `results/*/fold*.json` trường `hyperparameters.data_path` | Ở bản ghi Phase 2 nó là giá trị mặc định, không phải source thật đã dùng | Source thật chỉ đọc được từ metadata checkpoint Phase 1 |
 | Bảng gõ tay giữa các thư mục run | 4/8 ô của bảng RecAdam trong tài liệu cũ không dựng lại được từ file thô | Đã thay bằng `report_paired.py` đọc từ `records/results_all.jsonl` |
 
