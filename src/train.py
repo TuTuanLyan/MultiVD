@@ -47,8 +47,24 @@ def latent_diagnostics(assignments, cwe_targets, binary_labels, num_latent):
     return diagnostics
 
 
+def _combine_phase1_loss(vul_loss, aux_loss, lambda_cwe, aux_weighter):
+    """Ham muc tieu cua Phase 1. Tach rieng vi SAM phai tinh LAI dung ham nay o w+eps."""
+    if aux_weighter is None:
+        return vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
+    # λ học được (Kendall/Gal/Cipolla). Hai vô hướng log-phương sai nằm trong
+    # cùng optimizer, nên chúng được cập nhật cùng nhịp với trọng số.
+    total, _ = aux_weighter(vul_loss, aux_loss)
+    return total
+
+
 def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max_grad_norm,
-                           aux_weighter=None):
+                           aux_weighter=None, sam=None):
+    """`sam=None` giu nguyen duong chay cu tung byte.
+
+    Khi co SAM: nhieu loan phai lay tren DUNG ham muc tieu dang toi uu, ma o
+    Phase 1 ham do la `vul + lambda*aux`, khong phai rieng `vul`. Nhieu loan chi
+    theo loss nhi phan se leo doc theo mot mat khac voi mat that su dang huan
+    luyen, va phep do thu duoc khong con la do nhon cua Phase 1 nua."""
     model.train()
     totals = Counter()
     examples = 0
@@ -64,13 +80,23 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
         vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
         aux_loss, assignment = auxiliary_loss(outputs, cwes, model.aux_mode,
             temperature=getattr(model, "latent_temperature", 0.1))
-        if aux_weighter is None:
-            loss = vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
-        else:
-            # λ học được (Kendall/Gal/Cipolla). Hai vô hướng log-phương sai nằm
-            # trong cùng optimizer, nên chúng được cập nhật cùng nhịp với trọng số.
-            loss, _ = aux_weighter(vul_loss, aux_loss)
+        loss = _combine_phase1_loss(vul_loss, aux_loss, lambda_cwe, aux_weighter)
         loss.backward()
+
+        if sam is not None:
+            # Luot 1 chi de lay HUONG leo; gia tri loss bao cao van la loss tai w.
+            trainable = [p for p in model.parameters() if p.requires_grad]
+            if sam.ascend(trainable):
+                optimizer.zero_grad(set_to_none=True)
+                out2 = model(input_ids, attention_mask, return_cwe=True)
+                vul2 = F.cross_entropy(out2["vul_logits"], labels)
+                aux2, _ = auxiliary_loss(out2, cwes, model.aux_mode,
+                    temperature=getattr(model, "latent_temperature", 0.1))
+                _combine_phase1_loss(vul2, aux2, lambda_cwe, aux_weighter).backward()
+                # Ve w TRUOC optimizer.step(): gradient lay o w+eps nhung buoc
+                # cap nhat phai ap cho w goc, dung nhu ma cua Google.
+                sam.restore(trainable)
+
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
         size = labels.size(0)
@@ -257,13 +283,13 @@ def train_loop(
 ):
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
-    if phase == "phase2" and getattr(args, "sam_rho", 0.0) > 0:
+    if phase in ("phase1", "phase2") and getattr(args, "sam_rho", 0.0) > 0:
         from sam import SAMStep
 
         sam = SAMStep(args.sam_rho)
         logger.info(
-            "SAM bat | rho=%.4f (tuyet doi, chuan L2 toan cuc) | moi buoc 2 luot "
-            "forward-backward, thoi gian huan luyen ~2x", args.sam_rho,
+            "SAM bat o %s | rho=%.4f (tuyet doi, chuan L2 toan cuc) | moi buoc 2 luot "
+            "forward-backward, thoi gian huan luyen ~2x", phase, args.sam_rho,
         )
     best_score, best_epoch, patience_counter = -math.inf, 0, 0
     training_started = time.perf_counter()
@@ -274,7 +300,7 @@ def train_loop(
         if phase == "phase1":
             train = train_one_epoch_phase1(
                 model, train_loader, optimizer, device, args.lambda_cwe, args.max_grad_norm,
-                aux_weighter=aux_weighter,
+                aux_weighter=aux_weighter, sam=sam,
             )
             if aux_weighter is not None:
                 d = aux_weighter.diagnostics()

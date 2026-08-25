@@ -1112,7 +1112,8 @@ def parse_args():
                               "lr chung 2e-5 thi qua ca mot Phase 1 chung chi dich duoc ~0.024, "
                               "tuc lambda gan nhu khong hoc gi")
     recadam.add_argument("--sam_rho", type=float, default=0.0,
-                         help="Sharpness-Aware Minimization o Phase 2. 0 = tat (mac dinh, "
+                         help="Sharpness-Aware Minimization o CHINH pha dang chay (Phase 1 hay "
+                              "Phase 2 la do --phase quyet dinh, khong phai co nay). 0 = tat (mac dinh, "
                               "duong chay khong doi). >0 bat, moi buoc 2 luot forward-backward "
                               "nen ~2x thoi gian. rho la do dai TUYET DOI cua nhieu loan, "
                               "chuan L2 toan cuc, dung quy uoc bai bao (0.05, 0.1 la pho bien)")
