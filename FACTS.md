@@ -622,47 +622,56 @@ trong lịch sử git ở commit `644dc46`.
 
 ## 12. Việc còn dở
 
-**Đang chạy** (cập nhật 25/08). Ma trận reset, chia theo backbone — **mỗi backbone giữ trọn
-5 fold × 2 λ × 2 optimizer và baseline của chính nó trên MỘT máy**, nên không phép so nào vắt qua
-phần cứng.
+**Trạng thái cuối ngày 25/08.** Cả hai máy vast đã **HỦY** sau khi kéo về đầy đủ (kết quả +
+checkpoint Phase 1), đối chiếu khớp. Ngày 26/08 thuê máy mới.
 
-| máy | GPU | backbone | thư mục | hàng đợi | đang ở bước |
-| --- | --- | --- | --- | --- | --- |
-| `ntat2` | RTX 4080S | `t5`, `t5p` (bimodal), `t5pe` | `/workspace/MultiVD` | `overnight_m1`, run `m1` | 07 SAM Phase 2 (fold 1/5) |
-| `ntat` | RTX 4070S Ti | `codebert`, `unixcoder` | `/workspace/MultiVD` | `overnight_n1`, run `n1` | 01 λ=0.2 (fold 1/5) |
-| local | RTX A4000 | `t5pe` | `~/workspace/MultiVD` | `~/.multivd_state/overnight_l1`, run `l1` | 01 λ=0.2, **chỉ fold 1** |
+| máy | GPU | backbone | run | đã chạy xong |
+| --- | --- | --- | --- | --- |
+| `ntat` (đã hủy) | RTX 4070S Ti | `codebert`, `unixcoder` | `n1` | λ=0.2, λ=0.05, SAM-Phase-1 ρ=0.01 — **đủ 5 fold**. λ=0.5 và λ=1.0 chỉ `codebert` |
+| `ntat2` (đã hủy) | RTX 4080S | `t5`, `t5p`, `t5pe` | `m1` | λ=0.2, λ=0.05, λ học được, SAM-Phase-2 ρ=0.05 — **đủ 5 fold**. SAM-Phase-1: 11/12 checkpoint + Phase 2 fold 1 |
+| local | RTX A4000 | `t5pe` | `l1` | λ=0.2 và SAM-Phase-1 ρ=0.05 fold 1–3; nhánh `none` fold 1–5 |
 
-Máy local là **server dùng chung** (23 người). Quy tắc riêng cho nó: đúng **một** process,
-`nice -n 15`, `OMP_NUM_THREADS=2`, `num_workers 0`, và **không watchdog** — hàng đợi local
-luôn hữu hạn (`FOLDS=1`) để nó tự dừng thay vì giữ GPU vô thời hạn. Chủ máy luôn được nhường.
+Máy local là **server dùng chung**. Quy tắc riêng: đúng **một** process, `nice -n 15`,
+`OMP_NUM_THREADS=2`, `num_workers 0`, và **không watchdog** — hàng đợi local luôn hữu hạn để nó tự
+dừng thay vì giữ GPU vô thời hạn. Chủ máy luôn được nhường. Giờ nghỉ 23:00 **chỉ áp dụng cho vast**.
 
-`ntat` **dùng lại 8 checkpoint Phase 1 của máy `dung` đã trả** (đã kiểm: cả 8 có `best_epoch ≥ 3`
-và val ≥ 0.5979), nên nó bỏ qua toàn bộ Phase 1 của khối λ=0.2. Cả hai máy nằm trên **cùng một
-host vật lý** `42.116.251.183` nhưng **khác GPU**, nên vẫn không được so chéo hai máy.
+Hai máy vast nằm trên **cùng một host vật lý** nhưng **khác GPU**, nên không được so chéo. Mỗi
+backbone giữ trọn baseline và `none` của chính nó trên MỘT máy.
 
-`run/overnight.sh` chạy 7 bước theo thứ tự ưu tiên: λ=0.2 → đo (độ nhọn + dịch chuyển) → λ=0.05 →
-đo → λ học được → đo → SAM Phase 2. Danh sách dài hơn một đêm nên GPU không thể hết việc.
-`scripts/watchdog.sh` chạy **trên chính máy**, 5 phút một lần bật lại hàng đợi nếu nó chết, sau khi
-dọn tiến trình mồ côi ở cả tầng `matrix.sh` lẫn tầng python.
+### Việc cho ngày 26/08, theo thứ tự tôi đề xuất
 
-Công cụ vận hành: `bash scripts/status.sh` (trạng thái ba máy), `bash scripts/pull_results.sh`
-(kéo kết quả về, gọi khi một khối xong; thêm `--with-phase1` trước khi trả máy).
+1. **Quét λ = 0.01 và 0.02 trên họ CodeT5.** Mục 4c-2 đưa ra một cách đọc thống nhất — λ tối ưu chỉ
+   *dịch chỗ* theo backbone chứ không đổi *hình dạng* — và dự đoán kiểm được là đường cong họ CodeT5
+   phải **quay đầu** dưới 0.05. Rẻ nhất trong mọi việc còn lại: 3 lần rút Phase 1 mỗi điểm, dùng lại
+   baseline và `none` của khối λ=0.2. Đây là phép thử có thể bác một kết luận trung tâm.
+2. **λ ≥ 1.0 cho `codebert/latent_bottleneck`.** Ô mạnh nhất dự án (+0.0593, 5/5 fold, p=0.0625 ở
+   λ=0.5) **vẫn đang lên**. Chạy λ=1.0 dở dang tối 25/08, cần chạy lại đủ 5 fold.
+3. **Hoàn tất Phase 2 của khối SAM-Phase-1 họ CodeT5.** 11 checkpoint đã có sẵn ở
+   `model_run_ntat2/m1/phase1/*_sam1/` — đẩy lên máy mới là chạy thẳng Phase 2, tiết kiệm ~4 giờ GPU.
+   Mới có fold 1.
+4. **Ngưỡng vỡ của nhánh `none` dưới SAM** (mục 5c-3): chạy `none` ở ρ ∈ {0.002, 0.005, 0.01, 0.02}
+   trên một backbone, chỉ cần val nguồn, ~5 phút mỗi điểm.
+5. **Đa seed.** Toàn bộ mục 4 là seed 42. Đây là cổng **cuối**, chỉ mở sau khi phương pháp đã vững
+   trên nhiều backbone — không dùng để lấp GPU trống.
 
-**Chưa chạy**
+### Vẫn chưa chạy
 
-- **SAM ở PHASE 1.** `src/train.py` nay cho phép (`PHASE1_EXTRA="--sam_rho 0.05"`), nhưng **chưa
-  có run nào**. Đây là ô trống đáng giá nhất hiện tại: ICML 2026 (arXiv:2605.02105) đo SAM ở giai
-  đoạn **pretrain** cho "quên ít hơn tới 80%" trên mô hình 20M–150M tham số, còn mọi run SAM của
-  dự án — kể cả khối 07 đang chạy — đều ở Phase 2. Bài đó **không** so trực tiếp hai chỗ đặt.
-- ~~λ=0.05 trong ma trận reset~~ — đã chạy đủ 5 fold trên cả 5 backbone. Kết quả **bác** con số cũ
-  cho CodeBERT; xem mục 4c. Việc còn lại là quét λ **lớn hơn 0.2** cho codebert.
-- **Đa seed.** Toàn bộ mục 4 là seed 42. Seed 7 mới có fold 1–3 trên hai backbone.
-- **SAM ở Phase 2** — khối 07 trên `ntat2` đang chạy đủ 4 nhánh × 2 optimizer × 3 backbone lần đầu
-  (trước đó mới có `none` và `cwe`, và run t5pe hỏng — mục 9). Chưa quét ρ, mới thử ρ=0.05.
-  Chưa chạy trên `codebert`/`unixcoder`.
-- ~~Độ nhọn của `codet5p-220m-bimodal`~~ — đã đo, mục 5b. **Dịch chuyển trọng số** của CodeT5-base
-  và t5pe vẫn thiếu; codebert/unixcoder đã có (mục 6).
+- **SAM ở Phase 2 cho họ RoBERTa** — và **không được dùng ρ=0.05**: mục 5b đo được ρ đó phá huỷ họ
+  này ở Phase 1. Nếu chạy thì dùng ρ=0.01.
+- **Dịch chuyển trọng số** của CodeT5-base và t5pe (codebert/unixcoder đã có — mục 6).
 - **Bộ fold `sven_python_random`** — chưa có run nào.
 - **Pooling cho họ T5**: dùng `mean` theo quy ước học thuật. Đo trên bộ gốc với `codet5p-220m`:
   `cls` cho head phụ −0.0027, `mean` cho −0.0373.
-- `check_phase1.py` chưa bắt được Phase 1 dừng sớm với val ngang ngẫu nhiên (mục 9).
+- `check_phase1.py` chưa bắt được Phase 1 dừng sớm với val ngang ngẫu nhiên (mục 9). Cổng trong
+  `run/matrix.sh` **đã** bắt (vá 25/08), nhưng công cụ độc lập thì chưa.
+
+### Công cụ vận hành
+
+| lệnh | làm gì |
+| --- | --- |
+| `bash scripts/status.sh` | trạng thái cả ba máy trong một lần gọi |
+| `bash scripts/pull_results.sh [--with-phase1]` | kéo kết quả về; thêm cờ trước khi trả máy |
+| `bash scripts/shutdown_vast.sh` | dừng hàng đợi → kéo về → đối chiếu → hủy. `ACTION=none\|stop\|destroy` |
+| `bash scripts/restart_queue.sh` | (chạy TRÊN máy vast) khởi động lại hàng đợi với `STEPS` mới |
+| `python src/build_records.py` | gộp mọi `fold*.json` vào `records/results_all.jsonl` (gộp, không ghi đè) |
+| `python src/report_paired.py --run X` / `--vs A B` | ghép cặp theo fold, in n, sd, bỏ-1-fold, Wilcoxon |
