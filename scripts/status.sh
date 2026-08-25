@@ -21,10 +21,13 @@ MACHINES=(
 )
 echo "=============== TRANG THAI $(date -u '+%F %T UTC') ==============="
 
-# Local KHONG nam trong ma tran. GPU local dung chung, va cuongtm/tranmanhcuong
-# la chu may nen luon duoc nhuong; mot job cua ta da OOM ngay khi ho quay lai.
-# Chi in trang thai de biet khi nao GPU trong tro lai.
-printf "\n--- local (RTX A4000) · KHONG chay ma tran ---\n"
+# Local CO chay, nhung la may server dung chung: dung DUNG MOT process, nice 15,
+# OMP_NUM_THREADS=2, va khong bao gio co watchdog — hang doi local luon huu han
+# (FOLDS=1) de no tu dung thay vi chiem GPU vo thoi han.
+#
+# Chu may luon duoc nhuong: mot job cua ta da OOM ngay khi ho quay lai. Nen dong
+# "GPU dang dung boi" duoi day phai doc ky truoc khi phong them.
+printf "\n--- local (RTX A4000) · run l1, 1 process, nice 15 ---\n"
 nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader 2>/dev/null | while read -r pid mem; do
   pid=${pid%,}
   printf "  GPU dang dung boi pid=%s user=%s (%s)\n" "$pid" "$(ps -o user= -p "$pid" 2>/dev/null | tr -d ' ')" "$mem"
@@ -42,7 +45,7 @@ for M in "${MACHINES[@]}"; do
   echo "  ssh $HOST:$PORT"
   # shellcheck disable=SC2059
   OUT=$($SSH -p "$PORT" "root@$HOST" "
-    pgrep -f plan_two_lambda.sh >/dev/null && echo '  dang chay' || echo '  KHONG CO TIEN TRINH'
+    ps -eo pid,args --no-headers | awk '\$2==\"bash\" && \$3 ~ /overnight/ {c++} END{print (c+0>0) ? \"  dang chay hang doi\" : \"  KHONG CO TIEN TRINH\"}'
     echo \"  phase1=\$(ls $DIR/model/*/phase1/*/seed_*/best.pt 2>/dev/null | wc -l) ket_qua=\$(find $DIR/results -name 'fold*.json' 2>/dev/null | wc -l)\"
     nvidia-smi --query-gpu=memory.used,utilization.gpu --format=csv,noheader | sed 's/^/  GPU: /'
     grep '^=== ' $LOG 2>/dev/null | tail -1 | sed 's/^/  /'
@@ -53,8 +56,18 @@ for M in "${MACHINES[@]}"; do
   echo "${OUT:-  khong ket noi duoc}"
 done
 
+printf "\n--- hang doi local (l1) ---\n"
+if ps -eo pid,args --no-headers | awk '$2=="bash" && $3 ~ /overnight/ {f=1} END{exit !f}'; then
+  echo "  dang chay"
+else
+  echo "  KHONG CO TIEN TRINH$([ -f /home/ntat/.multivd_state/overnight_l1/ALL_DONE ] && echo ' (da ALL_DONE)')"
+fi
+tail -1 /home/ntat/.multivd_state/overnight_l1.log 2>/dev/null | sed 's/^/  /'
+
 cat <<'TONG'
 
-Tong ket qua khi xong: 5 backbone x 5 fold x 9 (lambda 0.2) + 5 x 5 x 6 (lambda 0.05) = 375
-  ntat2: t5 t5p t5pe = 225. codebert/unixcoder da chay xong lam=0.2 tren `dung` (da tra may).
+Phan cong hien tai (moi backbone tron ven tren MOT may, khong phep so nao vat qua):
+  ntat2  t5 t5p t5pe      07 SAM Phase 2  ->  05 SAM Phase 1
+  ntat   codebert unixcoder  01 lam=0.2 -> 03 lam=0.05 -> 05 SAM Phase 1 -> 07 SAM Phase 2
+  local  t5pe               01 lam=0.2 -> 05 SAM Phase 1, CHI fold 1 (pilot)
 TONG
