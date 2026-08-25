@@ -167,13 +167,58 @@ def build(roots):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--roots", nargs="+",
-                        default=["results", "results_vast", "results_vast2",
+                        default=["results", "results_m1", "results_n1", "results_r1",
+                                 "results_vast", "results_vast2",
                                  "results_ntat", "results_ntat2"])
     parser.add_argument("--out", default="records/results_all.jsonl")
+    parser.add_argument("--no-merge", action="store_true",
+                        help="dung lai tu dau thay vi gop — se MAT cac dot chay khong con thu muc tho")
     args = parser.parse_args()
 
     roots = [r for r in args.roots if os.path.isdir(r)]
     records, skipped = build(roots)
+
+    # GOP, khong ghi de. Ban gop la ban DUY NHAT con lai cua nhieu dot chay cu:
+    # 1025 dong dau tien khong con thu muc `results*` nao sinh ra chung duoc nua
+    # (chung da bi xoa trong mot lan don dep truoc). Dung lai tu dau se lang le
+    # vut het phan do di.
+    #
+    # Khoa dinh danh la (run, arm, seed, fold) — dung khoa ma report_paired dung.
+    # Dong moi quet duoc DE LEN dong cu cung khoa, nen chay lai sau khi sua loi
+    # trong mot job van cap nhat dung.
+    if not args.no_merge and os.path.exists(args.out):
+        def key(row):
+            return (row.get("run"), row.get("arm"), row.get("seed"), row.get("fold"))
+        merged = {}
+        for line in open(args.out):
+            line = line.strip()
+            if line:
+                row = json.loads(line)
+                merged[key(row)] = row
+        before = len(merged)
+        for row in records:
+            merged[key(row)] = row
+        records = [merged[k] for k in sorted(merged, key=lambda t: tuple(str(x) for x in t))]
+        print(f"gop: {before} dong cu + {len(records) - before} dong moi = {len(records)}")
+
+    # KHONG cho ghi de mot ban gop dang co bang mot ban rong hon han.
+    #
+    # Da xay ra that: danh sach `--roots` mac dinh con la ten thu muc cua dot
+    # chay truoc (`results_vast`, `results_ntat2`...), khong con thu muc nao ton
+    # tai, nen `build` tra ve 0 dong va lenh ghi de 1025 dong bang mot file rong
+    # — bao "0 dong" roi thoat 0. Mot ban gop rong trong y het mot ban gop that
+    # o moi cho dung no, va khong co canh bao nao.
+    old_rows = 0
+    if os.path.exists(args.out):
+        with open(args.out) as handle:
+            old_rows = sum(1 for _ in handle)
+    if old_rows and len(records) < old_rows * 0.9:
+        raise SystemExit(
+            f"DUNG: chi gop duoc {len(records)} dong nhung {args.out} dang co {old_rows}.\n"
+            f"  thu muc quet duoc: {roots or '(khong co)'}\n"
+            f"  neu that su muon thu hep, chay lai voi --out mot file khac roi doi chieu."
+        )
+
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as handle:
         for row in records:
