@@ -276,7 +276,36 @@ xuống 0.05 cải thiện `cwe` và `latent_bottleneck` ở 6/6 ô. Nên trên 
 ở λ=0.05 so với +0.0114 (3/5) ở λ=0.2". Trong ma trận reset, cùng backbone và cùng bộ fold, kết quả
 đảo chiều. Số cũ đến từ run `fam2_*`, mà mục 9 đã ghi là có một nhánh Phase 1 hỏng.
 
-**λ=0.5 (đo 25/08, `ntat`):** hai head dùng nhãn chịu được — `cwe` val nguồn 0.6393, `latent_bottleneck`
+### 4c-2. Trục λ ba điểm trên codebert — head CÓ NHÃN cũng có cực đại nội tại
+
+Đủ 5 fold ở cả ba giá trị λ, cùng máy, `none` cùng optimizer làm đối chứng:
+
+| | λ=0.05 | λ=0.2 | λ=0.5 |
+| --- | --- | --- | --- |
+| `cwe` RecAdam | +0.0411 (4/5) | **+0.0542 (5/5)** | +0.0395 (4/5) |
+| `cwe` AdamW | +0.0283 (5/5) | **+0.0325 (5/5)** | +0.0136 (3/5) |
+| `latent_bottleneck` RecAdam | +0.0226 (4/5) | +0.0514 (5/5) | **+0.0593 (5/5), p=0.0625** |
+| `latent_bottleneck` AdamW | +0.0150 (4/5) | +0.0322 (5/5) | **+0.0333 (5/5), p=0.0625** |
+| `latent_proto` RecAdam | +0.0174 (4/5) | +0.0129 (3/5) | *(Phase 1 bị từ chối)* |
+| `latent_proto` AdamW | +0.0076 (2/5) | +0.0145 (3/5) | *(Phase 1 bị từ chối)* |
+
+**`cwe` có cực đại nội tại tại λ=0.2 ở cả hai optimizer.** `latent_bottleneck` **vẫn đang lên ở
+λ=0.5** (5/5 fold cả hai optimizer, p=0.0625 — mức sàn của Wilcoxon ở n=5), nên đỉnh của nó nằm trên
+0.5. Ô mạnh nhất dự án đo được cho tới nay: `codebert/latent_bottleneck/RecAdam` ở λ=0.5, **+0.0593
+so với `none` cùng optimizer, dương cả 5/5 fold**.
+
+**Điều này rút lại một cách đọc đã dùng trong các mục trước.** Tài liệu này từng mô tả tín hiệu **có
+nhãn** là "đơn điệu giảm theo λ" và tín hiệu **không nhãn** là "có cực đại nội tại", coi đó là khác
+biệt **về chất**. Số liệu codebert bác điều đó: head có nhãn **cũng** có đỉnh, chỉ nằm ở λ cao hơn.
+
+Cách đọc thay thế, đơn giản hơn và khớp cả hai họ: **λ tối ưu phụ thuộc backbone**, và cực đại của
+họ CodeT5 nằm **dưới 0.05** — dưới giá trị nhỏ nhất từng thử — nên đường cong của họ đó *trông* đơn
+điệu giảm chỉ vì cửa sổ quét nằm trọn bên phải đỉnh. Cùng một hình dạng, dịch chỗ.
+
+Dự đoán kiểm được từ cách đọc này: **quét λ = 0.01 và 0.02 trên họ CodeT5 phải thấy đường cong quay
+đầu.** Rẻ: 3 lần rút Phase 1 cho mỗi điểm, không cần chạm vào baseline hay `none`.
+
+**λ=0.5 val nguồn (đo 25/08, `ntat`):** hai head dùng nhãn chịu được — `cwe` val nguồn 0.6393, `latent_bottleneck`
 0.6363. Head **không nhãn** thì sập: `latent_proto` dừng ở **epoch 2, val 0.5234**, bị cổng từ chối.
 Nhất quán với cực đại nội tại quanh λ≈0.2 của `latent_proto` đã thấy trên họ CodeT5 — đi lên quá thì
 hỏng hẳn chứ không kém dần. Δ transfer của λ=0.5 xem kết quả Phase 2.
