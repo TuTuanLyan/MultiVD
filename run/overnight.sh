@@ -59,23 +59,32 @@ step() {
   fi
 }
 
+# $@ = cac HAU TO kho Phase 1 duoc phep xoa ("_l05", "_uw", ...). Khong truyen
+# thi xoa moi kho da do xong.
+#
+# Vi sao phai co doi so: kho hau to rong ("") la NGUON cua khoi SAM-Phase-2, vi
+# khoi do chi doi Phase 2 nen PHASE1_TAG="". Mot lan don dia khong phan biet se
+# xoa dung thu khoi sau con dang doc, va hong kieu do khong de lai dau hieu gi.
 free_disk_if_needed() {
   local avail; avail=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
   (( avail >= DISK_FLOOR_GB )) && return 0
-  log "dia con ${avail}GB < ${DISK_FLOOR_GB}GB - don cac thu muc Phase 1 DA DO xong"
+  local tags=("$@"); (( ${#tags[@]} )) || tags=("*")
+  log "dia con ${avail}GB < ${DISK_FLOOR_GB}GB - don kho Phase 1 DA DO xong: ${tags[*]}"
   # Xoa TUNG thu muc da ghi, khong quet sach ca kho.
   #
   # Ban dau file danh dau chi chua "model/$RUN_NAME/phase1", tuc CA KHO, nen mot
   # lan don dia se xoa MOI checkpoint - ke ca cai ma khoi sau con dang can. Dem
   # nay tinh co vo hai vi thu tu buoc, nhung chi can doi thu tu hoac bat them seed
   # la no xoa dung thu dang dung, va hong kieu do khong de lai dau hieu gi.
-  local marker dir
-  for marker in "$STATE"/measured*; do
-    [[ -f "$marker" ]] || continue
-    while IFS= read -r dir; do
-      [[ -n "$dir" && -d "$dir" ]] || continue
-      rm -rf "$dir" && log "  da xoa $dir"
-    done < "$marker"
+  local tag marker dir
+  for tag in "${tags[@]}"; do
+    for marker in "$STATE"/measured${tag}_seed*; do
+      [[ -f "$marker" ]] || continue
+      while IFS= read -r dir; do
+        [[ -n "$dir" && -d "$dir" ]] || continue
+        rm -rf "$dir" && log "  da xoa $dir"
+      done < "$marker"
+    done
   done
   df -h / | tail -1
 }
@@ -171,63 +180,99 @@ log "backbone : $BACKBONES"
 log "trang thai: $STATE"
 
 # ---------------------------------------------------------------------------
-# Thứ tự = thứ tự ưu tiên. Việc quan trọng nhất chạy trước, nên nếu đêm bị cắt
-# ngắn thì thứ mất đi là thứ ít quan trọng nhất.
+# Danh muc bước. Thứ tự KHÔNG cố định trong file này nữa — nó là biến `STEPS`,
+# vì hai máy đang ở hai chỗ khác nhau trong cùng danh mục và ép chung một thứ tự
+# thì một trong hai phải bỏ dở việc đang chạy.
+#
+# Tên bước là khóa của cờ `.done`, nên ĐỔI TÊN một bước = chạy lại bước đó.
 # ---------------------------------------------------------------------------
+run_step() {
+  case "$1" in
+    # λ=0.2 — trục so được với toàn bộ số liệu cũ.
+    01_lambda020)
+      step "$1" matrix 0.2 "" "none cwe latent_bottleneck latent_proto" "$SEED" ;;
+    # Đo trên chính checkpoint vừa sinh, trước khi có nguy cơ bị dọn.
+    02_measure020)
+      step "$1" measure "" "$SEED" ;;
+    # λ=0.05 — baseline và `none` dùng lại của khối λ=0.2 (cả hai độc lập với λ).
+    03_lambda005)
+      step "$1" matrix 0.05 "_l05" "cwe latent_bottleneck latent_proto" "$SEED" ;;
+    04_measure005)
+      step "$1" measure "_l05" "$SEED" ;;
 
-# 1. λ=0.2 — trục so được với toàn bộ số liệu cũ.
-step "01_lambda020"  matrix 0.2  ""     "none cwe latent_bottleneck latent_proto" "$SEED"
+    # SAM o PHASE 1 — Watts et al., ICML 2026, arXiv:2605.02105.
+    #
+    # Bai do dat SAM o giai doan PRETRAIN va bao checkpoint thu duoc quen it hon
+    # toi 80% khi fine-tune ve sau, tren mo hinh 20M-150M tham so, dung dai cua
+    # du an. Moi run SAM cua du an truoc day deu o Phase 2. Bai KHONG so truc
+    # tiep hai cho dat, nen day la o trong that.
+    #
+    # Khac 07_sam o dung mot cho: SAM nam o PHASE1_EXTRA thay vi PHASE2_EXTRA.
+    # Va vi Phase 1 doi thi kho checkpoint phai RIENG — PHASE1_TAG mac dinh bang
+    # ARM_TAG ("_sam1") nen dieu do tu dung; KHONG duoc truyen "" o day.
+    #
+    # Doi chung dung la khoi 01 (lambda=0.2, khong SAM o dau ca) tren CHINH may
+    # nay: cung lambda, cung Phase 2, chi khac SAM o Phase 1.
+    05_sam_phase1)
+      step "$1" matrix 0.2 "_sam1" "none cwe latent_bottleneck latent_proto" "$SEED" \
+           "--sam_rho 0.05" ;;
+    # Do nhon cua chinh checkpoint SAM-Phase-1: SAM co that su cho cuc tieu phang
+    # hon khong. Dong thang voi FACTS muc 4 (do nhon KHONG du bao transfer) — neu
+    # SAM lam phang that ma transfer khong doi, muc 4 duoc xac nhan lan hai.
+    06_measure_sam1)
+      step "$1" measure "_sam1" "$SEED" ;;
 
-# 2. Đo trên chính checkpoint vừa sinh, trước khi có nguy cơ bị dọn.
-step "02_measure020" measure ""   "$SEED"
+    # SAM o PHASE 2 - Foret et al., ICLR 2021, ban port o src/sam.py tu ma JAX goc.
+    #
+    # PHASE1_TAG="" la chi tiet QUAN TRONG NHAT o day: SAM chi dung toi Phase 2,
+    # nen Phase 1 cua no phai la DUNG checkpoint cua khoi lambda=0.2, khong phai
+    # mot lan rut moi. Khong tach khoa nay thi phep so "chi doi SAM" doi hai bien,
+    # va do dung la cach run `same_emb` da hong ma khong ai thay.
+    #
+    # Chay ca hai optimizer vi docs/SAM_REFERENCE.md canh bao SAM va RecAdam CHONG
+    # LAN nhau - ca hai deu sua buoc cap nhat. SAM+AdamW moi la phep thu sach.
+    #
+    # rho=0.05 tuyet doi, dung quy uoc bai bao. Moi buoc 2 luot forward-backward.
+    # KHONG co buoc do rieng: Phase 1 cua no CHINH LA kho lambda=0.2, da do o 02.
+    07_sam)
+      step "$1" matrix 0.2 "_sam" "none cwe latent_bottleneck latent_proto" "$SEED" \
+           "" "--sam_rho 0.05" "" ;;
 
-# 3. λ=0.05 — baseline và `none` dùng lại của bước 1 (cả hai độc lập với λ).
-step "03_lambda005"  matrix 0.05 "_l05" "cwe latent_bottleneck latent_proto"      "$SEED"
-step "04_measure005" measure "_l05" "$SEED"
+    # λ HOC DUOC — Kendall/Gal/Cipolla, arXiv:1705.07115. KHONG con trong thu tu
+    # mac dinh: da bac o 9/9 nhanh va bac vi ly do CAU TRUC, xem DEAD_ENDS muc 13
+    # (cuc tieu cua exp(-s)L + s/2 cho w=0.5/L, nen lambda_eff = L_bin/L_aux —
+    # trong so toi uu ti le NGHICH voi loss, va mot head 4 lop tren 1284 dong luon
+    # la task loss thap). Giu lai de chay duoc bang STEPS neu can them bang chung.
+    08_lambda_hoc_duoc)
+      step "$1" matrix 0.2 "_uw" "cwe latent_bottleneck latent_proto" "$SEED" \
+           "--aux_weight_mode uncertainty --aux_weight_lr 1e-2" ;;
+    09_measure_uw)
+      step "$1" measure "_uw" "$SEED" ;;
 
-# 5. λ HỌC ĐƯỢC — Kendall/Gal/Cipolla, CVPR 2018, arXiv:1705.07115.
-#
-# Hai vô hướng log-phương sai thay cho hằng số λ. Khởi tạo tại đúng λ=0.2 nên đây
-# là mở rộng thật sự của khối 1, không phải một điểm xuất phát khác.
-#
-# `--aux_weight_lr 1e-2` KHÔNG phải con số tuỳ tiện: với lr chung 2e-5, đo được là
-# qua cả một Phase 1 hai vô hướng đó chỉ dịch ~0.024, tức λ_eff đổi ~2% và thí
-# nghiệm trả về một kết quả null vô nghĩa. Mô phỏng 1200 bước cho thấy 1e-2 tới
-# đúng điểm cân bằng mà 5e-2 cũng tới.
-#
-# Baseline và `none` dùng lại của khối 1: với aux_mode=none thì không có loss phụ
-# để cân, nên cách tính trọng số không đổi được gì.
-#
-# Đại lượng đáng đọc không phải riêng F1 mà là **λ_eff mà mô hình tự chọn**, ghi
-# vào log mỗi epoch và vào checkpoint — nó so trực tiếp được với 0.2 và 0.05.
-step "05_lambda_hoc_duoc" matrix 0.2 "_uw" "cwe latent_bottleneck latent_proto" "$SEED" \
-     "--aux_weight_mode uncertainty --aux_weight_lr 1e-2"
-step "06_measure_uw" measure "_uw" "$SEED"
+    # Don dia GIUA cac buoc. Chi duoc xoa kho da do xong VA khong buoc sau nao con
+    # doc: "_l05" va "_uw" la ngo cut/da do, con "" thi 07_sam van dang can.
+    don_dia_l05_uw)
+      free_disk_if_needed "_l05" "_uw" ;;
 
-# 7. SAM o Phase 2 - Foret et al., ICLR 2021, ban port o src/sam.py tu ma JAX goc.
-#
-# PHASE1_TAG="" la chi tiet QUAN TRONG NHAT o day: SAM chi dung toi Phase 2, nen
-# Phase 1 cua no phai la DUNG checkpoint cua khoi lambda=0.2, khong phai mot lan
-# rut moi. Khong tach khoa nay thi phep so "chi doi SAM" doi hai bien, va do dung
-# la cach run `same_emb` da hong ma khong ai thay.
-#
-# Chay ca 4 nhanh: FACTS muc 12 ghi SAM moi tung chay `none` va `cwe`, chua tung
-# chay hai nhanh latent. Va `latent_proto` lai dang la nhanh DUY NHAT giup duoc ho
-# CodeT5 (t5pe +0.0200 4/5 fold), nen do chinh la o dang thieu.
-#
-# Chay ca hai optimizer vi docs/SAM_REFERENCE.md canh bao SAM va RecAdam CHONG LAN
-# nhau - ca hai deu sua buoc cap nhat. SAM+AdamW moi la phep thu sach cua rieng SAM.
-#
-# rho=0.05 tuyet doi, dung quy uoc bai bao. Moi buoc 2 luot forward-backward nen
-# khoi nay ~2x thoi gian: 120 job, uoc ~10 gio.
-step "07_sam" matrix 0.2 "_sam" "none cwe latent_bottleneck latent_proto" "$SEED" \
-     "" "--sam_rho 0.05" ""
-# KHONG co buoc do rieng cho SAM: Phase 1 cua no CHINH LA kho lambda=0.2, va kho
-# do da duoc do o buoc 02. Do lai cung mot checkpoint chi ton thoi gian va tao ra
-# mot bang thu hai y het bang cu.
+    *)
+      log "!!! buoc khong biet: $1 — bo qua"
+      echo "$(date -u '+%F %T') $1 KHONG-BIET" >> "$STATE/failed.txt" ;;
+  esac
+}
 
-# Gio moi don dia duoc: khong buoc nao con doc kho Phase 1 nua.
-free_disk_if_needed
+# Thu tu mac dinh. Dat STEPS de doi tren tung may.
+STEPS="${STEPS:-01_lambda020 02_measure020 03_lambda005 04_measure005 \
+don_dia_l05_uw 05_sam_phase1 06_measure_sam1 07_sam}"
+
+for STEP_NAME in $STEPS; do
+  run_step "$STEP_NAME"
+done
+
+# Van CHI don hai kho ngo-cut/da-do. Ban truoc goi khong doi so o day, va tren
+# mot may co marker cu (dong duy nhat "model/m1/phase1", tuc CA KHO) thi mot lan
+# don dia se xoa sach ca checkpoint lambda=0.2 lan checkpoint SAM-Phase-1 truoc
+# khi kip keo ve. Kho nao con dang gia thi khong tu dong xoa.
+free_disk_if_needed "_l05" "_uw"
 
 
 # 7+. Seed phụ — CHỈ chạy khi EXTRA_SEEDS được đặt tường minh. Đây là cổng cuối

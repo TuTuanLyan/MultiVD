@@ -22,7 +22,12 @@ STATE="${STATE:-/workspace/overnight_${RUN_NAME}}"
 QUEUE_LOG="${QUEUE_LOG:-/workspace/overnight_${RUN_NAME}.log}"
 INTERVAL="${INTERVAL:-300}"
 WD_LOG="${WD_LOG:-/workspace/watchdog_${RUN_NAME}.log}"
+# STEPS va DISK_FLOOR_GB phai nam trong danh sach nay. Neu thieu, lan watchdog
+# bat lai hang doi se roi ve THU TU MAC DINH — tren mot may dang chay do thu tu
+# khac, no se bo do khoi dang lam va nhay sang khoi khac, va khong co dau hieu
+# nao bao rang thu tu vua bi doi.
 export PYTHON HF_HOME BACKBONES RUN_NAME SEED EXTRA_SEEDS FOLDS STATE
+export STEPS="${STEPS:-}" DISK_FLOOR_GB="${DISK_FLOOR_GB:-6}"
 
 log() { echo "[$(date -u '+%F %T')] $*" >> "$WD_LOG"; }
 
