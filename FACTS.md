@@ -207,6 +207,48 @@ trước khi xóa 25 GB checkpoint).
 | `latent_bottleneck` | 0.6476 (ep 14) | 0.7075 (ep 14) | 0.6356 (ep 14) | 0.7078 (ep 14) | 0.6586 (ep 14) |
 | `latent_proto` | 0.5346 (ep 3) | 0.6778 (ep 13) | 0.5357 (ep 7) | 0.6709 (ep 14) | 0.6558 (ep 15) |
 
+## 4b. Ma trận reset — `codebert` và `unixcoder`, λ=0.2, đủ 5 fold
+
+Máy `ntat` (RTX 4070S Ti), seed 42, bộ fold `goc`, 25/08. Mỗi backbone có baseline và nhánh `none`
+của chính nó trên cùng máy, nên mọi Δ đều ghép cặp trong cùng phần cứng.
+
+Giá trị **riêng của head phụ** = Δ(nhánh) − Δ(`none`), ghép cặp theo fold, **cùng optimizer**:
+
+| | `cwe` | `latent_bottleneck` | `latent_proto` |
+| --- | --- | --- | --- |
+| **codebert** RecAdam | **+0.0542 (5/5)** | **+0.0514 (5/5)** | +0.0129 (3/5) |
+| **codebert** AdamW | **+0.0325 (5/5)** | **+0.0322 (5/5)** | +0.0145 (3/5) |
+| **unixcoder** RecAdam | +0.0038 (3/5) | +0.0039 (3/5) | −0.0145 (1/5) |
+| **unixcoder** AdamW | −0.0015 (2/5) | +0.0079 (3/5) | −0.0197 (1/5) |
+
+Và **pretrain một mình** (`none` vs baseline):
+
+| | RecAdam | AdamW | baseline |
+| --- | --- | --- | --- |
+| codebert | −0.0014 (2/5) | +0.0112 (4/5) | 0.7811 |
+| unixcoder | **+0.0294 (4/5)** | **+0.0333 (4/5)** | 0.8442 |
+
+**Phân ly kép.** Hai backbone cùng họ RoBERTa, cùng máy, cùng fold, cùng seed, mà vai trò của hai
+thành phần đảo ngược nhau:
+
+- **codebert**: pretrain một mình ≈ 0 hoặc âm; **toàn bộ lợi ích đến từ head phụ**, và hai head
+  **dùng nhãn CWE** dương ở **cả 5/5 fold** trên cả hai optimizer (bốn ô, p=0.0625 — tức mức sàn
+  của Wilcoxon ở n=5, nghĩa là "cùng dấu ở cả 5 fold").
+- **unixcoder**: **pretrain một mình lấy trọn** +0.03; head phụ thêm ~0 và ba ô đổi dấu khi bỏ một
+  fold; `latent_proto` âm 4/4 ô.
+
+Đối chiếu họ CodeT5 (mục 4): ở đó hai head dùng nhãn CWE âm **12/12 ô** và `latent_proto` là nhánh
+**duy nhất** dương. Nên qua 5 backbone hiện có **ba chế độ khác nhau**, không phải một:
+
+| chế độ | backbone | thứ mang lại lợi ích |
+| --- | --- | --- |
+| head phụ **có nhãn** | codebert | `cwe`, `latent_bottleneck`, 5/5 fold |
+| **pretrain** thuần | unixcoder | `none`; head phụ không thêm gì |
+| head phụ **không nhãn** | t5, t5p, t5pe | `latent_proto`; hai head có nhãn đều hại |
+
+Câu "transfer chỉ chạy được với họ RoBERTa" trong tài liệu cũ vì thế **gộp hai cơ chế khác nhau vào
+một tên**. Đây là seed 42, một bộ fold — chưa loại trừ được may rủi giữa seed.
+
 ## 5. Độ nhọn cực tiểu Phase 1
 
 Nhánh `cwe`, seed 42. `‖ε‖ = ρ` tuyệt đối, chuẩn L2 toàn cục, hướng đối kháng `ρ·g/‖g‖` — chính
@@ -226,19 +268,70 @@ Bốn dòng đầu đo trên máy vast 22/08; dòng `t5pe` đo trên RTX A4000 l
 đã tải về. Phép đo này tất định trên một checkpoint cố định (không huấn luyện, không early
 stopping) nên chênh lệch phần cứng ở mức 1e-6, khác hẳn trường hợp huấn luyện.
 
-Chưa đo cho `codet5p-220m-bimodal`.
+Chưa đo cho `codet5p-220m-bimodal` **trong bảng trên**; đo lại đủ 5 backbone ở mục 5b.
+
+### 5b. Đo lại trên ma trận reset — đủ 5 backbone, kèm `‖w‖`
+
+Nhánh `cwe`, seed 42, checkpoint của chính ma trận reset. Bảng trên thiếu `‖w‖`, mà **ρ tuyệt đối
+trên hai mô hình có `‖w‖` khác nhau ba lần thì không phải cùng một phép đo** — đó là confound phải
+xử lý trước khi so.
+
+| backbone | `‖w‖` | loss nền | Δ ρ=0.01 | Δ ρ=0.05 | Δ ρ=0.1 | Δ ρ=0.2 |
+| --- | --- | --- | --- | --- | --- | --- |
+| CodeBERT | 957.09 | 0.8707 | 0.1393 | **0.8095** | 1.6489 | 2.5714 |
+| UniXcoder | 640.54 | 0.6990 | 0.0775 | **0.5687** | 1.4846 | 4.0373 |
+| CodeT5-base | 1874.83 | 0.6359 | 0.0073 | **0.0525** | 0.1370 | 0.3545 |
+| codet5p-220m-bimodal | 1828.13 | 0.6442 | 0.0157 | **0.0806** | 0.1414 | 0.2404 |
+| codet5p-110m-embedding | 1828.13 | 0.6400 | 0.0151 | **0.0782** | 0.1387 | 0.2401 |
+
+Ở cùng ρ tuyệt đối 0.05, họ RoBERTa nhọn hơn họ CodeT5 **10–15 lần**. Nhưng `‖w‖` của họ CodeT5 lớn
+gần gấp đôi đến gấp ba, nên ρ=0.05 với chúng là nhiễu loạn **tương đối** nhỏ hơn 2–3 lần. Ghép ở
+**cùng ρ/‖w‖** thì khoảng cách co lại nhưng không mất:
+
+| ghép ở cùng ρ/‖w‖ | | |
+| --- | --- | --- |
+| CodeBERT ρ=0.05 (5.2e-5) | vs CodeT5-base ρ=0.1 (5.3e-5) | 0.8095 vs 0.1370 → **5.9×** |
+| UniXcoder ρ=0.05 (7.8e-5) | vs CodeT5-base ρ≈0.146 (nội suy) | 0.5687 vs ≈0.237 → **2.4×** |
+
+**Kết luận đi ngược giả thuyết SAM ban đầu.** `measure_sharpness.py` in ra ngay trong output của nó:
+*"SAM chỉ đáng chạy nếu backbone đang hỏng (CodeT5+) nhọn hơn rõ rệt"*. Họ CodeT5 — họ mà transfer
+hỏng — lại **phẳng hơn**, không phải nhọn hơn, kể cả sau khi chuẩn hoá theo `‖w‖`. Làm phẳng thêm
+không phải là thứ họ đang thiếu.
+
+Đây là bản mạnh hơn của mục 4: không chỉ "thứ tự độ nhọn không khớp thứ tự nào", mà **khớp ngược** —
+backbone nhọn nhất (CodeBERT) chính là backbone head phụ hoạt động tốt nhất (mục 4b). Tương quan
+trên 5 điểm, không phải nhân quả.
+
+Ghi chú cần kiểm: `‖w‖` của `codet5p-220m-bimodal` và `codet5p-110m-embedding` trùng nhau tới 6 chữ
+số (1828.13) dù val và Δloss khác nhau. Dịch chuyển Phase 1 gần như trực giao với `w` nên `‖w‖` đổi
+rất ít, nhưng trùng đến mức này thì đáng xác minh chứ chưa nên coi là đã hiểu.
 
 ## 6. Dịch chuyển trọng số sau Phase 1
 
 `‖θ_phase1 − θ_pretrained‖ / ‖θ_pretrained‖`, trung bình có trọng số theo tham số, seed 42,
 source `train_ccpp_js`.
 
-| backbone | `none` | `cwe` |
-| --- | --- | --- |
-| CodeBERT | 0.011876 | 0.010556 |
-| CodeT5+ 220m | 0.022105 | 0.020844 |
+| backbone | `none` | `cwe` | đợt |
+| --- | --- | --- | --- |
+| CodeBERT | 0.011876 | 0.010556 | 22/08 |
+| CodeT5+ 220m | 0.022105 | 0.020844 | 22/08 |
+| **CodeBERT** | **0.011894** | **0.012040** | ma trận reset 25/08 |
+| **UniXcoder** | **0.012234** | **0.012563** | ma trận reset 25/08 |
 
-Chưa đo cho UniXcoder, CodeT5-base, t5pe. **Checkpoint đã xóa**, nên muốn có phải chạy lại Phase 1.
+Ba điều đọc được từ hai dòng mới:
+
+1. CodeBERT lặp lại gần khít giữa hai đợt ở nhánh `none` (0.011876 → 0.011894), nên phép đo này
+   **tái lập được** dù Phase 1 thì không (val nguồn sd 0.0521 giữa các lần rút — mục 9).
+2. Head phụ gần như **không đổi độ dịch**: chênh `cwe` − `none` là +0.000146 trên CodeBERT và
+   +0.000329 trên UniXcoder, tức khoảng 1–3%. Head phụ **không** hoạt động bằng cách kéo trọng số
+   đi xa hơn.
+3. Và độ dịch **không phân biệt được** hai backbone (0.0119 vs 0.0122) trong khi kết quả của chúng
+   phân ly hoàn toàn (mục 4b). Nên đại lượng này, giống độ nhọn, **không dự báo transfer**.
+
+Tensor dịch nhiều nhất trên CodeBERT đều là `attention.self.value.bias` của các lớp trên
+(0.0335 ở lớp 11, 0.0298 ở lớp 5) — cao gấp ~3 lần mức tổng thể.
+
+Chưa đo cho CodeT5-base và t5pe của ma trận reset.
 
 ## 7. Kết quả các đợt trước (tóm tắt)
 
@@ -365,7 +458,8 @@ Công cụ vận hành: `bash scripts/status.sh` (trạng thái ba máy), `bash 
 - **SAM ở Phase 2** — khối 07 trên `ntat2` đang chạy đủ 4 nhánh × 2 optimizer × 3 backbone lần đầu
   (trước đó mới có `none` và `cwe`, và run t5pe hỏng — mục 9). Chưa quét ρ, mới thử ρ=0.05.
   Chưa chạy trên `codebert`/`unixcoder`.
-- **Độ nhọn của `codet5p-220m-bimodal`**; **dịch chuyển trọng số** của UniXcoder, CodeT5-base, t5pe.
+- ~~Độ nhọn của `codet5p-220m-bimodal`~~ — đã đo, mục 5b. **Dịch chuyển trọng số** của CodeT5-base
+  và t5pe vẫn thiếu; codebert/unixcoder đã có (mục 6).
 - **Bộ fold `sven_python_random`** — chưa có run nào.
 - **Pooling cho họ T5**: dùng `mean` theo quy ước học thuật. Đo trên bộ gốc với `codet5p-220m`:
   `cls` cho head phụ −0.0027, `mean` cho −0.0373.
