@@ -346,6 +346,37 @@ Ba điều rút ra:
    nguồn **không** dự báo Δ transfer, nên con số này chưa nói SAM-Phase-1 tốt hay xấu — Phase 2 mới
    trả lời.
 
+### 5c-2. SAM ở Phase 1 có giúp transfer không — đủ 5 fold, họ RoBERTa
+
+Δ = nhánh có SAM ở Phase 1 (ρ=0.01) − nhánh tương ứng không SAM, **cùng máy, cùng λ, cùng Phase 2**,
+ghép cặp theo fold. `ntat`, seed 42.
+
+| | `cwe` | `latent_bottleneck` | `latent_proto` | `none` |
+| --- | --- | --- | --- | --- |
+| **codebert** RecAdam | −0.0320 (0/5) | −0.0355 (1/5) | **+0.0135 (4/5)** | *(loại)* |
+| **codebert** AdamW | −0.0277 (2/5) | −0.0395 (0/5) | −0.0063 (2/5) | *(loại)* |
+| **unixcoder** RecAdam | −0.0145 (3/5) | −0.0052 (2/5) | **+0.0158 (4/5)** | −0.0027 (2/5) |
+| **unixcoder** AdamW | −0.0063 (2/5) | −0.0263 (0/5) | **+0.0152 (4/5)** | +0.0027 (3/5) |
+
+| nhóm | kết quả |
+| --- | --- |
+| head **có nhãn** (`cwe`, `latent_bottleneck`), 8 ô | **âm 8/8**, trung bình **−0.0234** |
+| head **không nhãn** (`latent_proto`), 4 ô | dương 3/4, trung bình **+0.0096** |
+| **`none`** (không có head phụ), 2 ô | **−0.0027 và +0.0027 — bằng không** |
+
+**Kết luận cho họ RoBERTa: SAM ở Phase 1 không dùng được.** Nó hại đúng hai nhánh đang tốt trên
+codebert (mục 4b: `cwe` và `latent_bottleneck` dương 5/5 fold) và chỉ giúp nhẹ nhánh vốn yếu. Biên
+độ nhỏ so với sd giữa fold (0.014–0.041), và chỉ hai ô chạm p=0.0625 — **cả hai đều âm**.
+
+**Điều đáng chú ý hơn con số: `none` bằng đúng không.** SAM đổi hẳn checkpoint Phase 1 của
+`unixcoder/none` (val nguồn 0.7023 → 0.6944) mà Δ transfer **không nhúc nhích** qua 5 fold. Nên tác
+dụng của SAM ở Phase 1 — dù dương hay âm — chỉ xuất hiện **khi có head phụ**, tức nó tác động qua
+việc thay đổi cách tín hiệu phụ định hình biểu diễn, không phải qua độ phẳng tự thân.
+
+Đây là mục thứ ba cùng nói một điều: **độ phẳng không phải là đại lượng điều khiển transfer** —
+mục 4 (thứ tự độ nhọn không khớp thứ tự nào), mục 5b (họ hỏng lại phẳng hơn), và giờ là 5c-2 (cố ý
+làm phẳng cũng không đổi gì khi không có head phụ).
+
 **Hàng bị nhiễm, phải loại khỏi mọi tổng hợp SAM-Phase-1:** `n1_codebert/transfer_none_sam1r01`
 và `..._sam1r01_adamw` (6 hàng, fold 1–3). Phase 1 của chúng là checkpoint val 0.3333 đã nêu ở
 trên; Δ của chúng là **−0.4278 / −0.4436**, và đó là số đo của "fine-tune từ một checkpoint ngang
