@@ -35,6 +35,30 @@ DRY="${DRY:-0}"
 ts(){ date -u '+%F %T'; }
 say(){ echo "$(ts) | $*" >> "$LOG"; }
 
+# ---------------- hang doi (queue161 / queue158) ----------------
+# Hai hang doi chay tuan tu nhieu khoi (ME10, CODEBERT) ma driver opt1 khong biet.
+# Chung giu lock RIENG. Neu mot hang doi chet giua dem thi khong ai phong lai, may nam
+# khong — nen watchdog kiem va phong lai, toi da MAXPASS lan.
+# `flock -o` de tien trinh con KHONG ke thua fd va giu lock suot doi (memory
+# one-driver-one-lock-and-count-artifacts muc 3).
+queue_check(){ # $1=ten (161|158)  $2=duong dan lock  $3=lenh phong
+  local name="$1" lk="$2" cmd="$3"
+  if flock -n "$lk" -c true 2>/dev/null; then
+    local done_re="########## QUEUE${name} xong"
+    local fin; fin=$(grep -c "$done_re" "log/queue${name}.log" 2>/dev/null); fin="${fin:-0}"
+    if (( fin > 0 )); then say "queue$name | da xong het viec"; return; fi
+    local pass; pass=$(cat "log/queue${name}_passes" 2>/dev/null || echo 0)
+    if (( pass >= MAXPASS )); then say "queue$name | CHET, da phong lai $pass lan — DUNG, can nguoi xem"; return; fi
+    if [[ "$DRY" == 1 ]]; then say "queue$name | [DRY] se phong lai lan $((pass+1))"; return; fi
+    echo $((pass+1)) > "log/queue${name}_passes"
+    eval "$cmd"
+    say "queue$name | PHONG LAI lan $((pass+1))"
+  else
+    local last; last=$(tail -1 "log/queue${name}.log" 2>/dev/null | cut -c1-90)
+    say "queue$name | dang chay | $last"
+  fi
+}
+
 # next_stage <thieu_gd1> <thieu_gd2>  ->  "main" | "full" | "done"
 # Dem O THIEU THEO TUNG TAG (scripts/opt1_missing.sh), khong dem tong so file: so cau
 # hinh doi tu 10 len 12 ngay 06/09 va vai fold con giu o cua cau hinh da bo, nen dem
@@ -79,6 +103,9 @@ if [[ "$alive161" == no && "$stage161" != done ]]; then
   fi
 fi
 
+queue_check 161 /tmp/mvd_queue161.lock \
+  'setsid nohup bash scripts/queue161.sh >> log/queue161.log 2>&1 < /dev/null &'
+
 # ---------------- 158 ----------------
 # BAY: dau " LONG trong chuoi ssh bao boi " PHAI escape (\"). Khong escape thi shell
 # LOCAL dong chuoi ngay tai do, va `opt1_missing.sh "4cwe com" "3" 42` thanh BON tham so
@@ -116,11 +143,39 @@ else
       fi
     fi
   fi
+  # hang doi tren 158: kiem qua ssh (lock nam tren MAY DO, khong phai o day)
+  q158=$(timeout 40 ssh -o BatchMode=yes -o ConnectTimeout=15 "$R158" "cd $ROOT158 || exit 1
+{ flock -n /tmp/mvd_queue158.lock -c true && echo alive=no || echo alive=yes; }
+echo fin=\$(grep -c '########## QUEUE158 xong' log/queue158.log 2>/dev/null)
+echo last=\$(tail -1 log/queue158.log 2>/dev/null | cut -c1-90)" 2>/dev/null)
+  if [[ -n "$q158" ]]; then
+    qa=$(sed -n 's/^alive=//p' <<<"$q158" | head -1); qf=$(sed -n 's/^fin=//p' <<<"$q158" | head -1); qf="${qf:-0}"
+    ql=$(sed -n 's/^last=//p' <<<"$q158" | head -1)
+    if [[ "$qa" == yes ]]; then say "queue158 | dang chay | $ql"
+    elif (( qf > 0 )); then say "queue158 | da xong het viec"
+    else
+      qp=$(cat log/queue158_passes 2>/dev/null || echo 0)
+      if (( qp >= MAXPASS )); then say "queue158 | CHET, da phong lai $qp lan — DUNG, can nguoi xem"
+      elif [[ "$DRY" == 1 ]]; then say "queue158 | [DRY] se phong lai lan $((qp+1))"
+      else
+        echo $((qp+1)) > log/queue158_passes
+        timeout 40 ssh -o BatchMode=yes "$R158" "cd $ROOT158 && (setsid nohup bash scripts/queue158.sh >> log/queue158.log 2>&1 < /dev/null &)" 2>/dev/null
+        say "queue158 | PHONG LAI lan $((qp+1))"
+      fi
+    fi
+  fi
+
   # keo ket qua ve (chi them, khong xoa, khong ghi de)
   if (( ${b158:-0} > 0 )); then
     mkdir -p results_opt1_158
     if rsync -az --ignore-existing "$R158:$ROOT158/results/opt1_t5p/" results_opt1_158/ 2>/dev/null; then
-      say "158 | rsync -> results_opt1_158/ : $(ls results_opt1_158/*/seed_42/*.json 2>/dev/null | wc -l) file"
+      say "158 | rsync t5p -> results_opt1_158/ : $(ls results_opt1_158/*/seed_42/*.json 2>/dev/null | wc -l) file"
+    fi
+    # khoi codebert cua queue158 nam o cay RIENG
+    mkdir -p results_opt1cb_158
+    if rsync -az --ignore-existing "$R158:$ROOT158/results/opt1_codebert/" results_opt1cb_158/ 2>/dev/null; then
+      n=$(ls results_opt1cb_158/*/seed_42/*.json 2>/dev/null | wc -l)
+      (( n > 0 )) && say "158 | rsync codebert -> results_opt1cb_158/ : $n file"
     fi
   fi
 fi

@@ -50,6 +50,15 @@ LTAG="l$(printf '%s' "$LAM" | tr '.' 'p')"
 LABEL="${BB%%=*}"
 P1STORE="${P1STORE:-model/n48/phase1}"
 RUN="${RUN:-opt1}"
+# min_epochs cua Pha 2. Mac dinh 3 = duong chay cu. Phai nang len cho nhanh co lambda
+# LEN CHAM: do duoc 06/09, moi o co lambda@epoch5 ~ 0 deu dung o dung epoch 7 (patience 5)
+# va sap duoi 0.6, trong khi o co lambda@epoch5 = 0.99 chay 13-18 epoch va khong sap.
+# Early stopping cat nhanh neo ben TRUOC khi no kip hoc -> cau hoi "neo ben co tot khong"
+# chua duoc tra loi. Doi chung cua khoi me10 cung phai dung dung MIN_EP nay.
+MIN_EP="${MIN_EP:-3}"
+# Hau to lambda trong TEN KHO Pha 1. Kho n48 dat ten `..._4cwe_l0p05`, con kho s42 (codebert)
+# dat `..._4cwe`. Dat P1LTAG="" de dung kho s42 ma khong doi ARM_TAG.
+P1LTAG="${P1LTAG-_$LTAG}"
 
 # "tag|optimizer|cac co Pha 2". Doi chung dung dau.
 CONFIGS="${CONFIGS:-\
@@ -81,8 +90,8 @@ run_cell(){ # $1=src $2=data $3=vocab $4=seed $5=folds $6=tag $7=opt $8=p2extra
   RUN_NAME="$RUN" SEED="$4" FOLDS="$5" \
   BACKBONES="$BB" MODES="latent_bottleneck" OPTIMIZERS="$7" \
   PHASE1_DATA_PATH="$2" CWE_VOCAB="$3" \
-  ARM_TAG="_${1}_${LTAG}_${6}" PHASE1_TAG="_${1}_${LTAG}" PHASE1_STORE="$P1STORE" \
-  LAMBDA_CWE="$LAM" PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 \
+  ARM_TAG="_${1}_${LTAG}_${6}" PHASE1_TAG="_${1}${P1LTAG}" PHASE1_STORE="$P1STORE" \
+  LAMBDA_CWE="$LAM" PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 MIN_EPOCHS="$MIN_EP" \
   PHASE1_EXTRA="--sam_rho 0" PHASE2_EXTRA="$8" \
   DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
   bash run/matrix.sh 9>&-
@@ -99,7 +108,7 @@ echo "  ky vong: ${NS}x${NE}x${NF}x${NC} = $EXP o Pha 2 + $EXPB baseline"
 for SEED in $SEEDS; do
   # Kiem checkpoint Pha 1 TRUOC, in ro cai nao thieu — o thieu phai thay ngay tu dau log.
   for SRC in $SOURCES; do
-    CKPT="$P1STORE/${LABEL}__latent_bottleneck_${SRC}_${LTAG}/seed_${SEED}/best.pt"
+    CKPT="$P1STORE/${LABEL}__latent_bottleneck_${SRC}${P1LTAG}/seed_${SEED}/best.pt"
     if [[ -f "$CKPT" ]]; then
       V=$(PYTHONWARNINGS=ignore ${PYTHON:-python} - "$CKPT" <<'PY' 2>/dev/null
 import sys,torch
@@ -118,7 +127,7 @@ PY
   for FOLD in $FOLD_LIST; do
     for SRC in $SOURCES; do
       read -r DATA VOCAB <<< "$(data_of "$SRC")"
-      CKPT="$P1STORE/${LABEL}__latent_bottleneck_${SRC}_${LTAG}/seed_${SEED}/best.pt"
+      CKPT="$P1STORE/${LABEL}__latent_bottleneck_${SRC}${P1LTAG}/seed_${SEED}/best.pt"
       [[ -f "$CKPT" ]] || continue
       while IFS='|' read -r TAG OPT EXTRA; do
         [[ -z "$TAG" ]] && continue

@@ -5,7 +5,8 @@
 > Mọi Δ trong khối này chỉ dùng để **sàng lọc** cấu hình nào đáng lên bậc 2 (n=5),
 > không được trích vào bài. n=3 đã bốn lần đổi dấu ở n=5 trong dự án này.
 >
-> **Trạng thái: ĐANG CHẠY từ 06/09/2026 ~11:20 UTC.** Nhánh git `optimize-v1`.
+> **Trạng thái: ĐANG CHẠY.** Nhánh git `optimize-v1`. Đêm 06→07/09 chạy không người
+> trông, người dùng trao toàn quyền và quay lại ~02:00 UTC (9h sáng giờ VN).
 > Kế hoạch và lý do: `RESEARCH_2026-09-06_recadam.md` §5.5. Báo cáo: `python3 tools/opt1_report.py`.
 
 ## Đường leo bậc của hướng RecAdam
@@ -99,6 +100,46 @@ phóng (`log/opt1_<máy>_passes_<gđ>`). Không giết, không xoá. 161 dùng c
 - `src/train_transfer.py` — `--recadam_anchor_head`, `--adamw_anneal_lr`, sổ sách Pha 1 → JSON.
 - `src/train.py` — `val_history` theo epoch vào sidecar runtime.
 - `run/matrix.sh` — `PHASE1_STORE` ghi đè được. `run/opt1.sh` — driver. `tools/opt1_report.py` — báo cáo.
+
+## Hàng đợi đêm 06→07/09 — chạy không người trông
+
+Người dùng nghỉ từ ~18:30 UTC 06/09 đến ~02:00 UTC 07/09 và **không trả lời được câu hỏi**,
+đã trao toàn quyền quyết định. Hai hàng đợi tuần tự, mỗi cái giữ **lock riêng** để watchdog
+biết nó còn sống:
+
+| máy | lock hàng đợi | việc, đúng thứ tự |
+|---|---|---|
+| **161** (fold 1, 2) | `/tmp/mvd_queue161.lock` | OPT1 `4cwe`+`com` → OPT1 `full` → **ME10** fold 1,2 |
+| **158** (fold 3) | `/tmp/mvd_queue158.lock` | OPT1 `full` → **ME10** fold 3 → **CODEBERT** trục γ, fold 1–3 |
+
+`scripts/queue161.sh` và `scripts/queue158.sh`. Mỗi việc chờ lock driver nhả trước khi
+chạy; 161 còn chờ VRAM trống ≥ 13 GB và **nhường** nếu người khác đang dùng GPU.
+`scripts/watch_opt1.sh` (cron 10 phút) giám sát cả driver lẫn hàng đợi, phóng lại tối đa
+3 lần, không bao giờ giết gì.
+
+### Vì sao có khối ME10
+
+Đo được từ `val_history` ngày 06/09: **early stopping đang cắt mọi nhánh neo bền trước khi
+λ kịp lên**, nên câu hỏi "neo bền có tốt không" chưa hề được trả lời.
+
+| λ ở epoch 5 | số epoch chạy | số ô sập (F1 < 0.6) |
+|---|---|---|
+| 0.000 | 7.0 | 12/12 |
+| 0.359 | 7.0 | 1/1 |
+| 0.190 | 18.2 | 1/4 |
+| 0.994 | 13–18 | 0/24 |
+
+Với `patience=5`, `min_epochs=3`, nhánh có λ lên chậm thì năm epoch đầu val không nhúc
+nhích và bị dừng ở đúng epoch 7. ME10 nâng `min_epochs=10` cho **cả nhánh chính lẫn đối
+chứng** (`c5000_t0p05_me10`) nên phép so vẫn đổi đúng một biến.
+
+### Vì sao có khối CODEBERT
+
+Trục γ trên t5p cho neo **yếu** thắng neo mặc định (ghép cặp cùng fold, so với AdamW thuần:
+γ=5 → +0.0295 3/4; γ=0.5 → +0.0178 2/4; γ=5000 → −0.0086 1/6). Câu hỏi kế tiếp là đặc tính
+đó có **chuyển được sang backbone khác** không. codebert có sẵn checkpoint Pha 1 λ=0.05 ở
+kho `s42` (4cwe val 0.6532, com val 0.5598) nên chỉ tốn Pha 2. Kết quả ở cây riêng
+`results/opt1_codebert` → kéo về `results_opt1cb_158/`.
 
 ## Sau khi xong
 
@@ -254,6 +295,46 @@ Nhịp thực đo trên vast: **10,7 phút/job** (GPU chạy 93 °C, nhiều kh�
 Một máy chạy cả ba seed sẽ mất ~24 h. Chia ba từ 03:15 UTC nên mỗi máy chỉ lo một
 seed: vast xong seed 42 quanh **04:20 UTC**, hai máy local xong quanh **11:30 UTC
 05/09** (≈ 18:30 giờ VN). Chi phí vast ~$0,6.
+
+## Hàng đợi đêm 06→07/09 — chạy không người trông
+
+Người dùng nghỉ từ ~18:30 UTC 06/09 đến ~02:00 UTC 07/09 và **không trả lời được câu hỏi**,
+đã trao toàn quyền quyết định. Hai hàng đợi tuần tự, mỗi cái giữ **lock riêng** để watchdog
+biết nó còn sống:
+
+| máy | lock hàng đợi | việc, đúng thứ tự |
+|---|---|---|
+| **161** (fold 1, 2) | `/tmp/mvd_queue161.lock` | OPT1 `4cwe`+`com` → OPT1 `full` → **ME10** fold 1,2 |
+| **158** (fold 3) | `/tmp/mvd_queue158.lock` | OPT1 `full` → **ME10** fold 3 → **CODEBERT** trục γ, fold 1–3 |
+
+`scripts/queue161.sh` và `scripts/queue158.sh`. Mỗi việc chờ lock driver nhả trước khi
+chạy; 161 còn chờ VRAM trống ≥ 13 GB và **nhường** nếu người khác đang dùng GPU.
+`scripts/watch_opt1.sh` (cron 10 phút) giám sát cả driver lẫn hàng đợi, phóng lại tối đa
+3 lần, không bao giờ giết gì.
+
+### Vì sao có khối ME10
+
+Đo được từ `val_history` ngày 06/09: **early stopping đang cắt mọi nhánh neo bền trước khi
+λ kịp lên**, nên câu hỏi "neo bền có tốt không" chưa hề được trả lời.
+
+| λ ở epoch 5 | số epoch chạy | số ô sập (F1 < 0.6) |
+|---|---|---|
+| 0.000 | 7.0 | 12/12 |
+| 0.359 | 7.0 | 1/1 |
+| 0.190 | 18.2 | 1/4 |
+| 0.994 | 13–18 | 0/24 |
+
+Với `patience=5`, `min_epochs=3`, nhánh có λ lên chậm thì năm epoch đầu val không nhúc
+nhích và bị dừng ở đúng epoch 7. ME10 nâng `min_epochs=10` cho **cả nhánh chính lẫn đối
+chứng** (`c5000_t0p05_me10`) nên phép so vẫn đổi đúng một biến.
+
+### Vì sao có khối CODEBERT
+
+Trục γ trên t5p cho neo **yếu** thắng neo mặc định (ghép cặp cùng fold, so với AdamW thuần:
+γ=5 → +0.0295 3/4; γ=0.5 → +0.0178 2/4; γ=5000 → −0.0086 1/6). Câu hỏi kế tiếp là đặc tính
+đó có **chuyển được sang backbone khác** không. codebert có sẵn checkpoint Pha 1 λ=0.05 ở
+kho `s42` (4cwe val 0.6532, com val 0.5598) nên chỉ tốn Pha 2. Kết quả ở cây riêng
+`results/opt1_codebert` → kéo về `results_opt1cb_158/`.
 
 ## Sau khi xong
 
