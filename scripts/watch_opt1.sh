@@ -80,10 +80,14 @@ if [[ "$alive161" == no && "$stage161" != done ]]; then
 fi
 
 # ---------------- 158 ----------------
+# BAY: dau " LONG trong chuoi ssh bao boi " PHAI escape (\"). Khong escape thi shell
+# LOCAL dong chuoi ngay tai do, va `opt1_missing.sh "4cwe com" "3" 42` thanh BON tham so
+# roi -> SRCS=4cwe, FOLDS=com, SEED=3 -> dem ra 13 thay vi 10. Do duoc 15:44 UTC 06/09.
+# Kiem hai chieu: chay tay tren 158 va so voi con so watchdog in ra, phai KHOP.
 out=$(timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=15 "$R158" "cd $ROOT158 || exit 1
 { flock -n /tmp/multivd_opt1.lock -c true && echo alive=no || echo alive=yes; }
-echo m1=\$(bash scripts/opt1_missing.sh "4cwe com" "$FOLDS158" 42)
-echo m2=\$(bash scripts/opt1_missing.sh "full" "$FOLDS158" 42)
+echo m1=\$(bash scripts/opt1_missing.sh \"4cwe com\" \"$FOLDS158\" 42)
+echo m2=\$(bash scripts/opt1_missing.sh \"full\" \"$FOLDS158\" 42)
 echo b=\$(ls results/opt1_t5p/baseline/seed_42/fold*.json 2>/dev/null | wc -l)
 echo used=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
 echo orphan=\$(ps -eo args --no-headers | grep -c 'src/train_[a-z]*\.py.*opt1')
