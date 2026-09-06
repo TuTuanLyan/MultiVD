@@ -133,6 +133,35 @@ def normalize_fisher(fisher, clip=5.0):
     return out, stats
 
 
+def assess_fisher(stats):
+    """Fisher co dung duoc khong, hay da suy bien? Kiem TRUOC khi ton GPU.
+
+    Rui ro lon nhat cua huong nay (L2-SP §5.2, ICML 2018; va arXiv:2603.18596): tai mot
+    checkpoint DA HOI TU, so hang (p_k - y_k) tien ve 0 nen Fisher TIEU BIEN. Hau qua:
+      * Pha 1 TOT  -> F ~ 0 cho gan het mang -> gamma*F suy bien thanh AdamW, va ta se
+        doc nham ket qua "khong khac gi" thanh "Fisher khong giup", trong khi that ra
+        Fisher khong duoc ap dung.
+      * Pha 1 SAP  -> F lon -> qua cung.
+    Ca hai deu phai bao TRUOC, khong de chay xong 30 o roi moi doan.
+
+    Tra ve (dung_duoc, danh_sach_canh_bao).
+    """
+    warn = []
+    below = stats.get("frac_below_0p01")
+    median = stats.get("median")
+    p99 = stats.get("p99")
+    if below is not None and below > 0.90:
+        warn.append(f"SUY BIEN: {100*below:.1f}% tham so co F < 0.01 — gamma*F ~ 0 cho gan "
+                    f"het mang, tuong duong AdamW. Ket qua se KHONG doc duoc nhu 'Fisher khong giup'.")
+    elif below is not None and below > 0.75:
+        warn.append(f"canh bao: {100*below:.1f}% tham so co F < 0.01 — luc keo don vao thieu so tham so")
+    if median is not None and median < 1e-3:
+        warn.append(f"canh bao: median F = {median:.2e} — phan bo lech rat manh ve 0")
+    if p99 is not None and median and p99 / max(median, 1e-12) > 1e4:
+        warn.append(f"canh bao: p99/median = {p99/median:.1e} — duoi tren rat dai, kep chat hon")
+    return (not any(w.startswith("SUY BIEN") for w in warn)), warn
+
+
 def sidecar_path(checkpoint_path):
     return Path(str(checkpoint_path) + ".fisher.pt")
 
@@ -202,6 +231,13 @@ def main():
     tmp = out_path.with_suffix(out_path.suffix + ".tmp")
     torch.save(payload, tmp)
     os.replace(tmp, out_path)
+    usable, warnings = assess_fisher(stats)
+    for w in warnings:
+        logger.warning("Fisher | %s", w)
+    if not usable:
+        logger.warning("Fisher | => KHONG NEN chay khoi nay truoc khi hieu vi sao F suy bien. "
+                       "Thu --fisher_mode empirical, hoac lay Fisher o mot checkpoint SOM hon "
+                       "trong Pha 1 (luc chua hoi tu han).")
     logger.info("Ghi %s (%.1f MB)", out_path, out_path.stat().st_size / 1048576)
     print(json.dumps({k: v for k, v in stats.items() if isinstance(v, (int, float))}, indent=2))
 

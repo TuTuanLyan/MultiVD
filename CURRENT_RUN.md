@@ -141,6 +141,36 @@ Trục γ trên t5p cho neo **yếu** thắng neo mặc định (ghép cặp cù
 kho `s42` (4cwe val 0.6532, com val 0.5598) nên chỉ tốn Pha 2. Kết quả ở cây riêng
 `results/opt1_codebert` → kéo về `results_opt1cb_158/`.
 
+## Việc cho sáng 07/09 — xếp theo giá trị, dựa trên số đo VÀ tài liệu
+
+1. **Đọc kết quả ME10** (`python3 tools/opt1_report.py results/opt1_t5p results_opt1_158`).
+   Câu hỏi: bỏ trần early stopping ra thì neo bền có thắng neo ngắn không? Nếu có, đó là
+   phát hiện chính của khối, và tài liệu đứng sau nó — RecAdam gốc chạy **50–100 epoch**
+   trên task nhỏ, **không hề early-stop** (RESEARCH §8.1).
+
+2. **Kiểm giả thuyết γ ∝ N — miễn phí, không tốn một ô GPU.** Dẫn xuất của chính RecAdam
+   cho `γ = N·F̄` với N là số quan sát hậu thuẫn điểm neo. Neo của ta là checkpoint Pha 1
+   trên 930 / 3 744 / 7 598 dòng, nên γ tối ưu phải **tăng** theo nguồn. Ở n=1/ô tối qua
+   thứ tự ra 5 / 0.5 / 50 (thuần nhiễu). Chạy lại khi đủ 3 fold. Nếu đúng, đây là liên hệ
+   **lý thuyết → thực nghiệm** mạnh nhất của cả hướng (RESEARCH §8.2).
+
+3. **Fisher: chạy CỔNG KIỂM trước, đừng chạy thí nghiệm trước.**
+   ```bash
+   python src/fisher.py --source_checkpoint model/n48/phase1/t5p__latent_bottleneck_4cwe_l0p05/seed_42/best.pt \
+       --data_path data/phase1_4cwe.jsonl --cwe_vocab fixed4 --max_batches 64 \
+       --model_name Salesforce/codet5p-220m-bimodal --pooling mean --aux_mode latent_bottleneck
+   ```
+   `assess_fisher()` báo **SUY BIEN** nếu >90 % tham số có F < 0.01 — khi đó `γ·F ≈ 0` cho
+   gần hết mạng và khối sẽ chỉ đo lại AdamW. Rủi ro này là thật: tại checkpoint đã hội tụ,
+   Fisher tiêu biến. **Và L2-SP-Fisher (ICML 2018) đã cho kết quả null trên đúng dạng phạt
+   này**, với lý do áp dụng nguyên vẹn cho ta (RESEARCH §8.4). Chỉ chạy tiếp nếu cổng xanh.
+
+4. **Nếu ME10 dương: thử đúng chế độ của bài gốc** — `PHASE2_EPOCHS=60 PATIENCE=10`.
+   Bài gốc chạy 100 epoch trên RTE/MRPC không early-stop; ta chạy tối đa 30 với patience 5.
+   Đây là biến chưa từng chạm và có lý do tài liệu rõ ràng. Tốn ~2× thời gian mỗi ô.
+
+5. Cấu hình nào sống sót bậc 1 thì **lên bậc 2** (5 fold, seed 42) — `CLAUDE.md` mục 1.
+
 ## Sau khi xong
 
 1. `python3 tools/opt1_report.py results/opt1_t5p results_opt1_158` — bảng 1 (vs baseline), bảng 2 (vs hai đối chứng cùng phiên), bảng 3 (epoch theo F1 vs theo AUC).
@@ -335,6 +365,36 @@ Trục γ trên t5p cho neo **yếu** thắng neo mặc định (ghép cặp cù
 đó có **chuyển được sang backbone khác** không. codebert có sẵn checkpoint Pha 1 λ=0.05 ở
 kho `s42` (4cwe val 0.6532, com val 0.5598) nên chỉ tốn Pha 2. Kết quả ở cây riêng
 `results/opt1_codebert` → kéo về `results_opt1cb_158/`.
+
+## Việc cho sáng 07/09 — xếp theo giá trị, dựa trên số đo VÀ tài liệu
+
+1. **Đọc kết quả ME10** (`python3 tools/opt1_report.py results/opt1_t5p results_opt1_158`).
+   Câu hỏi: bỏ trần early stopping ra thì neo bền có thắng neo ngắn không? Nếu có, đó là
+   phát hiện chính của khối, và tài liệu đứng sau nó — RecAdam gốc chạy **50–100 epoch**
+   trên task nhỏ, **không hề early-stop** (RESEARCH §8.1).
+
+2. **Kiểm giả thuyết γ ∝ N — miễn phí, không tốn một ô GPU.** Dẫn xuất của chính RecAdam
+   cho `γ = N·F̄` với N là số quan sát hậu thuẫn điểm neo. Neo của ta là checkpoint Pha 1
+   trên 930 / 3 744 / 7 598 dòng, nên γ tối ưu phải **tăng** theo nguồn. Ở n=1/ô tối qua
+   thứ tự ra 5 / 0.5 / 50 (thuần nhiễu). Chạy lại khi đủ 3 fold. Nếu đúng, đây là liên hệ
+   **lý thuyết → thực nghiệm** mạnh nhất của cả hướng (RESEARCH §8.2).
+
+3. **Fisher: chạy CỔNG KIỂM trước, đừng chạy thí nghiệm trước.**
+   ```bash
+   python src/fisher.py --source_checkpoint model/n48/phase1/t5p__latent_bottleneck_4cwe_l0p05/seed_42/best.pt \
+       --data_path data/phase1_4cwe.jsonl --cwe_vocab fixed4 --max_batches 64 \
+       --model_name Salesforce/codet5p-220m-bimodal --pooling mean --aux_mode latent_bottleneck
+   ```
+   `assess_fisher()` báo **SUY BIEN** nếu >90 % tham số có F < 0.01 — khi đó `γ·F ≈ 0` cho
+   gần hết mạng và khối sẽ chỉ đo lại AdamW. Rủi ro này là thật: tại checkpoint đã hội tụ,
+   Fisher tiêu biến. **Và L2-SP-Fisher (ICML 2018) đã cho kết quả null trên đúng dạng phạt
+   này**, với lý do áp dụng nguyên vẹn cho ta (RESEARCH §8.4). Chỉ chạy tiếp nếu cổng xanh.
+
+4. **Nếu ME10 dương: thử đúng chế độ của bài gốc** — `PHASE2_EPOCHS=60 PATIENCE=10`.
+   Bài gốc chạy 100 epoch trên RTE/MRPC không early-stop; ta chạy tối đa 30 với patience 5.
+   Đây là biến chưa từng chạm và có lý do tài liệu rõ ràng. Tốn ~2× thời gian mỗi ô.
+
+5. Cấu hình nào sống sót bậc 1 thì **lên bậc 2** (5 fold, seed 42) — `CLAUDE.md` mục 1.
 
 ## Sau khi xong
 
