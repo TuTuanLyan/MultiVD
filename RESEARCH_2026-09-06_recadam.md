@@ -220,6 +220,67 @@ Sau khối seed 42: lặp cấu hình thắng ở seed 7 và 1234 (checkpoint Ph
 rồi codebert (checkpoint `model/s42/phase1/codebert__latent_bottleneck_{4cwe,com}` có sẵn)
 vì codebert là nơi khoảng cách AdamW–RecAdam về AUC lớn nhất.
 
+## 7. Đo được trong đêm 06→07/09 — bậc 1, n=3 fold, seed 42
+
+Ba nguồn `4cwe`/`com`/`full`, `latent_bottleneck`, λ=0.05, dùng lại checkpoint Pha 1 của
+NIGHT48. **Bậc 1, chỉ để sàng lọc.** Đọc lại bằng `python3 tools/opt1_report.py`.
+
+### 7.1 Early stopping đang cắt mọi nhánh neo bền — câu hỏi chính CHƯA được trả lời
+
+| λ ở epoch 5 | số epoch chạy | ô sập (F1 < 0.6) |
+|---|---|---|
+| 0.000 | 7.0 | 12/12 |
+| 0.359 | 7.0 | 1/1 |
+| 0.190 | 18.2 | 1/4 |
+| 0.994 | 13–18 | 0/24 |
+
+`patience=5`, `min_epochs=3`. Nhánh có λ lên chậm thì năm epoch đầu val không nhúc nhích,
+patience kích hoạt, dừng ở **đúng** epoch 7. Cùng nhánh `c5000_t0p2k02`: fold 1 dừng epoch 7
+với F1 0.4807, fold 3 chạy 23 epoch và cho 0.7871. Không phải "neo bền có hại" mà là
+"chưa kịp học đã bị cắt". Khối **ME10** (`min_epochs=10` cho cả nhánh chính lẫn đối chứng)
+đang chạy để trả lời.
+
+**Đây là tương tác giữa lịch anneal và tiêu chí dừng, không phải tính chất của phương pháp.**
+Cùng họ với bẫy λ ở §5.4: hai siêu tham số nhìn thì độc lập, thực ra ràng buộc nhau.
+
+### 7.2 Trục γ: neo yếu thắng neo mặc định
+
+Ghép cặp theo cùng (cây, seed, fold, nguồn), so với **AdamW thuần**:
+
+| γ | Δ F1@0.5 | fold dương | Δ ROC-AUC |
+|---|---|---|---|
+| 5 | +0.0295 | 3/4 | +0.0086 |
+| 0.5 | +0.0178 | 2/4 | +0.0133 |
+| 50 | +0.0121 | 3/7 | −0.0008 |
+| 500 | +0.0044 | 3/7 | −0.0025 |
+| 5000 (mặc định) | −0.0086 | 1/6 | −0.0089 |
+
+n nhỏ và biên độ rộng, **chưa kết luận được**. Nhưng hướng đơn điệu và nhất quán với
+phát hiện cũ ở §5.1.
+
+### 7.3 Warmup không phải nguồn giá trị của RecAdam
+
+`warm` (AdamW + đúng λ(t) trên learning rate, **không neo**) so với `plain` (AdamW thuần):
+**−0.0008, 3/6 fold**. Vậy phần "warmup ngầm" mà §1 nêu ra không mua gì. Nếu RecAdam có
+giá trị thì nó nằm ở **neo**, và câu hỏi trở thành neo *thế nào* chứ không phải neo *bao nhiêu*.
+
+### 7.4 Tiêu chí chọn checkpoint: không đáng đổi
+
+81 lần chạy có `val_history`. Chọn theo val F1@0.5 bỏ lỡ trung bình **0.0083** val ROC-AUC;
+chọn theo AUC bỏ lỡ **0.0102** val F1. Hai chiều tương đương nên giữ F1@0.5 là đúng.
+Câu hỏi §6.4 đóng lại mà không tốn một ô GPU nào.
+
+### 7.5 Hệ quả: neo THÔNG MINH thay vì neo YẾU
+
+§7.2 dẫn tới một vấn đề cho phương pháp: nếu γ→0 là tốt nhất thì RecAdam tiến về AdamW,
+và luận điểm "RecAdam là phần không thể bỏ" mất chỗ dựa. Lối ra là giữ **tổng** lực kéo
+và đổi **cách phân bố** nó — chính là P3 (§3). Mã đã viết và kiểm xong đêm nay:
+`src/fisher.py`, `src/recadam_fisher.py`, `tests/test_recadam_fisher.py`.
+
+Phép kiểm hai chiều bắt được một ràng buộc thật: lực kéo cập nhật hiện là lặp điểm cố định,
+ổn định chỉ khi `0 < lr·γ·F_i < 2`. Nên giá trị kẹp Fisher **bị ràng buộc với γ**
+(lr=2e-5: γ=5000 ⇒ F_max < 5). Đã ghi memory.
+
 ## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
 
 1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn
