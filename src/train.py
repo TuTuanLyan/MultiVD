@@ -307,6 +307,11 @@ def train_loop(
     # nhung con so nay chi ra console roi troi mat cung may thue, trong khi muc setup
     # cua bai lai can chinh chung.
     _rt_epoch, _rt_train, _rt_val, _rt_epochs_run = [], [], [], 0
+    # Lich su val theo epoch (F1@0.5, ROC-AUC, PR-AUC, loss, lambda(t)). Ghi vao sidecar
+    # runtime -> JSON ket qua. Muc dich: tra loi KHONG TON GPU cau "chon checkpoint theo
+    # AUC thi co ra epoch khac khong, khac bao xa" truoc khi mo mot khoi chay lai
+    # (RESEARCH_2026-09-06 §5.2). Tieu chi chon van la selection_metric, khong doi.
+    _val_history = []
     logger.info("Training started | Phase: %s | Epochs: %d", phase, args.epochs)
     for epoch in range(1, args.epochs + 1):
         epoch_started = time.perf_counter()
@@ -381,6 +386,17 @@ def train_loop(
                 patience_counter += 1
         epoch_seconds = time.perf_counter() - epoch_started
         total_seconds = time.perf_counter() - training_started
+        _val_history.append({
+            "epoch": epoch,
+            "train_loss": round(float(train["loss"]), 6),
+            "val_loss": round(float(val["loss"]), 6),
+            "val_macro_f1": round(float(val["macro_f1"]), 6),
+            "val_roc_auc": None if val.get("roc_auc") is None else round(float(val["roc_auc"]), 6),
+            "val_pr_auc": None if val.get("pr_auc") is None else round(float(val["pr_auc"]), 6),
+            "anneal_lambda": optimizer.param_groups[0].get("last_anneal_lambda"),
+            "lr": optimizer.param_groups[0].get("lr"),
+            "new_best": bool(new_best or tied_best),
+        })
         _rt_epoch.append(epoch_seconds)
         _rt_train.append(train_seconds)
         _rt_val.append(validation_seconds)
@@ -419,6 +435,10 @@ def train_loop(
             total_seconds=_rt_total,
             n_train=len(getattr(train_loader, "dataset", []) or []),
             n_val=len(getattr(val_loader, "dataset", []) or []),
+            extra={
+                "selection_metric": getattr(args, "selection_metric", "macro_f1"),
+                "val_history": _val_history,
+            },
         )
         _p = write_runtime_sidecar(args.checkpoint_path, _rt)
         if _p:

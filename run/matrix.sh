@@ -100,7 +100,7 @@ PHASE1_TAG="${PHASE1_TAG-$ARM_TAG}"
 PHASE1_EXTRA="${PHASE1_EXTRA:-}"
 PHASE2_EXTRA="${PHASE2_EXTRA:-}"
 
-PHASE1_STORE="model/$RUN_NAME/phase1"
+PHASE1_STORE="${PHASE1_STORE:-model/$RUN_NAME/phase1}"   # ghi de duoc: khoi chi-doi-Pha-2 dung lai kho cua khoi khac
 
 # Đếm job hỏng và TRẢ VỀ MÃ LỖI KHÁC 0 ở cuối. Không có cái này thì một đợt hỏng
 # 332/375 job vẫn thoát 0, và bất cứ lớp điều phối nào ở trên cũng ghi nó là "đã

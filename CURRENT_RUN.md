@@ -1,3 +1,73 @@
+# Đang chạy — OPT1 (tối ưu RecAdam, khối 1)
+
+> **Trạng thái: ĐANG CHẠY từ 06/09/2026 ~11:20 UTC.** Nhánh git `optimize-v1`.
+> Kế hoạch và lý do: `RESEARCH_2026-09-06_recadam.md` §5.5. Báo cáo: `python3 tools/opt1_report.py`.
+
+## Câu hỏi của khối này
+
+RecAdam ở cấu hình mặc định (γ=5000, t0 = 5% bước ≈ 43 bước, neo cả head) hiện **thua AdamW**
+ở hầu hết ô (RESEARCH §5.1). Khối này hỏi: có chế độ neo nào — **yếu hơn** (γ 500/50), **bền hơn**
+(t0 = 50%), **không neo head**, hoặc **neo về pretrained** — làm RecAdam ≥ AdamW không; và phần
+RecAdam đang mua được là **neo** hay chỉ là **warmup ngầm** (đối chứng `warm`).
+
+## Cấu hình — chỉ đổi Pha 2, dùng lại Pha 1 của NIGHT48
+
+| | |
+|---|---|
+| backbone | `codet5p-220m-bimodal`, pooling mean (`t5p`) |
+| nhánh | `latent_bottleneck`, λ=0.05 — **checkpoint Pha 1 dùng lại** `model/n48/phase1/t5p__latent_bottleneck_{4cwe,com}_l0p05/seed_42/best.pt` (val 0.6976 / 0.5897) |
+| nguồn | `4cwe`, `com` (**chưa có `full`**, chờ người dùng quyết) |
+| seed | 42 (seed 7 ở 161 và 1234 ở 158 có checkpoint sẵn, chạy sau cho cấu hình thắng) |
+| fold | 1–5, `data/sven_python_folds_norm` |
+| SAM/ASAM | tắt (`--sam_rho 0`) |
+| tiêu chí chọn checkpoint | **val F1@0.5, không đổi**; metric chính F1@0.5, kèm ROC-AUC và F1@ngưỡng-val |
+| sổ sách mới | JSON ghi λ thật, val Pha 1, anchor, γ, k, t0 (bước), và **lịch sử val theo epoch** (`runtime.phase2.val_history`) |
+
+**10 cấu hình Pha 2** cho mỗi (fold, nguồn), hai đối chứng chạy trước:
+
+| tag | optimizer | cờ Pha 2 | vai trò |
+|---|---|---|---|
+| `c5000_t0p05` | RecAdam | mặc định | **đối chứng 1** (RecAdam hiện tại, cùng phiên) |
+| `plain` | AdamW | mặc định | **đối chứng 2** (fine-tune hai lần, cùng phiên) |
+| `c500_t0p05`, `c50_t0p05` | RecAdam | `--pretrain_cof 500/50` | neo yếu, ngắn |
+| `c5000_t0p5`, `c500_t0p5`, `c50_t0p5` | RecAdam | `--anneal_t0_ratio 0.5` (+cof) | neo bền, ba độ mạnh |
+| `nohead_c5000_t0p05` | RecAdam | `--recadam_anchor_head none` | không neo `vul_head` (như bài gốc) |
+| `pre_c20_t0p5_k0p005` | RecAdam | `--recadam_anchor pretrained --pretrain_cof 20 --anneal_t0_ratio 0.5 --anneal_k 0.005` | neo về pretrained, yếu và bền (archive §40.5, lần đầu chạy) |
+| `warm` | AdamW | `--adamw_anneal_lr` | AdamW + đúng λ(t) của RecAdam trên lr, **không neo** |
+
+**Kỳ vọng**: 2 nguồn × 5 fold × 10 = **100 ô Pha 2 + 5 baseline**. ~10,7 phút/ô ⇒ ~3,75 h/fold.
+
+## Máy — chia theo FOLD TRỌN VẸN
+
+| máy | fold | lock | log driver | kết quả |
+|---|---|---|---|---|
+| **161** | 1, 2 | `/tmp/multivd_opt1.lock` | `log/opt1_161.log` | `results/opt1_t5p/` (tại chỗ) |
+| **158** | 3, 4, 5 | `/tmp/multivd_opt1.lock` | `log/opt1_158.log` | `/data/ntat/MultiVD/results/opt1_t5p/` → kéo về `results_opt1_158/` |
+
+Mỗi máy tự chạy baseline cho fold của mình nên mọi Δ ghép cặp nằm gọn trong một máy. Hai
+checkpoint Pha 1 seed 42 đã đẩy sang 158 và đối chiếu byte + `torch.load` trước khi phóng.
+
+Phóng: `FOLD_LIST="1 2" PYTHON=<vdenv> setsid nohup bash run/opt1.sh > log/opt1_161.log 2>&1 < /dev/null &`
+Kết thúc: driver in `########## OPT1 xong ... | N/EXP o Pha 2 + B/EXPB baseline ##########`.
+Driver chết mà chưa in dòng đó ⇒ phóng lại (matrix.sh bỏ qua ô đã có). Chỉ 161 dùng chung GPU:
+nếu VRAM trống < 13 GB thì **nhường**, không phóng đè.
+
+## Mã mới trên `optimize-v1`
+
+- `src/anneal_adamw.py` — AdamW nhân lr với λ(t) của RecAdam (đối chứng warmup).
+- `src/train_transfer.py` — `--recadam_anchor_head`, `--adamw_anneal_lr`, sổ sách Pha 1 → JSON.
+- `src/train.py` — `val_history` theo epoch vào sidecar runtime.
+- `run/matrix.sh` — `PHASE1_STORE` ghi đè được. `run/opt1.sh` — driver. `tools/opt1_report.py` — báo cáo.
+
+## Sau khi xong
+
+1. `python3 tools/opt1_report.py results/opt1_t5p results_opt1_158` — bảng 1 (vs baseline), bảng 2 (vs hai đối chứng cùng phiên), bảng 3 (epoch theo F1 vs theo AUC).
+2. Cấu hình thắng ⇒ lặp ở seed 7 (161) và 1234 (158), rồi codebert (checkpoint `model/s42/phase1/codebert__latent_bottleneck_{4cwe,com}`).
+3. Cập nhật đầu file này: ĐÃ XONG + giờ.
+
+---
+---
+
 # Đang chạy — NIGHT48
 
 > **Trạng thái: ĐÃ XONG — 05/09/2026 15:55 UTC.** 90/90 ô Pha 2 + 15/15 baseline,

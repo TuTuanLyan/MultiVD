@@ -802,6 +802,32 @@ def run_linear_probe(args, model, train_records, val_records, tokenizer, device)
     freeze_aux_head(model)
 
 
+def build_recadam_groups(named_trainable, pretrain_params, args):
+    """Tach vul_head ra nhom rieng voi pretrain_cof=0: backbone bi keo ve neo, head tu do.
+
+    RecAdam.step doc `group["pretrain_cof"]` va `group["pretrain_params"]` theo TUNG
+    nhom, nen chi can hai nhom voi hai he so. Thu tu tensor trong moi nhom giu nguyen
+    thu tu cua named_trainable, va `pretrain_params` day du van duoc train_loop dung
+    de kiem neo khong doi — khong dong nao cua duong chay cu bi cham.
+    """
+    backbone_p, backbone_a, head_p, head_a = [], [], [], []
+    for (name, parameter), anchor in zip(named_trainable, pretrain_params):
+        if name.startswith("vul_head."):
+            head_p.append(parameter)
+            head_a.append(anchor)
+        else:
+            backbone_p.append(parameter)
+            backbone_a.append(anchor)
+    logger.info(
+        "RecAdam anchor head: none | tensors neo (backbone): %d | tensors tu do (vul_head): %d",
+        len(backbone_p), len(head_p),
+    )
+    return [
+        {"params": backbone_p, "pretrain_params": backbone_a},
+        {"params": head_p, "pretrain_params": head_a, "pretrain_cof": 0.0},
+    ]
+
+
 def run_phase2(args, device):
     train_path, val_path, _ = python_paths(args)
     logger.info("Loading Python training data: %s", train_path)
@@ -854,15 +880,48 @@ def run_phase2(args, device):
     total_steps = max(1, len(train_loader) * args.epochs)
     anneal_t0 = max(1, int(args.anneal_t0_ratio * total_steps))
 
+    # So sach. Ghi vao args de training_args_dict -> checkpoint -> JSON ket qua mang
+    # theo. Truoc 06/09 JSON Pha 2 ghi lambda_cwe = mac dinh CLI (0.2) bat ke lambda
+    # that, khong ghi t0 tuyet doi, khong ghi val Pha 1 — nguoi doc phai suy tu ten
+    # thu muc (RESEARCH_2026-09-06 §5.4).
+    source_args = source_checkpoint.get("training_args") or {}
+    args.source_lambda_cwe = source_args.get("lambda_cwe")
+    args.source_sam_rho = source_args.get("sam_rho")
+    args.source_best_val_macro_f1 = float(source_checkpoint.get("best_val_macro_f1") or 0.0)
+    args.source_best_epoch = source_checkpoint.get("best_epoch")
+    args.phase2_total_steps = int(total_steps)
+    args.phase2_steps_per_epoch = int(len(train_loader))
+    args.anneal_t0_steps = int(anneal_t0)
+    if args.source_lambda_cwe is not None and args.lambda_cwe != args.source_lambda_cwe:
+        logger.info(
+            "lambda_cwe: CLI Pha 2 = %s (khong dung o Pha 2) | Pha 1 that = %s — ghi theo Pha 1",
+            args.lambda_cwe, args.source_lambda_cwe,
+        )
+        args.lambda_cwe_phase2_cli = args.lambda_cwe
+        args.lambda_cwe = args.source_lambda_cwe
+
     if args.phase2_optimizer == "adamw":
         # RecAdam scales the target gradient by lambda(t), which is calibrated to
         # total_steps. With a small target set there are too few steps for lambda
         # to rise, so the model stays anchored at the source solution -- visible
         # as test probabilities collapsing toward 0.5. Plain AdamW isolates that.
-        optimizer = torch.optim.AdamW(
-            current_params, lr=args.learning_rate, weight_decay=args.weight_decay
-        )
-        logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
+        if args.adamw_anneal_lr:
+            from anneal_adamw import AnnealedAdamW
+            optimizer = AnnealedAdamW(
+                current_params, lr=args.learning_rate, weight_decay=args.weight_decay,
+                anneal_fun=args.anneal_fun, anneal_k=args.anneal_k, anneal_t0=anneal_t0,
+                anneal_w=args.anneal_w,
+            )
+            logger.info(
+                "Phase 2 optimizer: AdamW + lich lambda(t) cua RecAdam tren learning rate, "
+                "KHONG neo (doi chung tach warmup khoi neo)"
+            )
+            print_recadam_schedule(args, total_steps, anneal_t0, len(train_loader))
+        else:
+            optimizer = torch.optim.AdamW(
+                current_params, lr=args.learning_rate, weight_decay=args.weight_decay
+            )
+            logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
@@ -870,8 +929,13 @@ def run_phase2(args, device):
         )
         return
 
+    if args.recadam_anchor_head == "none":
+        recadam_params = build_recadam_groups(named_trainable, pretrain_params, args)
+        recadam_anchor = None   # moi nhom mang pretrain_params rieng
+    else:
+        recadam_params, recadam_anchor = current_params, pretrain_params
     optimizer = RecAdam(
-        current_params,
+        recadam_params,
         lr=args.learning_rate,
         weight_decay=args.weight_decay,
         anneal_fun=args.anneal_fun,
@@ -879,7 +943,12 @@ def run_phase2(args, device):
         anneal_t0=anneal_t0,
         anneal_w=args.anneal_w,
         pretrain_cof=args.pretrain_cof,
-        pretrain_params=pretrain_params,
+        pretrain_params=recadam_anchor,
+    )
+    logger.info(
+        "RecAdam | anchor=%s | anchor_head=%s | pretrain_cof=%g | lr*cof=%g | k=%g | t0=%d/%d buoc",
+        args.recadam_anchor, args.recadam_anchor_head, args.pretrain_cof,
+        args.learning_rate * args.pretrain_cof, args.anneal_k, anneal_t0, total_steps,
     )
     print_recadam_schedule(args, total_steps, anneal_t0, len(train_loader))
     log_environment(args, model, device, "phase2_train")
@@ -981,6 +1050,15 @@ def run_test(args, device):
         "target_checkpoint": str(args.checkpoint_path),
         "best_epoch": checkpoint["best_epoch"],
         "best_val_macro_f1_at_0.5": checkpoint["best_val_macro_f1"],
+        "phase1_val_macro_f1": checkpoint["training_args"].get("source_best_val_macro_f1"),
+        "phase1_lambda_cwe": checkpoint["training_args"].get("source_lambda_cwe"),
+        "phase2_optimizer": checkpoint["training_args"].get("phase2_optimizer"),
+        "recadam": {
+            key: checkpoint["training_args"].get(key)
+            for key in ("recadam_anchor", "recadam_anchor_head", "pretrain_cof", "anneal_fun",
+                        "anneal_k", "anneal_t0_ratio", "anneal_t0_steps", "anneal_w",
+                        "adamw_anneal_lr", "phase2_total_steps", "phase2_steps_per_epoch")
+        },
         "val_calibrated_threshold": threshold,
         "val_macro_f1_at_valcal": calibrated_val_f1,
         "validation_and_threshold_seconds": validation_seconds,
@@ -1153,6 +1231,14 @@ def parse_args():
                               "Phase-1 checkpoint either way")
     recadam.add_argument("--pretrain_cof", type=float, default=5000.0,
                          help="quadratic source-anchor coefficient")
+    recadam.add_argument("--recadam_anchor_head", choices=("source", "none"), default="source",
+                         help="source = neo ca vul_head vao Pha 1 (mac dinh, duong chay cu). "
+                              "none = KHONG neo head: vul_head vao nhom rieng voi pretrain_cof=0, "
+                              "dung nhu bai goc RecAdam von toi uu lop dau ra bang Adam thuong")
+    recadam.add_argument("--adamw_anneal_lr", action="store_true",
+                         help="chi voi --phase2_optimizer adamw: nhan learning rate voi dung lambda(t) "
+                              "cua RecAdam (sigmoid k, t0) nhung KHONG neo. Doi chung tach 'warmup "
+                              "ngam' cua RecAdam khoi 'neo' (src/anneal_adamw.py)")
 
     smoke = parser.add_argument_group("smoke-test limits")
     smoke.add_argument("--max_train_samples", type=int, help="cap training records")

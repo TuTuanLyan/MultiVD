@@ -1,0 +1,233 @@
+# Nghiên cứu — 06/09/2026 — Tối ưu RecAdam và các hướng lân cận
+
+Nhánh `optimize-v1`. Mục đích: tìm cách làm RecAdam (phần không thể bỏ của phương pháp
+transfer hai pha) **ổn định hơn**, hướng tới Δ dương đều trên `4cwe` và `com`, và xử lý
+hiện tượng **F1 tăng nhưng ROC-AUC tăng yếu** trên `codet5p-220m-bimodal`.
+
+Mọi mục trong §2 đã fetch trực tiếp (arXiv / ACL / NeurIPS / OpenReview). Bổ sung cho
+`RESEARCH_2026-08-20_0959.md` §3 (RecAdam và đối thủ), không lặp lại phần đó.
+
+---
+
+## 1. RecAdam đang chạy thế nào — số đo thật, không phải giả định
+
+Mọi ô từ trước tới nay (1 896 dòng trong `records/results_all.jsonl`) dùng **đúng một cấu
+hình RecAdam mặc định**, chưa từng quét:
+
+| tham số | giá trị | nguồn |
+|---|---|---|
+| `anneal_fun` | sigmoid | `train_transfer.py:1118` |
+| `anneal_k` | 0.05 | `:1120` |
+| `anneal_t0_ratio` | 0.05 → **t0 = 43 bước** | `:1121`; log `RecAdam schedule` |
+| `anneal_w` | 1.0 | `:1123` |
+| `pretrain_cof` γ | 5000 → lr·γ = **0.1** | `:1154`, LR 2e-5 |
+| `recadam_anchor` | `source` (θ Pha 1) | `:1150`; **`pretrained` chưa từng chạy** |
+| tổng bước Pha 2 | 870 (30 epoch × 29 bước, batch 16, 456 mẫu) | log |
+
+λ(t) thực tế: bước 1 → 0.109 · hết epoch 1 → 0.332 · bước 43 → 0.5 · bước ~90 (epoch 3) → ~0.9.
+Số epoch Pha 2 thực chạy (đếm dòng `RecAdam target-task weight at epoch end` trong 300 log
+Pha 2): **phần lớn 10–20 epoch**, đỉnh 14–18. Nên neo về nguồn chỉ còn tác dụng trong
+**~3 epoch đầu trên 10–20 epoch**, tức 15–25 % quá trình. Phần còn lại là AdamW thuần
+(λ≈1 ⇒ hệ số kéo (1−λ)γ ≈ 0).
+
+Đối chiếu với bài gốc (Chen et al., EMNLP 2020, §4.1, đọc trực tiếp PDF):
+- γ = 5000 **cố định**, không quét. t0 chọn trong {100, 250, 500, 1000} **bước**, k trong
+  {0.05, 0.1, 0.2, 0.5, 1}, theo dev set từng task.
+- Số bước huấn luyện: RTE 7 800, MRPC 11 500, CoLA 13 400 ⇒ t0 chiếm **1,3 %–13 %** quá trình,
+  nhưng **tuyệt đối là 100–1 000 bước** neo, còn ta chỉ có 43.
+- Lớp đầu ra (head) được tối ưu bằng **Adam thường, không neo**. Ta đang neo cả `vul_head`
+  vào Pha 1 (`build_recadam_anchor`, head "stay anchored on Phase 1").
+- Bảng 2: khởi tạo **ngẫu nhiên + neo về pretrained (RI)** 78.7 > khởi tạo pretrained + neo (PI)
+  78.3 > fine-tune thường 77.0. Tác giả lý giải RI có không gian tìm kiếm rộng hơn.
+- Lợi ích dồn vào task nhỏ (<10k mẫu): +1,7 trung bình; task lớn ≈ 0.
+
+Nhận xét đã có từ 20/08 (§3 file cũ, phân tích của mình, không phải trích dẫn): vì λ(t) nhân
+vào bước Adam đã chuẩn hoá, RecAdam ở đây ≈ **warmup ngầm 43 bước + neo ngắn**. Baseline
+AdamW không có warmup. Chưa có đối chứng tách hai thứ đó.
+
+Hai kết luận cũ cần đọc lại trong bối cảnh mới:
+- `archive/RESULT_2026-08-23.md` §40.4: "giữ neo lâu hơn là giữ lại thiệt hại" — viết khi
+  Pha 1 **làm hại** CodeT5+ (`cwe`, folds twin). Nay `latent_bottleneck` trên t5p cho Δ dương,
+  nên lập luận đó không còn áp dụng thẳng; phải đo lại.
+- §40.5 đã đề xuất **neo về pretrained, yếu và bền** (`pretrain_cof=20`, `t0_ratio=0.5`,
+  `k=0.005`) và thêm cờ `--recadam_anchor pretrained`, nhưng **chưa từng chạy** (không có
+  trong `results_all.jsonl`, không có log).
+
+---
+
+## 2. Tài liệu đã xác minh (mới so với 20/08)
+
+### 2.1 Neo có trọng số theo tham số / theo lớp
+
+| Bài | Nguồn | Điểm dùng được |
+|---|---|---|
+| Kirkpatrick et al. **EWC** | PNAS 2017, DOI 10.1073/pnas.1611835114 | Phạt bậc hai **nhân Fisher chéo** F_i(θ_i−θ*_i)². Fisher tính một lần trên dữ liệu task cũ (ở ta: dữ liệu Pha 1 tại checkpoint Pha 1). |
+| Xu et al. **Child-Tuning** | EMNLP 2021, arXiv:2109.05687 | Biến thể **D** dùng Fisher để chọn mạng con rồi chỉ cập nhật phần đó. Trong benchmark Match-Tuning (IJCAI 2022) thắng RecAdam 79.92 vs 79.08. |
+| Tian et al. **Selective Projection Decay (SPD)** | **NeurIPS 2024**, arXiv:2411.01713, mã GT-RIPL/Selective-Projection-Decay | L2-SP **chọn lọc theo lớp**: chỉ kéo về θ₀ khi điều kiện c_t = −g_tᵀ(θ_{t−1}−θ₀) < 0 (hướng đi hiện tại không còn khớp gradient), cường độ = λ · r_t với r_t = max(0, γ_t−γ_{t−1})/γ_t (tỉ lệ độ lệch tăng thêm). Khuyên bắt đầu λ=1. Không cần Fisher, một dòng điều kiện trong optimizer. Ghi rõ L2-SP đồng nhất mọi lớp là nguyên nhân under-fit hoặc thiếu regularize. |
+| Song et al. **Hierarchical Layer-Wise and Element-Wise Regularization** | arXiv:2501.13669 (01/2025) | Độ quan trọng từng phần tử = **tích phân đường của gradient** trong quá trình học task cũ, ω_i = −∫ g θ' dt, chuẩn hoá Ω_i = Σω_i/((Δ_i)²+ξ); hệ số **theo lớp** = softmax(‖Ω_l‖₂). Loss = L_task + φ·ΣΩ_i(θ_i−θ*_i)², φ=e⁻³. Ablation: bỏ layer-wise −0.3 acc, bỏ cả hai −1.0. Nhanh hơn EWC-LoRA 20×. Trên LLaMA-3/GPT-J, không có PLM nhỏ. |
+| Somayajula et al. **Attention-guided weight mixup (AGWM)** | **NAACL 2024**, arXiv:2403.12918, mã Sai-Ashish/Attention_guided_weight_mixup_BLO | Mỗi trọng số = α·θ_task + (1−α)·θ_pretrained, α học bằng **bilevel** trên hai split. BERT-large, 4 task GLUE nhỏ, 10 seed: vanilla 78.88±1.64, Mixout 79.54, R3F 79.23, Child-Tuning-D 79.62, Re-init 79.75, DPS 80.03, **AGWM 80.42±0.93**. Chi phí 1,8–4× vanilla. **Bảng không có RecAdam.** Ở 300/500/1000 mẫu: 68.97 vs vanilla 62.54 (300 mẫu). |
+| Jin et al. **Rotation-Preserving SFT** | arXiv:2605.10973 (05/2026) | Phạt thay đổi trong khối top-k vector kỳ dị của mỗi ma trận pretrained; lập luận Fisher quá đắt ở quy mô LLM. Không áp thẳng cho 220M nhưng là bằng chứng hướng "neo có cấu trúc" vẫn sống năm 2026. |
+
+### 2.2 Ổn định giữa seed/fold — trung bình trọng số
+
+| Bài | Nguồn | Điểm dùng được |
+|---|---|---|
+| Lu et al. **SWA cho PLM** | Findings EMNLP 2022, arXiv:2212.05956 | SWA lúc fine-tune PLM nhỏ, không tốn thêm tính toán, cực tiểu phẳng hơn. |
+| Pecher et al. **DENI** | Findings EMNLP 2024, arXiv:2406.12471 | Ensemble trễ + nội suy nhiễu; giảm sd giữa seed, thắng Mixout/SWA/ensemble với chi phí thấp hơn ensemble. 3 model × 7 bộ phân loại. |
+| Sadrtdinov et al. **"To Stay or Not to Stay in the Pre-train Basin"** | NeurIPS 2023, arXiv:2303.03374 | Ra khỏi lòng chảo pretrain thì **mất lợi ích transfer**; averaging/ensemble nên nằm trong lòng chảo (StarSSE). Ủng hộ neo + trung bình trọng số cùng lúc. |
+| Sherborne et al. **TRAM** | **ICLR 2024 spotlight**, arXiv:2310.03646 | SAM với vùng nhiễu loạn định bởi trust region trên **biểu diễn** (function space), nhắm transfer OOD/cross-lingual. Chi phí 2× như SAM. |
+
+### 2.3 F1 tăng nhưng AUC không
+
+| Bài | Nguồn | Điểm dùng được |
+|---|---|---|
+| He, Chen, Zhu **Preserving Pre-trained Features Helps Calibrate** | ICLR 2023, arXiv:2305.19249 | Fine-tune phá hiệu chuẩn; giữ đặc trưng pretrained (họ L2-SP/anchor) **cải thiện hiệu chuẩn** nhất là dưới dịch chuyển miền. |
+| Guo et al. temperature scaling | ICML 2017 (đã có ở file 20/08) | Hiệu chuẩn đơn điệu **không đổi AUC** ⇒ nếu F1@0.5 tăng mà AUC không, đó là **dịch ngưỡng**, không phải xếp hạng tốt hơn. Kiểm bằng metric ở ngưỡng hiệu chuẩn theo val (pipeline đã tính, `METHOD.md` §8). |
+
+### 2.4 Đã thử và bác trong dự án — không đề xuất lại
+
+- LP-FT (Kumar et al. ICLR 2022), nội suy α giữa θ_Pha1 và θ_pretrained (WiSE-FT kiểu Pha 1),
+  LoRA r=8 ở Pha 1 — `DEAD_ENDS.md` #3, bối cảnh `cwe` trên CodeT5+/twin.
+- ASAM ρ ∈ {0.1, 0.2, 0.5} ở Pha 2 trên t5p: không vượt sàn nhiễu ở n=15 (`FACTS.md` §18).
+- Uncertainty weighting cho λ — `DEAD_ENDS.md` #13, lỗi cấu trúc.
+
+---
+
+## 3. Hướng đề xuất, xếp theo ưu tiên thử
+
+Tiêu chí xếp: (giá trị cho luận điểm "RecAdam là phần cốt lõi và đã được tối ưu") ×
+(chi phí — mọi hướng dưới đây **chỉ đổi Pha 2**, dùng lại 9 checkpoint Pha 1 `n48` đã có:
+seed 42/7 ở 161, seed 1234 ở 158; ~10,7 phút/ô t5p trên A4000).
+
+### P1 — Quét lịch neo RecAdam (t0, k, γ) — chưa từng làm, rẻ nhất
+Trục một chiều trước, không lưới đầy: (a) **độ bền**: `t0_ratio` 0.05→0.2→0.5 (neo tới
+epoch ~6 và ~15); (b) **độ mềm**: `pretrain_cof` 5000→500→50 ở t0_ratio 0.5; (c) độ dốc `k`
+0.05→0.01. Bài gốc neo 100–1 000 bước, ta 43 — đây là biến duy nhất chưa ai trong dự án chạm.
+Đo trên t5p × {4cwe, com} × 5 fold × seed 42 trước (~6 cấu hình × 10 ô = 60 ô ≈ 11 h một máy),
+thắng thì lên 3 seed.
+
+### P2 — Neo về `pretrained` (và neo đôi) — cờ đã có, chưa chạy
+`--recadam_anchor pretrained` với cấu hình §40.5 (cof 20, t0_ratio 0.5, k 0.005). Câu hỏi
+học thuật: nhớ **pretrained** hay nhớ **Pha 1**? Bài gốc (RI > PI) gợi ý neo về pretrained
+từ điểm xuất phát Pha 1 có thể là điểm ngọt. Biến thể "neo đôi" (cả hai, hai γ) cần ~20 dòng.
+
+### P3 — RecAdam-Fisher: hệ số kéo theo độ quan trọng tham số
+Thay γ đồng nhất bằng γ·F̂_i với F̂ = Fisher chéo (hoặc tích phân đường gradient như
+arXiv:2501.13669) tính **một lần** trên dữ liệu Pha 1 tại checkpoint Pha 1 (vài phút/checkpoint).
+Chuẩn hoá để trung bình F̂ = 1, giữ γ cũ ⇒ so được cạnh P1. Đây là ghép EWC vào lịch anneal
+của RecAdam; tôi không tìm thấy bài nào làm đúng tổ hợp này (phải ghi là đề xuất của mình).
+Kể chuyện được: "chỉ nhớ phần Pha 1 thực sự học được, còn lại để Python tự do". Mã: ~60 dòng
+(`RecAdam.py` nhận `pretrain_cof` dạng tensor theo nhóm, script tính Fisher).
+
+### P4 — Neo chọn lọc theo lớp (SPD) hoặc giảm dần theo độ sâu
+(a) SPD: thêm điều kiện c_t < 0 theo lớp và cường độ r_t vào RecAdam — không cần Fisher,
+NeurIPS 2024, có mã tham chiếu. (b) Rẻ hơn nữa: γ_layer = γ·d^(L−l) (lớp dưới neo mạnh, lớp
+trên tự do — cùng tinh thần LLRD/gradual unfreezing). Có thể chạy như một điểm phụ trong P1.
+
+### P5 — Trung bình trọng số ở Pha 2 (SWA/EMA) — nhắm **ổn định** và AUC
+Áp cho **cả baseline lẫn transfer** để Δ vẫn công bằng; kỳ vọng giảm sd giữa fold, tăng số
+fold cùng dấu và cải thiện xếp hạng (AUC) hơn F1@0.5. Là cải tiến pipeline, không phải của
+RecAdam — nhưng là cách rẻ nhất để đạt "ổn định trên 4cwe và com".
+
+### P6 — Đối chứng tách warmup khỏi neo (hỏi trước — là nhánh đối chứng thêm)
+AdamW + warmup tuyến tính đúng 43 bước (bằng λ(t)) **không neo**. Nếu bằng RecAdam thì phần
+"neo" hiện tại không mua gì và P1–P3 càng cần; nếu kém thì có bằng chứng neo có tác dụng dù
+ngắn. Reviewer chắc chắn hỏi. 15 ô/seed.
+
+### P7 — TRAM (SAM + trust region trên biểu diễn)
+ASAM đã cho null nên xếp cuối; khác ASAM ở chỗ ràng buộc **function space**, đúng bài toán
+transfer, nhưng 2× chi phí và cần cài mới.
+
+### Chẩn đoán đi kèm mọi hướng (không tốn GPU)
+- Báo Δ ở **cả** F1@0.5, F1@ngưỡng-val, ROC-AUC, PR-AUC. Nếu Δ F1@ngưỡng-val ≈ 0 trong khi
+  Δ F1@0.5 > 0 thì hiệu ứng là dịch ngưỡng.
+- Cân nhắc chọn checkpoint Pha 2 theo **val ROC-AUC** (hoặc F1@ngưỡng-val) thay vì F1@0.5 —
+  đổi tiêu chí chọn, không đổi mô hình; áp cho cả baseline.
+
+---
+
+## 5. Đối chiếu với số liệu thật (1 015 fold JSON, ghép cặp cùng run/seed/fold, 06/09)
+
+Bảng đầy đủ 180 nhóm: scratchpad `out.txt` của phiên này; tóm những điểm đổi thứ tự ưu tiên.
+
+### 5.1 AdamW (fine-tune hai lần) hiện **thắng** RecAdam ở hầu hết ô — cả F1 lẫn AUC
+
+Cùng checkpoint Pha 1, `latent_bottleneck`, λ=0.05, seed 42, Δ vs baseline @0.5 (ΔAUC trong ngoặc):
+
+| backbone | nguồn | AdamW (khối B) | RecAdam (khối A) |
+|---|---|---|---|
+| codebert | 4cwe | +0.0617 5/5 (+0.0291) | +0.0388 4/5 (+0.0173) |
+| codebert | com | +0.0549 5/5 (+0.0264) | +0.0217 4/5 (+0.0029) |
+| codebert | full | +0.0647 4/5 (+0.0327) | +0.0577 5/5 (+0.0301) |
+| unixcoder | 4cwe | +0.0318 4/5 (+0.0107) | +0.0291 3/5 (+0.0122) |
+| unixcoder | com | +0.0142 3/5 (−0.0020) | +0.0119 3/5 (−0.0010) |
+| unixcoder | full | +0.0182 3/5 (+0.0066) | **−0.0093 2/5 (−0.0122)** |
+| t5p | 4cwe | +0.0322 4/5 (+0.0056) | +0.0322 5/5 (+0.0047) |
+| t5p | com | +0.0278 4/5 (+0.0014) | +0.0147 4/5 (−0.0090) |
+| t5p | full | +0.0202 5/5 (+0.0046) | +0.0308 4/5 (+0.0102) |
+
+Giá trị của head (LB − `none`, cùng fold): AdamW **+0.0119, 31/40, p=0.0007**; RecAdam +0.0021,
+19/40, p=0.87. Ô canonical âm duy nhất vs baseline: `unixcoder × full × RecAdam`. Head âm so
+với `none` dưới RecAdam: unixcoder/full **−0.0318 (0/5)**, codebert/com −0.0063, t5p/com −0.0022.
+
+⇒ RecAdam ở cấu hình hiện tại (neo mạnh, ngắn: lr·γ=0.1, t0=43 bước) đang **trả giá** so với
+không neo. Đây là lý do mạnh nhất cho P1: chế độ "neo yếu, dài" (L2-SP cổ điển) chưa từng thử.
+
+### 5.2 t5p: F1 tăng nhưng AUC không — đo được
+
+- r(ΔF1, ΔAUC) trên t5p = 0.77 (446 ô), nhưng **29/≈70 nhóm** có ΔF1 > +0.01 mà ΔAUC < +0.005.
+- NIGHT48 ρ=0, n=45: ΔF1@0.5 **+0.0126** (31/45) · ΔF1@ngưỡng-val +0.0082 · **ΔAUC −0.0003 (21/45)**.
+  4cwe: +0.0159 / +0.0030 AUC; com: +0.0176 / +0.0056; full: +0.0045 / **−0.0094 (4/15)**.
+- Codebert thì ngược lại: r = 0.95, ΔAUC +0.02–0.03 dưới AdamW.
+⇒ Trên t5p, transfer đổi **điểm vận hành**, gần như không đổi **xếp hạng**. Bài phải báo cả hai
+metric; và tiêu chí chọn checkpoint (val F1@0.5) đang tối ưu đúng thứ AUC không nhìn thấy.
+
+### 5.3 Hiệu ứng NIGHT48 dồn vào **seed 42**, và seed 42 chạy trên máy khác
+
+| seed | máy | ΔF1@0.5 (n=15) | baseline F1@0.5 |
+|---|---|---|---|
+| 42 | vast A4000 cu130 | **+0.0351 (13/15)** | 0.7879 (fold 3: **0.7036**) |
+| 7 | 161 | +0.0019 (10/15) | 0.8087 |
+| 1234 | 158 | +0.0010 (8/15) | 0.8116 |
+
+Baseline seed 42 fold 3 trên vast là 0.7036, cùng seed/fold trên ntat2 (khối A) là 0.8217 —
+lệch 0.118 chỉ do máy/CUDA. Hai seed còn lại ≈ 0. **Ở n=15, hiệu ứng t5p × LB × RecAdam chưa
+"ổn định"; nó là một seed trên một máy.** Theo fold (n=9 mỗi fold): +0.0229 / −0.0063 / +0.0328 /
+−0.0021 / +0.0159 — hai fold có baseline cao nhất (2: 0.822, 4: 0.849) không lợi gì.
+
+### 5.4 Hai lỗi sổ sách phải sửa trên `optimize-v1` trước khi chạy khối mới
+
+1. `tools/n48_report.py` dùng `test_macro_f1_at_valcal`, còn FACTS §15/§17 và `src/report_*.py`
+   dùng `test_macro_f1_at_0.5`. Cùng NIGHT48: 4cwe ρ0 +0.0133 (p=0.119) theo valcal nhưng
+   +0.0159 (12/15, p=0.035) theo @0.5. Phải chốt một metric chính và ghi rõ.
+2. JSON Pha 2 ghi `lambda_cwe=0.2` (mặc định CLI) bất kể λ thật; không ghi t0 tuyệt đối, không
+   ghi val Pha 1. Khối mới phải ghi đủ: λ thật, `recadam_anchor`, `pretrain_cof`, t0 (bước),
+   k, val Pha 1, đường dẫn checkpoint Pha 1.
+
+### 5.5 Thứ tự ưu tiên sau khi đối chiếu
+
+| # | việc | vì sao lên/xuống | chi phí (t5p, seed 42, 4cwe+com) |
+|---|---|---|---|
+| **1** | **P1 quét γ ∈ {50, 500, 5000} × t0_ratio ∈ {0.05, 0.5}**, giữ k=0.05 | §5.1: AdamW (γ→0) > RecAdam (γ=5000, ngắn); điểm giữa chưa đo | 5 cấu hình mới × 10 = 50 ô ≈ 9 h |
+| **2** | **P6 đối chứng AdamW + warmup 43 bước** | tách "warmup ngầm" khỏi "neo"; nếu ≥ RecAdam thì neo hiện tại vô dụng | 10 ô ≈ 2 h |
+| **3** | **P2 neo `pretrained`** (cof 20, t0 0.5, k 0.005) + biến thể **không neo head** | bài gốc không neo head; cờ đã có | 20 ô ≈ 4 h |
+| 4 | P3 RecAdam-Fisher | chỉ đáng nếu #1 cho thấy *có* chế độ neo thắng AdamW; Fisher tinh chỉnh neo, không cứu được neo vô dụng | sau #1 |
+| 5 | chọn checkpoint theo val AUC (hoặc F1@ngưỡng-val), áp cả baseline | §5.2 | chạy lại, hỏi trước |
+| 6 | P5 SWA/EMA Pha 2 | §5.3 ổn định giữa seed | sau |
+| 7 | P4 SPD / theo lớp · P7 TRAM | | sau |
+
+Sau khối seed 42: lặp cấu hình thắng ở seed 7 và 1234 (checkpoint Pha 1 sẵn: 161 và 158),
+rồi codebert (checkpoint `model/s42/phase1/codebert__latent_bottleneck_{4cwe,com}` có sẵn)
+vì codebert là nơi khoảng cách AdamW–RecAdam về AUC lớn nhất.
+
+## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
+
+1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn
+   giữa 161 và 158, ~8 h nếu song song) hay chỉ #1 trước?
+2. #2 (AdamW + warmup) là **nhánh đối chứng thêm** — cần đồng ý riêng.
+3. Metric chính của bài: F1@0.5 (FACTS §15/§17) hay F1@ngưỡng-val (`n48_report.py`)? Khối mới
+   sẽ báo cả hai kèm AUC, nhưng thứ tự xếp hạng cấu hình cần một metric chính.
+4. Có cho đổi tiêu chí chọn checkpoint Pha 2 (val AUC hoặc F1@ngưỡng-val, áp cả baseline) không?
+5. Có `full` trong khối 1 không? Người dùng đã giải thích `full` âm là negative transfer đặc thù
+   ngôn ngữ; nếu bỏ thì tiết kiệm 1/3 chi phí, nhưng mất ô đối chứng "neo yếu có cứu full không".
+6. Máy: 158 **trống hoàn toàn**, 161 còn ~14 GB (job t5p cần ~12,6 GB). Không cần vast cho seed 42.
