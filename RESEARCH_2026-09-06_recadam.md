@@ -281,6 +281,125 @@ Phép kiểm hai chiều bắt được một ràng buộc thật: lực kéo c�
 ổn định chỉ khi `0 < lr·γ·F_i < 2`. Nên giá trị kẹp Fisher **bị ràng buộc với γ**
 (lr=2e-5: γ=5000 ⇒ F_max < 5). Đã ghi memory.
 
+## 8. Tra cứu tài liệu đêm 06→07/09 — cái gì đã có, cái gì thật sự mới
+
+Mọi mục dưới đây fetch trực tiếp bản gốc (PDF ACL / arXiv), trừ chỗ ghi rõ chỉ thấy snippet.
+
+### 8.1 RecAdam KHÔNG dùng early stopping, và t₀ của nó là số bước TUYỆT ĐỐI
+
+Nguyên văn bài gốc §4.1: *"select the training step (61,360 on MNLI … 11,500 on MRPC,
+7,800 on RTE) to improve the fine-tuning stability."* Ở batch 32 những con số đó chia đúng
+thành **50–100 epoch** cho hai task nhỏ nhất (RTE 2 490 dòng, MRPC 3 668 dòng). Chuỗi
+"early stop" và "patience" **không xuất hiện** trong bài; repo chính chủ chỉ dùng `--max_steps`.
+
+Trong `RecAdam.py`, `t` của λ(t) là `state["step"]` — **bộ đếm bước tuyệt đối**, không phải
+tỉ lệ. Ánh xạ lưới t₀ của họ sang run của ta (456 dòng, 29 bước/epoch, tối đa 870 bước):
+
+| t₀ (bước) | = epoch của ta | % quá trình của ta | λ tại epoch 5 |
+|---|---|---|---|
+| 100 | 3.4 | 11.5 % | **0.989** |
+| 250 | 8.6 | 28.7 % | 2.8e−5 |
+| 500 | 17.2 | 57.5 % | ~0 |
+| 1000 | 34.5 | **114.9 % — quá cả cuối quá trình** | ~0 |
+
+**Bảng này tái hiện đúng phép chia 12/12 sập so với 0/24 sập ở §7.1.** Trong run của họ,
+t₀=1000 chỉ chiếm 1,6–12,8 % quá trình. Vấn đề của ta không tinh vi: λ≈0 nghĩa là loss đích
+mang trọng số ~0 **theo đúng công thức**, và mô hình đứng yên là điều nó *được thiết kế* để làm.
+
+Không tìm thấy bài nào phát biểu tương tác giữa **trọng số loss có lịch** và **tiêu chí dừng
+theo val**. Các mảnh rời rạc thì có: Mosbach et al. ICLR 2021 (arXiv:2006.04884) mô tả run
+hỏng có *"practically constant training loss"* và khuyên tăng số vòng lặp; Keras thêm
+`EarlyStopping(start_from_epoch=…)` ở 2.11 với lời giải thích đúng hiện tượng này
+(*"allows for a warm-up period in which no improvement is expected"*), còn PyTorch Lightning
+**không có** tham số tương đương; Rieck et al. ICLR 2019 (arXiv:1812.09764) quét lưới
+(burn-in × patience). Ngược chiều: Dodge et al. (arXiv:2002.06305) khuyên **giết sớm** ở
+20–30 % quá trình dựa trên giả định tương quan sớm-muộn — kết quả của ta là **phản ví dụ
+trực tiếp** cho giả định đó dưới mục tiêu có lịch.
+
+**Tiền lệ cho việc đổi t₀ sang tỉ lệ:** HuggingFace thêm `warmup_ratio` đúng vì
+`warmup_steps` tuyệt đối không chuyển được giữa các cỡ dữ liệu.
+
+### 8.2 γ = N·F̄ — LÝ THUYẾT cho phát hiện "γ nhỏ hơn" ở §7.2
+
+Dẫn xuất trong chính bài RecAdam: `Loss_S ≈ ½ N F Σ(θᵢ−θᵢ*)² = ½ γ Σ(θᵢ−θᵢ*)²`, tức
+**γ = N·F̄ với N là số quan sát hậu thuẫn cho điểm neo**. γ=5000 là đại diện cho **toàn bộ
+corpus pretraining**. Neo của ta là checkpoint Pha 1 huấn luyện trên **930–7 598 dòng**, nên
+chính dẫn xuất đó nói γ phải nhỏ đi nhiều bậc. Huszár (PNAS 2018, 115(11):E2496, doi
+10.1073/pnas.1717042115) hậu thuẫn: hệ số λ_A *"replaces the sample size N_A"*, và cảnh báo
+*"double-counting the data from earlier tasks"*.
+
+**Đây là khung lý thuyết tốt nhất cho kết quả thực nghiệm của ta, và trích dẫn được đầy đủ.**
+
+**Hệ quả kiểm được, chưa đủ dữ liệu:** nếu γ ∝ N thì γ tối ưu phải **tăng** theo nguồn
+(4cwe 930 < com 3 744 < full 7 598). Ở n=1/ô hiện tại thứ tự ra 5 / 0.5 / 50 — thuần nhiễu.
+**Kiểm lại khi đủ 3 fold**; đây là phép kiểm cơ chế không tốn thêm một ô GPU nào.
+
+### 8.3 lr·γ mới là siêu tham số thật
+
+`RecAdam.py:127` đặt bước neo **ngoài** mẫu số thích nghi của Adam, nên độ dịch bị xoá mỗi
+epoch (29 bước, λ≈0) là:
+
+| γ | lr·γ | % độ dịch bị xoá mỗi epoch |
+|---|---|---|
+| 5000 (mặc định) | 0.10 | **95.3 %** |
+| 500 | 0.01 | 25.3 % |
+| 50 | 1e−3 | 2.9 % |
+| **5 (tốt nhất của ta)** | **1e−4** | **0.29 %** |
+| 0.5 | 1e−5 | 0.03 % |
+
+Ở giá trị mặc định, mô hình **không thể di chuyển** trong lúc λ≈0 — cùng một cơ chế với §8.1.
+
+**Xác nhận độc lập rất đẹp:** L2-SP (Li et al., ICML 2018, arXiv:1802.01483) quét α ∈
+{0, 1e−3, 1e−2, 1e−1, 1} với lr 0.005–0.02, tức **lr·α ≈ 5e−6 … 2e−2**; ở lr=0.01, α=1e−2
+cho lr·α = **1e−4**, **trùng khít** lr·γ = 2e−5 × 5 = 1e−4 của ta. Bài đó cũng ghi
+*"the test accuracy varies smoothly according to the regularization strength"* và
+β = 0.01 luôn được chọn, còn **α thì không công bố giá trị thắng theo từng bộ** — đừng trích
+một con số α cụ thể.
+
+Lưu ý phản chứng: Mixout (Lee et al., ICLR 2020) quét λ ∈ {0.01, 0.04, 0.07, 0.10} trên GLUE
+nhỏ và cho kết quả **không đơn điệu** (λ=0.04 tệ nhất ở mọi task). Nên phát biểu "yếu hơn thì
+tốt hơn" **trong phạm vi cấu hình của ta**, không phải như một quy luật chung.
+
+### 8.4 CẢNH BÁO cho hướng Fisher: nó đã có, và có kết quả NULL
+
+Chính bài L2-SP định nghĩa **L2-SP-Fisher**: `Ω(w) = (α/2) Σ F̂ⱼⱼ(wⱼ−wⱼ⁰)² + (β/2)‖w_S̄‖²`,
+với Fisher ước lượng trên **dữ liệu nguồn tại checkpoint nguồn** — đúng bằng `γ·F_i` của ta,
+chỉ thiếu phần anneal. Kết luận của họ, nguyên văn:
+
+> *"We expected L2-SP-Fisher to outperform L2-SP … but there is no significant difference
+> between the two options. Since L2-SP is simpler … we recommend the former."*
+> *"contrary to lifelong learning, our objective does not favor solutions that retain accuracy
+> on the source task."*
+
+Lý do đó áp dụng **nguyên vẹn** cho ta: mục tiêu là macro-F1 trên đích, không phải giữ điểm
+nguồn. Phần còn mới là **Fisher đặt trong lịch λ(t)** — không tìm thấy tiền lệ, nhưng phải
+viết là "chúng tôi không biết có", không phải "chưa ai làm".
+
+**Rủi ro lớn nhất, phải đo trước khi tốn GPU:** tại một checkpoint đã hội tụ, số hạng
+`(p_k − y_k) → 0` nên Fisher **tiêu biến**. Hệ quả cho ta: Pha 1 **tốt** ⇒ F≈0 ⇒ `γ·F` suy
+biến thành AdamW; Pha 1 **sập** ⇒ F lớn ⇒ quá cứng. **Cổng rẻ: in histogram F_i và tỉ số
+(số hạng phạt)/(loss đích) tại từng checkpoint Pha 1 trước khi chạy bất kỳ ô nào** — đúng
+quy tắc `measure-the-mechanism-first`.
+
+Recipe đã xác minh: van de Ven (ICLR 2025 Blogpost, arXiv:2502.11756) đo EXACT 84.91 >
+SAMPLE 83.77 > EMPIRICAL 83.28, khuyên *"reduce the number of training samples used to
+compute the Fisher"* thay vì cắt góc chỗ khác ⇒ với head 2 lớp, **EXACT ở n≈500–2000**.
+Thorne & Vlachos (EACL 2021) dùng BERT-base, N=2000, ~25 s, và **λ tốt nhất = 1e7** —
+cách γ=5000 của RecAdam **10⁴ lần**, thuần do thang đo Fisher ⇒ **phải quét lại γ từ đầu**
+sau khi thêm F. Chuẩn hoá về trung bình 1 **không** có tiền lệ công bố; phải ghi rõ đó là
+lựa chọn thiết kế của mình (và nó làm γ so sánh trực tiếp được với RecAdam thường).
+
+### 8.5 Cái gì thật sự mới
+
+| Phát biểu | Trạng thái |
+|---|---|
+| Lịch λ(t) và tiêu chí dừng tương tác; cặp lệch nhau loại cấu hình vì lý do sai | **Mới** — cách chữa là folklore, chẩn đoán thì chưa ai viết |
+| t₀ của RecAdam là bước tuyệt đối, không chuyển được sang run ngắn | **Mới**, đã định lượng ở §8.1 |
+| Quét γ; neo yếu hơn tốt hơn trên đích nhỏ | **Mới** — γ bị cố định 5000, chưa từng ablation |
+| lr·γ mới là cường độ thật; mặc định = xoá 95 %/epoch | **Mới** cho RecAdam |
+| γ phải nhỏ vì neo là checkpoint Pha 1 mang ít bằng chứng hơn | **Mới**, và **suy ra được từ chính γ = N·F̄** của RecAdam |
+| Neo có trọng số Fisher | **Đã có** — L2-SP-Fisher, ICML 2018, kết quả **null** |
+
 ## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
 
 1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn
