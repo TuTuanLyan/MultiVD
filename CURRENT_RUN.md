@@ -1,7 +1,20 @@
 # Đang chạy — OPT1 (tối ưu RecAdam, khối 1)
 
+> **BẬC 1 — KIỂM CHỨNG, n=3 fold, seed 42. KHÔNG phải kết quả cuối.**
+> Xem `CLAUDE.md` mục 1, tiểu mục "KIỂM CHỨNG và CHẠY KẾT QUẢ là HAI VIỆC KHÁC NHAU".
+> Mọi Δ trong khối này chỉ dùng để **sàng lọc** cấu hình nào đáng lên bậc 2 (n=5),
+> không được trích vào bài. n=3 đã bốn lần đổi dấu ở n=5 trong dự án này.
+>
 > **Trạng thái: ĐANG CHẠY từ 06/09/2026 ~11:20 UTC.** Nhánh git `optimize-v1`.
 > Kế hoạch và lý do: `RESEARCH_2026-09-06_recadam.md` §5.5. Báo cáo: `python3 tools/opt1_report.py`.
+
+## Đường leo bậc của hướng RecAdam
+
+| bậc | quy mô | phạm vi | điều kiện lên bậc |
+|---|---|---|---|
+| **1. Kiểm chứng** ← **đang ở đây** | 3 fold × 12 cấu hình × 3 nguồn, seed 42 | t5p, λ=0.05 | cấu hình nào vượt rõ hai đối chứng cùng phiên |
+| 2. Xác nhận | 5 fold, seed 42 | chỉ cấu hình sống sót bậc 1 | hiệu ứng còn giữ khi thêm fold 4–5 |
+| 3. Chạy kết quả | 5 fold × 3 seed = 15 | chỉ khi đã **chốt** | — |
 
 ## Câu hỏi của khối này
 

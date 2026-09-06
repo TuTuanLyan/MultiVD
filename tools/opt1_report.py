@@ -15,11 +15,17 @@ Mot o xuat hien o hai cay -> loi, khong gop.
 """
 import json
 import math
+import os
 import re
 import sys
 from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
+
+# Bac 1 (kiem chung) chi doc fold 1-3. Cac fold khac co the ton tai tu lan chay truoc
+# khi khoi duoc thu hep; gop chung vao se lam nguoi doc tuong day la bac 2.
+# Mo rong: FOLDS="1 2 3 4 5" python3 tools/opt1_report.py ...
+FOLD_FILTER = {int(x) for x in os.environ.get("FOLDS", "1 2 3").split()}
 
 ARM_RE = re.compile(r"^transfer_latent_bottleneck_(?P<src>[a-z0-9]+)_l(?P<lam>[0-9p]+)_(?P<tag>.+?)(?P<adamw>_adamw)?$")
 CONTROLS = (("c5000_t0p05", "recadam"), ("plain", "adamw"))
@@ -30,6 +36,8 @@ def load_tree(root):
     base, arms = {}, defaultdict(dict)
     for f in sorted(root.glob("baseline/seed_*/fold*.json")):
         d = json.loads(f.read_text())
+        if d["fold"] not in FOLD_FILTER:
+            continue
         base[(str(root), d["seed"], d["fold"])] = d
     for arm_dir in sorted(root.glob("transfer_latent_bottleneck_*")):
         m = ARM_RE.match(arm_dir.name)
@@ -40,6 +48,8 @@ def load_tree(root):
         key = (m.group("src"), m.group("tag"), opt)
         for f in sorted(arm_dir.glob("seed_*/fold*.json")):
             d = json.loads(f.read_text())
+            if d["fold"] not in FOLD_FILTER:
+                continue
             cell = (str(root), d["seed"], d["fold"])
             if cell in arms[key]:
                 raise SystemExit(f"O trung: {key} {cell}")
@@ -112,6 +122,14 @@ def main(roots):
                 if cell in arms[k]:
                     raise SystemExit(f"O trung giua hai cay: {k} {cell}")
                 arms[k][cell] = d
+    folds = sorted({c[2] for c in base})
+    seeds = sorted({c[1] for c in base})
+    bac = {3: "BAC 1 — KIEM CHUNG (sang loc, KHONG trich vao bai)",
+           5: "BAC 2 — XAC NHAN"}.get(len(folds), f"{len(folds)} fold")
+    if len(seeds) >= 3 and len(folds) >= 5:
+        bac = "BAC 3 — CHAY KET QUA"
+    print(f"*** {bac} | {len(folds)} fold {folds} | seed {seeds} ***")
+    print("    CLAUDE.md muc 1: kiem chung va chay ket qua la HAI viec khac nhau.")
     print(f"baseline: {len(base)} o | nhanh: {len(arms)} cau hinh x nguon | "
           f"tong o Pha 2: {sum(len(v) for v in arms.values())}")
     srcs = sorted({k[0] for k in arms})

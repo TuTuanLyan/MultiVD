@@ -33,6 +33,27 @@ Thứ tự ngược lại (source-major hoặc method-major) khiến phải ch�
 ô nào so được với ô nào — mất khả năng dừng sớm, và nếu hỏng giữa chừng thì
 không còn gì dùng được.
 
+### KIỂM CHỨNG và CHẠY KẾT QUẢ là HAI VIỆC KHÁC NHAU
+
+> **Người dùng nêu 06/09.** Đang tối ưu thì chạy **n=3 fold** cho nhanh. Tốt mới lên
+> **n=5**. Tốt tiếp **và đã chốt** mới chạy **n=15**.
+
+| bậc | quy mô | seed | dùng khi nào | được phép kết luận gì |
+|---|---|---|---|---|
+| **1. Kiểm chứng** | **3 fold** (1, 2, 3) | 42 | quét siêu tham số, thử cấu hình mới, mọi thứ đang dò | **sàng lọc**: cấu hình nào đáng chạy tiếp. KHÔNG viết vào bài |
+| **2. Xác nhận** | 5 fold | 42 | cấu hình nào sống sót bậc 1 | hiệu ứng có ổn định qua đủ fold không |
+| **3. Chạy kết quả** | 5 fold × 3 seed = **15** | 42, 7, 1234 | **chỉ khi đã chốt** | con số đưa vào bài |
+
+**Vì sao tách bạch:** n=3 đã **bốn lần** đổi dấu hoặc co lại ở n=5 trong dự án này
+(`DEAD_ENDS.md` §E), nên bậc 1 chỉ đủ để **dừng**, không đủ để **kết luận**. Ngược lại,
+chạy n=15 cho một cấu hình chưa sàng là đốt ~5× GPU cho một câu hỏi mà n=3 đã trả lời.
+
+**Cách áp dụng:**
+- Mặc định của mọi khối mới là **bậc 1**. Lên bậc phải có lý do đọc được từ số của bậc dưới.
+- Ghi rõ **bậc nào** ở đầu `CURRENT_RUN.md` và trong mọi báo cáo. Một con số bậc 1 phải
+  luôn đi kèm chữ "kiểm chứng, n=3" — người đọc thấy Δ mà không thấy bậc sẽ tưởng là kết quả.
+- Không trộn ô của hai bậc vào một bảng mà không ghi n riêng cho từng dòng.
+
 **Thứ tự trong một fold** (người dùng nêu 27/08, giữ nguyên trừ khi có yêu cầu mới):
 
 ```
