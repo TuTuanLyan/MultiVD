@@ -929,22 +929,72 @@ def run_phase2(args, device):
         )
         return
 
+    # Fisher: chi bat khi co --fisher_path. Khong co thi khong mot dong nao doi.
+    fisher_params = None
+    if args.fisher_path:
+        from recadam_fisher import RecAdamFisher, check_pull_stability, load_fisher_for
+        fisher_params, matched, missing, fstats = load_fisher_for(
+            named_trainable, args.fisher_path, device)
+        fmax = max((float(f.max()) for f in fisher_params if f is not None), default=1.0)
+        stable, msg = check_pull_stability(args.learning_rate, args.pretrain_cof, fmax)
+        logger.info(
+            "RecAdam-Fisher | %s | khop %d/%d tensor | F max %.3f | trung binh %.3f | %s",
+            args.fisher_path, matched, len(fisher_params), fmax,
+            fstats.get("mean_after", float("nan")), msg,
+        )
+        if missing:
+            logger.warning("Fisher THIEU %d tensor (he so 1): %s%s", len(missing),
+                           ", ".join(missing[:5]), " ..." if len(missing) > 5 else "")
+        if not stable:
+            # Dung han: trong so se no va ket qua trong y het "phuong phap kem".
+            raise ValueError(
+                f"Luc keo khong on dinh ({msg}). Ha --pretrain_cof hoac kep Fisher chat hon "
+                f"(src/fisher.py --fisher_clip). Xem src/recadam_fisher.check_pull_stability"
+            )
+        args.fisher_max = fmax
+        args.fisher_matched = matched
+
     if args.recadam_anchor_head == "none":
         recadam_params = build_recadam_groups(named_trainable, pretrain_params, args)
         recadam_anchor = None   # moi nhom mang pretrain_params rieng
     else:
         recadam_params, recadam_anchor = current_params, pretrain_params
-    optimizer = RecAdam(
-        recadam_params,
-        lr=args.learning_rate,
-        weight_decay=args.weight_decay,
-        anneal_fun=args.anneal_fun,
-        anneal_k=args.anneal_k,
-        anneal_t0=anneal_t0,
-        anneal_w=args.anneal_w,
-        pretrain_cof=args.pretrain_cof,
-        pretrain_params=recadam_anchor,
-    )
+    if fisher_params is not None:
+        from recadam_fisher import RecAdamFisher
+        if args.recadam_anchor_head == "none":
+            # Nhom da tach thi fisher cung phai tach DUNG THU TU do.
+            names = [n for n, _ in named_trainable]
+            head_idx = [i for i, n in enumerate(names) if n.startswith("vul_head.")]
+            back_idx = [i for i, n in enumerate(names) if not n.startswith("vul_head.")]
+            recadam_params[0]["fisher_params"] = [fisher_params[i] for i in back_idx]
+            recadam_params[1]["fisher_params"] = [fisher_params[i] for i in head_idx]
+            fisher_arg = None
+        else:
+            fisher_arg = fisher_params
+        optimizer = RecAdamFisher(
+            recadam_params,
+            lr=args.learning_rate,
+            weight_decay=args.weight_decay,
+            anneal_fun=args.anneal_fun,
+            anneal_k=args.anneal_k,
+            anneal_t0=anneal_t0,
+            anneal_w=args.anneal_w,
+            pretrain_cof=args.pretrain_cof,
+            pretrain_params=recadam_anchor,
+            fisher_params=fisher_arg,
+        )
+    else:
+        optimizer = RecAdam(
+            recadam_params,
+            lr=args.learning_rate,
+            weight_decay=args.weight_decay,
+            anneal_fun=args.anneal_fun,
+            anneal_k=args.anneal_k,
+            anneal_t0=anneal_t0,
+            anneal_w=args.anneal_w,
+            pretrain_cof=args.pretrain_cof,
+            pretrain_params=recadam_anchor,
+        )
     logger.info(
         "RecAdam | anchor=%s | anchor_head=%s | pretrain_cof=%g | lr*cof=%g | k=%g | t0=%d/%d buoc",
         args.recadam_anchor, args.recadam_anchor_head, args.pretrain_cof,
@@ -1057,7 +1107,8 @@ def run_test(args, device):
             key: checkpoint["training_args"].get(key)
             for key in ("recadam_anchor", "recadam_anchor_head", "pretrain_cof", "anneal_fun",
                         "anneal_k", "anneal_t0_ratio", "anneal_t0_steps", "anneal_w",
-                        "adamw_anneal_lr", "phase2_total_steps", "phase2_steps_per_epoch")
+                        "adamw_anneal_lr", "phase2_total_steps", "phase2_steps_per_epoch",
+                        "fisher_path", "fisher_max", "fisher_matched")
         },
         "val_calibrated_threshold": threshold,
         "val_macro_f1_at_valcal": calibrated_val_f1,
@@ -1231,6 +1282,11 @@ def parse_args():
                               "Phase-1 checkpoint either way")
     recadam.add_argument("--pretrain_cof", type=float, default=5000.0,
                          help="quadratic source-anchor coefficient")
+    recadam.add_argument("--fisher_path", default=None,
+                         help="duong dan sidecar Fisher (src/fisher.py). Co co nay thi luc keo "
+                              "neo duoc PHAN BO theo Fisher thay vi deu tay; tong luc keo khong "
+                              "doi vi F da chuan hoa ve trung binh 1, nen phep so doi dung mot "
+                              "bien. KHONG truyen = duong chay cu tung byte")
     recadam.add_argument("--recadam_anchor_head", choices=("source", "none"), default="source",
                          help="source = neo ca vul_head vao Pha 1 (mac dinh, duong chay cu). "
                               "none = KHONG neo head: vul_head vao nhom rieng voi pretrain_cof=0, "
