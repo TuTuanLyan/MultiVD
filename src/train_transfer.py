@@ -896,6 +896,25 @@ def run_phase2(args, device):
     )
 
 
+def _collect_runtime(args, device, n_test, validation_seconds, test_seconds):
+    """Gom gio cua CA HAI pha vao ket qua, vi mot o Pha 2 khong the tach khoi Pha 1
+    da sinh ra checkpoint cho no. Doc tu file phu canh checkpoint; thieu thi de None
+    chu khong dung lan chay."""
+    from runtime_env import hardware_fingerprint, read_runtime_sidecar
+    out = {
+        "phase2": read_runtime_sidecar(args.checkpoint_path),
+        "phase1": read_runtime_sidecar(args.source_checkpoint) if args.source_checkpoint else None,
+        "inference": {
+            "samples_test": n_test,
+            "validation_and_threshold_seconds": round(float(validation_seconds), 3),
+            "test_seconds": round(float(test_seconds), 3),
+            "ms_per_test_sample": round(1000.0 * float(test_seconds) / n_test, 3) if n_test else None,
+        },
+        "hardware_at_inference": hardware_fingerprint(device),
+    }
+    return out
+
+
 def run_test(args, device):
     _, val_path, test_path = python_paths(args)
     logger.info("Loading Python validation data: %s", val_path)
@@ -982,6 +1001,8 @@ def run_test(args, device):
         "per_cwe_at_0.5": per_cwe_at_05,
         "per_cwe_at_valcal": per_cwe_at_valcal,
         "hyperparameters": checkpoint["training_args"],
+        "runtime": _collect_runtime(args, device, len(test["labels"]),
+                                    validation_seconds, test_seconds),
     }
     result_path = Path(args.result_path)
     result_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1117,6 +1138,15 @@ def parse_args():
                               "duong chay khong doi). >0 bat, moi buoc 2 luot forward-backward "
                               "nen ~2x thoi gian. rho la do dai TUYET DOI cua nhieu loan, "
                               "chuan L2 toan cuc, dung quy uoc bai bao (0.05, 0.1 la pho bien)")
+    recadam.add_argument("--sam_variant", choices=("sam", "asam"), default="sam",
+                         help="sam = Foret et al. ICLR 2021, ban kinh TUYET DOI, chuan L2 toan cuc. "
+                              "asam = Kwon et al. ICML 2021 (arXiv:2102.11600), nhieu loan chuan hoa "
+                              "theo |w| nen BAT BIEN VOI THANG DO trong so. rho cua hai bien the "
+                              "KHONG cung thang do: bai bao ASAM chon 0.5-1.0 trong khi SAM dung "
+                              "0.05-0.1; thi nghiem transformer duy nhat cua ho dung 0.2 cho ASAM "
+                              "va 0.1 cho SAM. Bung 0.05 vao ASAM la gan nhu khong lam gi")
+    recadam.add_argument("--asam_eta", type=float, default=0.01,
+                         help="on dinh so cho ASAM: T_w = |w| + eta. 0.01 la so cua bai bao")
     recadam.add_argument("--recadam_anchor", choices=("source", "pretrained"), default="source",
                          help="what RecAdam pulls back toward: the Phase-1 weights (default) "
                               "or the untouched pretrained weights. Initialisation is the "

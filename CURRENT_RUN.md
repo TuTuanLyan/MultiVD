@@ -1,0 +1,219 @@
+# Đang chạy — NIGHT48
+
+> **Trạng thái: ĐÃ XONG — 05/09/2026 15:55 UTC.** 90/90 ô Pha 2 + 15/15 baseline,
+> không ô nào thiếu, không ô nào chồng lấn. Mọi máy vast đã huỷ. Số liệu và kết
+> luận ở `FACTS.md` §18; chạy lại báo cáo bằng `python3 tools/n48_report.py`.
+>
+> Còn treo một việc: áp `scripts/apply_runtime_logging.py` (xem mục cuối file).
+
+## Câu hỏi của khối này
+
+ASAM ở **ρ=0.1** — bán kính nhỏ hơn hẳn hai giá trị đã xác nhận (0.2 và 0.5) — có
+giữ được gì không, và **có giữ đều trên cả ba nguồn** không. Đợt xác nhận trước
+chỉ chạy nguồn `common`; lần này đủ `4cwe`, `com`, `full` nên đọc được cả chiều
+"nguồn nào chịu được ASAM".
+
+## Cấu hình — một dòng duy nhất, không quét
+
+| | |
+|---|---|
+| backbone | `codet5p-220m-bimodal`, pooling mean (`t5p`) |
+| nhánh | `latent_bottleneck` (Linear(H→8) → Linear(8→C), `num_latent=8`) |
+| optimizer | **RecAdam** |
+| λ | **0.05** |
+| Pha 1 | `--sam_rho 0` (SAM tắt), 15 epoch |
+| Pha 2 | **ρ=0 (đối chứng)** và **ASAM ρ=0.1**, `--asam_eta 0.01` |
+| nguồn | `4cwe` · `com` · `full` — **cả ba** |
+| seed | 42 · 7 · 1234 |
+| fold | 1–5, tập đích `data/sven_python_folds_norm` |
+| cổng chất lượng | `PHASE1_MIN_VAL=0` — **chạy hết**, kể cả Pha 1 sập |
+
+**90 ô Pha 2** (3 nguồn × 3 seed × 5 fold × **2 nhánh ρ**) **+ 15 ô baseline**
+(3 seed × 5 fold, baseline không phụ thuộc nguồn nên `matrix.sh` chạy một lần rồi
+bỏ qua).
+
+Hai nhánh ρ **dùng chung đúng một checkpoint Pha 1** (`PHASE1_TAG` tách khỏi
+`ARM_TAG`), nên hiệu giữa chúng đổi **một biến duy nhất** — đó là điều kiện để nói
+được ASAM có mua gì không, chứ không chỉ "cấu hình này tốt".
+
+**9 checkpoint Pha 1** (3 nguồn × 3 seed). λ không đổi trong khối nên mỗi
+(nguồn, seed) chỉ cần một checkpoint, dùng chung cho cả 5 fold.
+
+## Thứ tự chạy
+
+```
+for seed in 42 7 1234:          ← vòng ngoài cùng
+    huấn luyện Pha 1 cho cả 3 nguồn (fold không đụng tới Pha 1)
+    for fold in 1..5:               ← vòng ngoài
+        for src in 4cwe com full:   ← vòng trong
+            for rho in 0, 0.1:      ← trong cùng, đối chứng TRƯỚC
+                baseline (chỉ lần đầu của seed) + ô Pha 2
+```
+
+ρ nằm trong cùng để hai nhánh của cùng (fold, nguồn) chạy **cạnh nhau**: hiệu giữa
+chúng ghép cặp đúng theo fold đó, và nếu khối đứt giữa chừng thì cái đã xong luôn
+là những **cặp trọn vẹn**, không phải một nửa nhánh chính.
+
+Hết fold 1 của một seed là đã có lát cắt so được: baseline + cả ba nguồn, cùng
+fold cùng seed cùng máy. Hết seed 42 là n=5, thêm seed 7 lên n=10, seed 1234 lên
+n=15.
+
+## Máy — chia ba từ 03:15 UTC 05/09
+
+| máy | seed | GPU | torch / transformers | lock | kết quả |
+|---|---|---|---|---|---|
+| ~~vast `ntat` 49893040~~ | **42** ✅ | A4000 | 2.9.1+cu130 / 4.57.1 | — | `results_night48/` — **đã huỷ máy 04:4x UTC 05/09** |
+| **161** (local) | **7**, fold 1–2 ✅ | A4000 | 2.9.1+cu128 / 4.57.1 | `/tmp/multivd_night48.lock` | tại chỗ `results/n48_t5p/` |
+| vast `ntat` 49952744 | **7**, fold 3–5 | A4000 | 2.9.1+cu128 / 4.57.1 | `/tmp/multivd_night48.lock` | kéo về `results_night48b/` |
+| **158** | **1234** | A4000 | 2.9.1+cu128 / 4.57.1 | `/tmp/multivd_night48_ntat.lock` | kéo về `results_night48_158/` |
+
+Chia theo **seed trọn vẹn**: mỗi seed tự có 3 checkpoint Pha 1 và 5 baseline riêng, nên
+mọi Δ ghép cặp — cả Δ vs baseline lẫn Δ ρ=0.1 vs ρ=0 — nằm gọn trong một máy. Ba máy
+cùng A4000, cùng transformers 4.57.1, torch chỉ khác bản CUDA. Phép gộp 15 điểm cuối
+cùng có mang chênh lệch máy, ghi rõ khi báo cáo.
+
+### Seed 42 đã xong — máy vast đã huỷ
+
+30/30 ô Pha 2 + 5/5 baseline, driver tự in dòng kết thúc lúc **04:22:35 UTC 05/09**.
+Trước khi huỷ đã đối chiếu: **35 file JSON lệch 0**, và 3 checkpoint Pha 1 khớp từng
+byte (438 519 085 / 438 519 277 / 438 519 277) **và đọc lại được** bằng torch với đúng
+`val` như trên máy — kích thước khớp thôi chưa đủ. Checkpoint nằm ở
+`model/n48/phase1/*/seed_42/best.pt`, giữ lại phòng khi cần thêm một nhánh ρ cho seed 42
+mà không phải huấn luyện lại 2 h.
+
+Cron của watchdog vast đã gỡ; chỉ còn `watch48_local.sh`.
+
+### Chi tiết máy vast (lịch sử)
+
+**vast, nhãn `ntat`, id 49893040** — RTX A4000, 29 GB đĩa, $0.068/h,
+IP 202.122.49.242 cổng 38433, image `vastai/pytorch:2.9.1-cu130-cuda-13.2-mini-py314`.
+Driver bắt đầu **20:01 UTC 04/09**. Từ 03:15 UTC 05/09 chỉ còn chạy **seed 42**.
+
+Máy đầu (49890960) pull image hỏng nên bỏ; máy này thuê lại cùng IP, tài khoản lúc đó
+không có khoá SSH nào đăng ký nên phải `vastai attach ssh` trước khi vào được.
+Image là bản `mini` nên thiếu thư viện: đã cài `transformers==4.57.1` (ghim theo
+`requirements-pin.txt`), `scikit-learn`, `scipy`, `evaluate` vào `/venv/main`.
+Python 3.14.7 · torch 2.9.1+cu130 · tokenizers 0.22.2.
+
+Cả khối nằm **trọn một máy** nên mọi Δ ghép cặp trong khối đều sạch — đó là điều
+duy nhất cần cho mọi kết luận của khối này. Chỉ khi so **sang** đợt xác nhận n=15
+trước (`results_confirm47_com/`, torch 2.11.0, máy khác) mới phải ghi chú: hai đợt
+so tương đối được, so từng ô thì không.
+
+Lúc phóng (20:01 UTC 04/09) cả 161 và 158 đều bận, VRAM trống ~10 GB < 13 GB job t5p
+cần, nên vast phải gánh cả ba seed. Đến 03:10 UTC 05/09 hai máy đã rảnh (161 chỉ còn
+ollama giữ 684 MB, 158 trống hẳn) nên chia lại như bảng trên.
+
+## Điều khiển
+
+| việc | lệnh |
+|---|---|
+| driver | `run/night48.sh` — biến `SEEDS` chọn seed, `MVD_LOCK` chọn lock |
+| đẩy code + phóng | `bash scripts/provision48.sh` |
+| watchdog vast | `scripts/watch48.sh`, cron 10 phút, `ARM=destroy` |
+| watchdog local | `scripts/watch48_local.sh`, cron 10 phút, **không bao giờ huỷ/giết** |
+| log driver | vast `log/night48.log` · 161 `log/night48_161.log` · 158 `log/night48_158.log` |
+| log watchdog (local) | `log/watch48.log`, `log/cron48.log` |
+| kết quả | `results_night48/` (vast) · `results/n48_t5p/` (161) · `results_night48_158/` (158) |
+
+**Điều kiện tự huỷ máy**: watchdog chỉ huỷ khi (a) driver đã in đúng dòng
+`########## NIGHT48 xong ...` do chính nó phát ra, (b) lock đã nhả, và (c)
+`comm` dưới `LC_ALL=C` xác nhận **không lệch file nào kể cả kích thước byte**.
+Không bao giờ chốt bằng "đếm đủ 45 ô". Tháo ngòi: sửa cron bỏ `ARM=destroy`.
+
+Driver chết mà chưa in dòng kết thúc ⇒ watchdog **phóng lại**, không huỷ. Ở hai máy
+local, nếu lúc đó VRAM trống < 13 GB thì **nhường** người khác, không phóng đè.
+
+Bàn giao vast: driver được phóng ban đầu với cả ba seed, nên khi thấy dòng
+`NIGHT48 seed 42 xong` mà driver vẫn chạy, watchdog **dừng nó** (tìm pgid qua người
+giữ lock, không grep `ps` — lần grep trước bắt nhầm pgid 1552 thay vì 1555) rồi
+phóng lại với `SEEDS=42`; lần chạy mới thấy 30/30 ô đã có, bỏ qua hết, và tự in
+dòng kết thúc **thật** của chính nó. Không bao giờ tự tay ghi dòng đó vào log.
+
+Driver in dòng kết thúc **nhưng thiếu ô** (ví dụ vài checkpoint Pha 1 hỏng) ⇒ cũng
+phóng lại, tối đa **2 lần** (`log/n48_passes`), vì `matrix.sh` bỏ qua ô đã có nên
+lần chạy lại chỉ làm phần thiếu. Hết 2 lần thì chấp nhận, đối chiếu rồi huỷ — để
+không rơi vào bẫy ngưỡng không bao giờ đạt.
+
+## Ước tính
+
+~6,5 h/seed (Pha 1 ba nguồn ~2,1 h + **30 ô Pha 2 ~4 h** + 5 baseline ~0,4 h)
+Nhịp thực đo trên vast: **10,7 phút/job** (GPU chạy 93 °C, nhiều khả năng hạ xung).
+
+Một máy chạy cả ba seed sẽ mất ~24 h. Chia ba từ 03:15 UTC nên mỗi máy chỉ lo một
+seed: vast xong seed 42 quanh **04:20 UTC**, hai máy local xong quanh **11:30 UTC
+05/09** (≈ 18:30 giờ VN). Chi phí vast ~$0,6.
+
+## Sau khi xong
+
+Δ ghép cặp theo `(nguồn, seed, fold)` vs baseline cùng seed cùng fold. Baseline
+lệch tới 0.0175 giữa các seed nên **bắt buộc ghép theo seed**, không lấy trung
+bình. Sàn kiểm dấu ở n=15 là p=0.0001 nếu cùng dấu cả 15.
+
+Hai phép so, phải nêu **cả hai**:
+
+- **Δ vs baseline** — ghép theo (nguồn, seed, fold), cho từng nhánh ρ.
+- **Δ ρ=0.1 vs ρ=0** — ghép theo (nguồn, seed, fold), dùng chung checkpoint Pha 1
+  nên đây mới là phép đo riêng của ASAM.
+
+---
+
+## Seed 7 bị cắt đôi — vì sao, và cắt thế nào cho sạch
+
+Lúc 09:2x UTC 05/09 `cuongtm` chiếm 5,6 GB VRAM trên 161, còn trống ~10 GB < 12,6 GB
+job t5p cần, nên 16 ô của seed 7 OOM. Theo quy tắc đã chốt thì nhường, không giành.
+
+Chia lại **theo fold trọn vẹn**, đúng §4:
+
+- **fold 1–2** ở lại 161, mỗi fold đủ 6 ô + 1 baseline.
+- **fold 3, 4, 5** chạy lại **trọn vẹn** trên vast 49952744. Fold 3 và 5 trước đó có
+  vài ô lẻ trên 161; chúng đã được **cách ly** sang `results_n48_161_partial/` (không
+  xoá) vì nếu để lẫn thì Δ ghép cặp của fold đó vắt qua hai máy.
+- 161 đã bị chặn không lấp lại seed 7 (`log/n48_161_passes` = 12/12), tránh làm trùng.
+
+**Máy vast phải dùng lại đúng ba checkpoint Pha 1 của seed 7 từ 161**, không huấn luyện
+mới — nếu không thì fold 3–5 xuất phát từ nguồn khác fold 1–2 và seed 7 tự mâu thuẫn.
+Đã đẩy 1,25 GB lên, đối chiếu 26 file lệch 0 byte, và **load lại bằng torch trên chính
+máy đó** ra đúng val 0.6684 / 0.5907 / 0.5834 như trên 161. Driver xác nhận
+`da co checkpoint Pha 1 — bo qua` cho cả ba nguồn.
+
+`scripts/watch48b.sh` có thêm **chốt**: không phóng driver khi chưa đủ cả ba checkpoint
+trên máy. Chốt này đã chặn thật một lần lúc 10:33, khi cron định phóng lúc rsync mới
+đẩy được 1/3 — nếu lọt thì driver đã tự huấn luyện Pha 1 mới cho hai nguồn còn thiếu.
+
+---
+
+## Việc đã chuẩn bị, ÁP SAU KHI KHỐI NÀY XONG
+
+Ghi nhật ký **phần cứng + thời gian chạy** cho mỗi lần chạy (một nguồn × một fold ×
+một setting), để có sẵn số cho mục "training setup" của bài.
+
+| file | trạng thái |
+|---|---|
+| `src/runtime_env.py` | **đã tạo** — an toàn, chưa file nào import nên không đụng job đang chạy |
+| `tools/runtime_report.py` | **đã tạo** — công cụ tổng hợp |
+| `scripts/apply_runtime_logging.py` | **đã tạo, CHƯA CHẠY** — vá 3 file `src/` |
+
+**Chưa áp** vì `matrix.sh` phóng một python mới cho mỗi ô; sửa `src/train*.py` giữa
+chừng thì ô kế tiếp có thể vớ phải file ghi dở. Đã thử vá trên bản sao: cả 7 đoạn khớp
+đúng một lần, ba file biên dịch được.
+
+Khi 161 và 158 báo xong (`NIGHT48 xong` trong `log/night48_161.log` và
+`log/night48_158.log`), chạy:
+
+```bash
+python3 scripts/apply_runtime_logging.py --check   # xác nhận còn khớp
+python3 scripts/apply_runtime_logging.py           # áp thật
+rsync -az src/ <158>:/data/ntat/MultiVD/src/       # đồng bộ sang 158
+```
+
+Sau đó mỗi lần chạy sẽ tự ghi `<checkpoint>.runtime.json` (ghi nguyên tử: file tạm rồi
+`os.replace`, không bao giờ để lại JSON cụt), và mỗi kết quả có thêm trường `runtime`
+gồm giờ Pha 1, giờ Pha 2, giờ suy luận và dấu vân phần cứng.
+
+Đọc bằng `python3 tools/runtime_report.py results_night48 results results_night48_158`.
+Công cụ **khử trùng** lần chạy Pha 1 dùng chung giữa các nhánh ρ — không thì tổng giờ
+GPU bị tính gấp đôi. Ô chạy trước khi có bản vá được đếm riêng và báo rõ, không nuốt im.
+
+Kết quả 90 ô của khối này **sẽ không có** trường `runtime` (chạy trước bản vá); số giờ
+của nó lấy từ dòng `Elapsed` trong `log/jobs/*.log` nếu cần.

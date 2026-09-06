@@ -43,7 +43,7 @@ PYTHON="${PYTHON:-python}"
 
 RUN_NAME="${RUN_NAME:-m1}"
 SEED="${SEED:-42}"
-FOLDS="${FOLDS:-1 2 3 4 5}"
+FOLDS="${FOLDS-1 2 3 4 5}"   # KHONG dung :- ; FOLDS="" phai giu nguyen rong (giai doan chi-Phase-1)
 
 # Năm backbone. t5p = bản BIMODAL, thống nhất trong nhóm.
 # Ba checkpoint họ CodeT5+ (220m / 220m-bimodal / 110m-embedding) có cùng
@@ -147,7 +147,27 @@ except Exception:
     sys.exit(1)
 epoch = ck.get("best_epoch") or 0
 val = float(ck.get("best_val_macro_f1") or 0.0)
-sys.exit(0 if epoch > 1 and val >= 0.55 else 1)
+# Cong nay de bat checkpoint SUY BIEN, khong phai de xep hang chat luong.
+#
+# Nguong cu `val >= 0.55` da tu choi codebert/latent_bottleneck/com o 0.549872 —
+# truot 0.000128, tuc nho hon SAN NHIEU do duoc cua chinh du an (0.010, chay lai
+# cung seed cung cau hinh khac may) khoang 78 lan. Mot checkpoint huan luyen 13/15
+# epoch va hoi tu binh thuong bi vut di vi mot hieu so ma ta da chung minh la
+# khong phan biet noi voi viec chay lai dung mot thu. Te hon, no chi loai
+# `latent_bottleneck` o nhung nguon nhanh do YEU, nen bang ket qua chi con cho
+# no manh — thien lech chon loc.
+#
+# Cai can chan la checkpoint doan MOT LOP: tren bai nhi phan can bang, macro-F1
+# cua nguoi doan bua roi vao ~0.33-0.40. Nguong 0.40 chan dung nhung ca do
+# (0.3333 cua codebert__none_sam1r01, 0.3403 cua none/full, 0.3432 cua
+# latent_proto/full) ma khong dung toi vung 0.5+ noi ket qua con nghia ly.
+import os
+MIN_VAL = float(os.environ.get("PHASE1_MIN_VAL", "0.40"))
+# PHASE1_MIN_VAL=0 -> chay HET, ke ca checkpoint suy bien. Dung khi muc tieu la
+# bang ket qua day du: mot o bi cong chan la mot o TRONG, khong viet duoc gi vao
+# bai; con mot o co so kem kem theo val Phase 1 = 0.34 thi doc duoc ngay la
+# "Phase 1 sap", va do la mot dong ket qua that.
+sys.exit(0 if epoch > 1 and val > MIN_VAL else 1)
 PYEOF
 }
 
@@ -177,6 +197,18 @@ for BB in $BACKBONES; do
   LABEL="${BB%%=*}"; REST="${BB#*=}"; MODEL="${REST%%:*}"; POOL="${REST##*:}"
   for MODE in $MODES; do
     CKPT="$PHASE1_STORE/${LABEL}__${MODE}${PHASE1_TAG}/seed_$SEED/best.pt"
+    # DA BI TU CHOI MOT LAN -> KHONG huan luyen lai.
+    #
+    # Cong chat luong doi ten checkpoint hong thanh `.rejected`. Lan goi sau,
+    # matrix.sh thay `best.pt` khong ton tai va huan luyen LAI tu dau — voi cung
+    # seed, cung du lieu, cung sieu tham so, nen no sap y het roi lai bi tu choi.
+    # Vong lap nay chay MOI FOLD. Do duoc ngay 27/08: codebert/none/full va
+    # codebert/latent_proto/full moi cai ~30 phut, 2 nhanh x 5 fold = ~5 gio dot
+    # vo ich, va no la ly do ntat tut lai sau hai may kia.
+    if [[ -f "${CKPT}.rejected" ]]; then
+      echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | DA BI TU CHOI truoc do, bo qua (xoa .rejected neu muon thu lai) ==="
+      continue
+    fi
     if [[ -f "$CKPT" ]]; then
       if phase1_usable "$CKPT"; then
         echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
@@ -223,7 +255,7 @@ for BB in $BACKBONES; do
       else
         mv "$PART" "${CKPT}.rejected"
         FAILED=$((FAILED + 1))
-        echo "  !! phase1 $LABEL/$MODE KHONG DAT (best_epoch<=1 hoac val<0.55) — da doi thanh ${CKPT}.rejected"
+        echo "  !! phase1 $LABEL/$MODE KHONG DAT (best_epoch<=1 hoac val<=0.40 — suy bien) — da doi thanh ${CKPT}.rejected"
         grep -E "New best model" "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>/dev/null | tail -1 | sed "s/^/       /"
       fi
     else

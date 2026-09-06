@@ -69,3 +69,26 @@ for inst in data:
 print("khong-ton-tai")
 PY
 }
+
+# In INSTANCE ID cua mot nhan. Dung truoc moi lenh stop/destroy — KHONG BAO GIO
+# hardcode id, vi id doi khi thue may moi ma nhan thi giu nguyen; huy nham bang
+# id cu la huy mot may dang lam viec (hoac cua nguoi khac).
+# Chi tra ve id cho nhan thuoc ho `ntat`; nhan khac tra ve rong va thoat != 0.
+vast_id() {
+  case "$1" in
+    ntat|ntat[0-9]*) ;;
+    *) echo "" ; return 1 ;;
+  esac
+  _vast_refresh
+  python3 - "$VAST_CACHE" "$1" <<'PYID'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+for inst in data:
+    if inst.get("label") == sys.argv[2]:
+        print(inst.get("id")); sys.exit(0)
+sys.exit(1)
+PYID
+}

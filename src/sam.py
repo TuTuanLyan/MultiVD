@@ -88,3 +88,73 @@ class SAMStep:
             if e is not None:
                 p.sub_(e)
         self._eps = []
+
+
+@torch.no_grad()
+def _tw_grad_global_norm(params, eta):
+    """Chuan L2 toan cuc cua T_w * g, voi T_w = |w| + eta."""
+    total = None
+    for p in params:
+        if p.grad is None:
+            continue
+        t = p.detach().abs().add_(eta)
+        s = ((t * p.grad.detach()) ** 2).sum()
+        total = s if total is None else total + s
+    if total is None:
+        return None
+    return torch.sqrt(total)
+
+
+class ASAMStep(SAMStep):
+    """ASAM — Adaptive Sharpness-Aware Minimization.
+
+    Kwon, Kim, Park, Choi, ICML 2021 (arXiv:2102.11600).
+
+    Khac SAM DUNG MOT CHO: hinh dang cua vung nhieu loan.
+
+        SAM   eps = rho * g / ||g||              -> qua cau ban kinh TUYET DOI
+        ASAM  eps = rho * T_w^2 * g / ||T_w g||  -> ellipsoid ti le theo |w|
+
+    voi T_w = diag(|w_1|, ..., |w_k|). Bai bao noi thang ly do: "appropriate rho
+    for SAM is dependent on the scales of w on the training trajectory, whereas
+    rho of ASAM is not." Do dung la benh da do duoc tren chinh du an nay ngay
+    27/08 — cung rho=0.05, codebert ket o train loss = ln2 suot 13 epoch (val
+    macro-F1 0.3333) trong khi t5p (0.6614) va unixcoder (0.6476) khong sao.
+
+    HAI CHI TIET DE PORT SAI:
+
+    * `eta` (mac dinh 0.01, dung so cua bai bao): T_w duoc thay bang T_w + eta*I
+      cho on dinh so. Khong co no thi tham so nao gan 0 se co nhieu loan gan 0 va
+      mau so co the ve 0.
+    * **rho cua ASAM KHONG cung thang do voi rho cua SAM.** Vi ban kinh do bang
+      don vi |w| chu khong phai khoang cach L2 tuyet doi, gia tri dung lon hon
+      khoang mot bac. Bai bao quet {5e-5 ... 0.5, 1.0, 2.0} va chon rho=0.5 cho
+      CIFAR-10, 1.0 cho CIFAR-100/ImageNet, trong khi SAM dung 0.05/0.1/0.05.
+      Thi nghiem transformer duy nhat cua ho (IWSLT'14 DE-EN, Adam) dung rho=0.1
+      cho SAM va 0.2 cho ASAM.
+      => Bung rho=0.05 cua SAM vao ASAM la GAN NHU KHONG LAM GI. Neu thay ket qua
+      trung khit voi nhanh khong-SAM thi kiem tra rho truoc khi ket luan.
+    """
+
+    def __init__(self, rho, eta=0.01):
+        super().__init__(rho)
+        if eta < 0:
+            raise ValueError("eta khong duoc am")
+        self.eta = eta
+
+    @torch.no_grad()
+    def ascend(self, params):
+        self._eps = []
+        norm = _tw_grad_global_norm(params, self.eta)
+        if norm is None or not torch.isfinite(norm) or norm.item() == 0.0:
+            return False
+        scale = self.rho / norm
+        for p in params:
+            if p.grad is None:
+                self._eps.append(None)
+                continue
+            t = p.detach().abs().add_(self.eta)
+            e = (t * t) * p.grad.detach() * scale
+            p.add_(e)
+            self._eps.append(e)
+        return True

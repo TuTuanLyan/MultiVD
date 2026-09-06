@@ -699,3 +699,414 @@ backbone giữ trọn baseline và `none` của chính nó trên MỘT máy.
 | `bash scripts/restart_queue.sh` | (chạy TRÊN máy vast) khởi động lại hàng đợi với `STEPS` mới |
 | `python src/build_records.py` | gộp mọi `fold*.json` vào `records/results_all.jsonl` (gộp, không ghi đè) |
 | `python src/report_paired.py --run X` / `--vs A B` | ghép cặp theo fold, in n, sd, bỏ-1-fold, Wilcoxon |
+
+## §13 — Ra soat du lieu nguon (26/08), truoc khi thue GPU
+
+Do bang tokenizer that: microsoft/codebert-base (ho RoBERTa, dai dien ca unixcoder),
+Salesforce/codet5-base, Salesforce/codet5p-110m-embedding. "Cap sap" = hai ve cua
+mot cap tro thanh chuoi token GIONG HET nhau sau khi cat o 512, tuc input y het
+nhung nhan nguoc nhau.
+
+### 13.1 Ty le cap sap tren du lieu DANG dung
+
+| file | ham > 512 token | cap sap |
+|---|---|---|
+| ccpp_primevul_paired_full.jsonl | 71.4% | 35.5% (1668/4694) |
+| ccpp_primevul_paired_common.jsonl | 70.2% | 35.3% (521/1477) |
+| ccpp_primevul_paired_4cwe.jsonl | 65.2% | 33.0% (29/88) |
+| **train_ccpp_filtered.jsonl** (Phase 1 doc qua train_ccpp_js.jsonl) | 63.0% | **32.9% (24/73)** |
+| train_js_filtered.jsonl | 40.1% | 13.9% (77/555) |
+| ccpp_primevul_fit512.jsonl | 0% | 0% |
+
+RevisitVD (arXiv:2507.16887) bao 27% tren PrimeVul; do tren repo nay ra 35.5%.
+`ccpp_primevul_fit512.jsonl` (20/08) da khong con loi nay nhung CHUA BAO GIO duoc
+noi vao pipeline — run/matrix.sh:66 van tro data/train_ccpp_js.jsonl.
+
+### 13.2 Tran cung cua nguon C/C++ 4 CWE
+
+Dem tren toan bo PrimeVul v0.1 tho (ca file khong ghep cap), so ham co nhan lo hong:
+
+| | CWE-22 | CWE-78 | CWE-79 | CWE-89 | tong |
+|---|---|---|---|---|---|
+| train | 36 | 24 | 22 | 5 | 87 |
+| valid | 4 | 2 | 6 | 0 | 12 |
+| test | 6 | 1 | 2 | 1 | 10 |
+| **tong** | 46 | 27 | 30 | **6** | **109** |
+
+Sau ghep cap + bo cap sap: 59 cap / 118 hang, CWE-89 con 3 cap. Siet them
+"khong ham nao bi cat": 26 cap. Day la tinh chat cua du lieu, khong phai loi
+pipeline — CWE-22/78/79/89 la lo hong web, gan nhu khong ton tai trong C/C++.
+
+### 13.3 Hai loi dung du lieu khac
+
+- `train_js_filtered.jsonl` ghep cap theo THU TU DONG; 37/569 cap ke nhau khong
+  phai cap that (khac CWE, tuong dong trung vi 0.41 vs 0.945 cua cap that).
+- `train_ccpp_js_parent.jsonl` chi con 2 lop (132/1152) — nhan phu gan nhu vo dung.
+- PrimeVul v0.1 tho: 38 cap co hai dong ke nhau doi nhan nhung KHAC commit_id.
+  Phai ghep bang commit_id, khong duoc tin adjacency.
+
+### 13.4 Nguon dung lai (src/build_sources.py, --drop collapse)
+
+| file | hang | cap giu | cap bo vi sap | CWE | neu --drop truncated |
+|---|---|---|---|---|---|
+| src_ccpp_4cwe.jsonl | 118 | 59 | 30 (33.7%) | 4 | 58 hang (49%) |
+| src_ccpp_common.jsonl | 2360 | 1180 | 722 (38.0%) | 74 | 986 hang (42%) |
+| src_ccpp_full.jsonl | 6042 | 3021 | 1664 (35.5%) | 102 | 2424 hang (40%) |
+| src_js_4cwe.jsonl | 956 | 478 | 77 (13.9%) | 4 | 648 hang (68%) |
+
+Moi hang co `pair_id` (khoa theo commit_id phia ccpp), `n_tok_max`, `bi_cat`.
+`train_transfer.py:40` da co pair_id dau GROUP_FIELDS nen tu dong dung
+GroupShuffleSplit — khong can sua code.
+
+`src_ccpp_common_parent.jsonl`: 8 pillar, dung duoc 100%. CWE-664 32.4%,
+CWE-707 22.8%, CWE-682 15.8%, CWE-703 12.6%, CWE-284 8.9%, CWE-691 5.6%,
+CWE-693 1.8%, CWE-697 0.2% (4 hang — nen gop hoac bo).
+
+### 13.5 Con mo
+
+- Nguon JS "common" chua dung duoc: train_js_filtered.jsonl chi chua dung 4 CWE
+  nen js_common trung y het js_4cwe. Can CleanVul day du, KHONG co tren may.
+  Hai ban dan xuat tren may mau thuan nhau: Archive/cwe_js_cleanfull.jsonl (1138)
+  vs MAML/data/full_js_cleanvul.jsonl (1836, 96 CWE), giao nhau chi 562, khong
+  cai nao chua cai nao. huggingface.co/api/datasets/yikun-li/CleanVul tra ve 200.
+- Nhanh ccpp/4cwe chi 59 cap: chua quyet dinh bo, doi bo CWE, hay giu lam arm
+  chung minh gioi han.
+
+## §14 — Ngay 27/08, seed 42, Phase 1 (KHONG SAM). Head phu cuu backbone yeu tren nguon kho
+
+Cau hinh: seed 42, lambda=0.05, 15 epoch, lr 2e-5, batch 16, max_len 512,
+`--sam_rho 0`. Moi backbone chay tron tren MOT may (codebert=ntat,
+t5p=ntat2, unixcoder=local) de baseline va moi nhanh cua no cung phan cung.
+So duoi day la val macro-F1 cua HEAD NHI PHAN o Phase 1 — KHONG phai chi so dich.
+
+### 14.1 Nguon `4cwe` (930 hang: 812 js + 118 ccpp) — nguon DE
+
+| nhanh | codebert | t5p | unixcoder |
+|---|---|---|---|
+| none | 0.6874 | 0.7072 | 0.6768 |
+| cwe | 0.6667 | 0.6874 | 0.7082 |
+| latent_bottleneck | 0.6532 | 0.6976 | 0.6661 |
+| latent_proto | 0.6870 | 0.6971 | 0.6976 |
+
+`none` bang hoac hon cac nhanh phu o codebert va t5p. KHONG duoc doc thanh
+"head phu vo dung" — day la val cua head nhi phan, con viec cua head phu la
+nan bieu dien cho Phase 2.
+
+### 14.2 Nguon `full` (7598 hang: 6042 ccpp + 1556 js) — nguon KHO
+
+| nhanh | codebert | best_ep | t5p | unixcoder | best_ep (unix) |
+|---|---|---|---|---|---|
+| none | **0.3357** (TU CHOI) | 3 | 0.5612 | 0.5601 | 7 |
+| latent_bottleneck | **0.5636** | 11 | 0.5557 | 0.5678 | 13 |
+| latent_proto | 0.4557 (TU CHOI) | 4 | (dang chay) | (dang chay) | |
+
+`latent_bottleneck` - `none`:
+  codebert   +0.2279   (best_epoch 3 -> 11)
+  t5p        -0.0055
+  unixcoder  +0.0077
+
+Sang 27/08 luc dau chi co 1 backbone duoc cuu / 1 khong doi, chua loai duoc
+ngau nhien. Voi unixcoder thi thanh **1 duoc cuu / 2 khong doi**, va ca hai cai
+"khong doi" deu nam trong +/-0.008 — nho hon nhieu mot bac.
+
+Doc: tren nguon ma muc tieu nhi phan thuan SAP ve muc doan bua, loss phu CO NHAN
+on dinh duoc toi uu hoa cho backbone yeu (huan luyen lau gap ~3 lan truoc khi
+hong), con backbone manh thi khong can. Thu tu: co nhan (0.5636) > khong nhan
+(0.4557) > khong co gi (0.3357).
+
+Day la LAP LAI cua double dissociation o §4b (loi ich cua codebert den tu head
+phu, cua unixcoder den tu pretrain) nhung o Phase 1 thay vi Phase 2 va tren mot
+nguon khac — corroboration doc lap, khong phai cung mot phep do tinh hai lan.
+
+GIOI HAN: n=1, mot seed. Chenh 0.2279 qua lon de la nhieu; chenh -0.0055 thi
+hoan toan co the dao dau. Con thieu o `cwe` va toan bo unixcoder tren `full`.
+
+### 14.3 Do kho cua nguon phu thuoc backbone
+
+`4cwe` -> `full`, nhanh `none`:
+  unixcoder 0.6768 -> 0.5601  (-0.117)
+  t5p       0.7072 -> 0.5612  (-0.146)
+  codebert  0.6874 -> 0.3357  (-0.352, sap han)
+
+Backbone nao chiu thiet nhieu nhat tu nguon kho thi cung la backbone duoc head
+phu cuu nhieu nhat — hai quan sat nay nhat quan ve co che, khong roi rac.
+
+Khop voi PrimeVul ICSE 2025 (CodeBERT chi 20.86 F1 tren PrimeVul) va voi §13.1
+(35.5% cap PrimeVul sap nhan duoi 512 token — sau khi loc bo, phan con lai van
+rat kho).
+
+## §15 — Ket qua Phase 2 day du, seed 42, 27-28/08
+
+295 ket qua fold: codebert 85 (17 nhanh x 5 fold), t5p 105 (21x5), unixcoder 105
+(21x5). codebert thieu 4 nhanh vi `none_full` va `latent_proto_full` bi cong
+chat luong tu choi (xem §14.2). Moi backbone chay TRON tren mot may:
+codebert=ntat, t5p=ntat2, unixcoder=local + ntat2 (fold 4,5). Ca hai may vast da
+huy sau khi doi chieu tung file ke ca kich thuoc byte.
+
+Cau hinh: seed 42 va CHI 42, lambda=0.05, KHONG SAM o Phase 1, Phase 2 30 epoch
+lr 2e-5, dich `sven_python_folds_norm` (60/20/20). Chi so: test_macro_f1_at_0.5.
+Delta ghep cap theo (backbone, nguon, optimizer, fold) so voi nhanh `none`.
+
+### 15.1 Bang xep hang moi to hop nhanh x nguon x optimizer
+
+| nhanh | nguon | opt | n | D tb | dau | sign p |
+|---|---|---|---|---|---|---|
+| **latent_bottleneck** | **4cwe** | **adamw** | **15** | **+0.0227** | **13/15** | **0.0074** |
+| cwe | 4cwe | recadam | 15 | +0.0117 | 10/15 | 0.30 |
+| latent_proto | 4cwe | adamw | 15 | +0.0104 | 10/15 | 0.30 |
+| latent_bottleneck | full | adamw | 10 | +0.0099 | 8/10 | 0.11 |
+| latent_bottleneck | 4cwe | recadam | 15 | +0.0098 | 9/15 | 0.61 |
+| cwe | 4cwe | adamw | 15 | +0.0063 | 7/15 | 1.00 |
+| latent_bottleneck | com | adamw | 15 | +0.0026 | 10/15 | 0.30 |
+| latent_bottleneck | com | recadam | 15 | -0.0014 | 6/15 | 1.00 |
+| latent_bottleneck | full | recadam | 10 | -0.0040 | 4/10 | 1.00 |
+
+CHI MOT o duoi 0.05. Moi o con lai p >= 0.11.
+
+### 15.2 O thang, tung backbone
+
+| backbone | D tb | fold duong |
+|---|---|---|
+| codebert | +0.0266 | 4/5 |
+| t5p | +0.0217 | 5/5 |
+| unixcoder | +0.0198 | 4/5 |
+
+15 o: 13 duong, 1 am (codebert fold 5, -0.0077), 2 hoa tuyet doi (t5p fold 5,
+unixcoder fold 2 — giong het den 4 chu so).
+
+### 15.3 Ba dieu bang nay noi ra
+
+1. **Nguon quan trong hon nhanh.** `4cwe` la nguon DUY NHAT ma head phu co tac
+   dung nhat quan. `com` phang li (-0.0014..+0.0026 o ca 4 o). `full` yeu.
+   `4cwe` la nguon NHO NHAT (930 hang) nhung la nguon duy nhat co nhan 4 lop can
+   bang — nen cai giup khong phai luong du lieu ma la CHAT LUONG tin hieu phu.
+2. **Nhanh va optimizer khong tach roi.** `latent_bottleneck` thang khi ghep
+   AdamW (13/15) nhung roi xuong 9/15 voi RecAdam. Nguoc lai `cwe` thi RecAdam
+   (10/15) kha hon AdamW (7/15). Phai phat bieu thanh MOT CAP.
+3. **Co mot o AM that.** `latent_bottleneck` + RecAdam + `full` tren unixcoder:
+   0/5 fold duong, D -0.0318. Hai that, khong phai nhieu.
+
+### 15.4 Gioi han
+
+- 15 fold KHONG doc lap hoan toan: cung 5 fold dich dung lai cho 3 backbone, nen
+  p=0.0074 la lac quan. Phat bieu chac hon: tung backbone cho 5/5, 4/5, 4/5 va
+  CA BA cung huong.
+- Mot seed duy nhat (42).
+- Tap dich la ban ro ri `sven_python_folds_norm` (~40% hang test co twin trong
+  train) — chon co chu y de so lien mach voi ket qua cu; so tuyet doi 0.75-0.89
+  bi thoi phong.
+- D +0.0227 nho hon san nhieu giua may (0.028) — chi co nghia TRONG cung may, ma
+  thiet ke nay dung nhu vay (moi D ghep cap trong mot fold tren mot may).
+
+## §16 — Dia day lam hong checkpoint, va cong chat luong dan nham nhan (30/08)
+
+Khoi lambda=0.02 + ASAM rho=0.1 + RecAdam tren ntat. Ba nhanh Phase 1 cua t5p bi
+`run/matrix.sh` doi ten thanh `best.pt.rejected` kem thong bao
+"KHONG DAT (best_epoch<=1 hoac val<0.55)". **Khong nhanh nao that su kem.**
+
+Loi that su trong log la khi ghi file:
+
+```
+RuntimeError: [enforce fail at inline_container.cc:672] . unexpected pos 388918848 vs 388918736
+```
+
+Kich thuoc file noi ro hon moi thong bao:
+
+| Checkpoint | Byte | |
+|---|---|---|
+| `t5p__cwe_4cwe_l02` (lanh) | 438 505 969 | moc |
+| `t5p__latent_proto_4cwe_l02.rejected` | 389 021 824 | cut ~49 MB |
+| `t5p__latent_bottleneck_com_l02.rejected` | 33 270 | cut gan het |
+| `t5p__latent_proto_com_l02.rejected` | 33 679 | cut gan het |
+
+`torch.save` bi cat giua chung vi **/ day 100%** (20 GB, `model/` chiem 6.7 GB
+trong do 4.8 GB la 10 checkpoint unixcoder da xong tu lau). Lan doc lai nem
+RuntimeError, `train_transfer.py` tra ve that bai, va cong chat luong — chi phan
+biet "co file hop le / khong" — ket luan la chat luong kem.
+
+**Hai hau qua, ca hai deu im lang:**
+
+1. `.rejected` la vinh vien theo thiet ke (de khong huan luyen lai vong lap), nen
+   15 o Phase 2 se khong bao gio sinh ra.
+2. Mot dot don dia truoc do da xoa `model/s42/phase1/t5p__none_*` (bo lambda=0.05)
+   trong khi `t5p__none_*_l02/seed_42` la **symlink tro vao do** (dung lai hop le
+   theo muc 5 CLAUDE.md: nhanh `none` khong phu thuoc lambda). Symlink treo ->
+   `FileExistsError: [Errno 17] File exists` khi tao thu muc -> them 15 o nua mat.
+
+Tong 30/50 o cua t5p bien mat vi mot su kien ha tang, khong o nao bao loi ro rang.
+
+**Da sua**: xoa 10 checkpoint unixcoder tren may sau khi doi chieu 10/10 file khop
+tung byte voi local (3.7 GB -> 8.4 GB trong); day lai 3 file `none` that tu local
+thay cho symlink treo; xoa 3 nhan `.rejected` de huan luyen lai.
+
+**Bai hoc cho cong xac minh**: mot cong chi kiem "load duoc khong" se quy MOI that
+bai ve nguyen nhan no biet ten. Phan biet **file hong** (RuntimeError luc doc,
+kich thuoc lech moc) voi **chat luong kem** (doc duoc, val thap) truoc khi dan
+nhan vinh vien. Va don dia phai tu choi xoa bat ky thu muc nao dang la **dich cua
+mot symlink**.
+
+## §17 — Khoi λ=0.02 · ASAM ρ=0.1 (Phase 2) · RecAdam · seed 42, day du 150 o (31/08)
+
+3 backbone × 3 nguon × 4 nhanh × 5 fold, tap dich `sven_python_folds_norm`,
+SAM tat o Phase 1 (`--sam_rho 0`), ASAM chi o Phase 2 (ρ=0.1, η=0.01).
+
+### Chuyen giao hai pha van an, va an chac
+
+`none` (chuyen giao tran, khong head phu) so voi baseline, ghep cap theo
+(backbone, nguon, fold), da loai 2 nhanh co Phase 1 sap:
+
+| | |
+|---|---|
+| Δ trung binh | **+0.0280** |
+| Fold cung dau | **35/40** |
+| p (kiem dau, hai phia) | **< 0.0001** |
+| Bien do | −0.0526 … +0.0850 |
+
+### Head phu KHONG them gi o λ=0.02
+
+Δ so voi `none` trong cung khoi/backbone/nguon/fold:
+
+| nhanh | n | Δ vs none | cung dau | p |
+|---|---|---|---|---|
+| cwe | 15 | −0.0098 | 5/15 | 0.30 |
+| latent_bottleneck | 40 | −0.0076 | 15/40 | 0.15 |
+| latent_proto | 40 | −0.0105 | 15/40 | 0.15 |
+
+Ca ba deu duoi san nhieu 0.010 ve do lon, nen doc la **rong**, khong phai "co hai".
+
+### Ha λ tu 0.05 xuong 0.02 khong giup
+
+Ghep cap tung o voi khoi D (λ=0.05, cung ASAM ρ=0.1, cung RecAdam) — doi dung mot bien:
+
+| nhanh | n | Δ (F−D) | cung dau | p |
+|---|---|---|---|---|
+| none | 38 | +0.0028 | 22/38 | 0.42 |
+| cwe | 15 | **−0.0122** | **3/15** | **0.035** |
+| latent_bottleneck | 43 | −0.0099 | 19/43 | 0.54 |
+| latent_proto | 37 | −0.0055 | 16/37 | 0.51 |
+| **tat ca** | **133** | **−0.0053** | **60/133** | **0.30** |
+
+Tong the rong. Rieng `cwe` te di that (3/15 fold, p=0.035) — hop ly, vi `cwe` la
+nhanh phu thuoc nhieu nhat vao viec loss phu co trong so dang ke.
+
+### Quet moi khoi: chi MOT o song sot
+
+Δ so voi `none`, ghep cap trong cung khoi:
+
+| khoi | cwe | latent_bottleneck | latent_proto |
+|---|---|---|---|
+| A λ=.05 khong SAM RecAdam | +0.0088 (12/18) | +0.0036 (23/43) | +0.0020 (25/43) |
+| **B λ=.05 khong SAM AdamW** | +0.0046 (12/18) | **+0.0111 (33/43) p=0.0006** | +0.0051 (22/43) |
+| C λ=.05 khong SAM RecAdam (doi chung) | +0.0052 (10/14) | +0.0058 (19/37) | +0.0040 (24/37) |
+| D λ=.05 ASAM ρ=.1 RecAdam | +0.0033 (10/15) | −0.0032 (19/38) | −0.0025 (17/37) |
+| F λ=.02 ASAM ρ=.1 RecAdam | −0.0098 (5/15) | −0.0076 (15/40) | −0.0105 (15/40) |
+
+**`latent_bottleneck` + AdamW + λ=0.05 la o duy nhat co p < 0.05 va do lon vuot
+san nhieu.** Doi optimizer sang RecAdam (khoi A, cung moi thu khac) ha no ve
++0.0036 va 23/43 — tuc bang khong. Them ASAM (D) hoac ha λ (F) cung xoa no.
+
+Do lon +0.0111 chi nhinh hon san nhieu 0.010 mot chut; cai manh la **huong**:
+33/43 fold cung dau. Phai neu ca hai so, khong duoc chi neu p.
+
+### Bang chung truc tiep vi sao phai co cong chat luong Phase 1
+
+`codebert` / nguon `full` / nhanh `none`, Phase 1 ket o val macro-F1 **0.3403**
+(best_epoch 3, muc doan bua tren bai nhi phan). Phase 2 chay tu do:
+
+**Δ = −0.4395, 0/5 fold, bien do −0.4904 … −0.3874.**
+
+Trung khop voi truong hop cu `codebert__none_sam1r01` (val 0.3333 -> −0.43 ghi o
+muc truoc). Neu khong nhin val Phase 1, con so nay doc y het "nhanh none khong hop
+voi nguon full". Moi o trong so ket qua deu phai deo kem val Phase 1.
+
+## §18 — Khoi NIGHT48: λ=0.05 · ρ ∈ {0, 0.1} · latent_bottleneck · RecAdam · 3 nguon × 3 seed × 5 fold (05/09)
+
+**Cau hinh**: `codet5p-220m-bimodal` (mean pooling) · `latent_bottleneck` (H→8→C) ·
+RecAdam · λ=0.05 · Pha 1 khong SAM, 15 epoch · Pha 2 hai nhanh ρ=0 (doi chung) va
+ASAM ρ=0.1 (η=0.01) · nguon `4cwe`/`com`/`full` · seed 42/7/1234 · fold 1–5 ·
+dich `sven_python_folds_norm` · `PHASE1_MIN_VAL=0`.
+
+**90/90 o Pha 2 + 15/15 baseline, khong o nao thieu, khong o nao chong lan.**
+Hai nhanh ρ dung chung dung mot checkpoint Pha 1 nen hieu giua chung doi mot bien.
+
+### Pha 1 — khong nguon nao sap, ke ca `full`
+
+| nguon | seed 42 | seed 7 | seed 1234 | do tan |
+|---|---|---|---|---|
+| `4cwe` | 0.6976 (ep 6) | 0.6684 (ep 8) | 0.7223 (ep 11) | 0.054 |
+| `com` | 0.5897 (ep 11) | 0.5907 (ep 8) | 0.5684 (ep 14) | 0.022 |
+| `full` | 0.5648 (ep 7) | 0.5834 (ep 14) | 0.5930 (ep 15) | 0.028 |
+
+`full` giu 0.56–0.59 o **ba seed doc lap tren ba may khac nhau**. Truoc day chinh nguon
+nay lam Pha 1 cua t5p sap ve ~0.34 voi `none` va `latent_proto` (§15, muc 7 CLAUDE.md).
+Ba lan lap doc lap la bang chung chac hon han hai lan roi rac da ghi truoc do.
+
+### Baseline tung seed (trung binh 5 fold)
+
+seed 42 **0.7985** (0.7236–0.8618) · seed 7 **0.8073** (0.7630–0.8421) ·
+seed 1234 **0.8140** (0.7821–0.8482). Do tan giua seed 0.0155, vuot san nhieu 0.010 —
+bat buoc ghep cap theo seed.
+
+### A) Chuyen giao vs baseline, n=15 moi o
+
+| nguon | ρ | Δ macro-F1 | Δ ROC-AUC |
+|---|---|---|---|
+| `4cwe` | 0 | +0.0133 (11/15, p=0.119) | +0.0030 (8/15) |
+| `4cwe` | 0.1 | +0.0120 (10/15, p=0.302) | +0.0100 (10/15) |
+| `com` | 0 | +0.0092 (10/15, p=0.302) | +0.0056 (9/15) |
+| `com` | 0.1 | **+0.0191 (12/15, p=0.0352)** | +0.0045 (10/15) |
+| `full` | 0 | +0.0021 (8/15) | **−0.0094 (4/15)** |
+| `full` | 0.1 | +0.0036 (7/15) | −0.0032 (8/15) |
+
+**O duy nhat vua qua p<0.05 vua vuot san nhieu: `com` × ρ=0.1, +0.0191.**
+`full` chet han tren ca hai chi so — nguon nhieu CWE nhat lai chuyen giao kem nhat.
+
+### B) Hieu RIENG cua ASAM (ρ=0.1 vs ρ=0, chung checkpoint Pha 1)
+
+| nguon | Δ macro-F1 | trai | Δ ROC-AUC |
+|---|---|---|---|
+| `4cwe` | −0.0012 (7/15) | −0.0335…+0.0555 | +0.0071 (11/15) |
+| `com` | +0.0099 (12/15, p=0.0352) | −0.0459…+0.0691 | −0.0011 (10/15) |
+| `full` | +0.0016 (10/15) | −0.0492…+0.0421 | +0.0062 (10/15) |
+| **gop** | **+0.0034 (29/45, p=0.073)** | | +0.0040 (31/45, p=0.016) |
+
+`com` qua p<0.05 nhung do lon **0.0099, tuc vua duoi san nhieu 0.010**. Va no khong lap
+lai giua cac seed: +0.0056 (seed 42), +0.0106 (seed 7), **−0.0059** (seed 1234).
+
+### Hieu ung nam o MOT FOLD, khong phai o may
+
+Gop het seed, tach theo fold (moi o 9 diem = 3 nguon × 3 seed):
+
+| fold | ΔASAM macro-F1 |
+|---|---|
+| 1 | −0.0040 (5/9) |
+| 2 | −0.0035 (5/9) |
+| **3** | **+0.0233 (8/9, p=0.0391)** |
+| 4 | +0.0051 (6/9) |
+| 5 | −0.0038 (5/9) |
+
+Fold 3 duong o **ca ba seed** (+0.0281 / +0.0240 / +0.0177), tren **ba may khac nhau**
+(vast cu, vast moi, 158). Khong phai hien vat phan cung.
+
+Cung **khong** phai "ASAM cuu fold kho": tuong quan giua baseline cua fold va ΔASAM chi
+r = −0.202 (n=15), va baseline cua fold 3 rat khac nhau giua ba seed (0.7236 / 0.8352 /
+0.7950). Day la dac tinh cua **mot lat cat cu the** cua tap dich, khong phai cua phuong
+phap.
+
+### Ket luan
+
+ASAM ρ=0.1 **khong mua duoc gi vuot san nhieu tren macro-F1** — cung ket luan da co o
+ρ=0.2 va ρ=0.5 (§ dot xac nhan n=15 truoc, `results_confirm47_com/`). Ba ban kinh, ba
+lan, cung mot cau tra loi. Giu ASAM TAT.
+
+Con so gop +0.0034 la mot hieu ung cua rieng fold 3 bi pha loang; bao cao bang trung
+binh 5 fold ma khong tach fold se giau mat dieu do.
+
+### Ha tang
+
+Khoi chay tren 4 may: seed 42 (vast A4000, torch 2.9.1+cu130), seed 7 fold 1–2
+(161, 2.9.1+cu128), seed 7 fold 3–5 (vast A4000, 2.9.1+cu128, **dung lai dung 3
+checkpoint Pha 1 cua seed 7 tu 161**), seed 1234 (158, 2.9.1+cu128). transformers
+4.57.1 tren moi may. Chia theo **fold tron ven** nen moi Δ ghep cap nam gon trong mot
+may. Du lieu goc: `results_night48/`, `results/n48_t5p/`, `results_night48b/`,
+`results_night48_158/`. Bao cao: `python3 tools/n48_report.py`.

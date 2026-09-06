@@ -11,6 +11,7 @@ Chi tiết học thuật và công thức nằm trong [METHOD.md](METHOD.md).
 
 | file | vai trò | đọc khi nào |
 | --- | --- | --- |
+| [CLAUDE.md](CLAUDE.md) | quy tắc chạy: thứ tự fold, ghép cặp, chia máy, hỏi trước khi tự thêm | trước khi xếp bất kỳ lịch chạy nào |
 | [FACTS.md](FACTS.md) | **cấu hình và số liệu**, không một câu diễn giải | luôn luôn, trước khi thiết kế thí nghiệm |
 | [DEAD_ENDS.md](DEAD_ENDS.md) | giả thuyết đã bị bác + phép đo bác nó | trước khi bắt đầu một hướng mới |
 | [METHOD.md](METHOD.md) | kiến trúc và công thức | khi cần biết pipeline làm gì |

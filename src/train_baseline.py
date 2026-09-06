@@ -188,6 +188,14 @@ def run_train(args, device):
     )
 
 
+def _collect_runtime_baseline(args, device):
+    from runtime_env import hardware_fingerprint, read_runtime_sidecar
+    return {
+        "baseline_train": read_runtime_sidecar(args.checkpoint_path),
+        "hardware_at_inference": hardware_fingerprint(device),
+    }
+
+
 def run_test(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     val_loader, test_loader = loaders(args, tokenizer, include_test=True)
@@ -232,6 +240,7 @@ def run_test(args, device):
     result = {
         "experiment_name": f"{args.run_name}/{args.method_name}",
         "phase": "test",
+        "runtime": _collect_runtime_baseline(args, device),
         "fold": args.fold,
         "seed": args.seed,
         "source_checkpoint": None,

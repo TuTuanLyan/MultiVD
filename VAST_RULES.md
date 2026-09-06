@@ -9,3 +9,4 @@
 - Khi tìm thấy GPU hãy hỏi lại dù bất kì permission như nào để tôi quyết định thuê không về giá cả và thông tin về máy.
 - Thay đổi code trên vast là được phép để tăng khả năng tận dụng GPU nếu được yêu cầu như batch size hay đổi tên model backbone, lr, runname, ... trong config.
 - Tái tạo lại môi trường conda bằng conda create -f enenvironment.yml -n vdenv hoặc nếu trên vast dùng conda rồi hãy xử lý tải thêm thay vì tốn bộ nhớ cho conda env nữa.
+- Luôn cài monitor nền khi có job chạy trên vast: theo dõi driver/GPU/tiến độ, báo khi xong fold hoặc khi hỏng, và kéo kết quả về + đối chiếu từng byte trước khi huỷ máy.

@@ -284,15 +284,29 @@ def train_loop(
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
     if phase in ("phase1", "phase2") and getattr(args, "sam_rho", 0.0) > 0:
-        from sam import SAMStep
-
-        sam = SAMStep(args.sam_rho)
+        # `--sam_variant asam` doi hinh dang vung nhieu loan tu qua cau ban kinh
+        # tuyet doi sang ellipsoid ti le theo |w| (Kwon et al., ICML 2021).
+        # LUU Y rho KHONG cung thang do giua hai bien the — xem src/sam.py.
+        variant = getattr(args, "sam_variant", "sam")
+        if variant == "asam":
+            from sam import ASAMStep
+            sam = ASAMStep(args.sam_rho, eta=getattr(args, "asam_eta", 0.01))
+        else:
+            from sam import SAMStep
+            sam = SAMStep(args.sam_rho)
         logger.info(
-            "SAM bat o %s | rho=%.4f (tuyet doi, chuan L2 toan cuc) | moi buoc 2 luot "
-            "forward-backward, thoi gian huan luyen ~2x", phase, args.sam_rho,
+            "%s bat o %s | rho=%.4f (%s) | moi buoc 2 luot forward-backward, "
+            "thoi gian huan luyen ~2x",
+            "ASAM" if variant == "asam" else "SAM", phase, args.sam_rho,
+            "chuan hoa theo |w|, bat bien thang do" if variant == "asam"
+            else "tuyet doi, chuan L2 toan cuc",
         )
     best_score, best_epoch, patience_counter = -math.inf, 0, 0
     training_started = time.perf_counter()
+    # Gom gio tung epoch de cuoi lan chay ghi ra <checkpoint>.runtime.json. Truoc day
+    # nhung con so nay chi ra console roi troi mat cung may thue, trong khi muc setup
+    # cua bai lai can chinh chung.
+    _rt_epoch, _rt_train, _rt_val, _rt_epochs_run = [], [], [], 0
     logger.info("Training started | Phase: %s | Epochs: %d", phase, args.epochs)
     for epoch in range(1, args.epochs + 1):
         epoch_started = time.perf_counter()
@@ -367,6 +381,10 @@ def train_loop(
                 patience_counter += 1
         epoch_seconds = time.perf_counter() - epoch_started
         total_seconds = time.perf_counter() - training_started
+        _rt_epoch.append(epoch_seconds)
+        _rt_train.append(train_seconds)
+        _rt_val.append(validation_seconds)
+        _rt_epochs_run = epoch
         print_epoch(
             epoch, args.epochs, train, val, optimizer, best_epoch, patience_counter,
             phase == "phase1",
@@ -390,7 +408,26 @@ def train_loop(
         getattr(args, "selection_metric", "macro_f1"),
         best_score,
     )
-    logger.info(
-        "Training finished | Elapsed: %.2fs",
-        time.perf_counter() - training_started,
-    )
+    _rt_total = time.perf_counter() - training_started
+    logger.info("Training finished | Elapsed: %.2fs", _rt_total)
+    try:
+        from runtime_env import build_runtime_record, write_runtime_sidecar
+        _rt = build_runtime_record(
+            phase=phase, args=args, device=device,
+            epochs_planned=args.epochs, epochs_run=_rt_epochs_run, best_epoch=best_epoch,
+            epoch_seconds=_rt_epoch, train_seconds=_rt_train, val_seconds=_rt_val,
+            total_seconds=_rt_total,
+            n_train=len(getattr(train_loader, "dataset", []) or []),
+            n_val=len(getattr(val_loader, "dataset", []) or []),
+        )
+        _p = write_runtime_sidecar(args.checkpoint_path, _rt)
+        if _p:
+            logger.info(
+                "Runtime ghi lai | %s | %d epoch | %.1fs/epoch | %s",
+                _p, _rt_epochs_run, _rt["seconds"]["per_epoch"].get("mean", 0.0),
+                _rt["hardware"].get("gpu_name"),
+            )
+    except Exception as exc:
+        # Ghi nhat ky hong khong duoc lam hong lan chay: mot o co so ma thieu gio van
+        # dung hon mot o trong.
+        logger.warning("Khong ghi duoc runtime sidecar: %s", exc)
