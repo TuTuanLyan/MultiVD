@@ -17,32 +17,55 @@ RecAdam đang mua được là **neo** hay chỉ là **warmup ngầm** (đối c
 | backbone | `codet5p-220m-bimodal`, pooling mean (`t5p`) |
 | nhánh | `latent_bottleneck`, λ=0.05 — **checkpoint Pha 1 dùng lại** `model/n48/phase1/t5p__latent_bottleneck_{4cwe,com}_l0p05/seed_42/best.pt` (val 0.6976 / 0.5897) |
 | nguồn | **giai đoạn 1**: `4cwe`, `com` · **giai đoạn 2** (người dùng 06/09: "có thêm nhưng chạy cuối cùng xem ảnh hưởng"): `full`, chạy sau khi giai đoạn 1 xong **trên cùng máy, cùng fold** |
-| seed | 42 (seed 7 ở 161 và 1234 ở 158 có checkpoint sẵn, chạy sau cho cấu hình thắng) |
-| fold | 1–5, `data/sven_python_folds_norm` |
+| seed | 42 (người dùng 06/09: "chạy kiểm tra bằng seed 42 và 3 folds là được") |
+| fold | **1, 2, 3** — 161 giữ fold 1–2, 158 giữ fold 3. Fold 4–5 của giai đoạn 1 đã chạy một phần trên 158 trước khi thu hẹp, giữ lại nhưng không tính vào bảng chính |
 | SAM/ASAM | tắt (`--sam_rho 0`) |
 | tiêu chí chọn checkpoint | **val F1@0.5, không đổi**; metric chính F1@0.5, kèm ROC-AUC và F1@ngưỡng-val |
 | sổ sách mới | JSON ghi λ thật, val Pha 1, anchor, γ, k, t0 (bước), và **lịch sử val theo epoch** (`runtime.phase2.val_history`) |
 
-**10 cấu hình Pha 2** cho mỗi (fold, nguồn), hai đối chứng chạy trước:
+**12 cấu hình Pha 2** cho mỗi (fold, nguồn), hai đối chứng chạy trước.
+Danh sách sửa lúc 15:5x UTC 06/09 sau khi phát hiện bẫy λ (xem mục "Bẫy đã mắc" bên dưới):
 
 | tag | optimizer | cờ Pha 2 | vai trò |
 |---|---|---|---|
 | `c5000_t0p05` | RecAdam | mặc định | **đối chứng 1** (RecAdam hiện tại, cùng phiên) |
 | `plain` | AdamW | mặc định | **đối chứng 2** (fine-tune hai lần, cùng phiên) |
-| `c500_t0p05`, `c50_t0p05` | RecAdam | `--pretrain_cof 500/50` | neo yếu, ngắn |
-| `c5000_t0p5`, `c500_t0p5`, `c50_t0p5` | RecAdam | `--anneal_t0_ratio 0.5` (+cof) | neo bền, ba độ mạnh |
+| `c500_t0p05`, `c50_t0p05`, `c5_t0p05`, `c0p5_t0p05` | RecAdam | `--pretrain_cof 500/50/5/0.5` | **trục γ** ở lịch mặc định. Hai giá trị cuối thêm 06/09 vì γ càng nhỏ Δ càng cao |
+| `c5000_t0p5` | RecAdam | `--anneal_t0_ratio 0.5` | **bằng chứng đóng băng**, giữ đúng một nhánh |
+| `c5000_t0p2k02`, `c50_t0p2k02` | RecAdam | `--anneal_t0_ratio 0.2 --anneal_k 0.02` | neo **bền thật sự**: λ = 0.05/0.50/0.97 ở epoch 1/6/12 |
 | `nohead_c5000_t0p05` | RecAdam | `--recadam_anchor_head none` | không neo `vul_head` (như bài gốc) |
-| `pre_c20_t0p5_k0p005` | RecAdam | `--recadam_anchor pretrained --pretrain_cof 20 --anneal_t0_ratio 0.5 --anneal_k 0.005` | neo về pretrained, yếu và bền (archive §40.5, lần đầu chạy) |
+| `pre_c20_t0p2k02` | RecAdam | `--recadam_anchor pretrained --pretrain_cof 20 --anneal_t0_ratio 0.2 --anneal_k 0.02` | neo về pretrained (archive §40.5), ở lịch đúng |
 | `warm` | AdamW | `--adamw_anneal_lr` | AdamW + đúng λ(t) của RecAdam trên lr, **không neo** |
 
-**Kỳ vọng**: 3 nguồn × 5 fold × 10 = **150 ô Pha 2 + 5 baseline** (giai đoạn 1: 100, giai đoạn 2: 50). ~10,7 phút/ô ⇒ ~3,75 h/fold/giai-đoạn-1, ~1,8 h/fold cho `full`.
+### Bẫy đã mắc — λ có hai tham số KHÔNG độc lập
+
+Bản đầu của khối đặt `t0_ratio=0.5` (435 bước) mà giữ `k=0.05`, cho k·t₀ = 21.7 nên
+**λ(1) ≈ 4e−10** và sau 7 epoch mới lên 9e−06. Bước cập nhật task bị nhân với ~0, còn lực
+kéo neo cũng ~0 vì θ vẫn bằng θ*. Mô hình **đứng nguyên tại checkpoint Pha 1**: cả ba γ
+(5000/500/50) cho **trùng khít** test F1 0.4738, val F1 0.5131 đứng im 7 epoch.
+
+Đó là phép đo "Pha 1 áp thẳng lên Python", không phải "neo bền". Ba ô trùng nhau đã chạy ở
+fold 1 (161) và fold 3 (158) — **giữ lại làm bằng chứng**, không xoá, báo cáo ghi rõ n.
+
+**Quy tắc rút ra: k phải tỉ lệ nghịch với t₀, giữ k·t₀ ≈ 3–4.**
+
+| lịch | t₀ | λ ep1 | λ ep6 | λ ep12 |
+|---|---|---|---|---|
+| `t0p05` (mặc định) | 43 | 0.332 | 0.999 | 1.000 |
+| `t0p2k02` (mới) | 174 | 0.052 | 0.500 | 0.970 |
+| `t0p5 k=0.05` (đóng băng) | 435 | 0.000 | 0.000 | 0.013 |
+
+**Kỳ vọng sau khi thu hẹp**: 3 nguồn × **3 fold** × 12 = **108 ô Pha 2 + 3 baseline**.
 
 ## Máy — chia theo FOLD TRỌN VẸN
 
 | máy | fold | lock | log driver | kết quả |
 |---|---|---|---|---|
-| **161** | 1, 2 | `/tmp/multivd_opt1.lock` | `log/opt1_161.log` | `results/opt1_t5p/` (tại chỗ) — gđ1 ~19:00 UTC, gđ2 (`full`) ~22:40 UTC 06/09 |
-| **158** | 3, 4, 5 | `/tmp/multivd_opt1.lock` | `log/opt1_158.log` | `/data/ntat/MultiVD/results/opt1_t5p/` → kéo về `results_opt1_158/` — gđ1 ~22:30 UTC, gđ2 ~04:00 UTC 07/09 |
+| **161** | 1, 2 | `/tmp/multivd_opt1.lock` | `log/opt1_161.log` | `results/opt1_t5p/` (tại chỗ) |
+| **158** | **3** | `/tmp/multivd_opt1.lock` | `log/opt1_158.log` | `/data/ntat/MultiVD/results/opt1_t5p/` → kéo về `results_opt1_158/` |
+
+158 đã được thu về **chỉ fold 3** lúc 15:5x UTC 06/09 (driver bị dừng bằng TERM đúng PID, job
+Pha 2 đang chạy để nguyên cho xong). Fold 4–5 giai đoạn 1 giữ lại, không tính vào bảng chính.
 
 Mỗi máy tự chạy baseline cho fold của mình nên mọi Δ ghép cặp nằm gọn trong một máy. Hai
 checkpoint Pha 1 seed 42 đã đẩy sang 158 và đối chiếu byte + `torch.load` trước khi phóng.

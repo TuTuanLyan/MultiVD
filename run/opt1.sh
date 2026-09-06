@@ -6,14 +6,25 @@
 # Thieu checkpoint thi BO QUA nguon do va in loi to — KHONG BAO GIO huan luyen Pha 1
 # moi o day, vi khi do phep so doi hai bien (CLAUDE.md muc 5).
 #
-# 10 cau hinh Pha 2 cho moi (fold, nguon), hai doi chung CHAY TRUOC trong moi nhom:
+# 12 cau hinh Pha 2 cho moi (fold, nguon), hai doi chung CHAY TRUOC trong moi nhom:
 #   c5000_t0p05        RecAdam mac dinh (gamma 5000, t0 = 5% buoc)   <- doi chung 1, cung phien
 #   plain (adamw)      AdamW thuan = fine-tune hai lan                 <- doi chung 2, cung phien
-#   c500_t0p05, c50_t0p05                 neo YEU hon, van ngan
-#   c5000_t0p5, c500_t0p5, c50_t0p5       neo BEN hon (t0 = 50% buoc), ba do manh
-#   nohead_c5000_t0p05                    RecAdam mac dinh nhung KHONG neo vul_head (nhu bai goc)
-#   pre_c20_t0p5_k0p005                   neo ve PRETRAINED, yeu va ben (archive §40.5, chua tung chay)
-#   warm (adamw)                          AdamW + lich lambda(t) tren lr, KHONG neo (tach warmup khoi neo)
+#   c500/c50/c5/c0p5_t0p05     truc GAMMA o lich mac dinh: 500, 50, 5, 0.5
+#   c5000_t0p5                 BANG CHUNG dong bang (xem duoi), giu DUNG MOT nhanh
+#   c5000_t0p2k02, c50_t0p2k02 neo BEN THAT SU: t0 = 20% (174 buoc), k = 0.02
+#   nohead_c5000_t0p05         RecAdam mac dinh nhung KHONG neo vul_head (nhu bai goc)
+#   pre_c20_t0p2k02            neo ve PRETRAINED (archive §40.5), o lich t0p2k02
+#   warm (adamw)               AdamW + lich lambda(t) tren lr, KHONG neo (tach warmup khoi neo)
+#
+# BAY DA MAC (06/09, do duoc tu val_history): sigmoid lambda(t)=1/(1+exp(-k(t-t0))) co
+# hai tham so KHONG DOC LAP. Dat t0 = 50% (435 buoc) ma giu k = 0.05 cho k*t0 = 21.7,
+# nen lambda(1) ~ 4e-10 va sau 7 epoch moi len 9e-06: buoc task bi nhan voi ~0, con luc
+# keo neo cung ~0 vi theta van bang theta*. Mo hinh DUNG NGUYEN tai checkpoint Pha 1 ->
+# ca ba gamma 5000/500/50 cho TRUNG KHIT test F1 0.4738, val F1 0.5131 dung im 7 epoch.
+# Do la phep do "Pha 1 ap thang len Python", khong phai "neo ben". Giu DUNG MOT nhanh
+# (c5000_t0p5) lam bang chung, phan con lai chuyen sang t0=20% k=0.02:
+#   lambda ep1/ep6/ep12 = 0.052 / 0.500 / 0.970  (so voi t0p05: 0.332 / 0.999 / 1.000)
+# Quy tac rut ra: k phai ti le nghich voi t0, giu k*t0 ~ 3-4.
 #
 # Vi sao hai doi chung phai chay lai o day du da co o khoi A/B: CLAUDE.md muc 4 —
 # nhanh doi chung phai cung may cung phien voi nhanh no doi chung. Khoi A/B chay tren
@@ -46,11 +57,13 @@ c5000_t0p05|recadam|--sam_rho 0
 plain|adamw|--sam_rho 0
 c500_t0p05|recadam|--sam_rho 0 --pretrain_cof 500
 c50_t0p05|recadam|--sam_rho 0 --pretrain_cof 50
+c5_t0p05|recadam|--sam_rho 0 --pretrain_cof 5
+c0p5_t0p05|recadam|--sam_rho 0 --pretrain_cof 0.5
 c5000_t0p5|recadam|--sam_rho 0 --anneal_t0_ratio 0.5
-c500_t0p5|recadam|--sam_rho 0 --pretrain_cof 500 --anneal_t0_ratio 0.5
-c50_t0p5|recadam|--sam_rho 0 --pretrain_cof 50 --anneal_t0_ratio 0.5
+c5000_t0p2k02|recadam|--sam_rho 0 --anneal_t0_ratio 0.2 --anneal_k 0.02
+c50_t0p2k02|recadam|--sam_rho 0 --pretrain_cof 50 --anneal_t0_ratio 0.2 --anneal_k 0.02
 nohead_c5000_t0p05|recadam|--sam_rho 0 --recadam_anchor_head none
-pre_c20_t0p5_k0p005|recadam|--sam_rho 0 --recadam_anchor pretrained --pretrain_cof 20 --anneal_t0_ratio 0.5 --anneal_k 0.005
+pre_c20_t0p2k02|recadam|--sam_rho 0 --recadam_anchor pretrained --pretrain_cof 20 --anneal_t0_ratio 0.2 --anneal_k 0.02
 warm|adamw|--sam_rho 0 --adamw_anneal_lr}"
 
 data_of(){ case "$1" in

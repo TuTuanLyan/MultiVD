@@ -27,43 +27,42 @@ LOG=log/watch_opt1.log
 PY161=/home/ntat/miniconda3/envs/vdenv/bin/python
 R158="tranmanhcuong@112.137.129.158"; ROOT158=/data/ntat/MultiVD; PY158=/data/ntat/envs/vdenv/bin/python
 LOCK161="${LOCK161:-/tmp/multivd_opt1.lock}"
-FOLDS161="1 2"; FOLDS158="3 4 5"
-NCONF=10
+# Nguoi dung 06/09: "chay de kiem chung thi chi can 3 folds, seed 42". Nen tu day
+# moi giai doan chi chay fold 1,2 (161) va fold 3 (158) = 3 fold, chia tron ven.
+FOLDS161="1 2"; FOLDS158="3"
 MAXPASS="${MAXPASS:-3}"
 DRY="${DRY:-0}"
 ts(){ date -u '+%F %T'; }
 say(){ echo "$(ts) | $*" >> "$LOG"; }
 
-# next_stage <n_4cwe> <n_com> <n_full> <so_fold>  ->  in "main" | "full" | "done"
+# next_stage <thieu_gd1> <thieu_gd2>  ->  "main" | "full" | "done"
+# Dem O THIEU THEO TUNG TAG (scripts/opt1_missing.sh), khong dem tong so file: so cau
+# hinh doi tu 10 len 12 ngay 06/09 va vai fold con giu o cua cau hinh da bo, nen dem
+# tong se bao "du" trong khi thieu dung o moi.
 next_stage(){
-  local need=$(( $4 * NCONF ))
-  if (( $1 + $2 < 2*need )); then echo main
-  elif (( $3 < need )); then echo full
+  if (( $1 > 0 )); then echo main
+  elif (( $2 > 0 )); then echo full
   else echo done; fi
 }
 if [[ "${1:-}" == "--test-stage" ]]; then
-  # hai chieu: thieu giai doan 1 -> main; du 1 thieu 2 -> full; du ca -> done
-  [[ $(next_stage 10 20 0 2) == main ]] && [[ $(next_stage 20 20 0 2) == full ]] \
-    && [[ $(next_stage 20 20 20 2) == done ]] && [[ $(next_stage 30 30 29 3) == full ]] \
+  [[ $(next_stage 5 24) == main ]] && [[ $(next_stage 0 24) == full ]] \
+    && [[ $(next_stage 0 0) == done ]] && [[ $(next_stage 1 0) == main ]] \
     && echo "next_stage OK" || { echo "next_stage SAI"; exit 1; }
   exit 0
 fi
 
-count(){ # $1=thu muc ket qua $2=nguon
-  ls "$1"/transfer_latent_bottleneck_"$2"_l0p05_*/seed_42/fold*.json 2>/dev/null | wc -l; }
-
 # ---------------- 161 ----------------
 alive161=$(flock -n "$LOCK161" -c true 2>/dev/null && echo no || echo yes)
-a4=$(count results/opt1_t5p 4cwe); ac=$(count results/opt1_t5p com); af=$(count results/opt1_t5p full)
+m1_161=$(bash scripts/opt1_missing.sh "4cwe com" "$FOLDS161" 42)
+m2_161=$(bash scripts/opt1_missing.sh "full" "$FOLDS161" 42)
 b161=$(ls results/opt1_t5p/baseline/seed_42/fold*.json 2>/dev/null | wc -l)
-NF161=$(echo $FOLDS161 | wc -w)
-stage161=$(next_stage "$a4" "$ac" "$af" "$NF161")
+stage161=$(next_stage "$m1_161" "$m2_161")
 used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1); used="${used:-0}"
 free=$(( 16376 - used ))
 # job train cua chinh khoi nay con chay? (loc theo cot user + chuoi; dong lenh cua script nay la `bash scripts/watch_opt1.sh`, khong tu khop)
 orphan=$(ps -eo user,args --no-headers | awk '$1=="ntat" && /src\/train_(transfer|baseline)\.py/ && /opt1/' | wc -l)
 last161=$(grep -E "^=====|^=== .*\| fold|THAT BAI|xong" log/opt1_161.log 2>/dev/null | tail -1 | cut -c1-120)
-say "161 | driver=$alive161 | 4cwe=$a4 com=$ac full=$af /$(( NF161*NCONF )) moi nguon, base=$b161/$NF161 | ke tiep=$stage161 | vram_used=${used}MiB | train_procs=$orphan | $last161"
+say "161 | driver=$alive161 | thieu: gd1=$m1_161 full=$m2_161 | base=$b161 | ke tiep=$stage161 | vram_used=${used}MiB | train_procs=$orphan | $last161"
 if [[ "$alive161" == no && "$stage161" != done ]]; then
   pass=$(cat "log/opt1_161_passes_$stage161" 2>/dev/null || echo 0)
   if (( pass >= MAXPASS )); then say "161 | giai doan $stage161 da phong $pass lan ma chua du — DUNG, can nguoi xem"
@@ -83,7 +82,8 @@ fi
 # ---------------- 158 ----------------
 out=$(timeout 60 ssh -o BatchMode=yes -o ConnectTimeout=15 "$R158" "cd $ROOT158 || exit 1
 { flock -n /tmp/multivd_opt1.lock -c true && echo alive=no || echo alive=yes; }
-for S in 4cwe com full; do echo n_\$S=\$(ls results/opt1_t5p/transfer_latent_bottleneck_\${S}_l0p05_*/seed_42/fold*.json 2>/dev/null | wc -l); done
+echo m1=\$(bash scripts/opt1_missing.sh "4cwe com" "$FOLDS158" 42)
+echo m2=\$(bash scripts/opt1_missing.sh "full" "$FOLDS158" 42)
 echo b=\$(ls results/opt1_t5p/baseline/seed_42/fold*.json 2>/dev/null | wc -l)
 echo used=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
 echo orphan=\$(ps -eo args --no-headers | grep -c 'src/train_[a-z]*\.py.*opt1')
@@ -93,11 +93,10 @@ if [[ -z "$out" ]]; then
   say "158 | KHONG SSH DUOC"
 else
   g(){ sed -n "s/^$1=//p" <<<"$out" | head -1; }
-  alive158=$(g alive); c4=$(g n_4cwe); cc=$(g n_com); cf=$(g n_full); b158=$(g b)
+  alive158=$(g alive); m1_158=$(g m1); m2_158=$(g m2); b158=$(g b)
   used158=$(g used); orphan158=$(g orphan); orphan158="${orphan158:-0}"; ckfull=$(g ckfull); last158=$(g last)
-  NF158=$(echo $FOLDS158 | wc -w)
-  stage158=$(next_stage "${c4:-0}" "${cc:-0}" "${cf:-0}" "$NF158")
-  say "158 | driver=$alive158 | 4cwe=${c4:-?} com=${cc:-?} full=${cf:-?} /$(( NF158*NCONF )) moi nguon, base=${b158:-?}/$NF158 | ke tiep=$stage158 | vram_used=${used158:-?}MiB | train_procs=$orphan158 | $last158"
+  stage158=$(next_stage "${m1_158:-1}" "${m2_158:-1}")
+  say "158 | driver=$alive158 | thieu: gd1=${m1_158:-?} full=${m2_158:-?} | base=${b158:-?} | ke tiep=$stage158 | vram_used=${used158:-?}MiB | train_procs=$orphan158 | $last158"
   if [[ "$alive158" == no && "$stage158" != done ]]; then
     pass=$(cat "log/opt1_158_passes_$stage158" 2>/dev/null || echo 0)
     if (( pass >= MAXPASS )); then say "158 | giai doan $stage158 da phong $pass lan ma chua du — DUNG, can nguoi xem"
@@ -114,7 +113,7 @@ else
     fi
   fi
   # keo ket qua ve (chi them, khong xoa, khong ghi de)
-  if (( ${c4:-0} + ${cc:-0} + ${cf:-0} + ${b158:-0} > 0 )); then
+  if (( ${b158:-0} > 0 )); then
     mkdir -p results_opt1_158
     if rsync -az --ignore-existing "$R158:$ROOT158/results/opt1_t5p/" results_opt1_158/ 2>/dev/null; then
       say "158 | rsync -> results_opt1_158/ : $(ls results_opt1_158/*/seed_42/*.json 2>/dev/null | wc -l) file"
