@@ -16,7 +16,7 @@ RecAdam đang mua được là **neo** hay chỉ là **warmup ngầm** (đối c
 |---|---|
 | backbone | `codet5p-220m-bimodal`, pooling mean (`t5p`) |
 | nhánh | `latent_bottleneck`, λ=0.05 — **checkpoint Pha 1 dùng lại** `model/n48/phase1/t5p__latent_bottleneck_{4cwe,com}_l0p05/seed_42/best.pt` (val 0.6976 / 0.5897) |
-| nguồn | `4cwe`, `com` (**chưa có `full`**, chờ người dùng quyết) |
+| nguồn | **giai đoạn 1**: `4cwe`, `com` · **giai đoạn 2** (người dùng 06/09: "có thêm nhưng chạy cuối cùng xem ảnh hưởng"): `full`, chạy sau khi giai đoạn 1 xong **trên cùng máy, cùng fold** |
 | seed | 42 (seed 7 ở 161 và 1234 ở 158 có checkpoint sẵn, chạy sau cho cấu hình thắng) |
 | fold | 1–5, `data/sven_python_folds_norm` |
 | SAM/ASAM | tắt (`--sam_rho 0`) |
@@ -35,22 +35,27 @@ RecAdam đang mua được là **neo** hay chỉ là **warmup ngầm** (đối c
 | `pre_c20_t0p5_k0p005` | RecAdam | `--recadam_anchor pretrained --pretrain_cof 20 --anneal_t0_ratio 0.5 --anneal_k 0.005` | neo về pretrained, yếu và bền (archive §40.5, lần đầu chạy) |
 | `warm` | AdamW | `--adamw_anneal_lr` | AdamW + đúng λ(t) của RecAdam trên lr, **không neo** |
 
-**Kỳ vọng**: 2 nguồn × 5 fold × 10 = **100 ô Pha 2 + 5 baseline**. ~10,7 phút/ô ⇒ ~3,75 h/fold.
+**Kỳ vọng**: 3 nguồn × 5 fold × 10 = **150 ô Pha 2 + 5 baseline** (giai đoạn 1: 100, giai đoạn 2: 50). ~10,7 phút/ô ⇒ ~3,75 h/fold/giai-đoạn-1, ~1,8 h/fold cho `full`.
 
 ## Máy — chia theo FOLD TRỌN VẸN
 
 | máy | fold | lock | log driver | kết quả |
 |---|---|---|---|---|
-| **161** | 1, 2 | `/tmp/multivd_opt1.lock` | `log/opt1_161.log` | `results/opt1_t5p/` (tại chỗ) |
-| **158** | 3, 4, 5 | `/tmp/multivd_opt1.lock` | `log/opt1_158.log` | `/data/ntat/MultiVD/results/opt1_t5p/` → kéo về `results_opt1_158/` |
+| **161** | 1, 2 | `/tmp/multivd_opt1.lock` | `log/opt1_161.log` | `results/opt1_t5p/` (tại chỗ) — gđ1 ~19:00 UTC, gđ2 (`full`) ~22:40 UTC 06/09 |
+| **158** | 3, 4, 5 | `/tmp/multivd_opt1.lock` | `log/opt1_158.log` | `/data/ntat/MultiVD/results/opt1_t5p/` → kéo về `results_opt1_158/` — gđ1 ~22:30 UTC, gđ2 ~04:00 UTC 07/09 |
 
 Mỗi máy tự chạy baseline cho fold của mình nên mọi Δ ghép cặp nằm gọn trong một máy. Hai
 checkpoint Pha 1 seed 42 đã đẩy sang 158 và đối chiếu byte + `torch.load` trước khi phóng.
 
-Phóng: `FOLD_LIST="1 2" PYTHON=<vdenv> setsid nohup bash run/opt1.sh > log/opt1_161.log 2>&1 < /dev/null &`
-Kết thúc: driver in `########## OPT1 xong ... | N/EXP o Pha 2 + B/EXPB baseline ##########`.
-Driver chết mà chưa in dòng đó ⇒ phóng lại (matrix.sh bỏ qua ô đã có). Chỉ 161 dùng chung GPU:
-nếu VRAM trống < 13 GB thì **nhường**, không phóng đè.
+Phóng gđ1: `FOLD_LIST="1 2" PYTHON=<vdenv> setsid nohup bash run/opt1.sh > log/opt1_161.log 2>&1 < /dev/null &`
+Mỗi lần driver chạy xong in `########## OPT1 xong ... ##########` (gđ2 in lần thứ hai).
+
+**Xếp hàng hai giai đoạn do `scripts/watch_opt1.sh` (cron 10 phút trên 161) đảm nhiệm**: khi không còn
+driver nào giữ lock, nó **đếm hiện vật** theo nguồn — thiếu 4cwe/com ⇒ phóng lại gđ1; đủ gđ1 mà thiếu
+`full` ⇒ phóng `SOURCES=full` cho đúng fold của máy đó; đủ cả ⇒ không làm gì. Mỗi giai đoạn tối đa 3 lần
+phóng (`log/opt1_<máy>_passes_<gđ>`). Không giết, không xoá. 161 dùng chung GPU: chỉ phóng khi VRAM trống
+≥ 13 GB và không còn job train của khối này. 158 chỉ phóng `full` khi checkpoint Pha 1 full seed 42 đủ
+438 519 277 B. Thử: `bash scripts/watch_opt1.sh --test-stage`.
 
 ## Mã mới trên `optimize-v1`
 
