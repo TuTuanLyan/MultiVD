@@ -400,6 +400,64 @@ lựa chọn thiết kế của mình (và nó làm γ so sánh trực tiếp đ
 | γ phải nhỏ vì neo là checkpoint Pha 1 mang ít bằng chứng hơn | **Mới**, và **suy ra được từ chính γ = N·F̄** của RecAdam |
 | Neo có trọng số Fisher | **Đã có** — L2-SP-Fisher, ICML 2018, kết quả **null** |
 
+## 9. Vì sao fold 3 "khó" — đo được, và nó ĐẢO NGƯỢC cách đọc kết quả (07/09)
+
+### 9.1 Chia fold là công bằng
+
+`data/sven_python_folds_norm` là cross-validation 5 khối chuẩn: 760 dòng chia thành năm
+khối 152, mỗi fold lấy một khối làm test, một khối làm val, ba khối làm train, xoay vòng.
+Kiểm được bằng dấu vân: test của fold *k* trùng khít val của fold *k−1* ở cả n, tỉ lệ nhãn
+lẫn phân vị độ dài. Phân bố CWE gần như đồng đều (CWE-089 79–87, CWE-078 38–44 mỗi khối).
+**Không có gì sai ở khâu chia.**
+
+### 9.2 Độ khó của fold = mức RÒ RỈ near-duplicate, không phải gì khác
+
+Đo tỉ lệ hàng test có ít nhất một hàng train trùng ≥ ngưỡng theo Jaccard trên 5-gram token:
+
+| fold | ≥0.9 | ≥0.75 | ≥0.5 | Jaccard tb | baseline F1 | baseline AUC |
+|---|---|---|---|---|---|---|
+| 1 | 2.6 % | 14.5 % | 40.8 % | 0.384 | 0.7828 | 0.8915 |
+| 2 | 3.3 % | 17.1 % | 39.5 % | 0.371 | 0.8018 | 0.8879 |
+| **3** | **2.0 %** | **10.5 %** | 36.8 % | 0.352 | **0.7036** | **0.8372** |
+| 4 | 3.9 % | 17.1 % | 40.8 % | 0.367 | 0.8486 | 0.9144 |
+| 5 | 3.3 % | 17.8 % | 33.6 % | 0.339 | 0.8026 | 0.9045 |
+
+Tương quan Pearson trên đủ **n=5**: rò rỉ ≥0.9 với baseline F1 **+0.963**; ≥0.75 với F1
+**+0.907**, với AUC **+0.918**. Nhưng ≥0.5 chỉ +0.325 và Jaccard trung bình chỉ +0.222 —
+tức **chỉ bản sao gần khít mới quan trọng**, không phải độ giống chung. Đó là dấu vân của
+rò rỉ **cặp**: mọi near-dup ≥0.75 đều mang nhãn ngược lại, tức bản vá của chính hàm test
+nằm trong train.
+
+**Dự đoán trước khi biết:** fold 4 rò rỉ cao ⇒ baseline phải cao. Kết quả: fold 4 là
+0.8486, cao nhất. Fold 3 rò rỉ thấp nhất ⇒ baseline thấp nhất, đúng 0.7036.
+
+### 9.3 Hệ quả: "fold khó" thật ra là "fold SẠCH", và neo giúp đúng ở đó
+
+Δ của neo so với AdamW thuần, tách theo fold (ngoặc là số ô ghép cặp):
+
+| cấu hình | fold1 (14.5 %) | fold2 (17.1 %) | **fold3 (10.5 %)** | fold4 (17.1 %) | fold5 (17.8 %) | tương quan với rò rỉ |
+|---|---|---|---|---|---|---|
+| γ=5 | −0.0064 (3) | −0.0088 (3) | **+0.0371** (3) | +0.0000 (1) | +0.0023 (3) | **−0.828** |
+| γ=0.5 | −0.0108 (3) | −0.0089 (3) | **+0.0282** (3) | −0.0066 (1) | −0.0044 (3) | **−0.845** |
+| γ=50 | −0.0086 (3) | −0.0111 (3) | **+0.0325** (3) | +0.0000 (1) | +0.0242 (3) | −0.471 |
+| γ=5000 (mặc định) | −0.0042 (3) | −0.0111 (3) | −0.0084 (3) | −0.0034 (2) | +0.0043 (3) | +0.435 |
+
+Tương quan **âm** nghĩa là neo giúp **nhiều hơn ở fold ít rò rỉ**. Neo yếu (γ=5, γ=0.5) cho
+−0.83 và −0.85; neo mặc định γ=5000 thì không có tính chất này (+0.435).
+
+**Cách đọc:** khi test có sẵn bản vá của chính nó trong train, mô hình chỉ cần **nhớ**, và
+AdamW thuần làm việc đó tốt hơn — neo lúc này là gánh nặng. Khi test sạch và mô hình buộc
+phải **khái quát**, tri thức nguồn mới có giá trị, và neo giữ được nó.
+
+Đây là lập luận mạnh nhất cho phương pháp tính tới nay, vì nó vừa giải thích được vì sao
+các kết quả trước "lẫn lộn", vừa nói rằng phần đo đáng tin nhất (fold sạch nhất) chính là
+phần neo thắng.
+
+**Giới hạn phải nêu:** n=5 fold, một seed, fold 4 mới có 1–2 ô ghép cặp. Bậc 2 đang chạy
+sẽ lấp fold 4 và 5. Không đổi bộ dữ liệu — mức rò rỉ này `README.md` đã ghi nhận và nhóm
+đã chấp nhận vì reviewer yêu cầu phân phối ngẫu nhiên. Việc cần làm là **báo cáo chỉ số
+rò rỉ theo fold** như một biến giải thích, không phải thay dữ liệu.
+
 ## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
 
 1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn
