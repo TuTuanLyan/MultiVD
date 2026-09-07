@@ -25,6 +25,7 @@ from train import train_loop
 from train_transfer import (
     CLASS_TO_CWE,
     build_dataloader,
+    evaluate_source_retention,
     limit_records,
     load_jsonl,
     print_dataset_stats,
@@ -237,6 +238,10 @@ def run_test(args, device):
         test["labels"], test["probabilities"], test["cwe_classes"], threshold, CLASS_TO_CWE
     )
 
+    source_retention = None
+    if args.source_eval_data:
+        source_retention = evaluate_source_retention(args, model, tokenizer, device)
+
     result = {
         "experiment_name": f"{args.run_name}/{args.method_name}",
         "phase": "test",
@@ -261,6 +266,7 @@ def run_test(args, device):
         "test_recall_at_valcal": test_at_valcal["recall"],
         "test_accuracy_at_0.5": test_at_05["accuracy"],
         "test_accuracy_at_valcal": test_at_valcal["accuracy"],
+        "source_retention": source_retention,
         "test_roc_auc": test_at_05["roc_auc"],
         "test_pr_auc": test_at_05["pr_auc"],
         # Du doan TUNG MAU — xem chu thich cung ten o src/train_transfer.py.
@@ -299,6 +305,9 @@ def parse_args():
     parser.add_argument("--test_path", help="optional Python test JSONL override")
     parser.add_argument("--checkpoint_path", help="checkpoint to write/read")
     parser.add_argument("--result_path", help="test result JSON")
+    parser.add_argument("--source_eval_data", default=None,
+                        help="JSONL nguon Pha 1. Baseline chua he thay nguon, nen diem cua no "
+                             "tren tap nay la SAN tham chieu cua phep do giu lai tri thuc.")
     parser.add_argument("--target_lang", default="python",
                         help="language every target row must declare")
     parser.add_argument("--data_root", default="data/sven_python_folds_norm",

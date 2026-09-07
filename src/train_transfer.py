@@ -2,6 +2,7 @@
 """CLI for generic source multitask pretraining and Python RecAdam transfer."""
 
 import argparse
+import copy
 import json
 import math
 import os
@@ -1034,6 +1035,61 @@ def _collect_runtime(args, device, n_test, validation_seconds, test_seconds):
     return out
 
 
+def evaluate_source_retention(args, model, tokenizer, device):
+    """Do GIU LAI TRI THUC NGUON: cham mo hinh Pha 2 tren dung tap val cua Pha 1.
+
+    Vi sao can: RecAdam co ly do ton tai la NEO vao tri thuc nguon, chu khong phai
+    de an diem tren dich. Tren dich no da do bang AdamW thuan (bang 2 cua
+    tools/opt1_report.py). Neu no cung khong giu duoc nguon thi cai neo khong lam gi
+    that; neu no giu duoc trong khi AdamW quen, do moi la khac biet co that va do duoc.
+
+    Tap danh gia tai lap bang `split_source_records(records, seed)` — cung ham, cung
+    seed ma Pha 1 da dung, nen ra DUNG tap val do, khong phai mot tap moi.
+
+    Luu y khi doc so: diem cua chinh checkpoint Pha 1 tren tap nay la diem DA DUOC CHON
+    theo no (early stopping), nen no lac quan. Phep so sach la RecAdam vs AdamW tren cung
+    tap nay — ca hai deu khong nhin tap nay trong Pha 2.
+    """
+    raw = str(args.source_eval_data).replace(",", " ").split()
+    if len(raw) > 1:
+        out = {}
+        for one in raw:
+            sub = copy.copy(args)
+            sub.source_eval_data = one
+            got = evaluate_source_retention(sub, model, tokenizer, device)
+            if got is not None:
+                out[Path(one).stem] = got
+        return out or None
+    path = Path(raw[0])
+    if not path.is_file():
+        logger.warning("source_eval_data khong ton tai: %s — bo qua do giu lai", path)
+        return None
+    records = load_jsonl(path, trust_precomputed=True)
+    _, val_records = split_source_records(records, args.seed)
+    val_records = limit_source_groups(val_records, args.max_eval_samples, args.seed)
+    print_dataset_stats("source_val_retention", val_records)
+    loader = build_dataloader(
+        val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed,
+        args.num_workers, args.truncation_strategy
+    )
+    started = time.perf_counter()
+    out = evaluate(model, loader, device)
+    seconds = time.perf_counter() - started
+    at_05 = classification_metrics(out["labels"], out["probabilities"], 0.5)
+    logger.info("Source retention | n=%d | macro-F1@0.5=%.4f | ROC-AUC=%.4f | %.1fs",
+                len(out["labels"]), at_05["macro_f1"], at_05["roc_auc"], seconds)
+    return {
+        "data_path": str(path),
+        "n": len(out["labels"]),
+        "macro_f1_at_0.5": at_05["macro_f1"],
+        "positive_f1_at_0.5": at_05["positive_f1"],
+        "accuracy_at_0.5": at_05["accuracy"],
+        "roc_auc": at_05["roc_auc"],
+        "pr_auc": at_05["pr_auc"],
+        "seconds": round(seconds, 3),
+    }
+
+
 def run_test(args, device):
     _, val_path, test_path = python_paths(args)
     logger.info("Loading Python validation data: %s", val_path)
@@ -1091,9 +1147,14 @@ def run_test(args, device):
         test["labels"], test["probabilities"], test["cwe_classes"], threshold, CLASS_TO_CWE
     )
 
+    source_retention = None
+    if args.source_eval_data:
+        source_retention = evaluate_source_retention(args, model, tokenizer, device)
+
     result = {
         "experiment_name": f"{args.run_name}/{args.method_name}",
         "phase": "test",
+        "source_retention": source_retention,
         "fold": args.fold,
         "seed": args.seed,
         "source_checkpoint": args.source_checkpoint or checkpoint["training_args"].get("source_checkpoint"),
@@ -1181,6 +1242,10 @@ def parse_args():
     paths.add_argument("--checkpoint_path", help="checkpoint to write or read")
     paths.add_argument("--output_dir", help="result root; derived from run_name when omitted")
     paths.add_argument("--result_path", help="test JSON output path")
+    paths.add_argument("--source_eval_data", default=None,
+                       help="JSONL nguon Pha 1. Khi co, pha `test` danh gia luon mo hinh Pha 2 "
+                            "tren DUNG tap val Pha 1 (tai lap bang split_source_records + seed) "
+                            "de do GIU LAI tri thuc nguon. Chi them truong vao JSON ket qua.")
 
     training = parser.add_argument_group("model and training")
     training.add_argument("--model_name", default="microsoft/codebert-base", help="Hugging Face model")

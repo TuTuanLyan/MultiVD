@@ -297,6 +297,7 @@ run_fold() {
       && $PYTHON -u src/train_baseline.py --phase infer \
         --run_name "$RN" --method_name baseline --fold "$FOLD" \
         --checkpoint_path "$CK/best.pt" \
+        ${BASELINE_SOURCE_EVAL:+--source_eval_data "$BASELINE_SOURCE_EVAL"} \
         $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_baseline_fold${FOLD}.log" 2>&1
     rm -rf "$CK"
     if [[ ! -f "$RES/fold$FOLD.json" ]]; then
@@ -340,6 +341,7 @@ run_fold() {
             --run_name "$RN" --method_name "$ARM" --fold "$FOLD" \
             --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
             --checkpoint_path "$CK/best.pt" --output_dir "results/$RN/$ARM" \
+            ${SOURCE_EVAL_DATA:+--source_eval_data "$SOURCE_EVAL_DATA"} \
             $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log" 2>&1
         rm -rf "$CK"
         if [[ ! -f "$RES/fold$FOLD.json" ]]; then
