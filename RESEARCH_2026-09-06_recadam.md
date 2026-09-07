@@ -458,6 +458,80 @@ sẽ lấp fold 4 và 5. Không đổi bộ dữ liệu — mức rò rỉ này 
 đã chấp nhận vì reviewer yêu cầu phân phối ngẫu nhiên. Việc cần làm là **báo cáo chỉ số
 rò rỉ theo fold** như một biến giải thích, không phải thay dữ liệu.
 
+## 10. Kết luận bậc 2 (07/09): trục F1 trên tập đích đã hết chỗ — và §9 phải rút lại
+
+### 10.1 RecAdam không hơn AdamW thuần ở bất kỳ γ nào
+
+Ghép cặp trên **10 ô có đủ cả 7 cấu hình** (cùng cây kết quả, cùng fold, cùng máy — nên
+chênh lệch phần cứng triệt tiêu). Đây là tập ô so được chặt nhất hiện có:
+
+| cấu hình | F1 tb | F1 min | độ tản | AUC tb |
+|---|---|---|---|---|
+| `plain` AdamW thuần | 0.8206 | 0.7363 | 0.0333 | 0.9058 |
+| `warm` AdamW + lịch λ trên lr | 0.8229 | 0.7518 | 0.0339 | 0.9043 |
+| γ=0.5 | 0.8225 | 0.7958 | 0.0157 | 0.9101 |
+| γ=5 | 0.8271 | 0.7828 | 0.0205 | 0.9101 |
+| γ=50 | 0.8244 | 0.8023 | 0.0144 | 0.9029 |
+| γ=500 | 0.8170 | 0.7958 | 0.0156 | 0.9038 |
+| γ=5000 (mặc định bài gốc) | 0.8141 | 0.7239 | 0.0332 | 0.8968 |
+
+Bảng 2 của `tools/opt1_report.py` (Δ so với `plain`, cùng phiên): chênh lớn nhất là
+**+0.0079 (γ=50, 8/14 fold, p=0.79)**, tức **dưới sàn nhiễu 0.010**. Không một γ nào
+đạt p<0.05. Kể cả nhánh lịch neo bền (`c50_t0p2k02`) cũng chỉ −0.0002.
+
+### 10.2 Phát biểu "neo nâng sàn" (§7) ĐÃ RÚT LẠI
+
+Nó dựa vào **đúng một ô**: `4cwe/fold3`, nơi `plain` rơi xuống 0.7363 còn γ=5 lên 0.8550.
+
+- **Bỏ ô đó ra (n=9)**: `plain` độ tản 0.0188, γ=50 0.0126, γ=5 0.0193, γ=5000 0.0150.
+  Còn cùng chiều nhưng yếu hẳn, và γ=5 tệ hơn `plain`.
+- **Trên codebert (n=6 ô đủ cấu hình) nó KHÔNG lặp lại**: `plain` độ tản 0.0147 và
+  sàn 0.7828 — **đều tốt nhất bảng**; γ=5000 tệ nhất (0.0221).
+
+Đây đúng cái bẫy `CLAUDE.md` mục 2 cảnh báo, và là lần thứ tám trong dự án một mẫu hình
+co lại khi thêm dữ liệu. Cách kiểm phải thành thói quen: **một phát biểu về độ tản hay về
+sàn phải sống sót cả hai phép — bỏ ô cực trị ra, và lặp trên backbone thứ hai.**
+
+### 10.3 Hai thứ vẫn giữ được
+
+1. **Mục tiêu ô âm đã đạt**, nhưng không phải nhờ optimizer. Đếm Δ<0 so với baseline trên
+   mọi (nguồn, fold) hiện có: `c50_t0p2k02` **0/9**, `pre_c20_t0p2k02` **0/9**,
+   `c50_t0p05` 1/13, `plain` 1/14. Công là của `min_epochs` và huấn luyện dài hơn
+   (§7 khối ME10), thứ áp dụng cho **cả** AdamW.
+2. **γ=5000 mặc định nằm trong vùng chết.** Nó hành xử y hệt AdamW (độ tản 0.0332 vs
+   0.0333; sàn 0.7239 vs 0.7363). Lý do đọc được từ số học: `lr·γ = 2e-5 × 5000 = 0.1`,
+   nên lúc λ còn nhỏ mỗi bước xoá ~10% độ lệch khỏi neo và sau một epoch còn lại ~4,7%
+   — model bị ghim tại neo rồi mới thả, nên pha neo thành vô nghĩa.
+   **Lịch λ quan trọng hơn γ**: t₀=50% giữ k=0.05 phá sạch (−0.2597, **0/10 fold**, p=0.002).
+
+### 10.4 Vì thế đổi trục đo: GIỮ LẠI TRI THỨC NGUỒN (khối RET1)
+
+Cả §10.1 và §10.2 đo cùng một thứ — điểm trên **tập đích**. Nhưng đó không phải câu hỏi
+RecAdam sinh ra để trả lời. Nó sinh ra để **giữ tri thức nguồn**. Chưa lần nào đo.
+
+Phép đo (commit `6d56403`, chỉ **thêm trường** `source_retention` vào JSON, không đổi một
+dòng huấn luyện hay đánh giá nào): chấm chính mô hình Pha 2 trên **đúng tập val của Pha 1**,
+tái lập bằng `split_source_records(records, seed)` — cùng hàm, cùng seed Pha 1 đã dùng.
+
+**Cổng hai chiều, chạy 07/09 trên 158:**
+
+| chiều | kết quả |
+|---|---|
+| chấm checkpoint Pha 1 trên tập tái lập (4cwe) | `0.697621` — **trùng khít** `best_val_macro_f1` ghi trong chính checkpoint |
+| chấm cùng checkpoint đó trên nguồn khác (com) | `0.567395` — khác hẳn, nên hàm thật sự đọc đường dẫn |
+
+Chiều thứ nhất mới là chiều đắt: nó chứng minh tập val đã tái lập **đúng cái tập Pha 1
+từng dùng**, chứ không phải một tập mới cùng cỡ.
+
+Lưu ý khi đọc số: điểm của chính checkpoint Pha 1 trên tập này là điểm **đã được chọn
+theo nó** (early stopping), nên lạc quan. Phép so sạch là **RecAdam vs AdamW trên cùng tập
+này** — cả hai đều không nhìn tập này trong Pha 2. Baseline (chưa hề thấy nguồn) cho sàn.
+
+Ma trận: 3 fold × (2 nguồn × 3 cấu hình + 1 baseline) = 21 ô, cây `results/ret1_t5p/`.
+Bắt đầu 07:56 UTC 07/09 trên 158. Chi tiết ở `CURRENT_RUN.md`.
+
+---
+
 ## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
 
 1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn

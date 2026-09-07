@@ -1,11 +1,63 @@
-# Đang chạy — OPT1 (tối ưu RecAdam, khối 1)
+# Đang chạy — RET1 (đo GIỮ LẠI TRI THỨC NGUỒN)
+
+> **BẬC 1 — KIỂM CHỨNG, n=3 fold, seed 42.** Bắt đầu 07:56 UTC 07/09 trên **158**.
+> Driver `run/ret1.sh` · log `log/ret1_158.log` · watchdog `scripts/watch_ret1.sh` (cron 10′)
+> · kéo về `results_ret1_158/`. Khoảng 21 ô, ~3,5 h (158 chạy ~10 phút/ô).
+
+## Vì sao có khối này — trục F1 trên tập đích đã hết chỗ
+
+Đo trên **10 ô ghép cặp đầy đủ** (cùng cây, cùng fold, cùng máy, có đủ cả 7 cấu hình):
+
+| cấu hình | F1 tb | F1 min | độ tản |
+|---|---|---|---|
+| `plain` AdamW thuần | 0.8206 | 0.7363 | 0.0333 |
+| γ=0.5 | 0.8225 | 0.7958 | 0.0157 |
+| γ=5 | **0.8271** | 0.7828 | 0.0205 |
+| γ=50 | 0.8244 | 0.8023 | 0.0144 |
+| γ=5000 (mặc định bài gốc) | 0.8141 | 0.7239 | 0.0332 |
+
+Chênh lớn nhất giữa RecAdam và AdamW là **+0.0065 — dưới sàn nhiễu 0.010**, p ≥ 0.2 ở mọi γ.
+
+**Phát biểu "neo nâng sàn" (06/09) ĐÃ RÚT LẠI.** Nó dựa vào đúng một ô (4cwe/fold3).
+Bỏ ô đó ra: độ tản chỉ còn 0.0188 → 0.0126. Và trên **codebert nó không lặp lại** —
+`plain` có độ tản 0.0147 và sàn 0.7828, đều tốt nhất bảng.
+
+## Câu hỏi của RET1
+
+Chưa lần nào đo thứ RecAdam **sinh ra để làm**: giữ tri thức nguồn. Chấm chính mô hình
+Pha 2 trên **đúng tập val của Pha 1**, tái lập bằng `split_source_records(records, seed)`.
+
+- neo giữ được nguồn, AdamW quên → khác biệt **có thật**, và đúng là lý do phương pháp
+  cần RecAdam thay vì finetune hai lần
+- cả hai quên như nhau → cái neo không làm gì thật, phải đổi hướng khác
+
+**Cổng hai chiều đã chạy 07/09 trên 158**: chấm checkpoint Pha 1 trên tập tái lập ra
+`0.697621`, **trùng khít** `best_val_macro_f1` ghi trong chính checkpoint; chấm nó trên
+nguồn khác ra `0.567395`. Commit `6d56403` chỉ **thêm trường** `source_retention` vào JSON.
+
+## Ma trận RET1
+
+| | |
+|---|---|
+| cây kết quả | `results/ret1_t5p/` (riêng, để baseline và đối chứng đều chạy lại **cùng phiên**) |
+| nguồn | `4cwe`, `com` |
+| fold | 1, 2, 3 (vòng ngoài cùng) |
+| cấu hình | `plain` (AdamW) · `c5000_t0p05` (RecAdam mặc định) · `c50_t0p05` (γ tốt nhất đo được) |
+| baseline | chấm trên **cả ba** nguồn — sàn "chưa hề thấy nguồn" |
+| ô | 3 fold × (2 nguồn × 3 cấu hình + 1 baseline) = **21** |
+
+---
+
+# (khối trước) OPT1 — tối ưu RecAdam, khối 1 — **XONG 07:11 UTC 07/09**
 
 > **BẬC 1 — KIỂM CHỨNG, n=3 fold, seed 42. KHÔNG phải kết quả cuối.**
 > Xem `CLAUDE.md` mục 1, tiểu mục "KIỂM CHỨNG và CHẠY KẾT QUẢ là HAI VIỆC KHÁC NHAU".
 > Mọi Δ trong khối này chỉ dùng để **sàng lọc** cấu hình nào đáng lên bậc 2 (n=5),
 > không được trích vào bài. n=3 đã bốn lần đổi dấu ở n=5 trong dự án này.
 >
-> **Trạng thái: ĐANG CHẠY.** Nhánh git `optimize-v1`. Đêm 06→07/09 chạy không người
+> **Trạng thái: XONG.** Bậc 1 (fold 1–3) xong 06/09; bậc 2 xong fold 5 trên 158 lúc
+> 07:11 UTC 07/09, fold 4 trên 161 còn ~12 ô. Kết luận: xem đầu file (RET1).
+> Nhánh git `optimize-v1`. Đêm 06→07/09 chạy không người
 > trông, người dùng trao toàn quyền và quay lại ~02:00 UTC (9h sáng giờ VN).
 > Kế hoạch và lý do: `RESEARCH_2026-09-06_recadam.md` §5.5. Báo cáo: `python3 tools/opt1_report.py`.
 
