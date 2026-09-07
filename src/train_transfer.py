@@ -1062,6 +1062,85 @@ def _collect_runtime(args, device, n_test, validation_seconds, test_seconds):
     return out
 
 
+def _blend_state(model, state2, state1, alpha, device):
+    """theta = alpha*theta_Pha2 + (1-alpha)*theta_Pha1, ghi thang vao model.
+
+    Bo qua tensor khong phai so thuc (position_ids, dem...) va tensor lech shape — dem lai
+    va bao ra ngoai chu khong nuot im: neu so bo qua lon thi phep tron khong con nghia gi.
+    """
+    blended = skipped = 0
+    with torch.no_grad():
+        for name, p in model.state_dict().items():
+            a = state2.get(name)
+            b = state1.get(name)
+            if a is None or b is None or a.shape != p.shape or b.shape != p.shape \
+                    or not p.is_floating_point():
+                skipped += 1
+                continue
+            p.copy_((alpha * a.to(device=p.device, dtype=p.dtype)
+                     + (1.0 - alpha) * b.to(device=p.device, dtype=p.dtype)))
+            blended += 1
+    return blended, skipped
+
+
+def sweep_source_interpolation(args, model, val_loader, test_loader, device,
+                               source_checkpoint_path=None):
+    """WiSE-FT cho cap (Pha 1, Pha 2) — xem RESEARCH §11.2.
+
+    VI SAO: cai neo (RecAdam/SPD) chi LAM CHAM viec roi khoi theta*, no khong mang them
+    thong tin nao tu nguon vao dich. Phep nay hoi thang: mo hinh nguon co DONG GOP duoc gi
+    cho diem dich khong. alpha toi uu nam han trong (0,1) => co. alpha = 1.0 o moi o => KHONG,
+    va gia thuyet bi bac voi chi phi gan bang 0.
+
+    KHAC `--source_interpolation` da co (train_transfer.py, ap TRUOC Pha 2, cap
+    theta_Pha1 <-> pretrained, da bac o DEAD_ENDS #3). Day la CAP KHAC.
+
+    Chon alpha tren VAL, bao test tai alpha do. Duong test day du van duoc ghi lai nhung
+    chi de CHAN DOAN — khong duoc dung de chon, va JSON ghi ro alpha nao da chon.
+    """
+    grid = [float(x) for x in str(args.source_interp_grid).replace(",", " ").split()]
+    if not grid:
+        return None
+    # matrix.sh KHONG truyen --source_checkpoint o pha test, nen phai lay tu training_args
+    # cua chinh checkpoint Pha 2. Quen cho nay thi ham im lang khong chay o moi o.
+    src_path = source_checkpoint_path or args.source_checkpoint
+    if not src_path:
+        logger.warning("source_interp_grid nhung khong biet checkpoint Pha 1 — bo qua")
+        return None
+    if not Path(src_path).is_file():
+        logger.warning("khong tim thay checkpoint Pha 1 %s — bo qua noi suy", src_path)
+        return None
+    state2 = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+    payload = torch.load(src_path, map_location="cpu", weights_only=False)
+    state1 = payload.get("model_state_dict") or payload.get("model_state") or {}
+    if not state1:
+        logger.warning("checkpoint Pha 1 khong co model_state_dict — bo qua noi suy")
+        return None
+    rows = []
+    for alpha in grid:
+        blended, skipped = _blend_state(model, state2, state1, alpha, device)
+        v = evaluate(model, val_loader, device)
+        t = evaluate(model, test_loader, device)
+        vm = classification_metrics(v["labels"], v["probabilities"], 0.5)
+        tm = classification_metrics(t["labels"], t["probabilities"], 0.5)
+        rows.append({"alpha": alpha, "val_macro_f1_at_0.5": vm["macro_f1"],
+                     "val_roc_auc": vm["roc_auc"], "test_macro_f1_at_0.5": tm["macro_f1"],
+                     "test_roc_auc": tm["roc_auc"], "blended": blended, "skipped": skipped})
+        logger.info("noi suy | alpha=%.3f | val F1 %.4f | test F1 %.4f | tron %d bo qua %d",
+                    alpha, vm["macro_f1"], tm["macro_f1"], blended, skipped)
+    # khoi phuc DUNG mo hinh Pha 2 truoc khi tra ve
+    _blend_state(model, state2, state1, 1.0, device)
+    best = max(rows, key=lambda r: r["val_macro_f1_at_0.5"])
+    logger.info("noi suy | alpha chon theo VAL = %.3f | test F1 tai do %.4f | "
+                "test F1 tai alpha=1 (Pha 2 nguyen ban) %.4f",
+                best["alpha"], best["test_macro_f1_at_0.5"],
+                next((r["test_macro_f1_at_0.5"] for r in rows if r["alpha"] == 1.0), float("nan")))
+    return {"grid": rows, "alpha_chosen_on_val": best["alpha"],
+            "test_macro_f1_at_chosen": best["test_macro_f1_at_0.5"],
+            "test_roc_auc_at_chosen": best["test_roc_auc"],
+            "source_checkpoint": str(src_path)}
+
+
 def evaluate_source_retention(args, model, tokenizer, device):
     """Do GIU LAI TRI THUC NGUON: cham mo hinh Pha 2 tren dung tap val cua Pha 1.
 
@@ -1178,10 +1257,19 @@ def run_test(args, device):
     if args.source_eval_data:
         source_retention = evaluate_source_retention(args, model, tokenizer, device)
 
+    # Phai chay SAU khi da lay xong moi so cua mo hinh Pha 2: ham nay ghi de trong so
+    # trong luc quet roi moi khoi phuc.
+    source_interp = None
+    if args.source_interp_grid:
+        source_interp = sweep_source_interpolation(
+            args, model, val_loader, test_loader, device,
+            checkpoint["training_args"].get("source_checkpoint"))
+
     result = {
         "experiment_name": f"{args.run_name}/{args.method_name}",
         "phase": "test",
         "source_retention": source_retention,
+        "source_interpolation_sweep": source_interp,
         "fold": args.fold,
         "seed": args.seed,
         "source_checkpoint": args.source_checkpoint or checkpoint["training_args"].get("source_checkpoint"),
@@ -1269,6 +1357,11 @@ def parse_args():
     paths.add_argument("--checkpoint_path", help="checkpoint to write or read")
     paths.add_argument("--output_dir", help="result root; derived from run_name when omitted")
     paths.add_argument("--result_path", help="test JSON output path")
+    paths.add_argument("--source_interp_grid", default=None,
+                       help="danh sach alpha, vd '0,0.25,0.5,0.75,1'. Khi co, pha `test` tron "
+                            "theta(alpha) = alpha*theta_Pha2 + (1-alpha)*theta_Pha1, CHON alpha "
+                            "tren VAL roi bao test tai alpha do (kieu WiSE-FT cho cap Pha1<->Pha2). "
+                            "alpha=1 la mo hinh Pha 2 nguyen ban. Chi them truong vao JSON.")
     paths.add_argument("--source_eval_data", default=None,
                        help="JSONL nguon Pha 1. Khi co, pha `test` danh gia luon mo hinh Pha 2 "
                             "tren DUNG tap val Pha 1 (tai lap bang split_source_records + seed) "
