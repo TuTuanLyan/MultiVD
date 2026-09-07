@@ -263,6 +263,11 @@ def run_test(args, device):
         "test_accuracy_at_valcal": test_at_valcal["accuracy"],
         "test_roc_auc": test_at_05["roc_auc"],
         "test_pr_auc": test_at_05["pr_auc"],
+        # Du doan TUNG MAU — xem chu thich cung ten o src/train_transfer.py.
+        # Baseline PHAI co truong nay thi moi tach nhom duoc, vi moi Delta deu quy ve no.
+        "test_probabilities": [round(float(x), 6) for x in test["probabilities"]],
+        "test_labels": [int(x) for x in test["labels"]],
+        "test_cwe_classes": [int(x) for x in test["cwe_classes"]],
         "per_cwe": per_cwe_at_valcal,
         "per_cwe_at_0.5": per_cwe_at_05,
         "per_cwe_at_valcal": per_cwe_at_valcal,
