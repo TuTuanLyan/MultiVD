@@ -1,4 +1,74 @@
-# Đang chạy — RET1 (đo GIỮ LẠI TRI THỨC NGUỒN)
+# Đang chạy — hàng đợi 07/09 (RET1 + SPD1)
+
+> **BẬC 1 — KIỂM CHỨNG, 3 fold, seed 42.** Hai khối, hai máy, chốt lúc 09:35 UTC 07/09.
+> Người dùng đặt mốc: **phải xong phần dùng GPU trước 21:00 giờ VN (14:00 UTC)**.
+
+| máy | khối | fold | ô | bắt đầu | dự kiến xong | biên |
+|---|---|---|---|---|---|---|
+| **158** | RET1 (giữ lại tri thức nguồn) | 1, 2, 3 | 21 | 07:56 UTC | **~11:20 UTC** (18:20 VN) | 2 h 40 |
+| **158** | SPD1 fold 3 | 3 | 7 | ngay sau RET1 | **~12:30 UTC** (19:30 VN) | 1 h 30 |
+| **161** | bậc 2 fold 4 (khối OPT1) | 4 | 21 | 05:29 UTC | **~10:00 UTC** (17:00 VN) | — |
+| **161** | SPD1 fold 1+2 | 1, 2 | 14 | ngay sau bậc 2 | **~12:15 UTC** (19:15 VN) | 1 h 45 |
+
+Nhịp đo được: **161 ≈ 9,6 phút/ô** (7 ô gần nhất: 8.8 8.7 8.2 10.1 8.6 13.1),
+**158 ≈ 10 phút/ô** (8.5 11 12 10 9). **Kết luận: kịp, dư 1,5 giờ mỗi máy.**
+
+**Vì sao SPD1 chia đôi máy:** 161 chạy một mình 21 ô mất ~3,8 h, cộng lúc bậc 2 xong
+(~10:00) là **vượt mốc 21:00 VN**. Chia theo **fold trọn vẹn** (CLAUDE.md mục 4) — baseline
+và cả hai đối chứng của mỗi fold đều nằm cùng máy với fold đó nên Δ ghép cặp vẫn sạch.
+
+**Hàng đợi và giám sát**
+- `scripts/queue_spd1.sh` (161) — chờ lock `multivd_opt1` + VRAM ≥ 13 GB rồi chạy fold 1,2
+- `scripts/queue_spd1_158.sh` (158) — chờ lock `mvd_ret1` nhả rồi chạy fold 3
+- `scripts/watch_ret1.sh` — cron 10′, đếm ô theo tag, kéo về `results_ret1_158/`
+- `scripts/watch_opt1.sh` — cron 10′, khối OPT1/bậc 2
+
+---
+
+## RET1 — đo GIỮ LẠI TRI THỨC NGUỒN
+
+Chấm chính mô hình Pha 2 trên **đúng tập val của Pha 1**, tái lập bằng
+`split_source_records(records, seed)`. Cổng hai chiều đã qua: checkpoint Pha 1 trên tập tái
+lập ra `0.697621` — trùng khít `best_val_macro_f1` ghi trong chính nó; trên nguồn khác ra
+`0.567395`. Commit `6d56403`, chỉ **thêm trường** `source_retention`.
+
+| | |
+|---|---|
+| cây | `results/ret1_t5p/` |
+| nguồn | `4cwe`, `com` |
+| cấu hình | `plain` (AdamW) · `c5000_t0p05` (RecAdam mặc định) · `c50_t0p05` (γ tốt nhất) |
+| baseline | chấm trên **cả ba** nguồn — sàn "chưa hề thấy nguồn" |
+
+## SPD1 — thay LỊCH THỜI GIAN bằng ĐIỀU KIỆN GRADIENT
+
+SPD (Tian et al., NeurIPS 2024, arXiv:2411.01713). `src/spd.py`, `tests/test_spd.py`
+(11 cổng hai chiều, tất cả đạt), commit `9990229`.
+
+| | |
+|---|---|
+| cây | `results/spd1_t5p/` |
+| nguồn | `4cwe`, `com` |
+| cấu hình | `plain` (AdamW) · `c50_t0p05` (RecAdam γ=50) · `spdl1` (SPD λ=1) |
+| kèm miễn phí | mọi ô đều chấm lại trên val Pha 1 → trả lời luôn "SPD có giữ nguồn không" |
+
+> **ĐỌC KẾT QUẢ SPD PHẢI XEM `ti le kich hoat` TRONG LOG.** SPD chỉ phạt khi gradient quay
+> đầu mà momentum vẫn đẩy tiếp; trên quỹ đạo trơn tru nó **không bao giờ phạt và bằng đúng
+> AdamW**. Ô nào có tỉ lệ = 0 phải đọc là "AdamW", không phải "SPD kém". Smoke thật trên
+> dữ liệu Python cho tỉ lệ **0.55**, nên không suy biến.
+
+**Bẫy đã vá cùng lúc:** `run/matrix.sh` đặt hậu tố theo `[[ $OPT == adamw ]]`, nên nhánh `spd`
+sẽ có hậu tố rỗng và **ghi đè lên nhánh recadam**, mất cả hai. Đổi sang `!= recadam`, kiểm ba chiều.
+
+## Chưa chạy — đã ghi lại để không quên
+
+`RESEARCH_2026-09-06_recadam.md` §11: neo là **ràng buộc**, không phải kênh truyền tri thức.
+Ba đề xuất để tri thức cũ thật sự giúp đích, xếp theo thứ tự: **Đ3′** nội suy θ_Pha1 ⊕ θ_Pha2
+sau huấn luyện (gần như miễn phí, và **có thể bác** giả thuyết) → **Đ4** chưng cất trong không
+gian hàm → **Đ5** replay/đa nhiệm với dữ liệu nguồn ở Pha 2.
+
+---
+
+# (chi tiết khối RET1)
 
 > **BẬC 1 — KIỂM CHỨNG, n=3 fold, seed 42.** Bắt đầu 07:56 UTC 07/09 trên **158**.
 > Driver `run/ret1.sh` · log `log/ret1_158.log` · watchdog `scripts/watch_ret1.sh` (cron 10′)

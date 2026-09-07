@@ -546,6 +546,75 @@ Bắt đầu 07:56 UTC 07/09 trên 158. Chi tiết ở `CURRENT_RUN.md`.
 
 ---
 
+## 11. Neo là RÀNG BUỘC, không phải KÊNH TRUYỀN — và ba cách để tri thức cũ thật sự giúp đích (07/09)
+
+**Người dùng nêu 07/09, và nó chạm đúng giới hạn của cả họ phương pháp:** *"cả RecAdam lẫn SPD
+đều là chống quên"*, trong khi cái mong muốn là **tri thức cũ giúp ích cho target**.
+
+### 11.1 Vì sao mọi γ đều cho cùng một câu trả lời
+
+Chuỗi nhân quả thật sự của phương pháp hai pha:
+
+1. Pha 1 nặn ra θ\* — **toàn bộ tri thức nguồn vào đây, và CHỈ ở đây**.
+2. Pha 2 fine-tune **từ** θ\*. AdamW thuần thừa hưởng θ\* y hệt RecAdam.
+3. Cái neo chỉ làm **chậm việc rời khỏi** θ\*. Nó không mang thêm một bit thông tin nào
+   từ dữ liệu nguồn vào bài toán đích.
+
+RecAdam, L2-SP, EWC, SPD — tất cả đều thuộc loại (3). Nên chúng chỉ có thể giúp đích theo
+**một** đường duy nhất: làm regularizer chống overfit trên 456 dòng Python. Tức là thiết bị
+**giảm phương sai**, không phải thiết bị **truyền tri thức**.
+
+Điều đó **giải thích §10**: nếu cái neo chỉ là regularizer, thì ở cỡ dữ liệu này nó mua được
+~0, và mọi γ trong dải 0.5–50 phải cho cùng kết quả — đúng như đo được. Đây là lời giải thích
+cơ chế, không phải lời bào chữa: nó **dự đoán** được cái ta đã thấy.
+
+**Hệ quả cho cách phát biểu:** "giữ được nguồn" (RET1 đang đo) và "nguồn giúp được đích"
+là **hai câu hỏi khác nhau**, không suy ra nhau. Một phương pháp có thể giữ nguồn hoàn hảo
+mà không giúp đích một chút nào.
+
+### 11.2 Đ3′ — Nội suy θ_Pha1 ⊕ θ_Pha2 SAU huấn luyện (kiểu WiSE-FT). GẦN NHƯ MIỄN PHÍ
+
+Không huấn luyện lại gì: sau Pha 2, trộn `θ(α) = α·θ_Pha2 + (1−α)·θ_Pha1`, quét α trên **val**,
+chọn α, báo test. Chi phí ~11 lần đánh giá val+test ≈ 1–2 phút/ô.
+
+**Nó chứng minh cái gì:** α tối ưu nằm hẳn trong (0,1) ⇒ mô hình nguồn **đóng góp vào điểm
+đích**, không chỉ làm điểm xuất phát. α tối ưu = 1.0 ở mọi ô ⇒ **bác** giả thuyết đó, rẻ và
+dứt khoát. Cả hai chiều đều dùng được.
+
+Hai điểm phải ghi rõ:
+- `DEAD_ENDS` #3 từng thử nội suy nhưng là cặp **θ_Pha1 ↔ pretrained** (cờ `--source_interpolation`
+  đã có sẵn trong `train_transfer.py:734`, áp **trước** Pha 2). Cặp θ_Pha1 ↔ θ_Pha2 là **cặp khác**
+  và **chưa thử**.
+- Chính bài SPD viết WiSE-FT *"only applies to models with zero-shot capabilities"*. Mô hình Pha 1
+  của ta **là** bộ phân loại lỗ hổng thật, nên ở đây ta ở vị thế tốt hơn bối cảnh gốc của WiSE-FT.
+
+**Ràng buộc thực thi:** cần checkpoint Pha 2, mà `run/matrix.sh:301,344` xoá nó sau mỗi ô. Nên
+phép này phải nằm **trong pha `test`**, không tính ngược được cho ô đã chạy — đúng cái bẫy đã
+mất 207 ô của phép tách nhóm rò rỉ.
+
+### 11.3 Đ4 — Neo trong KHÔNG GIAN HÀM: chưng cất từ mô hình Pha 1
+
+Giữ mô hình Pha 1 đóng băng làm thầy, thêm KL giữa logit thầy và trò **trên chính input Python**.
+Đây là chỗ tri thức nguồn thật sự chạm vào dữ liệu đích. Về lập luận nó vá đúng lỗ hổng đo được
+ở §11.1: ràng buộc **trọng số** không biết gì về dữ liệu đích, ràng buộc **hàm** thì có.
+Họ phương pháp: Learning without Forgetting (Li & Hoiem) — **phải xác minh lại bản gốc và
+venue trước khi cài**. Chi phí ~+40% thời gian (một forward đóng băng mỗi batch).
+
+### 11.4 Đ5 — Đưa dữ liệu nguồn vào chính Pha 2 (replay / đa nhiệm)
+
+Trộn một tỉ lệ batch nguồn, hoặc thêm loss nguồn với trọng số μ. Cách **duy nhất** trong ba cách
+mà **gradient của dữ liệu nguồn** trực tiếp nặn nghiệm đích. Biến "fine-tune tuần tự" thành
+"transfer đa nhiệm xuyên ngôn ngữ" — reviewer nhận ra ngay là transfer.
+Rủi ro: khác ngôn ngữ, có thể kéo xuống; nhưng `4cwe` là nguồn đã lọc theo CWE của đích và là
+nguồn duy nhất trong lưới có tác dụng nhất quán (`FACTS.md` §15.1).
+
+### 11.5 Thứ tự đề xuất
+
+**Đ3′ (miễn phí, làm trước) → Đ4 → Đ5.** Đ3′ có tính chất tốt nhất trong ba: nó **có thể bác**
+giả thuyết với chi phí gần bằng 0, nên chạy nó trước là rẻ nhất về mặt thông tin thu được.
+
+---
+
 ## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
 
 1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn
