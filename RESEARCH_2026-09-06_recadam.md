@@ -330,9 +330,23 @@ chính dẫn xuất đó nói γ phải nhỏ đi nhiều bậc. Huszár (PNAS 2
 
 **Đây là khung lý thuyết tốt nhất cho kết quả thực nghiệm của ta, và trích dẫn được đầy đủ.**
 
-**Hệ quả kiểm được, chưa đủ dữ liệu:** nếu γ ∝ N thì γ tối ưu phải **tăng** theo nguồn
-(4cwe 930 < com 3 744 < full 7 598). Ở n=1/ô hiện tại thứ tự ra 5 / 0.5 / 50 — thuần nhiễu.
-**Kiểm lại khi đủ 3 fold**; đây là phép kiểm cơ chế không tốn thêm một ô GPU nào.
+**Hệ quả kiểm được — ĐÃ KIỂM 07/09, KHÔNG XÁC NHẬN.** Nếu γ ∝ N thì γ tối ưu phải **tăng**
+theo nguồn (4cwe 930 < com 3 744 < full 7 598). Đo lại với n=3–4 fold (ghép cặp, chỉ lấy fold
+có đủ cả 5 γ):
+
+| nguồn | N | γ=0.5 | γ=5 | γ=50 | γ=500 | γ=5000 | γ thắng |
+|---|---|---|---|---|---|---|---|
+| 4cwe | 930 | 0.8287 | **0.8453** | 0.8354 | 0.8206 | 0.8059 | 5 |
+| com | 3 744 | **0.8436** | 0.8385 | 0.8397 | 0.8350 | 0.8371 | 0.5 |
+| full | 7 598 | 0.8036 | 0.8037 | **0.8126** | 0.8030 | 0.8102 | 50 |
+
+Thứ tự vẫn là **5 / 0.5 / 50** — y hệt lúc n=1, tức **không đơn điệu theo N**. Và biên độ trong
+mỗi hàng chỉ 0.009–0.017 (com: 0.0086), phần lớn **dưới hoặc quanh sàn nhiễu 0.010**.
+
+**Kết luận:** dẫn xuất γ = N·F̄ giải thích tốt **vì sao 5000 sai** (neo là checkpoint Pha 1 chứ
+không phải corpus pretraining), nhưng **không dự đoán được γ đúng**, và trong dải 0.5–50 thì γ
+là **núm phẳng**. Trích γ = N·F̄ như lý do bác giá trị mặc định thì được; trích như công thức
+chọn γ thì **không có số hậu thuẫn**.
 
 ### 8.3 lr·γ mới là siêu tham số thật
 
