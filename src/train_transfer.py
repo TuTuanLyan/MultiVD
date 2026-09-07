@@ -930,6 +930,33 @@ def run_phase2(args, device):
         )
         return
 
+    if args.phase2_optimizer == "spd":
+        # SPD (Tian et al., NeurIPS 2024, arXiv:2411.01713). Xem src/spd.py.
+        # Khac RecAdam o CO CHE chu khong o tham so: RecAdam quyet dinh neo theo THOI GIAN
+        # (lambda(t)), SPD quyet dinh theo DIEU KIEN GRADIENT tinh rieng tung lop.
+        from spd import AdamSPD
+        wd = 0.0 if args.spd_replace_wd else args.weight_decay
+        optimizer = AdamSPD(
+            current_params, lr=args.learning_rate, weight_decay=wd,
+            spd_lambda=args.spd_lambda, anchor_params=pretrain_params,
+        )
+        logger.info(
+            "Phase 2 optimizer: Adam-SPD | anchor=%s | lambda=%g | weight_decay=%g%s",
+            args.recadam_anchor, args.spd_lambda, wd,
+            " (THAY THE wd nhu bai goc)" if args.spd_replace_wd else " (giu wd cua du an)",
+        )
+        log_environment(args, model, device, "phase2_train")
+        train_loop(
+            args, model, train_loader, val_loader, optimizer, device, "phase2",
+            save_checkpoint, pretrain_params,
+        )
+        # Ti le kich hoat PHAI ghi lai: SPD chi phat khi gradient quay dau ma momentum van
+        # day tiep. Neu ti le = 0 thi no DUNG BANG AdamW, va ket qua phai doc nhu AdamW chu
+        # khong phai "SPD khong an thua" (do duoc trong tests/test_spd.py muc 3).
+        logger.info("Adam-SPD | ti le kich hoat c_t<0 va r_t>0: %.4f (%d/%d)",
+                    optimizer.fire_rate(), optimizer.n_fired, optimizer.n_checked)
+        return
+
     # Fisher: chi bat khi co --fisher_path. Khong co thi khong mot dong nao doi.
     fisher_params = None
     if args.fisher_path:
@@ -1313,7 +1340,7 @@ def parse_args():
     training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
 
     recadam = parser.add_argument_group("RecAdam phase 2")
-    recadam.add_argument("--phase2_optimizer", choices=("recadam", "adamw"), default="recadam",
+    recadam.add_argument("--phase2_optimizer", choices=("recadam", "adamw", "spd"), default="recadam",
                          help="adamw drops the source anchor entirely, isolating what RecAdam "
                               "contributes and testing whether its step-count-calibrated "
                               "annealing is what fails on a small target set")
@@ -1355,6 +1382,15 @@ def parse_args():
                               "Phase-1 checkpoint either way")
     recadam.add_argument("--pretrain_cof", type=float, default=5000.0,
                          help="quadratic source-anchor coefficient")
+    recadam.add_argument("--spd_lambda", type=float, default=1.0,
+                         help="chi voi --phase2_optimizer spd: cuong do chieu chon loc. Bai goc "
+                              "(arXiv:2411.01713) khuyen bat dau tu 1.0, khong phai mot so nho — "
+                              "voi lambda=1 phep phat DUNG BANG phep chieu len qua cau ban kinh "
+                              "bang do lech cua buoc truoc")
+    recadam.add_argument("--spd_replace_wd", action="store_true",
+                         help="chi voi spd: dat weight_decay = 0, dung nhu bai goc (SPD la vat THAY "
+                              "THE weight decay). Mac dinh GIU 0.01 cua du an de phep so voi doi "
+                              "chung AdamW chi doi DUNG MOT bien")
     recadam.add_argument("--fisher_path", default=None,
                          help="duong dan sidecar Fisher (src/fisher.py). Co co nay thi luc keo "
                               "neo duoc PHAN BO theo Fisher thay vi deu tay; tong luc keo khong "

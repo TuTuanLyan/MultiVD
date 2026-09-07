@@ -27,7 +27,7 @@ for S in $SRCS; do
   for F in $FOLDS; do
     while IFS='|' read -r TAG OPT _; do
       [[ -z "$TAG" ]] && continue
-      sfx=""; [[ "$OPT" == "adamw" ]] && sfx="_adamw"
+      sfx=""; [[ "$OPT" != "recadam" ]] && sfx="_$OPT"   # phai khop run/matrix.sh
       f="$RES/transfer_latent_bottleneck_${S}_${LTAG}_${TAG}${sfx}/seed_$SEED/fold$F.json"
       if [[ ! -f "$f" ]]; then
         n=$((n+1)); [[ "${MISSING_LIST:-0}" == 1 ]] && echo "$S fold$F $TAG ($OPT)"

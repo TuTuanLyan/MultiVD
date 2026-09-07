@@ -27,7 +27,7 @@ from pathlib import Path
 # Mo rong: FOLDS="1 2 3 4 5" python3 tools/opt1_report.py ...
 FOLD_FILTER = {int(x) for x in os.environ.get("FOLDS", "1 2 3").split()}
 
-ARM_RE = re.compile(r"^transfer_latent_bottleneck_(?P<src>[a-z0-9]+)_l(?P<lam>[0-9p]+)_(?P<tag>.+?)(?P<adamw>_adamw)?$")
+ARM_RE = re.compile(r"^transfer_latent_bottleneck_(?P<src>[a-z0-9]+)_l(?P<lam>[0-9p]+)_(?P<tag>.+?)(?:_(?P<opt>adamw|spd))?$")
 CONTROLS = (("c5000_t0p05", "recadam"), ("plain", "adamw"))
 
 
@@ -44,7 +44,7 @@ def load_tree(root):
         if not m:
             print(f"!! bo qua ten nhanh khong doc duoc: {arm_dir.name}", file=sys.stderr)
             continue
-        opt = "adamw" if m.group("adamw") else "recadam"
+        opt = m.group("opt") or "recadam"
         key = (m.group("src"), m.group("tag"), opt)
         for f in sorted(arm_dir.glob("seed_*/fold*.json")):
             d = json.loads(f.read_text())

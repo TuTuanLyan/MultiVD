@@ -312,7 +312,10 @@ run_fold() {
   #    không" ngay trong lúc chạy.
   for MODE in $MODES; do
     for OPT in $OPTIMIZERS; do
-      local SUFFIX=""; [[ "$OPT" == "adamw" ]] && SUFFIX="_adamw"
+      # Hau to theo optimizer. Phai la "khac recadam thi them ten" chu KHONG phai
+      # "== adamw thi them _adamw": them optimizer thu ba (spd, 07/09) ma quen cho nay
+      # thi nhanh spd ghi de dung len nhanh recadam va mat ca hai.
+      local SUFFIX=""; [[ "$OPT" != "recadam" ]] && SUFFIX="_$OPT"
       for BB in $BACKBONES; do
         local LABEL="${BB%%=*}" REST="${BB#*=}"; local MODEL="${REST%%:*}" POOL="${REST##*:}"
         local RN="${RUN_NAME}_${LABEL}" ARM="transfer_${MODE}${ARM_TAG}${SUFFIX}"
