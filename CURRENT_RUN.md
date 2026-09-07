@@ -141,6 +141,30 @@ Trục γ trên t5p cho neo **yếu** thắng neo mặc định (ghép cặp cù
 kho `s42` (4cwe val 0.6532, com val 0.5598) nên chỉ tốn Pha 2. Kết quả ở cây riêng
 `results/opt1_codebert` → kéo về `results_opt1cb_158/`.
 
+## BẬC 2 đã xếp hàng — 07/09, fold 4 và 5
+
+Người dùng duyệt 07/09: *"Cứ setup cho chạy n=5 5folds luôn cho nó queue luôn vào."*
+
+| máy | fold mới | ô | chờ gì trước |
+|---|---|---|---|
+| **161** | **4** | 21 ô + 1 baseline | xong nguồn `full` fold 1–2 |
+| **158** | **5** | 21 ô + 1 baseline | xong khối 60 epoch fold 3 |
+
+`scripts/queue_bac2.sh`, biến `FOLD_NEW` chọn fold. Lock riêng `/tmp/mvd_queue_bac2.lock`,
+watchdog giám sát và phóng lại tối đa 3 lần. Fold trọn vẹn trên một máy, baseline của
+chính fold đó chạy cùng máy.
+
+**Bảy cấu hình**, chạy hai lượt vì `min_epochs` phải khớp đúng lúc chạy bậc 1 — nếu không
+thì fold 4–5 khác fold 1–3 và phép gộp không hợp lệ:
+
+- lượt A, `min_epochs=3`: `c5000_t0p05` (đối chứng), `plain` (AdamW, đối chứng), `c50_t0p05`,
+  `c5_t0p05`, `c0p5_t0p05`, `warm`
+- lượt B, `min_epochs=10`: `c5000_t0p2k02_me10`
+
+**Câu hỏi của bậc 2**: câu chuyện "neo nâng sàn" ở bậc 1 dựa vào **đúng một fold khó**
+(fold 3, baseline 0.7036). Trong hai fold mới có fold nào khó không, và nếu có thì neo có
+lại nâng sàn ở đúng chỗ đó không. Đây là điểm yếu chí mạng của kết luận hiện tại.
+
 ## Việc cho sáng 07/09 — xếp theo giá trị, dựa trên số đo VÀ tài liệu
 
 1. **Đọc kết quả ME10** (`python3 tools/opt1_report.py results/opt1_t5p results_opt1_158`).
@@ -365,6 +389,30 @@ Trục γ trên t5p cho neo **yếu** thắng neo mặc định (ghép cặp cù
 đó có **chuyển được sang backbone khác** không. codebert có sẵn checkpoint Pha 1 λ=0.05 ở
 kho `s42` (4cwe val 0.6532, com val 0.5598) nên chỉ tốn Pha 2. Kết quả ở cây riêng
 `results/opt1_codebert` → kéo về `results_opt1cb_158/`.
+
+## BẬC 2 đã xếp hàng — 07/09, fold 4 và 5
+
+Người dùng duyệt 07/09: *"Cứ setup cho chạy n=5 5folds luôn cho nó queue luôn vào."*
+
+| máy | fold mới | ô | chờ gì trước |
+|---|---|---|---|
+| **161** | **4** | 21 ô + 1 baseline | xong nguồn `full` fold 1–2 |
+| **158** | **5** | 21 ô + 1 baseline | xong khối 60 epoch fold 3 |
+
+`scripts/queue_bac2.sh`, biến `FOLD_NEW` chọn fold. Lock riêng `/tmp/mvd_queue_bac2.lock`,
+watchdog giám sát và phóng lại tối đa 3 lần. Fold trọn vẹn trên một máy, baseline của
+chính fold đó chạy cùng máy.
+
+**Bảy cấu hình**, chạy hai lượt vì `min_epochs` phải khớp đúng lúc chạy bậc 1 — nếu không
+thì fold 4–5 khác fold 1–3 và phép gộp không hợp lệ:
+
+- lượt A, `min_epochs=3`: `c5000_t0p05` (đối chứng), `plain` (AdamW, đối chứng), `c50_t0p05`,
+  `c5_t0p05`, `c0p5_t0p05`, `warm`
+- lượt B, `min_epochs=10`: `c5000_t0p2k02_me10`
+
+**Câu hỏi của bậc 2**: câu chuyện "neo nâng sàn" ở bậc 1 dựa vào **đúng một fold khó**
+(fold 3, baseline 0.7036). Trong hai fold mới có fold nào khó không, và nếu có thì neo có
+lại nâng sàn ở đúng chỗ đó không. Đây là điểm yếu chí mạng của kết luận hiện tại.
 
 ## Việc cho sáng 07/09 — xếp theo giá trị, dựa trên số đo VÀ tài liệu
 

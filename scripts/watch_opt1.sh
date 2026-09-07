@@ -45,6 +45,7 @@ queue_check(){ # $1=ten (161|158)  $2=duong dan lock  $3=lenh phong
   local name="$1" lk="$2" cmd="$3"
   if flock -n "$lk" -c true 2>/dev/null; then
     local done_re="########## QUEUE${name} xong"
+    [[ "$name" == "_bac2" ]] && done_re="########## BAC2 xong"
     local fin; fin=$(grep -c "$done_re" "log/queue${name}.log" 2>/dev/null); fin="${fin:-0}"
     if (( fin > 0 )); then say "queue$name | da xong het viec"; return; fi
     local pass; pass=$(cat "log/queue${name}_passes" 2>/dev/null || echo 0)
@@ -105,6 +106,9 @@ fi
 
 queue_check 161 /tmp/mvd_queue161.lock \
   'setsid nohup bash scripts/queue161.sh >> log/queue161.log 2>&1 < /dev/null &'
+# BAC 2 (fold 4 tren 161). Ten log/lock rieng nen khong dung do queue161 da xong.
+queue_check _bac2 /tmp/mvd_queue_bac2.lock \
+  'FOLD_NEW=4 setsid nohup bash scripts/queue_bac2.sh >> log/queue_bac2.log 2>&1 < /dev/null &'
 
 # ---------------- 158 ----------------
 # BAY: dau " LONG trong chuoi ssh bao boi " PHAI escape (\"). Khong escape thi shell
@@ -161,6 +165,28 @@ echo last=\$(tail -1 log/queue158.log 2>/dev/null | cut -c1-90)" 2>/dev/null)
         echo $((qp+1)) > log/queue158_passes
         timeout 40 ssh -o BatchMode=yes "$R158" "cd $ROOT158 && (setsid nohup bash scripts/queue158.sh >> log/queue158.log 2>&1 < /dev/null &)" 2>/dev/null
         say "queue158 | PHONG LAI lan $((qp+1))"
+      fi
+    fi
+  fi
+
+  # BAC 2 tren 158 (fold 5)
+  qb=$(timeout 40 ssh -o BatchMode=yes -o ConnectTimeout=15 "$R158" "cd $ROOT158 || exit 1
+{ flock -n /tmp/mvd_queue_bac2.lock -c true && echo alive=no || echo alive=yes; }
+echo fin=\$(grep -c '########## BAC2 xong' log/queue_bac2.log 2>/dev/null)
+echo last=\$(tail -1 log/queue_bac2.log 2>/dev/null | cut -c1-90)" 2>/dev/null)
+  if [[ -n "$qb" ]]; then
+    ba=$(sed -n 's/^alive=//p' <<<"$qb"|head -1); bf=$(sed -n 's/^fin=//p' <<<"$qb"|head -1); bf="${bf:-0}"
+    blast=$(sed -n 's/^last=//p' <<<"$qb"|head -1)
+    if [[ "$ba" == yes ]]; then say "bac2-158 | dang chay | $blast"
+    elif (( bf > 0 )); then say "bac2-158 | da xong"
+    else
+      bp=$(cat log/queue_bac2_158_passes 2>/dev/null || echo 0)
+      if (( bp >= MAXPASS )); then say "bac2-158 | CHET, da phong $bp lan — DUNG"
+      elif [[ "$DRY" == 1 ]]; then say "bac2-158 | [DRY] se phong lan $((bp+1))"
+      else
+        echo $((bp+1)) > log/queue_bac2_158_passes
+        timeout 40 ssh -o BatchMode=yes "$R158" "cd $ROOT158 && (FOLD_NEW=5 setsid nohup bash scripts/queue_bac2.sh >> log/queue_bac2.log 2>&1 < /dev/null &)" 2>/dev/null
+        say "bac2-158 | PHONG lan $((bp+1))"
       fi
     fi
   fi
