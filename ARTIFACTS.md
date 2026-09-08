@@ -10,6 +10,21 @@ hoặc vào <https://claude.ai/code/artifacts>.
 
 ## Đang dùng
 
+### 📉 Trục ρ và chọn nguồn — đêm 08→09/09/2026
+
+<https://claude.ai/code/artifact/b6ba617d-eef2-4bee-ad8b-e8db92f7eadf>
+
+Hai khối chạy qua đêm trên bốn máy. **Trục ρ của ASAM** (7 mức, 10–15 ô/mức, đối chứng
+ρ=0 cùng máy): đường cong đơn đỉnh, đỉnh ở ρ∈[1,2], ρ=8.0 cho 0/10 fold trên cả bốn chỉ
+số — và ρ=0.1 mà dự án dùng từ 31/08 nằm ở đáy. **Lưới nguồn** tách trùng CWE khỏi tỉ lệ
+ngôn ngữ: 697 dòng đúng CWE kèm 233 dòng lệch *thua* 232 dòng đúng CWE một mình, và điểm
+val Phase 1 không dự báo được transfer (Spearman −0.191).
+
+Kèm **hai phát biểu của chính tôi đã phải rút lại** trong đêm, và bốn lỗi công cụ — cả bốn
+đều im lặng (`bash -n` báo OK, mã thoát 0, "xong" trong log).
+
+Bậc 1 và bậc 2, seed 42 — chưa số nào được đưa vào bài.
+
 ### Neo vào tri thức nguồn — tổng hợp nhánh `optimize-v1` (08/09/2026)
 
 <https://claude.ai/code/artifact/406023e5-2d41-401f-8a83-f9a32ff42eae>
