@@ -32,7 +32,7 @@ check(){ # $1=nhan  $2=danh sach fold  $3=so o ky vong
 echo n=\$(ls results/int1_t5p/*/seed_42/fold*.json 2>/dev/null | wc -l)
 echo alive=\$(ps -eo args --no-headers | grep -c 'src/train_[a-z]*\.py.*int1')
 echo drv=\$(ps -eo args --no-headers | grep -c '[r]un/int1.sh')
-echo st2=\$(ps -eo args --no-headers | grep -c '[v]ast_stage2.sh')
+echo st2=\$(ps -eo args --no-headers | grep -cE '[v]ast_stage2.sh|[v]ast_next.sh')
 echo vram=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
 echo last=\$(grep -E '^=====|THAT BAI|INT1 xong' log/int1_${L}.log 2>/dev/null | tail -1 | cut -c1-110)" 2>/dev/null)
   if [[ -z "$out" ]]; then say "$L | KHONG SSH DUOC ($H:$P) — KHONG ket luan may chet"; return; fi
@@ -73,5 +73,5 @@ echo last=\$(grep -E '^=====|THAT BAI|INT1 xong' log/int1_${L}.log 2>/dev/null |
   fi
 }
 
-check ntat  "1 2 4" 15
-check ntat2 "3 5"  10
+check ntat  "1 2 4" 21
+check ntat2 "3 5"  14
