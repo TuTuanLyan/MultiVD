@@ -55,8 +55,27 @@ while IFS='|' read -r SCRIPT SRCS FOLDS <&3; do
   # chay 2 muc" trong khi danh sach con 9 muc. May vast NAM KHONG ma van tinh tien.
   # Trieu chung: so muc trong worklist.done nho hon han so muc trong worklist.txt,
   # va log ket thuc binh thuong chu khong bao loi.
-  FOLD_LIST="$FOLDS" SOURCES_LIST="$SRCS" SEED=42 PYTHON="$PY" bash "$SCRIPT" 8>&- 3<&- </dev/null \
-    && echo "$KEY" >> log/worklist.done
+  # DEM HIEN VAT truoc/sau. Ma thoat 0 KHONG co nghia la viec da thanh: 08/09/2026
+  # `e60_cb.sh` thieu checkpoint Pha 1 codebert tren may nay, no tu choi tu huan luyen
+  # (dung theo CLAUDE.md muc 5), in canh bao roi thoat 0 sau 0 giay — va driver ghi
+  # "xong". Muc do se bi bo qua vinh vien du chua bao gio chay. Van ghi `done` de khong
+  # lap vo han, nhung phai HIEN RO ra log va mot file rieng de con nguoi thay.
+  before=$(find results -name 'fold*.json' 2>/dev/null | wc -l)
+  t0=$SECONDS
+  FOLD_LIST="$FOLDS" SOURCES_LIST="$SRCS" SEED=42 PYTHON="$PY" bash "$SCRIPT" 8>&- 3<&- </dev/null
+  rc=$?
+  after=$(find results -name 'fold*.json' 2>/dev/null | wc -l)
+  if (( rc == 0 )); then
+    echo "$KEY" >> log/worklist.done
+    if (( after == before )); then
+      echo "$(ts) | !! MUC NAY KHONG SINH RA O NAO ($((SECONDS-t0))s, $before -> $after) — da ghi done de khong lap vo han, NHUNG CAN NGUOI XEM: $KEY"
+      echo "$KEY" >> log/worklist.noop
+    else
+      echo "$(ts) | xong: $KEY (+$((after-before)) o)"
+    fi
+  else
+    echo "$(ts) | !! MUC LOI ma thoat $rc — KHONG ghi done, se thu lai: $KEY"
+  fi
   n=$((n+1))
 done 3< "$WL"
 echo "########## WORKLIST xong $(ts) | da chay $n muc ##########"
