@@ -422,6 +422,59 @@ tiếp được: 0.6867 của `lm25` là trên một bài dễ hơn. Nhưng đó
 con số ấy vô dụng cho việc chọn nguồn — người chọn nguồn chỉ có đúng con số đó
 cho từng ứng viên, và nó dẫn họ đi sai. Vẫn là n=11 pool, một máy, một backbone.
 
+## B.2d — Tách theo nhóm rò rỉ: B.2 MẠNH LÊN, B.2b PHẢI RÚT (09/09)
+
+Cùng phép kiểm đã dùng cho trục ρ (FACTS §21.1): bộ `sven_python_folds_norm` chia
+theo từng dòng nên ~16% hàng test có bản đối nghịch gần trùng trong TRAIN. Các ô
+pool đều có `test_probabilities` nên tách được **không chạy lại gì**. Hai máy
+(ntat2 + 161), ghép cặp từng fold trong-máy.
+
+### Độ tinh khiết: hiệu ứng SỐNG trên hàng sạch, và là LIỀU–ĐÁP ỨNG chứ không bậc thang
+
+| phép so | nhóm rò rỉ (~16%) ΔROC | **nhóm SẠCH (~73%) ΔROC** | nhóm sạch ΔF1 |
+|---|---|---|---|
+| lm75 − lm100 | −0.0504 (2/8) | −0.0010 (3/8) | −0.0168 (1/8) |
+| lm50 − lm100 | −0.0763 (1/7) | −0.0093 (2/7) | −0.0116 (1/7) |
+| lm25 − lm100 | −0.0894 (0/7) | **−0.0197 (0/7, p=0.016)** | **−0.0296 (0/7, p=0.016)** |
+| lm12 − lm100 | −0.1174 (0/7) | **−0.0278 (0/7, p=0.016)** | **−0.0436 (0/7, p=0.016)** |
+
+Pha loãng **nặng** (25%, 12%) làm hỏng khả năng khái quát hoá thật: trên 73% hàng
+không có bản gần trùng nào, **0/7 fold dương trên cả hai chỉ số**, biên độ −0.020…
+−0.028 ROC-AUC — trên sàn nhiễu 0.010.
+
+**SỬA phát biểu "bậc thang" ở B.2.** Trên hàng sạch, ΔROC đi −0.001 → −0.009 →
+−0.020 → −0.028 theo mức pha loãng: **đơn điệu, liều–đáp ứng rõ ràng**. Dáng bậc
+thang trong số tổng là **hiện vật của nhóm rò rỉ** — nhóm đó chịu −0.05 ngay từ
+lm75 rồi bão hoà. Tách nhóm ra thì hình dạng thật lộ ra, và nó đẹp hơn.
+
+### B.2b KHÔNG sống trên hàng sạch — rút lại
+
+| phép so | nhóm rò rỉ ΔROC | **nhóm SẠCH ΔROC** | nhóm sạch ΔF1 |
+|---|---|---|---|
+| lm75 − pur100_n232 | −0.0088 (2/8) | **−0.0013 (5/8)** | **+0.0038 (4/8)** |
+
+Phát biểu "697 dòng đúng CWE kèm 233 dòng lệch **thua** 232 dòng đúng CWE một mình"
+(số tổng −0.0174 F1 / −0.0091 ROC) **biến mất hoàn toàn trên 73% hàng sạch**: ROC
+−0.0013 (5/8), F1 **+0.0038** (4/8). Nó là hiệu ứng của nhóm rò rỉ.
+
+**Vậy không được nói "dòng lệch CWE gây nhiễu chủ động".** Phát biểu còn đứng được là
+yếu hơn nhưng vẫn có giá trị:
+
+> Ở mức pha loãng nặng (≤25% dòng đúng CWE), nguồn transfer mất khả năng giúp mô
+> hình khái quát hoá sang mã chưa từng thấy — đo trên 73% hàng test không có bản
+> gần trùng, 0/7 fold, cả F1 lẫn ROC-AUC. Ở mức pha loãng nhẹ (75%, 50%) thì
+> **không phân biệt được với nhiễu** trên hàng sạch.
+
+### Vì sao mục này quan trọng hơn bản thân con số
+
+Đây là **lần thứ hai trong một đêm** phép tách nhóm rò rỉ đổi một phát biểu tiêu đề
+(lần đầu: FACTS §21.1 với trục ρ). Cả hai lần, số tổng đều bị nhóm ~16% hàng dễ học
+vẹt kéo. Với bộ `sven_python_folds_norm` chia theo dòng, **mọi Δ tổng đều phải kèm
+phép tách này trước khi được gọi là phát hiện.**
+
+**Giới hạn:** n=7–8 (một số fold không đủ 8 hàng trong nhóm nên bị bỏ). Ở n=7 thì
+p=0.016 là **sàn** — nghĩa là "cùng dấu ở cả 7", không phải "rất có ý nghĩa".
+
 ## B.3 — Lưới `pur*` KHÔNG đơn điệu, và một nửa không lặp lại được
 
 Hai máy độc lập, mỗi máy dùng đối chứng `pur100_n930` của chính nó (ROC-AUC):
