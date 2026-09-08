@@ -1275,3 +1275,68 @@ kết luận. Nhóm `none` ~112 hàng/fold thì đọc được.
 phụ theo CLAUDE.md §6): chạy ρ ∈ {0, 2.0} trên `data/sven_python_twin` — tập gom
 cụm gần trùng rồi mới chia, nên không có nhóm `train` để hưởng lợi. Nếu ρ=2.0 vẫn
 dương ở đó thì kết luận vững hẳn; nếu về 0 thì §21 phải phát biểu lại.
+
+---
+
+## §22 — Đọc lại phát biểu CHÍNH của dự án (head vs `none`) bằng CẢ BỐN chỉ số (09/09/2026)
+
+CLAUDE.md §7 chốt: "**AdamW**: head ăn về điểm — Δ vs `none` +0.0111, 33/43 fold,
+p=0.0006. Ô duy nhất trong toàn lưới vừa qua vừa p<0.05 vừa vượt sàn nhiễu."
+
+Con số đó tính trên **macro-F1 và chỉ macro-F1** — đúng cách đã gây lỗi ASAM suốt
+ba tuần (§2b). Đọc lại từ 213 cặp ghép được trên đĩa, ghép cặp theo
+(cây, nhánh-nguồn, optimizer, seed, fold). **Không cần chạy lại gì.**
+
+| optimizer | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| **AdamW** | 43 | +0.0103 32/43 **p=0.002** | +0.0122 34/43 **p=0.0003** | +0.0053 27/43 p=0.126 | +0.0033 27/43 p=0.126 |
+| RecAdam | 170 | +0.0113 83/170 p=0.82 | +0.0109 80/170 p=0.49 | +0.0110 89/170 p=0.59 | +0.0075 81/170 p=0.59 |
+| gộp | 213 | +0.0111 115/213 p=0.27 | +0.0112 114/213 p=0.34 | +0.0098 116/213 p=0.22 | +0.0067 108/213 p=0.89 |
+
+### Ba điều phải sửa vào cách phát biểu
+
+1. **Head cải thiện QUYẾT ĐỊNH, không cải thiện XẾP HẠNG** (dưới AdamW). ΔF1 là
+   +0.010…+0.012 với p≤0.002; ΔAUC chỉ bằng một nửa và **không có ý nghĩa**
+   (27/43, p=0.126). Đây là **ngược hẳn** với ASAM (§21: AUC có, F1 không). Hai
+   kỹ thuật **bổ trợ nhau chứ không trùng** — nói được điều đó là nhờ đọc bốn chỉ số.
+2. **RecAdam có TRUNG BÌNH gần y hệt AdamW (+0.0113 vs +0.0103) nhưng đếm dấu là
+   tung đồng xu** (83/170, p=0.82). Đây là minh hoạ sạch nhất cho lý do `report2.py`
+   luôn in `+/n` cạnh trung bình: hai con số trung bình bằng nhau, hai kết luận trái ngược.
+3. **Gộp hai optimizer thì hiệu ứng biến mất** ở cả bốn chỉ số. Vì thế §7 bắt buộc
+   nêu cả hai optimizer là đúng, và mọi bảng gộp đều sai.
+
+### Tách theo backbone (AdamW) — hiệu ứng KHÔNG đồng nhất
+
+| backbone | n | ΔF1@0.5 | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|
+| unixcoder | 15 | +0.0131 12/15 p=0.04 | **+0.0094 14/15 p=0.001** | **+0.0136 13/15 p=0.01** |
+| t5p | 15 | +0.0099 12/15 p=0.04 | +0.0027 7/15 p=1.00 | −0.0006 9/15 p=0.61 |
+| codebert | 10 | +0.0133 7/10 p=0.34 | +0.0085 6/10 p=0.75 | −0.0024 4/10 p=0.75 |
+| t5pe | 3 | −0.0116 1/3 | −0.0133 0/3 | −0.0103 1/3 |
+
+**Chỉ `unixcoder` được lợi trên cả bốn chỉ số.** Trên `t5p` và `codebert`, lợi ích
+nằm hoàn toàn ở F1.
+
+### Tách theo nguồn (AdamW) — và một phát hiện CỦNG CỐ lập luận chống sập
+
+| nguồn | n | ΔF1@0.5 | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|
+| 4cwe | 15 | **+0.0227 13/15 p=0.01** | +0.0107 9/15 p=0.61 | +0.0067 10/15 p=0.30 |
+| **full** | 10 | +0.0099 8/10 p=0.11 | **+0.0118 9/10 p=0.02** | **+0.0127 9/10 p=0.02** |
+| com | 15 | +0.0026 10/15 p=0.30 | −0.0008 9/15 p=0.61 | −0.0037 7/15 p=1.00 |
+
+Hai nguồn cho hiệu ứng ở **hai chỉ số khác nhau**:
+- Trên `4cwe` head ăn ở **F1** (+0.0227, 13/15) nhưng không ở AUC.
+- Trên `full` — nguồn khó nhất, chỗ Phase 1 hay sập — head ăn ở **AUC**
+  (+0.0118/+0.0127, 9/10, p=0.02) chứ không ở F1.
+
+Điều này **củng cố** lập luận của §7 rằng giá trị chắc nhất của head là **chống sập
+Phase 1**, bằng đúng chỉ số §7 chưa bao giờ xem: ở nguồn khó, head giữ được **thứ
+hạng điểm** — dấu hiệu biểu diễn không sụp — chứ không phải đẩy điểm qua ngưỡng.
+
+### Giới hạn
+
+213 cặp gộp qua nhiều khối và nhiều λ; khoá ghép cặp có `(cây, nhánh-nguồn,
+optimizer, seed, fold)` nên λ khác nhau vẫn nằm chung một dòng. Các fold **không
+độc lập** (dùng lại cùng bộ fold đích), nên p lạc quan; phần chắc là **số fold
+cùng dấu**. Nhóm `t5pe` chỉ n=3, đừng đọc.
