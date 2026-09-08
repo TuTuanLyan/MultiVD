@@ -475,6 +475,34 @@ phép tách này trước khi được gọi là phát hiện.**
 **Giới hạn:** n=7–8 (một số fold không đủ 8 hàng trong nhóm nên bị bỏ). Ở n=7 thì
 p=0.016 là **sàn** — nghĩa là "cùng dấu ở cả 7", không phải "rất có ý nghĩa".
 
+## B.2e — Bản lặp trên máy thứ hai (161, n=2–3): CHỈ pha loãng nặng lặp lại được
+
+| nhánh | **ntat2** (n=5) ΔROC | **161** (n=2–3) ΔROC | ntat2 ΔF1 | 161 ΔF1 | lặp? |
+|---|---|---|---|---|---|
+| lm75 | −0.0213 (0/5) | **+0.0086** (1/3) | −0.0306 | −0.0017 | **KHÔNG** — đổi dấu ở AUC |
+| lm50 | −0.0175 (1/5) | **+0.0081** (1/3) | −0.0118 | −0.0133 | **KHÔNG** — đổi dấu ở AUC |
+| lm25 | −0.0262 (1/5) | −0.0166 (1/3) | −0.0294 | −0.0308 | CÓ |
+| lm12 | −0.0310 (0/5) | −0.0586 (0/2) | −0.0358 | −0.0592 | CÓ, mạnh hơn |
+
+Ở `lm75` hai máy lệch **0.030** trên ROC-AUC — ngay trên sàn liên-GPU 0.028, và
+**đổi dấu**. `lm50` cũng đổi dấu ở cả ROC lẫn PR.
+
+**Điều này KHỚP với B.2d chứ không mâu thuẫn.** B.2d đã cho thấy pha loãng nhẹ
+(75%, 50%) là **null trên hàng sạch** (ROC −0.0010 và −0.0093, 3/8 và 2/7). Một
+hiệu ứng null thì dấu của nó phụ thuộc rút thăm fold và máy — đúng như quan sát.
+
+**Phát biểu cuối cùng, đã qua ba phép kiểm độc lập** (n=5 một máy → tách nhóm rò
+rỉ → lặp trên máy thứ hai):
+
+> Pha loãng nguồn xuống **≤25% dòng đúng CWE** làm hỏng khả năng khái quát hoá:
+> âm trên cả hai máy, âm trên hàng sạch (0/7 fold, cả F1 lẫn ROC-AUC), biên độ
+> −0.017…−0.059 ROC-AUC. Pha loãng **nhẹ (75%, 50%) thì không phân biệt được với
+> nhiễu** — null trên hàng sạch và đổi dấu giữa hai máy.
+
+Và phải rút phần "16/16 ô âm, `lm75` 0/5 trên cả bốn chỉ số" ở B.2: con số đó đúng
+trên ntat2 nhưng **không lặp lại**. Ở n=5 một máy, "0/5" là sàn kiểm dấu — nó
+không phân biệt được hiệu ứng thật với may mắn (CLAUDE.md §2b nói đúng điều này).
+
 ## B.3 — Lưới `pur*` KHÔNG đơn điệu, và một nửa không lặp lại được
 
 Hai máy độc lập, mỗi máy dùng đối chứng `pur100_n930` của chính nó (ROC-AUC):
