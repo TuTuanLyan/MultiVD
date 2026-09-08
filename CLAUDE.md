@@ -94,6 +94,47 @@ Hiệu ứng dưới ~0.01 không phân biệt được với việc chạy lạ
 
 ---
 
+## 2b. LUÔN đọc CẢ HAI chỉ số, và đọc SỐ FOLD CÙNG DẤU trước khi đọc trung bình
+
+> **Người dùng nêu 08/09.** Một chỉ số nói "không" trong khi chỉ số kia nói "có" là chuyện
+> đã xảy ra thật, và nó đã giữ một kết luận sai suốt ba tuần.
+
+**Chuyện đã xảy ra:** kết luận "ASAM null" (`+0.0020, 70/130, p=0.43`) tính trên **macro-F1
+và chỉ macro-F1**. Đo lại trên **190 ô ghép cặp**:
+
+| chỉ số | Δ | fold dương | p |
+|---|---|---|---|
+| macro-F1@0.5 | +0.0015 | 100/190 | 0.51 |
+| **ROC-AUC** | **+0.0037** | **119/190** | **0.0006** |
+| PR-AUC | +0.0045 | 111/190 | 0.024 |
+
+Cùng dấu ở **cả ba backbone** trên AUC. ASAM cải thiện **thứ hạng điểm**, không cải thiện
+**quyết định ở ngưỡng 0.5** — hai thứ khác nhau, và bỏ một cái là giấu mất điều đó.
+
+**Bắt buộc từ nay:** mọi bảng so sánh phải in **F1@0.5, F1@ngưỡng-val, ROC-AUC, PR-AUC**,
+mỗi cái kèm **số fold cùng dấu**. Dùng `tools/report2.py` — nó không cho phép in một chỉ số.
+
+```
+python3 tools/report2.py --a <nhánh> --b <đối chứng> <thư mục kết quả...>
+```
+
+### Ba cách đọc sai mà công cụ đó chặn
+
+| cách đọc sai | vì sao nguy hiểm | cách chặn |
+|---|---|---|
+| chỉ nhìn **một chỉ số** | F1@0.5 và AUC có thể ngược nhau (ASAM, 08/09) | in cả bốn |
+| chỉ nhìn **trung bình** | một ô cực trị kéo được trung bình nhưng không kéo được đếm dấu — đã mất một kết luận vì điều này (mục 2, "neo nâng sàn") | in `+/n` cạnh mọi trung bình |
+| **gộp** ô của nhiều máy/khối | Δ ghép cặp phải cùng cây/seed/fold | ô lẻ bị BỎ và báo rõ số ô bỏ |
+
+**Và ngược lại — đừng tách quá tay.** Ở n=5 mỗi nguồn thì `p=0.0625` là **sàn**: "5/5 fold
+cùng dấu" là kết quả tốt nhất có thể đạt, nên nó **không** phân biệt được hiệu ứng thật với
+may mắn. Tách theo nguồn để **nhìn thấy** mẫu hình thì được; **kết luận** thì phải đợi mẫu
+hình đó lặp lại ở một khối độc lập. Ngày 08/09 nhánh `full` cho 5/5 trên **cả F1 lẫn AUC**
+ở khối INT1 — và **không lặp lại** ở khối OPT1 trên đúng nguồn đó (2/5). Giả thuyết, không
+phải phát hiện.
+
+---
+
 ## 3. Chạy đủ — sập KHÔNG phải lý do để dừng
 
 > **Một ô bị chặn là một ô TRỐNG, và ô trống không viết được gì vào bài.**
