@@ -1110,3 +1110,56 @@ checkpoint Pha 1 cua seed 7 tu 161**), seed 1234 (158, 2.9.1+cu128). transformer
 4.57.1 tren moi may. Chia theo **fold tron ven** nen moi Δ ghep cap nam gon trong mot
 may. Du lieu goc: `results_night48/`, `results/n48_t5p/`, `results_night48b/`,
 `results_night48_158/`. Bao cao: `python3 tools/n48_report.py`.
+
+
+## 20. Đối chứng FINETUNE HAI LẦN THUẦN (08/09/2026) — kết quả đứng, không chạy lại
+
+Người dùng yêu cầu 08/09: Pha 1 **không head** (`aux_mode=none`), Pha 2 **AdamW**, **SAM=0
+ở cả hai pha** — tức chỉ backbone + head phân loại, fine-tune hai lần. Seed 42, đủ 5 fold.
+**Đã có sẵn trong `results/s42_*`, không cần chạy lại**; giữ làm kết quả đứng kể cả khi
+so với ô chạy trên máy khác.
+
+### 20.1 So với baseline (chỉ fine-tune Python), ghép cặp cùng cây/fold
+
+| backbone | nguồn | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|---|
+| t5p | 4cwe | 5 | +0.0106 (3/5) | +0.0051 (2/5) | +0.0017 (3/5) | −0.0012 (3/5) |
+| t5p | com | 5 | **+0.0294 (5/5)** | +0.0276 (4/5) | +0.0104 (4/5) | **+0.0140 (5/5)** |
+| t5p | full | 5 | +0.0106 (3/5) | +0.0118 (3/5) | **−0.0086 (0/5)** | −0.0136 (1/5) |
+| codebert | 4cwe | 5 | +0.0352 (3/5) | +0.0232 (3/5) | +0.0102 (3/5) | −0.0019 (3/5) |
+| codebert | com | 5 | **+0.0549 (5/5)** | **+0.0455 (5/5)** | +0.0284 (4/5) | +0.0266 (4/5) |
+| codebert | full | — | ô thiếu: checkpoint Pha 1 là file `.rejected` **0 byte** (sự cố đầy đĩa tháng 8) — đang chạy lại ở `run/ft2.sh` |
+
+**Fine-tune hai lần thuần đã lấy được phần lớn lợi ích**: +0.011 đến +0.055 macro-F1 so với
+baseline. Bất kỳ thành phần nào của phương pháp cũng phải **vượt mốc này**, không phải vượt
+baseline.
+
+**Và một chỗ chỉ AUC nhìn thấy:** `t5p × full` cho ΔF1 +0.0106 nhưng **ΔAUC −0.0086, 0/5
+fold**. Đọc một chỉ số thì tưởng nguồn `full` vô hại; đọc cả hai thì thấy nó làm hỏng thứ
+hạng ở mọi fold. Đây là ví dụ sống cho `CLAUDE.md` mục 2b.
+
+### 20.2 Head mua thêm được gì TRÊN mốc đó — `latent_bottleneck` − `none`, cùng optimizer
+
+| backbone | opt | nguồn | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|---|
+| t5p | adamw | **4cwe** | **+0.0217 (5/5)** | +0.0039 (2/5) |
+| t5p | adamw | com | −0.0016 (3/5) | −0.0090 (1/5) |
+| t5p | adamw | full | +0.0095 (4/5) | +0.0132 (4/5) |
+| codebert | adamw | **4cwe** | **+0.0266 (4/5)** | +0.0189 (3/5) |
+| codebert | adamw | com | +0.0000 (3/5) | −0.0019 (3/5) |
+| unixcoder | adamw | **4cwe** | **+0.0198 (4/5)** | +0.0093 (4/5) |
+| unixcoder | adamw | com | +0.0092 (4/5) | **+0.0085 (5/5)** |
+| unixcoder | adamw | full | +0.0103 (4/5) | **+0.0104 (5/5)** |
+
+**Head + AdamW + nguồn `4cwe` là thứ duy nhất dương ở CẢ BA backbone trên F1** (5/5, 4/5,
+4/5) — đó là đóng góp thật của phương pháp so với fine-tune hai lần thuần, và nó chỉ xảy ra
+ở **nguồn đã lọc**. Trên `com` thì phẳng ở mọi backbone.
+
+**Nhưng trên AUC thì head yếu hẳn** (+0.004 … +0.019, hiếm khi 5/5). Ghép với phát hiện ASAM
+cùng ngày (AUC +0.0037, 119/190, p=0.0006 nhưng F1 phẳng), hai thành phần **bù nhau**: head
+nâng F1, ASAM nâng AUC. Nếu ASAM xác nhận được ở n=5 thì đó là một câu chuyện phương pháp
+mạch lạc chứ không phải hai mẩu rời.
+
+Với **RecAdam** thì head yếu và thất thường, kể cả `unixcoder × full` −0.0318 (0/5) — thêm
+một lý do nữa để không neo.
+
