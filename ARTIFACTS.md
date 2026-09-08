@@ -10,6 +10,17 @@ hoặc vào <https://claude.ai/code/artifacts>.
 
 ## Đang dùng
 
+### Neo vào tri thức nguồn — tổng hợp nhánh `optimize-v1` (08/09/2026)
+
+<https://claude.ai/code/artifact/406023e5-2d41-401f-8a83-f9a32ff42eae>
+
+Bốn khối thực nghiệm tối ưu RecAdam gộp vào một trang: OPT1 (quét γ và lịch neo, 211 ô,
+bậc 2 n=5), RET1 (giữ lại tri thức nguồn, 21 ô), SPD1 (đổi cơ chế neo sang điều kiện
+gradient, 21 ô), INT1 (nội suy θ_Pha1 ⊕ θ_Pha2, đang chạy). Kèm hai phát biểu đã phải
+**rút lại** và ba lỗi kỹ thuật đã ghi lại.
+
+Số trong trang là **bậc 1 và bậc 2, seed 42** — chưa có số nào được đưa vào bài.
+
 ### 🎚️ ASAM ρ=0.1 có mua được gì không
 <https://claude.ai/code/artifact/1a9ac269-85fd-4ad9-9745-bb60350d71fa> · 06/09
 
