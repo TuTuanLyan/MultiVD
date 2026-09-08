@@ -201,7 +201,11 @@ MIN_VAL = float(os.environ.get("PHASE1_MIN_VAL", "0.40"))
 #
 # Mac dinh 2 = giu nguyen hanh vi cu. PHASE1_MIN_EPOCH=0 de chay het, dung cho khoi nao
 # CO Y do checkpoint suy bien (CLAUDE.md muc 3).
-MIN_EPOCH = int(os.environ.get("PHASE1_MIN_EPOCH", "2"))
+# Mac dinh SUY RA TU MIN_VAL: dat PHASE1_MIN_VAL=0 la da noi ro "toi muon giu ca checkpoint
+# suy bien", nen nguong epoch phai tu tat theo. Neu de mac dinh cung la 2 thi driver DANG
+# CHAY (doc moi truong cu, chi co MIN_VAL=0) van bi loai nham — dung chuyen da xay ra
+# 08/09 voi pur25_n930: va xong, dong bo xong, ma no van bi doi thanh .rejected lan hai.
+MIN_EPOCH = int(os.environ.get("PHASE1_MIN_EPOCH", "0" if MIN_VAL <= 0 else "2"))
 sys.exit(0 if epoch >= MIN_EPOCH and val > MIN_VAL else 2)
 PYEOF
 }
