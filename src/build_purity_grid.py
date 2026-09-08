@@ -26,6 +26,23 @@ def norm_cwe(c):
 def load(p):
     return [json.loads(l) for l in open(p, encoding="utf-8") if l.strip()]
 
+def remap_cwe_class(rows):
+    """Danh lai `cwe_class` thanh 0..N-1 LIEN TUC tren dung tap lop con lai.
+
+    BAT BUOC: `train_transfer.load_jsonl` voi vocab=precomputed kiem
+    `cwe_class phai la 0..N-1`. Cat mot tap con cua nguon gan nhu chac chan lam THUNG
+    day so (vd con [0,2,3,...] vi khong hang nao mang lop 1), va Pha 1 chet ngay lap tuc:
+      ValueError: cwe_class in ... must be 0..N-1 (or -100); got [0, 2, 3, ...]
+    Da mac 08/09, mat mot vong Pha 1 tren 161. Giu -100 (khong nhan) nguyen ven.
+    """
+    present = sorted({r["cwe_class"] for r in rows if r.get("cwe_class", -100) >= 0})
+    m = {c: i for i, c in enumerate(present)}
+    for r in rows:
+        c = r.get("cwe_class", -100)
+        r["cwe_class"] = m[c] if c >= 0 else -100
+    return len(present)
+
+
 def write(path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -74,18 +91,20 @@ def main():
         sel = balanced(inn, n_in, rng) + (balanced(out, n_out, rng) if n_out else [])
         rng.shuffle(sel)
         name = f"pur{pur}_n{N}"
+        k = remap_cwe_class(sel)
         write(Path(args.out) / f"{name}.jsonl", sel)
-        made.append((name, len(sel), pur, sum(1 for r in sel if r["label"] == 1)))
+        made.append((name, len(sel), pur, sum(1 for r in sel if r["label"] == 1), k))
     # --- truc CO DU LIEU, do tinh khiet co dinh 100% ---
     for n in (232, 465):
         sel = balanced(inn, n, rng); rng.shuffle(sel)
         name = f"pur100_n{n}"
+        k = remap_cwe_class(sel)
         write(Path(args.out) / f"{name}.jsonl", sel)
-        made.append((name, len(sel), 100, sum(1 for r in sel if r["label"] == 1)))
+        made.append((name, len(sel), 100, sum(1 for r in sel if r["label"] == 1), k))
 
-    print(f"\n{'ten':>14} {'n':>5} {'tinh khiet':>11} {'nhan 1':>7} {'ti le 1':>8}")
-    for name, n, pur, p1 in made:
-        print(f"{name:>14} {n:>5} {pur:>10}% {p1:>7} {p1/n*100:>7.1f}%")
+    print(f"\n{'ten':>14} {'n':>5} {'tinh khiet':>11} {'nhan 1':>7} {'ti le 1':>8} {'so lop CWE':>11}")
+    for name, n, pur, p1, k in made:
+        print(f"{name:>14} {n:>5} {pur:>10}% {p1:>7} {p1/n*100:>7.1f}% {k:>11}")
     print(f"\nGhi vao {args.out}/  — {len(made)} nguon ung vien")
 
 if __name__ == "__main__":

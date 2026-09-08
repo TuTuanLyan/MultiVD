@@ -14,7 +14,7 @@ set -uo pipefail
 cd /drive1/cuongtm/ntat/MultiVD || exit 1
 source scripts/endpoints.sh
 R=/workspace/MultiVD
-declare -A PREV ERRN
+declare -A PREV ERRN IDLEN
 tick=0
 while true; do
   tick=$((tick+1))
@@ -44,7 +44,12 @@ while true; do
     d=$(sed -n 's/^d=//p' <<<"$out"|head -1); t=$(sed -n 's/^t=//p' <<<"$out"|head -1)
     n=$(sed -n 's/^n=//p' <<<"$out"|head -1); f=$(sed -n 's/^f=//p' <<<"$out"|head -1)
     st="j${j:-?}w${w:-?}d${d:-?}"
-    if (( ${j:-0} == 0 && ${w:-0} == 0 )); then st="IDLE"; fi
+    # BAO DONG GIA da gap 08/09: giua hai o, job=0 trong vai giay khi Pha 1 cua nguon ke
+    # dang nap. Phai thay IDLE HAI VONG LIEN TIEP (4 phut) moi bao.
+    if (( ${j:-0} == 0 && ${w:-0} == 0 )); then
+      IDLEN[$L]=$(( ${IDLEN[$L]:-0} + 1 ))
+      (( ${IDLEN[$L]} >= 2 )) && st="IDLE" || st="j0w0-cho-xac-nhan"
+    else IDLEN[$L]=0; fi
     if [[ "${PREV[${L}_st]:-}" != "$st" ]]; then
       case "$st" in
         IDLE) echo "IDLE $L | het job VA het worklist — ${d:-?}/${t:-?} muc xong, $n o. CAN VIEC MOI" ;;
@@ -60,8 +65,13 @@ while true; do
   done
   # ---- may local 161 ----
   lj=$(ps -eo args --no-headers | grep -c '[s]rc/train_[a-z]*\.py')
-  lft=$(ps -eo args --no-headers | grep -c '[r]un/ft2.sh')
-  lst="j${lj}f${lft}"; (( lj == 0 && lft == 0 )) && lst="IDLE"
+  lft=$(ps -eo args --no-headers | grep -cE '[r]un/ft2.sh|[r]un/pool1.sh|[s]cripts/queue_pool1.sh')
+  # 161 cung vay: phai IDLE hai vong lien tiep
+  lst="j${lj}f${lft}"
+  if (( lj == 0 && lft == 0 )); then
+    IDLEN[161]=$(( ${IDLEN[161]:-0} + 1 ))
+    (( ${IDLEN[161]} >= 2 )) && lst="IDLE" || lst="j0-cho-xac-nhan"
+  else IDLEN[161]=0; fi
   if [[ "${PREV[161_st]:-}" != "$lst" ]]; then
     [[ "$lst" == "IDLE" ]] && echo "IDLE 161 | khong con job train nao — CAN VIEC MOI"
     [[ "${PREV[161_st]:-}" == "IDLE" && "$lst" != "IDLE" ]] && echo "DONE 161 | da co job chay lai"
