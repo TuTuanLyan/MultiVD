@@ -24,6 +24,21 @@ export PYTHON
 POOLS="${POOLS:-pur100_n930 pur75_n930 pur50_n930 pur25_n930 pur12_n930 pur100_n465 pur100_n232}"
 FOLD_LIST="${FOLD_LIST:-1 2 3}"
 SEED="${SEED:-42}"
+# GPU dung chung: cong VRAM TRUOC TUNG O + THU LAI. OOM la loi ha tang, khong phai ket qua —
+# 08/09 mat 26 o vi cong chi kiem mot lan luc khoi dong roi nguoi dung khac gianh bo nho.
+NEED="${NEED:-13000}"
+RETRY="${RETRY:-3}"
+ts(){ date -u "+%F %T"; }
+wait_vram(){
+  local w=0 tot use avail
+  while true; do
+    tot=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits|head -1)
+    use=$(nvidia-smi --query-gpu=memory.used  --format=csv,noheader,nounits|head -1)
+    avail=$(( ${tot:-0} - ${use:-0} ))
+    (( avail >= NEED )) && return 0
+    sleep 60; w=$((w+60)); (( w % 900 == 0 )) && echo "$(ts) | cho VRAM ${avail}MiB < $NEED ... ${w}s"
+  done
+}
 echo "########## POOL1 bat dau $(date -u '+%F %T') | $(hostname) ##########"
 echo "  nguon: $POOLS | fold: $FOLD_LIST"
 for FOLD in $FOLD_LIST; do
@@ -31,6 +46,11 @@ for FOLD in $FOLD_LIST; do
     D="data/pool/${SRC}.jsonl"
     [[ -f "$D" ]] || { echo "  !! thieu $D"; continue; }
     echo "===== $(date -u '+%F %T') | fold $FOLD | nguon $SRC ====="
+    RES="results/pool1_t5p/transfer_latent_bottleneck_${SRC}_adamw/seed_42/fold${FOLD}.json"
+    for try in $(seq 1 "$RETRY"); do
+      [[ -f "$RES" ]] && break
+      wait_vram
+      (( try > 1 )) && echo "$(ts) | THU LAI lan $try"
     # PHASE1_MIN_VAL=0: nguon tinh khiet thap DUOC PHEP lam Pha 1 sap — do chinh la ket qua
     # can do, khong phai ly do bo o (CLAUDE.md muc 3).
     RUN_NAME=pool1 SEED="$SEED" FOLDS="$FOLD" \
@@ -42,6 +62,7 @@ for FOLD in $FOLD_LIST; do
     PHASE1_EXTRA="--sam_rho 0" PHASE2_EXTRA="--sam_rho 0" \
     DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     bash run/matrix.sh 8>&-
+    done
   done
 done
 echo "########## POOL1 xong $(date -u '+%F %T') ##########"

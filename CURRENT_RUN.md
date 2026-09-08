@@ -1,5 +1,14 @@
 # Đang chạy — INT1 trên vast (ntat + ntat2), 08/09/2026
 
+> **QUYẾT ĐỊNH 08/09 — đừng đề xuất lại:** không chạy ASAM ρ=1.0 trên codebert.
+> Người dùng nêu: ρ tối ưu phụ thuộc backbone là điều **đã chứng minh rồi**, nên khối đó chỉ
+> chứng minh lại một thứ đã biết chứ không thêm gì. Khối e60 trên codebert thì **vẫn chạy** —
+> đó là đối chứng ngân sách 60 epoch, câu hỏi khác hẳn.
+>
+> Bằng chứng ρ phụ thuộc backbone, có sẵn: ở ρ=0.1, t5p cho ΔAUC −0.0080 (5/15) còn codebert
+> +0.0057 (7/10) — ngược dấu ở cùng một ρ.
+
+
 > **BẬC 1 — KIỂM CHỨNG, 3 fold, seed 42.** Phóng 02:29 và 02:34 UTC 08/09.
 > Ba khối trước (OPT1, RET1, SPD1) **đã xong**, chi tiết ở dưới.
 
