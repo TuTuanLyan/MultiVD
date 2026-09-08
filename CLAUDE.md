@@ -212,7 +212,7 @@ latent_bottleneck   Linear(H→8) → Linear(8→C), num_latent=8
 
 | bỏ gì | số đo |
 |---|---|
-| ASAM ρ=0.1 (Phase 2) | khối C/D cùng phiên cùng máy: +0.0020, 70/130, p=0.43 |
+| ASAM ρ=0.1 (Phase 2) | **CHỈ ĐÚNG CHO macro-F1.** Khối C/D: +0.0020, 70/130, p=0.43. Nhưng đo lại 08/09 trên **190 ô ghép cặp** thì **ROC-AUC +0.0037, 119/190, p=0.0006** và PR-AUC +0.0045 (111/190, p=0.024) — cùng dấu ở **cả ba backbone**. Kết luận cũ tính trên F1 và chỉ F1. Đang xác nhận lại ở khối ASAM1 với **ROC-AUC khai báo trước** làm chỉ số chính. |
 | λ=0.02 | ghép cặp với λ=0.05: −0.0053, 60/133, p=0.30 |
 | SAM ρ=0.05 ở Phase 1 | ghim codebert ở ln2 suốt 13 epoch, F1 0.3333 |
 | `latent_proto` | head riêng ≈ 0 mọi khối; tự sập ở codebert×full (0.3432) |
