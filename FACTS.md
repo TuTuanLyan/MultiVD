@@ -1163,3 +1163,80 @@ mạch lạc chứ không phải hai mẩu rời.
 Với **RecAdam** thì head yếu và thất thường, kể cả `unixcoder × full` −0.0318 (0/5) — thêm
 một lý do nữa để không neo.
 
+
+---
+
+## §21 — TRỤC ρ CỦA ASAM Ở PHASE 2: đường cong có ĐỈNH NỘI TẠI (08–09/09/2026)
+
+**Bậc 2 (xác nhận), n=5 fold × 3 nguồn = 15 ô mỗi mức ρ.** t5p ·
+`latent_bottleneck` · λ=0.05 · RecAdam · seed 42. Đối chứng là **chính nhánh ρ=0
+trong cùng cây, cùng máy**, ghép cặp theo (cây, nguồn, seed, fold) — CLAUDE.md §4.
+Fold 1,2,4 chạy trên `ntat`; fold 3,5 trên `ntat2`; báo cáo bằng
+`tools/report2.py` nên không có cặp nào bắc cầu qua hai máy.
+
+Chỉ số CHÍNH khai báo trước khi chạy: **ROC-AUC**.
+
+| ρ | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| 0.1 | 15 | −0.0146 (6/15) | −0.0140 (7/15) | −0.0080 (5/15) | −0.0013 (6/15) |
+| 0.2 | 15 | −0.0023 (9/15) | +0.0004 (9/15) | −0.0024 (7/15) | +0.0020 (7/15) |
+| 0.5 | 15 | +0.0020 (9/15) | +0.0007 (10/15) | +0.0033 (10/15) | +0.0085 (10/15) |
+| 1.0 | 15 | −0.0011 (8/15) | +0.0006 (10/15) | +0.0065 (11/15) | **+0.0159 (12/15, p=0.035)** |
+| **2.0** | 15 | **+0.0124 (10/15)** | +0.0136 (10/15) | +0.0088 (11/15) | **+0.0155 (13/15, p=0.007)** |
+| 4.0 | 8 | −0.1058 (2/8) | −0.1126 (2/8) | −0.1188 (3/8) | −0.1177 (3/8) |
+
+### Đọc gì được từ bảng này
+
+1. **Có cực đại nội tại quanh ρ = 1.0–2.0.** Đây là dạng bằng chứng khác hẳn một
+   ô lẻ: sáu mức, tăng đơn điệu tới 2.0 rồi **đổ**. Một biến nhiễu không tạo ra
+   hình dạng đó.
+2. **ρ = 0.1 — mức dự án dùng suốt từ 31/08 — nằm ở ĐÁY.** Nó là mức duy nhất âm
+   trên cả bốn chỉ số, cách đỉnh 20 lần. Nó được chốt từ một quét chỉ nhìn
+   macro-F1@0.5 (§17: +0.0020, 70/130, p=0.43 → kết luận "ASAM null"). Đây là
+   lần thứ hai cùng một lỗi đọc gây hậu quả — xem CLAUDE.md §2b.
+3. **Ở ρ = 2.0 thì F1 cũng dương** (+0.0124, 10/15), lần đầu trong cả trục. Ở
+   ρ ≤ 1.0 lợi ích chỉ nằm ở **xếp hạng** (AUC) chứ không qua được ngưỡng 0.5;
+   ρ đủ lớn thì nó chuyển thành lợi ích cả ở quyết định.
+4. **Vượt sàn nhiễu.** +0.0155 PR-AUC và +0.0124 F1 đều trên sàn 0.010 (cùng loại
+   GPU). Δ ở ρ ≤ 0.5 thì **không** — đừng đọc chúng như hiệu ứng.
+
+### Cảnh báo phải nêu kèm mọi lần trích số này
+
+- **15 ô KHÔNG độc lập**: 5 fold × 3 nguồn, dùng lại cùng bộ fold đích và cùng
+  seed. p là **lạc quan**. Phần chắc là *hình dạng đường cong* và *số fold cùng dấu*.
+- **ρ = 4.0 mới n=8**, và nó lệch nặng: `full` chỉ có 2 ô nhưng sập −0.30…−0.37,
+  kéo trung bình xuống. Tách nguồn: 4cwe −0.0094 (n=3), com −0.0636 (n=3),
+  full −0.3658 (n=2). Nhánh giảm **là thật ở cả ba nguồn** nhưng biên độ thì chưa
+  chốt được. ρ=8.0 đang chạy để xác nhận.
+- Chỉ đo trên **t5p**. §7 đã ghi ρ phụ thuộc backbone, nên KHÔNG suy ra ρ=2.0 là
+  tối ưu cho codebert/unixcoder.
+- Trục cũ trong ghi chú `run/asam4.sh` (đọc từ `results/sw_t5p`, n=3, một nguồn)
+  cho ΔAUC **tăng đơn điệu tới +0.0572 ở ρ=2.0**. Trục mới n=15 xác nhận hướng
+  nhưng biên độ nhỏ hơn ~6 lần. Lại là một ví dụ n=3 phóng đại (CLAUDE.md §1).
+
+### Vì sao 4 ô ρ=4.0 bị bỏ, và cách sửa
+
+`asam4.sh` chạy đủ 5 fold trên `ntat`, nhưng đối chứng ρ=0 trên `ntat` chỉ có
+fold 1,2,4 (fold 3,5 nằm ở `ntat2`). Ghép cặp trong-máy nên 4 ô (4cwe/com ×
+fold 3,5) không có cặp → `report2.py` báo "BỎ QUA 4 ô". Sửa: thêm
+`r0|recadam|--sam_rho 0` vào CONFIGS của `asam5.sh`; `matrix.sh:371` bỏ qua ô đã
+có nên nó chỉ chạy bù đúng 6 ô còn thiếu, và mở khoá ghép cặp cho cả ρ=4.0 lẫn
+ρ=8.0.
+
+### Lỗi công cụ đã trả giá ở khối này
+
+`run/asam5.sh` bản đầu có **dấu nháy lệch** trong một dòng `echo`:
+
+```bash
+echo "  truc rho: 8.0 — neu van chua tut thi "cang lon cang tot" va phai noi ro dieu do
+```
+
+Dấu `"` thứ hai **đóng** chuỗi, phần sau thành lệnh, và dấu `"` ở **dòng kế tiếp**
+mở chuỗi mới → cả vòng `for` bị nuốt. `bash -n` vẫn báo **OK** vì một dấu nháy
+phía dưới cân lại. Chạy thật thì `recadam: command not found`,
+`CONFIGS: unbound variable`, **0 ô sinh ra** — mà driver worklist vẫn ghi vào
+`worklist.done`. Bắt được trước khi nó tới lượt.
+
+**Quy tắc rút ra:** `bash -n` KHÔNG đủ để tin một runner. Phải chạy thử với lời
+gọi huấn luyện thay bằng `echo` và **đếm số lần gọi**, đúng cả hai chiều: bản
+hỏng phải cho 0, bản đúng phải cho đúng số ô kỳ vọng.
