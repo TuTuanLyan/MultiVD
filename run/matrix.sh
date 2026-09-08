@@ -41,6 +41,17 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 PYTHON="${PYTHON:-python}"
 
+# CHAN TRUOC, khong doi den luc hong: mot $PYTHON khong import noi torch se lam MOI cong
+# tham do that bai, va truoc 08/09/2026 dieu do dan thang toi `rm -f` checkpoint Pha 1 tot.
+# Kiem ngay tu dau va DUNG HAN, thay vi de ma tran chay tiep roi pha du thu.
+if ! $PYTHON -c "import torch, numpy, sklearn" 2>/dev/null; then
+  echo "!! DUNG: PYTHON='$PYTHON' khong import duoc torch/numpy/sklearn." >&2
+  echo "   Dat duong tuyet doi cua env du an truoc khi chay, vi du:" >&2
+  echo "     PYTHON=/home/ntat/miniconda3/envs/vdenv/bin/python   (161)" >&2
+  echo "     PYTHON=/data/ntat/envs/vdenv/bin/python              (158)" >&2
+  exit 2
+fi
+
 RUN_NAME="${RUN_NAME:-m1}"
 SEED="${SEED:-42}"
 FOLDS="${FOLDS-1 2 3 4 5}"   # KHONG dung :- ; FOLDS="" phai giu nguyen rong (giai doan chi-Phase-1)
@@ -137,14 +148,28 @@ shared_args() {  # $1 = model_name, $2 = pooling
 # Hai tiêu chí, cả hai đều bảo thủ để không vứt nhầm một lần rút yếu nhưng thật:
 #   best_epoch <= 1  -> gần như chắc chắn là file bị cắt ngang
 #   val < 0.55       -> ngang ngẫu nhiên, không dùng được dù vì lý do gì
+# Ma thoat cua phep tham do duoi day:
+#   0 = dung duoc | 2 = doc duoc nhung SUY BIEN | 3 = FILE hong (torch.load nem)
+#   77 = MOI TRUONG hong (khong import noi torch/numpy) — TUYET DOI khong duoc xoa gi
+#
+# 08/09/2026: chay run/int1.sh ma QUEN dat PYTHON, nen `python` la conda base khong co
+# numpy. Phep tham do that bai vi ModuleNotFoundError, cong doc thanh "checkpoint hong"
+# va `rm -f "$CKPT"` XOA MAT hai checkpoint Pha 1 tot (4cwe, com). Khoi phuc duoc tu 158,
+# md5 khop, nhung neu 158 khong con ban thi mat 2 x 40 phut GPU va ca chuoi so sanh.
+# CLAUDE.md muc 3 da noi "cong phai phan biet file hong voi chat luong kem" — thieu ve
+# thu ba: MOI TRUONG hong. Ba truong hop, ba xu ly khac nhau.
 phase1_usable() {
   [[ -f "$1" ]] || return 1
   $PYTHON - "$1" <<'PYEOF' 2>/dev/null
-import sys, torch
+import sys
+try:
+    import torch
+except Exception:
+    sys.exit(77)          # MOI TRUONG hong — nguoi goi khong duoc xoa gi
 try:
     ck = torch.load(sys.argv[1], map_location="cpu", weights_only=False)
 except Exception:
-    sys.exit(1)
+    sys.exit(3)           # FILE that su hong
 epoch = ck.get("best_epoch") or 0
 val = float(ck.get("best_val_macro_f1") or 0.0)
 # Cong nay de bat checkpoint SUY BIEN, khong phai de xep hang chat luong.
@@ -210,11 +235,19 @@ for BB in $BACKBONES; do
       continue
     fi
     if [[ -f "$CKPT" ]]; then
-      if phase1_usable "$CKPT"; then
+      # BAT MA THOAT TRUC TIEP, khong dung `if ...; fi` roi doc $? — bash tra 0 sau `fi`
+      # khi dieu kien sai, nen ma 77 se bien mat va cong lai xoa nham. Da thu hai chieu.
+      phase1_usable "$CKPT"; rc=$?
+      if (( rc == 0 )); then
         echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | da co, dung lai ==="
         continue
       fi
-      echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | CO NHUNG HONG, huan luyen lai ==="
+      if (( rc == 77 )); then
+        echo "!! MOI TRUONG HONG: $PYTHON khong import duoc torch. KHONG xoa gi, DUNG HAN."
+        echo "   Dung duong tuyet doi cua env du an, vd PYTHON=/home/ntat/miniconda3/envs/vdenv/bin/python"
+        exit 2
+      fi
+      echo "=== $(date -u '+%F %T') | phase1 $LABEL/$MODE | CO NHUNG HONG (ma $rc), huan luyen lai ==="
       rm -f "$CKPT"
     fi
     mkdir -p "$(dirname "$CKPT")"
@@ -345,6 +378,7 @@ run_fold() {
             --aux_mode "$MODE" --cwe_vocab "$CWE_VOCAB" --num_latent "$NUM_LATENT" \
             --checkpoint_path "$CK/best.pt" --output_dir "results/$RN/$ARM" \
             ${SOURCE_EVAL_DATA:+--source_eval_data "$SOURCE_EVAL_DATA"} \
+            ${SOURCE_INTERP_GRID:+--source_interp_grid "$SOURCE_INTERP_GRID"} \
             $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log" 2>&1
         rm -rf "$CK"
         if [[ ! -f "$RES/fold$FOLD.json" ]]; then
