@@ -1,4 +1,66 @@
-# Đang chạy — hàng đợi 07/09 (RET1 + SPD1)
+# Đang chạy — INT1 trên vast (ntat + ntat2), 08/09/2026
+
+> **BẬC 1 — KIỂM CHỨNG, 3 fold, seed 42.** Phóng 02:29 và 02:34 UTC 08/09.
+> Ba khối trước (OPT1, RET1, SPD1) **đã xong**, chi tiết ở dưới.
+
+## Câu hỏi
+
+Ba khối trước đều nói cái neo không mua được gì, và §11 của `RESEARCH_2026-09-06_recadam.md`
+giải thích được vì sao: toàn bộ tri thức nguồn đi vào bài toán đích qua **đúng một đường** —
+điểm xuất phát θ*. INT1 hỏi câu còn lại: **ngoài vai trò điểm xuất phát, mô hình nguồn có
+đóng góp trực tiếp gì cho điểm đích không?**
+
+Trộn `θ(α) = α·θ_Pha2 + (1−α)·θ_Pha1` sau khi huấn luyện xong, quét α, chọn trên **val**.
+
+| kết quả | nghĩa là |
+|---|---|
+| α tối ưu nằm hẳn trong (0, 1) | nguồn **đóng góp trực tiếp** — phát biểu transfer thật sự |
+| α tối ưu = 1.0 ở mọi ô | nguồn **chỉ là điểm xuất phát**; giả thuyết bị bác, chi phí ~2 phút/ô |
+
+## Máy — VAST, nhãn ntat và ntat2
+
+| | ntat | ntat2 |
+|---|---|---|
+| id | 50223254 | 50223345 |
+| GPU | RTX 5060 Ti 16 GB | RTX 5070 Ti 16 GB |
+| giá | $0.0818/h | $0.1222/h |
+| SSH | giải theo **nhãn** bằng `scripts/endpoints.sh`, không hardcode IP | |
+| môi trường | `/venv/main` của image, torch 2.11.0+cu128 + transformers 4.57.1 + sklearn 1.7.2 | |
+| fold | **1 và 2** — 10 ô | **3** — 5 ô |
+| log trên máy | `/workspace/MultiVD/log/int1_ntat.log` | `…/int1_ntat2.log` |
+
+**Vì sao lên vast:** 161 và 158 đang bị người dùng khác chiếm 7,0 và 8,9 GB VRAM, hàng đợi
+chỉ nằm chờ. Hai hàng đợi ở nhà **đã dừng** để không chạy trùng.
+
+**Chia theo FOLD TRỌN VẸN** (CLAUDE.md mục 4): baseline và cả hai đối chứng của một fold
+nằm cùng máy với fold đó, nên Δ ghép cặp vẫn sạch dù hai máy khác GPU và khác bản torch
+(2.11 trên vast vs 2.9.1 ở nhà). **Không được** so ô của vast với ô của máy ở nhà.
+
+## Ma trận
+
+| | |
+|---|---|
+| cây kết quả | `results/int1_t5p/` trên máy vast → kéo về `results_int1_ntat/`, `results_int1_ntat2/` |
+| nguồn | `4cwe`, `com` |
+| cấu hình | `plain` (AdamW) và `c50_t0p05` (RecAdam γ=50) |
+| lưới α | `0, 0.1, …, 1.0` — 11 điểm |
+| ô | 15 = 3 fold × (2 nguồn × 2 cấu hình + 1 baseline) |
+
+Hai cấu hình chứ không một là có chủ ý: nếu α tối ưu **khác nhau** giữa có neo và không neo
+thì bản thân điều đó là phát hiện — cái neo dịch được điểm ngọt.
+
+## Vận hành
+
+- `scripts/provision_int1.sh <nhãn> "<fold>"` — đẩy code/dữ liệu/checkpoint, **đối chiếu md5
+  từng file trước khi phóng**; lệch thì thoát, không phóng. Đã khớp 20 mục trên cả hai máy.
+- `scripts/watch_int1_vast.sh` — cron 10 phút: đếm ô, kéo kết quả về, phóng lại driver chết
+  tối đa 3 lần. **Không bao giờ tự huỷ máy.**
+- **Chưa huỷ máy nào** cho tới khi người dùng xác nhận, và chỉ sau khi đã kéo hết kết quả
+  về và đối chiếu từng byte.
+
+---
+
+# (đã xong) Hàng đợi 07/09 — RET1 + SPD1
 
 > **BẬC 1 — KIỂM CHỨNG, 3 fold, seed 42.** Hai khối, hai máy, chốt lúc 09:35 UTC 07/09.
 > Người dùng đặt mốc: **phải xong phần dùng GPU trước 21:00 giờ VN (14:00 UTC)**.
