@@ -1240,3 +1240,38 @@ phía dưới cân lại. Chạy thật thì `recadam: command not found`,
 **Quy tắc rút ra:** `bash -n` KHÔNG đủ để tin một runner. Phải chạy thử với lời
 gọi huấn luyện thay bằng `echo` và **đếm số lần gọi**, đúng cả hai chiều: bản
 hỏng phải cho 0, bản đúng phải cho đúng số ô kỳ vọng.
+
+### §21.1 — Lợi ích của ρ=2.0 rơi vào ĐÂU: tách theo nhóm rò rỉ (09/09, không tốn GPU)
+
+Bộ `sven_python_folds_norm` chia theo từng dòng nên ~15–18% hàng test có **bản đối
+nghịch gần trùng nằm trong TRAIN**. `tools/leak_groups.py` đã gán nhãn nhóm cho
+từng hàng; các ô ASAM có `test_probabilities` nên tách được **mà không chạy lại gì**.
+
+ρ=2.0 − ρ=0, cùng 15 cặp:
+
+| nhóm | % hàng | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|
+| `train` (có bản gần trùng trong TRAIN) | ~16% | **+0.0509 (11/15)** | +0.0148 (10/15) |
+| `none` (không có bản gần trùng) | **~73%** | +0.0071 (11/15) | +0.0075 (11/15) |
+| `test` (bản gần trùng nằm trong TEST) | ~5% | −0.0175 (2/9) | −0.0131 (2/9) |
+
+Ghép lại theo trọng số số hàng cho ≈ +0.0129, khớp với Δ tổng +0.0124 — phân rã
+nhất quán, không phải ba con số rời rạc.
+
+**Phải nêu kèm mọi lần trích §21:** con số F1 tổng +0.0124 **chủ yếu đến từ nhóm
+dễ học vẹt**. Trên 73% hàng sạch, lợi ích F1 chỉ còn **+0.0071 — dưới sàn nhiễu
+0.010** — dù 11/15 fold cùng dấu ở *cả hai* chỉ số. Lợi ích **ROC-AUC thì trải đều
+hơn** (+0.0148 nhóm `train` so với +0.0075 nhóm `none`), tức ASAM cải thiện **xếp
+hạng** trên cả hàng sạch, chỉ là biên độ nhỏ.
+
+Ở ρ=1.0 bức tranh cùng hướng nhưng yếu hơn: `train` +0.0264 F1, `none` −0.0013 F1
+/ +0.0069 ROC, và `test` **−0.0170 ROC (1/9, p=0.039)** — tức ở nhóm khó nhất thì
+ρ>0 làm **xấu đi**.
+
+Nhóm `test` chỉ 4–12 hàng mỗi fold nên n=9 và phương sai lớn; đừng đọc nó thành
+kết luận. Nhóm `none` ~112 hàng/fold thì đọc được.
+
+**Câu hỏi tự nhiên tiếp theo** (CHƯA chạy, cần người dùng quyết vì `twin` là tập
+phụ theo CLAUDE.md §6): chạy ρ ∈ {0, 2.0} trên `data/sven_python_twin` — tập gom
+cụm gần trùng rồi mới chia, nên không có nhóm `train` để hưởng lợi. Nếu ρ=2.0 vẫn
+dương ở đó thì kết luận vững hẳn; nếu về 0 thì §21 phải phát biểu lại.
