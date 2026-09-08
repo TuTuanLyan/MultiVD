@@ -625,9 +625,31 @@ giả thuyết với chi phí gần bằng 0, nên chạy nó trước là rẻ 
 | val tb | 0.5205 | 0.5351 | 0.6487 | 0.7906 | 0.8282 | 0.8437 | **0.8543** |
 | test tb | 0.5164 | 0.5246 | 0.6475 | 0.7887 | 0.8249 | 0.8351 | **0.8385** |
 
-**α tối ưu = 1.0 ở 10/10 ô.** Đường val VÀ đường test đều tăng đơn điệu tới 1.0, không có
-cực đại nội tại ở bất kỳ ô nào. Giả thuyết "mô hình nguồn đóng góp trực tiếp vào điểm đích"
-**bị bác**.
+**CẬP NHẬT khi đủ 30 ô (cả ba nguồn, 5 fold).** Con số "10/10 ở α=1.0" viết lúc mới có 10 ô
+là quá mạnh — phải sửa. Đủ 30 ô thì α chọn theo val là:
+
+| nguồn | α=1.0 | α=0.9 | α=0.8 |
+|---|---|---|---|
+| 4cwe | 8 | 2 | — |
+| com | 7 | 3 | — |
+| full | **5** | 3 | 2 |
+
+Nguồn càng xấu thì càng hay chọn α<1 — `full` (nguồn gây negative transfer) có 5/10 ô.
+Nhưng **chọn α<1 trên val KHÔNG lãi gì trên test**:
+
+| nguồn | n | số ô α<1 | Δ F1 test | Δ AUC test |
+|---|---|---|---|---|
+| 4cwe | 10 | 2 | −0.0000 (1/10) | −0.0009 |
+| com | 10 | 3 | +0.0020 (3/10) | +0.0017 |
+| full | 10 | 5 | **−0.0026** (2/10) | **−0.0044** |
+| tất cả | 30 | 10 | **−0.0002**, chỉ 6/30 ô khá lên | −0.0012 |
+
+Và 3 trong 10 ô chọn α<1 cho test **tệ đi**. Nên giả thuyết "nội suy sửa được negative
+transfer" — lý do khối `full` được chạy — **bị bác**: chỗ α<1 được chọn nhiều nhất lại đúng
+chỗ test tệ nhất. Đường val trung bình vẫn đạt đỉnh ở α=1.0 ở cả ba nguồn.
+
+Kết luận giữ nguyên, chỉ phát biểu chặt hơn: **nội suy trọng số không mua được gì, kể cả trên
+nguồn xấu nhất**; các lần chọn α<1 là nhiễu phía val không chuyển sang test.
 
 ### 12.1 Con số đắt nhất nằm ở α = 0, và nó SỬA một phát biểu tôi đã nêu sai
 
