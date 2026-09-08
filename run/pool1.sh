@@ -38,7 +38,7 @@ for FOLD in $FOLD_LIST; do
     MODES="latent_bottleneck" OPTIMIZERS="adamw" \
     PHASE1_DATA_PATH="$D" CWE_VOCAB=precomputed \
     ARM_TAG="_${SRC}" PHASE1_TAG="_${SRC}" PHASE1_STORE="model/pool1/phase1" \
-    LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
+    LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 PHASE1_MIN_EPOCH=0 MIN_EPOCHS=3 \
     PHASE1_EXTRA="--sam_rho 0" PHASE2_EXTRA="--sam_rho 0" \
     DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     bash run/matrix.sh 8>&-

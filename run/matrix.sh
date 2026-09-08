@@ -192,7 +192,17 @@ MIN_VAL = float(os.environ.get("PHASE1_MIN_VAL", "0.40"))
 # bang ket qua day du: mot o bi cong chan la mot o TRONG, khong viet duoc gi vao
 # bai; con mot o co so kem kem theo val Phase 1 = 0.34 thi doc duoc ngay la
 # "Phase 1 sap", va do la mot dong ket qua that.
-sys.exit(0 if epoch > 1 and val > MIN_VAL else 1)
+# Nguong EPOCH cung phai chinh duoc, khong chi nguong val.
+#
+# `best_epoch <= 1` von de bat file BI CAT NGANG. Nhung 08/09 no loai nham dung thu ma thi
+# nghiem POOL1 sinh ra de do: nguon pha loang manh lam Pha 1 hoi tu ngay epoch 1 roi khong
+# tot len nua — do la KET QUA, khong phai file hong. File hong thi `torch.load` nem (ma 3);
+# file nay doc duoc binh thuong. Hai chuyen khac nhau, phai tach.
+#
+# Mac dinh 2 = giu nguyen hanh vi cu. PHASE1_MIN_EPOCH=0 de chay het, dung cho khoi nao
+# CO Y do checkpoint suy bien (CLAUDE.md muc 3).
+MIN_EPOCH = int(os.environ.get("PHASE1_MIN_EPOCH", "2"))
+sys.exit(0 if epoch >= MIN_EPOCH and val > MIN_VAL else 2)
 PYEOF
 }
 
