@@ -36,6 +36,18 @@ lúc đó chuyển phần còn lại về 161/158 và huỷ vast.
 **Chỉ đụng nhãn `ntat` và `ntat2`.** Ngày 08/09 tài khoản còn có `dung` và `cuongtm4070s` của
 người khác trong cùng team — không bao giờ đụng tới.
 
+## Máy local ĐƯỢC PHÉP nằm không — chỉ vast mới cấm (người dùng nêu 09/09/2026)
+
+> *"local thì để trống chờ kết quả rồi quyết định hướng chạy tiếp là được phép nhé. chỉ vast
+> là đừng bỏ phí quá lâu."*
+
+Nên **đừng bịa việc cho 161/158 chỉ để lấp chỗ**. Máy local không tốn tiền, và ép nó chạy khi
+GPU đang chật thì tệ hơn để trống: ngày 08/09 mất **26 ô** vì đúng chuyện đó. Để trống chờ kết
+quả rồi quyết hướng là lựa chọn hợp lệ và thường là đúng.
+
+Vast thì ngược lại: mỗi giờ nằm không là tiền thật và người dùng bị phạt. Hết việc **đáng chạy**
+thì huỷ ngay chứ không giữ lại "phòng khi cần".
+
 ## Máy local dùng chung — ai vào trước được trước
 
 161 và 158 dùng chung với người khác (`cuongtm`, `ollama`). **Không bao giờ giết tiến trình của
