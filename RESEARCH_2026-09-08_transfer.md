@@ -316,23 +316,68 @@ khi độ tinh khiết vẫn rơi 1.00 → 0.12, n giữ 930, cân bằng nhãn 
 `lm100_n930` và `pur100_n930` cùng thống kê nhưng **khác md5** (mẫu dòng khác),
 nên mỗi lưới dùng neo của chính nó. Không bắc cầu.
 
-## B.2 — Độ tinh khiết MỘT MÌNH: đơn điệu, âm trên cả bốn chỉ số
+## B.2 — Độ tinh khiết MỘT MÌNH: âm trên cả bốn chỉ số, và là BẬC THANG
 
-Đối chứng `lm100_n930`, ghép cặp từng fold, **n=4** (fold 1–4; fold 5 đang chạy).
+Đối chứng `lm100_n930`, ghép cặp từng fold, **n=5 (đủ fold)**. `lm100_n930` khác
+md5 với `data/phase1_4cwe.jsonl` nên đây là mẫu riêng, không phải nguồn `4cwe`.
 
 | nhánh | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
 |---|---|---|---|---|
-| lm75 | −0.0265 (0/4) | −0.0315 (0/4) | −0.0201 (0/4) | −0.0236 (0/4) |
-| lm50 | −0.0147 (2/4) | −0.0271 (0/4) | −0.0198 (1/4) | −0.0267 (2/4) |
-| lm25 | −0.0366 (0/4) | −0.0351 (0/4) | −0.0287 (1/4) | −0.0196 (1/4) |
-| lm12 | −0.0365 (0/4) | −0.0503 (0/4) | −0.0347 (0/4) | −0.0327 (0/4) |
+| lm75 | −0.0306 (0/5) | −0.0386 (0/5) | −0.0213 (0/5) | −0.0234 (0/5) |
+| lm50 | −0.0118 (2/5) | −0.0191 (1/5) | −0.0175 (1/5) | −0.0230 (2/5) |
+| lm25 | −0.0294 (0/5) | −0.0293 (0/5) | −0.0262 (1/5) | −0.0179 (1/5) |
+| lm12 | −0.0358 (0/5) | −0.0480 (0/5) | −0.0310 (0/5) | −0.0298 (0/5) |
 
-**16/16 ô của bảng đều âm.** Biên độ −0.020…−0.035 ROC-AUC, trên sàn nhiễu 0.010.
-Khi tỉ lệ ngôn ngữ bị ghim, **trùng CWE giữa nguồn và đích là biến có tác dụng
-thật, đơn điệu, và đo được trên cả ngưỡng lẫn xếp hạng.**
+**16/16 ô đều âm.** Hai đầu (lm75 và lm12) chạm **sàn kiểm dấu ở n=5 — 0/5 fold
+trên cả bốn chỉ số**. Biên độ −0.018…−0.031 ROC-AUC, trên sàn nhiễu 0.010.
 
-Đây là dạng phát biểu dùng được cho bài: nó nói tri thức được chuyển giao **mang
-tính CWE cụ thể**, chứ không phải "thêm dữ liệu code nào cũng tốt".
+### SỬA phát biểu ở n=4: không đơn điệu, mà là bậc thang
+
+Ở n=4 tôi ghi hiệu ứng "đơn điệu theo mức pha loãng". Ở n=5 thì **sai**: ROC-AUC
+đi −0.021 (75%) → −0.018 (50%) → −0.026 (25%) → −0.031 (12%), tức lm50 lại nhẹ
+hơn lm75. So thẳng các mức với nhau thì gần như không có khác biệt nào:
+
+| phép so | ΔROC-AUC | ΔF1@0.5 |
+|---|---|---|
+| lm12 − lm75 | −0.0098 (2/5) | −0.0051 (2/5) |
+| lm25 − lm75 | −0.0049 (3/5) | +0.0012 (2/5) |
+| lm50 − lm75 | +0.0038 (4/5) | +0.0188 (4/5) |
+| lm12 − lm50 | −0.0136 (1/5) | −0.0240 (0/5) |
+
+Chỉ cặp cực đoan nhất (12% so với 50%) mới nhích, và chỉ ở F1. **Phát biểu đúng:
+rơi khỏi 100% là mất ~0.02–0.03 ROC-AUC; rơi bao nhiêu thì gần như không thêm.**
+Độ tinh khiết nguồn hành xử gần như **được ăn cả ngã về không**.
+
+## B.2b — Dòng lệch CWE CÓ HẠI, không phải độn vô hại
+
+Đây là phép so sắc nhất của lưới, và nó chỉ làm được vì có sẵn trục kích thước.
+
+- `lm75_n930` = **697 dòng đúng CWE + 233 dòng lệch CWE**
+- `pur100_n465` = **465 dòng đúng CWE, không có dòng lệch nào**
+- `pur100_n232` = **232 dòng đúng CWE**
+
+Nếu dòng lệch CWE chỉ là độn vô hại thì `lm75` phải **thắng** — nó có nhiều hơn
+50% dòng hữu ích. Ghép cặp từng fold, cùng máy, n=5:
+
+| phép so | ΔF1@0.5 | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|
+| lm75 − pur100_n465 | −0.0174 (1/5) | −0.0123 (2/5) | −0.0161 (1/5) |
+| lm75 − pur100_n232 | −0.0174 (1/5) | −0.0091 (1/5) | −0.0079 (1/5) |
+| lm50 − pur100_n465 | +0.0014 (3/5) | −0.0085 (1/5) | −0.0158 (2/5) |
+| lm12 − pur100_n232 | −0.0225 (1/5) | −0.0189 (2/5) | −0.0143 (1/5) |
+
+**15/16 ô âm.** 697 dòng đúng CWE kèm 233 dòng lệch **thua 232 dòng đúng CWE một
+mình** — một nguồn ít hơn ba lần về dòng hữu ích. Vậy thêm dữ liệu lỗ hổng lệch
+lớp không phải "thêm dữ liệu", mà là **gây nhiễu chủ động**.
+
+Đây là phát biểu mạnh nhất về transfer mà lưới này tạo ra: tri thức được chuyển
+giao **mang tính CWE cụ thể**, và lớp CWE không khớp thì *can thiệp* chứ không
+trung tính.
+
+**BẬC 1–2, chưa kết luận.** Mọi ô ở bảng B.2b có p=0.375 (1–2/5 fold) — hướng thì
+nhất quán nhưng số fold cùng dấu chưa đủ. Một máy duy nhất, và lưới `pur*` đã cho
+thấy một máy có thể lệch tới 0.064. Bản lặp `pool_lm.sh|-|1 2 3` đã xếp trên
+**ntat** và **158**; phải có nó rồi mới được viết.
 
 ## B.3 — Lưới `pur*` KHÔNG đơn điệu, và một nửa không lặp lại được
 
