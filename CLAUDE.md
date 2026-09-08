@@ -107,9 +107,19 @@ nhánh đó rồi dừng. Chỉ dừng khi người dùng yêu cầu.
 - Cổng chất lượng đặt ở `run/matrix.sh:phase1_usable`, ngưỡng chỉnh bằng
   **`PHASE1_MIN_VAL`** (mặc định 0.40 — bắt checkpoint đoán một lớp). Đặt
   `PHASE1_MIN_VAL=0` để chạy hết, kể cả checkpoint suy biến.
-- Cổng phải phân biệt **file hỏng** (RuntimeError lúc đọc, kích thước lệch mốc)
-  với **chất lượng kém** (đọc được, val thấp). Đừng dán nhãn `.rejected` vĩnh
-  viễn cho cái đầu.
+- Cổng phải phân biệt **BA** trường hợp, không phải hai:
+  **file hỏng** (RuntimeError lúc đọc, kích thước lệch mốc) → đổi tên, huấn luyện lại;
+  **chất lượng kém** (đọc được, val thấp) → giữ và ghi kèm val, đừng dán `.rejected` vĩnh viễn;
+  **môi trường hỏng** (không import nổi torch/numpy) → **KHÔNG ĐỘNG VÀO GÌ, dừng hẳn**.
+
+  Ngày 08/09/2026 gộp hai vế cuối đã **xoá mất hai checkpoint Pha 1 tốt**: chạy
+  `run/int1.sh` mà quên đặt `PYTHON`, nên `python` là conda base không có numpy;
+  `phase1_usable` chạy phép thăm dò với `2>/dev/null`, `ModuleNotFoundError` thành mã
+  thoát khác 0, cổng đọc thành "CÓ NHƯNG HỎNG" rồi `rm -f`. Khôi phục được từ 158 và md5
+  khớp cả ba — nhưng chỉ vì tình cờ còn bản sao. Đã dựng ba lớp chặn: kiểm `import torch,
+  numpy, sklearn` ngay đầu `run/matrix.sh`; mã thoát phân biệt `0/3/77`; script chạy tự
+  chọn env thay vì mặc định `python`. Bẫy bash đi kèm: `if f; then …; fi; rc=$?` trả **0**
+  khi điều kiện sai, nên phải bắt trực tiếp `f; rc=$?`.
 - Khi khối chạy xong, **đối chiếu số ô thực tế với số ô kỳ vọng** và nêu rõ ô nào
   thiếu, vì sao. Driver in "xong" không có nghĩa là đã đủ.
 
