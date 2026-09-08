@@ -32,17 +32,19 @@ check(){ # $1=nhan  $2=danh sach fold  $3=so o ky vong
 echo n=\$(ls results/int1_t5p/*/seed_42/fold*.json 2>/dev/null | wc -l)
 echo alive=\$(ps -eo args --no-headers | grep -c 'src/train_[a-z]*\.py.*int1')
 echo drv=\$(ps -eo args --no-headers | grep -c '[r]un/int1.sh')
+echo st2=\$(ps -eo args --no-headers | grep -c '[v]ast_stage2.sh')
 echo vram=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
 echo last=\$(grep -E '^=====|THAT BAI|INT1 xong' log/int1_${L}.log 2>/dev/null | tail -1 | cut -c1-110)" 2>/dev/null)
   if [[ -z "$out" ]]; then say "$L | KHONG SSH DUOC ($H:$P) — KHONG ket luan may chet"; return; fi
   # khong dinh nghia ham long trong ham: bash khong cho `local g(){...}`
-  local n alive drv vram last
+  local n alive drv st2 vram last
   n=$(sed -n 's/^n=//p' <<<"$out" | head -1)
   alive=$(sed -n 's/^alive=//p' <<<"$out" | head -1)
   drv=$(sed -n 's/^drv=//p' <<<"$out" | head -1)
+  st2=$(sed -n 's/^st2=//p' <<<"$out" | head -1)
   vram=$(sed -n 's/^vram=//p' <<<"$out" | head -1)
   last=$(sed -n 's/^last=//p' <<<"$out" | head -1)
-  say "$L | o=${n:-?}/$NEED | job=${alive:-?} | driver=${drv:-?} | vram=${vram:-?}MiB | $last"
+  say "$L | o=${n:-?}/$NEED | job=${alive:-?} | driver=${drv:-?} | stage2=${st2:-?} | vram=${vram:-?}MiB | $last"
 
   mkdir -p "results_int1_${L}"
   local got
@@ -50,7 +52,17 @@ echo last=\$(grep -E '^=====|THAT BAI|INT1 xong' log/int1_${L}.log 2>/dev/null |
         find "results_int1_${L}" -name 'fold*.json' | wc -l)
   say "$L | keo ve results_int1_${L}/ : ${got:-0} file"
 
-  if [[ "${n:-0}" -lt "$NEED" && "${drv:-0}" -eq 0 && "${alive:-0}" -eq 0 ]]; then
+  # MAY NAM KHONG = TIEN. Nguoi dung 08/09: "Khong duoc de trong may nhat la vast."
+  # Ba tinh huong khac nhau, ba xu ly khac nhau — gop lai thi hoac bo lo may trong,
+  # hoac phong lai nham trong luc giai doan 2 dang doi.
+  if [[ "${n:-0}" -ge "$NEED" && "${drv:-0}" -eq 0 && "${alive:-0}" -eq 0 ]]; then
+    say "$L | *** DA XONG HET $NEED O VA MAY DANG TRONG — can viec moi hoac huy may ***"
+    return
+  fi
+  if [[ "${st2:-0}" -gt 0 && "${drv:-0}" -eq 0 && "${alive:-0}" -eq 0 ]]; then
+    say "$L | giai doan 2 dang cho, chua co job — binh thuong neu vua chuyen giai doan"
+  fi
+  if [[ "${n:-0}" -lt "$NEED" && "${drv:-0}" -eq 0 && "${alive:-0}" -eq 0 && "${st2:-0}" -eq 0 ]]; then
     local pass; pass=$(cat "log/int1_${L}_passes" 2>/dev/null || echo 0)
     if (( pass >= MAXPASS )); then say "$L | da phong lai $pass lan van thieu — DUNG, can nguoi xem"; return; fi
     if [[ "$DRY" == 1 ]]; then say "$L | [DRY] se phong lai lan $((pass+1))"; return; fi
@@ -61,5 +73,5 @@ echo last=\$(grep -E '^=====|THAT BAI|INT1 xong' log/int1_${L}.log 2>/dev/null |
   fi
 }
 
-check ntat  "1 2" 10
-check ntat2 "3"    5
+check ntat  "1 2 4" 15
+check ntat2 "3 5"  10
