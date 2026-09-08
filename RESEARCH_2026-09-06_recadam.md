@@ -615,6 +615,62 @@ giả thuyết với chi phí gần bằng 0, nên chạy nó trước là rẻ 
 
 ---
 
+## 12. INT1 (08/09): mô hình Pha 1 gần như KHÔNG có khả năng zero-shot trên Python
+
+Đo trên 10 ô đầu (2 máy vast, GPU Blackwell, torch 2.11). Trộn
+`θ(α) = α·θ_Pha2 + (1−α)·θ_Pha1` rồi chấm, α chọn trên val:
+
+| α | 0.0 | 0.3 | 0.5 | 0.7 | 0.8 | 0.9 | 1.0 |
+|---|---|---|---|---|---|---|---|
+| val tb | 0.5205 | 0.5351 | 0.6487 | 0.7906 | 0.8282 | 0.8437 | **0.8543** |
+| test tb | 0.5164 | 0.5246 | 0.6475 | 0.7887 | 0.8249 | 0.8351 | **0.8385** |
+
+**α tối ưu = 1.0 ở 10/10 ô.** Đường val VÀ đường test đều tăng đơn điệu tới 1.0, không có
+cực đại nội tại ở bất kỳ ô nào. Giả thuyết "mô hình nguồn đóng góp trực tiếp vào điểm đích"
+**bị bác**.
+
+### 12.1 Con số đắt nhất nằm ở α = 0, và nó SỬA một phát biểu tôi đã nêu sai
+
+α=0 chính là **checkpoint Pha 1 chấm thẳng trên Python**: **0.5205** — xấp xỉ mức ngẫu nhiên
+trên bài nhị phân cân bằng. Nghĩa là mô hình nguồn **không có khả năng zero-shot đáng kể trên
+tập đích**.
+
+Ngày 07/09 tôi đã viết ngược lại điều này: dẫn câu của bài SPD rằng WiSE-FT *"only applies to
+models with zero-shot capabilities"* rồi lập luận rằng mô hình Pha 1 của ta là bộ phân loại
+lỗ hổng thật nên **ở vị thế tốt hơn** bối cảnh gốc của WiSE-FT. Số đo nói ngược: ta ở vị thế
+**xấu hơn**. Không có gì để trộn vào, nên phép trộn chỉ có thể làm xấu đi — và nó làm xấu đi
+đúng như vậy.
+
+### 12.2 Vì sao điều đó khép lại toàn bộ trục không-gian-trọng-số
+
+Bốn kết quả âm liên tiếp, mỗi cái loại một khả năng khác nhau:
+
+| khối | hỏi gì | kết quả |
+|---|---|---|
+| OPT1 | neo có ăn điểm trên đích không, ở γ nào | không, mọi γ, dưới sàn nhiễu |
+| RET1 | neo có giữ được nguồn không | gần như không — mà cũng chẳng có quên thảm hoạ để cứu |
+| SPD1 | đổi **cơ chế** neo (thời gian → gradient) có khác không | không, dù cơ chế kích hoạt 32–37% |
+| INT1 | ngoài điểm khởi tạo, trọng số nguồn còn đóng góp gì không | **không**, α=1.0 ở 10/10 |
+
+Cả bốn nhất quán với **một** phát biểu: tri thức nguồn đi vào bài toán đích **chỉ qua điểm
+khởi tạo**, và mọi thao tác trên **không gian trọng số** sau đó đều không thêm được gì.
+§12.1 nói vì sao: hàm quyết định của Pha 1 không chuyển được sang Python, chỉ có **đặc trưng**
+là chuyển được — mà đặc trưng thì đã nằm sẵn trong θ\* rồi.
+
+Hệ quả: hai hướng còn lại đều phải nằm **ngoài** không gian trọng số — chưng cất trong không
+gian hàm (§11.3) và đưa dữ liệu nguồn vào chính Pha 2 (§11.4).
+
+### 12.3 Lần lặp lại thứ tư của "RecAdam = AdamW", trên phần cứng khác hẳn
+
+Cùng khối này cho `c50_t0p05` vs `plain` trên **GPU Blackwell + torch 2.11**, khác hoàn toàn
+môi trường của ba khối trước: **+0.0000, 1/4 fold** (4cwe f1 +0.0273, 4cwe f3 −0.0001,
+com f1 −0.0136, com f3 −0.0135). Kết quả âm không phải đặc thù của một máy hay một bản thư viện.
+
+Và transfer thì **vẫn dương rõ** so với baseline trên đúng phần cứng đó: `plain` 4cwe +0.0507
+(4/4), com +0.0886 (2/2). Phương pháp có tác dụng — chỉ là **cái neo** không đóng góp gì.
+
+---
+
 ## 6. Câu hỏi mở cho người dùng (chưa chạy gì cho tới khi có trả lời)
 
 1. Chạy **khối 1 = #1 + #2 + #3 của §5.5** (≈ 80 ô, t5p, seed 42, 4cwe + com, chia fold trọn vẹn
