@@ -17,7 +17,13 @@
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="${PYTHON:-/home/ntat/miniconda3/envs/vdenv/bin/python}"
-NEED="${NEED:-10500}"
+# 08/09: NEED=10500 KHONG DU. Cong kiem TRUOC khi chay, nhung nguoi dung khac tren 161
+# gianh bo nho TRONG LUC chay -> 12/12 o Pha 2 chet vi OOM, chi 3 baseline song.
+# O transfer ton hon baseline vi no giu them mot ban sao trong so lam NEO (build_recadam_anchor
+# chay ke ca khi optimizer la AdamW). Nang nguong va them THU LAI: OOM la loi ha tang,
+# khong phai ket qua, nen phai thu lai chu khong ghi la o hong.
+NEED="${NEED:-13000}"
+RETRY="${RETRY:-3}"
 exec 8>/tmp/mvd_e60.lock || exit 1
 flock -n 8 || { echo "DA CO e60 dang chay"; exit 3; }
 ts(){ date -u '+%F %T'; }
@@ -41,6 +47,10 @@ for FOLD in ${FOLD_LIST:-1 2 3}; do
       [[ -z "$TAG" ]] && continue
       wait_vram
       echo "===== $(ts) | fold $FOLD | $SRC | $TAG ($OPT) ====="
+      RES="results/e60_t5p/transfer_latent_bottleneck_${SRC}_l0p05_${TAG}$([ "$OPT" = adamw ] && echo _adamw)/seed_42/fold${FOLD}.json"
+      for try in $(seq 1 "$RETRY"); do
+        [[ -f "$RES" ]] && break
+        (( try > 1 )) && { echo "$(ts) | THU LAI lan $try (OOM la loi ha tang, khong phai ket qua)"; wait_vram; }
       RUN_NAME=e60 SEED=42 FOLDS="$FOLD" \
       BACKBONES="t5p=Salesforce/codet5p-220m-bimodal:mean" \
       MODES="latent_bottleneck" OPTIMIZERS="$OPT" \
@@ -50,6 +60,7 @@ for FOLD in ${FOLD_LIST:-1 2 3}; do
       PHASE1_EXTRA="--sam_rho 0" PHASE2_EXTRA="$EXTRA" \
       DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
       PYTHON="$PY" bash run/matrix.sh 8>&-
+      done
     done <<< "plain|adamw|--sam_rho 0
 c5000_t0p2k02|recadam|--sam_rho 0 --anneal_t0_ratio 0.2 --anneal_k 0.02"
   done

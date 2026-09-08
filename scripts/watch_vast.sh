@@ -15,7 +15,7 @@ cd "$ROOT" || exit 1
 source scripts/endpoints.sh
 LOG=log/watch_vast.log
 R=/workspace/MultiVD
-MAXPASS="${MAXPASS:-5}"
+MAXPASS="${MAXPASS:-30}"
 DRY="${DRY:-0}"
 ts(){ date -u '+%F %T'; }
 say(){ echo "$(ts) | $*" >> "$LOG"; }
