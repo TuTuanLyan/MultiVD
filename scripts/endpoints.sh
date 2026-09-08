@@ -25,7 +25,18 @@ _vast_refresh() {
     age=$(( $(date +%s) - $(stat -c %Y "$VAST_CACHE" 2>/dev/null || echo 0) ))
   fi
   if (( age > VAST_CACHE_TTL )); then
-    vastai show instances --raw > "$VAST_CACHE.tmp" 2>/dev/null && mv "$VAST_CACHE.tmp" "$VAST_CACHE"
+    # KIEM NOI DUNG truoc khi thay cache. Neu khong: `vastai` thoat 0 voi output rong
+    # hoac rac (mang chap chon, canh bao deprecation lot vao stdout) se cai mot cache
+    # HONG, va moi lan goi sau deu bao "khong giai duoc dia chi" — doc y het "may da
+    # mat". Da xay ra 08/09/2026 22:15 UTC voi ntat2 trong khi may van chay GPU 86%.
+    # Quyet dinh sai o day la HUY NHAM mot may dang lam viec.
+    if vastai show instances --raw > "$VAST_CACHE.tmp" 2>/dev/null \
+       && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if isinstance(d,list) and d else 1)' \
+            "$VAST_CACHE.tmp" 2>/dev/null; then
+      mv "$VAST_CACHE.tmp" "$VAST_CACHE"
+    else
+      rm -f "$VAST_CACHE.tmp"        # giu cache CU con hon dung cache hong
+    fi
   fi
 }
 

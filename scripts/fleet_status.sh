@@ -7,7 +7,21 @@ R=/workspace/MultiVD
 echo "===== $(date -u '+%F %T UTC') / $(date '+%H:%M gio VN') ====="
 for L in ntat ntat2; do
   VAST_CACHE_TTL=1 read -r H P <<< "$(vast_endpoint "$L" 2>/dev/null)" || true
-  if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then echo "$L: KHONG giai duoc dia chi"; continue; fi
+  if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then
+    # PHAI phan biet "khong giai duoc dia chi" voi "may khong con chay". Gop lam mot
+    # thi mot truc trac mang thoang qua doc y HET nhu may da mat — va quyet dinh sai
+    # o day la HUY NHAM mot may dang lam viec. Xay ra 08/09/2026 22:15 UTC: ntat2 bao
+    # "KHONG giai duoc" trong khi no dang chay GPU 86%.
+    ST=$(vast_state "$L" 2>/dev/null || echo "?")
+    # vast_state in dang "<cur_state>/<actual_status>", vi du "running/running" —
+    # so bang `==` se TRUOT va cong lai bao nham may chet. Khop tien to thay vi bang.
+    if [[ "$ST" == running/* ]]; then
+      echo "$L: DANG CHAY nhung chua giai duoc dia chi — truc trac tam thoi, TUYET DOI KHONG huy"
+    else
+      echo "$L: khong giai duoc dia chi | trang thai instance = $ST"
+    fi
+    continue
+  fi
   out=$(timeout 60 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p "$P" root@"$H" \
     "cd $R 2>/dev/null || exit 1
      echo \"  job=\$(ps -eo args --no-headers|grep -c '[s]rc/train_[a-z]*\.py') worklist=\$(ps -eo args --no-headers|grep -c '[v]ast_worklist.sh') vram=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits)MiB\"
