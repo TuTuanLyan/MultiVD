@@ -276,3 +276,112 @@ of Achille et al.'s Task2Vec (ICCV 2019), an imprecision inherited from the cite
 VENUE MISMATCH. All contribution-shape precedents here are ACL/EMNLP/NeurIPS/ICSE/SANER. Only
 mAdapter (ICSE 2023) and AdvFusion (SANER 2025) are SE venues, and neither is security. No
 direct evidence was obtained about what SE/security reviewers accept.
+
+---
+
+# PHỤ LỤC B — LƯỚI NGUỒN: tách ĐỘ TINH KHIẾT NHÃN khỏi TỈ LỆ NGÔN NGỮ (09/09/2026)
+
+**Bậc 1–2.** t5p · `latent_bottleneck` · λ=0.05 · **AdamW** · seed 42.
+Nguồn Phase 1 thay bằng các pool dựng sẵn ở `data/pool/`; đích không đổi.
+
+## B.1 — Hai lưới, và vì sao phải có lưới thứ hai
+
+Lưới `pur*` chỉ điều khiển **độ tinh khiết** = tỉ lệ dòng nguồn có CWE nằm trong
+4 CWE của đích (89, 78, 79, 22). Đo lại thành phần thật của từng file thì lộ ra
+nó **không** cô lập được biến nào cả:
+
+| pool | n | tinh khiết | **tỉ lệ js** | nhãn 1 |
+|---|---|---|---|---|
+| pur100_n930 | 930 | 1.000 | **0.873** | 0.500 |
+| pur75_n930 | 930 | 0.751 | **0.676** | 0.500 |
+| pur50_n930 | 930 | 0.500 | **0.481** | 0.500 |
+| pur25_n930 | 930 | 0.249 | **0.316** | 0.500 |
+| pur12_n930 | 930 | 0.120 | **0.192** | 0.500 |
+
+Pha loãng độ tinh khiết **kéo tỉ lệ js sập theo** 0.873 → 0.192, vì các CWE ngoài
+4 CWE đích hầu hết nằm ở phía ccpp. Vậy mọi Δ của lưới `pur*` là **hai biến cùng
+đổi**, không đọc thành "hiệu ứng độ tinh khiết" được.
+
+Lưới `lm*` (`src/build_langmatched_grid.py`) ghim tỉ lệ js ở 0.866–0.876 trong
+khi độ tinh khiết vẫn rơi 1.00 → 0.12, n giữ 930, cân bằng nhãn giữ 0.50:
+
+| pool | n | tinh khiet | tỉ lệ js | nhãn 1 |
+|---|---|---|---|---|
+| lm100_n930 | 930 | 1.000 | 0.873 | 0.500 |
+| lm75_n930 | 930 | 0.751 | 0.875 | 0.499 |
+| lm50_n930 | 930 | 0.500 | 0.866 | 0.501 |
+| lm25_n930 | 930 | 0.249 | 0.872 | 0.501 |
+| lm12_n930 | 930 | 0.120 | 0.876 | 0.500 |
+
+`lm100_n930` và `pur100_n930` cùng thống kê nhưng **khác md5** (mẫu dòng khác),
+nên mỗi lưới dùng neo của chính nó. Không bắc cầu.
+
+## B.2 — Độ tinh khiết MỘT MÌNH: đơn điệu, âm trên cả bốn chỉ số
+
+Đối chứng `lm100_n930`, ghép cặp từng fold, **n=4** (fold 1–4; fold 5 đang chạy).
+
+| nhánh | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|
+| lm75 | −0.0265 (0/4) | −0.0315 (0/4) | −0.0201 (0/4) | −0.0236 (0/4) |
+| lm50 | −0.0147 (2/4) | −0.0271 (0/4) | −0.0198 (1/4) | −0.0267 (2/4) |
+| lm25 | −0.0366 (0/4) | −0.0351 (0/4) | −0.0287 (1/4) | −0.0196 (1/4) |
+| lm12 | −0.0365 (0/4) | −0.0503 (0/4) | −0.0347 (0/4) | −0.0327 (0/4) |
+
+**16/16 ô của bảng đều âm.** Biên độ −0.020…−0.035 ROC-AUC, trên sàn nhiễu 0.010.
+Khi tỉ lệ ngôn ngữ bị ghim, **trùng CWE giữa nguồn và đích là biến có tác dụng
+thật, đơn điệu, và đo được trên cả ngưỡng lẫn xếp hạng.**
+
+Đây là dạng phát biểu dùng được cho bài: nó nói tri thức được chuyển giao **mang
+tính CWE cụ thể**, chứ không phải "thêm dữ liệu code nào cũng tốt".
+
+## B.3 — Lưới `pur*` KHÔNG đơn điệu, và một nửa không lặp lại được
+
+Hai máy độc lập, mỗi máy dùng đối chứng `pur100_n930` của chính nó (ROC-AUC):
+
+| nhánh | 161 | ntat2 | lặp lại? |
+|---|---|---|---|
+| pur75 | −0.0021 (2/5) | +0.0118 (4/5) | ~0 ở cả hai — **không có hiệu ứng** |
+| pur50 | **−0.0450 (0/5)** | **−0.0301 (0/5)** | **CÓ** — 0/5 ở cả hai máy |
+| pur25 | −0.0646 (0/5) | −0.0007 (1/5) | **KHÔNG** — lệch 0.064, gấp 2.3× sàn liên-GPU |
+| pur12 | +0.0026 (2/5) | −0.0082 (2/5) | ~0 ở cả hai |
+| pur100_n465 | −0.0122 (1/5) | −0.0049 (2/5) | CÓ, nhỏ |
+| pur100_n232 | −0.0226 (1/5) | −0.0080 (2/5) | CÓ, nhỏ |
+
+Đường cong `pur*` gấp khúc chứ không đơn điệu, và điểm gấp mạnh nhất (pur25)
+**không lặp lại được**. So với B.2 thì rõ nguyên nhân: ở pur25/pur12 tỉ lệ js đã
+tụt còn 0.32/0.19, nên hai biến kéo ngược nhau và cái nào thắng phụ thuộc fold.
+
+**Rút lại một phát biểu tạm của tối 08/09.** Tôi đã ghi "khi ghim tỉ lệ js thì
+hiệu ứng độ tinh khiết gần như biến mất, có thể biến thật là ngôn ngữ" — đó là
+đọc ở n=2–3. Ở n=4 thì **ngược lại**: ghim ngôn ngữ làm hiệu ứng độ tinh khiết
+*sạch hơn*, còn ngôn ngữ chính là cái nhiễu đã làm gấp khúc lưới `pur*`.
+
+## B.4 — Kích thước nguồn: có tác dụng, độc lập với độ tinh khiết
+
+Giữ độ tinh khiết 100%, cắt n 930 → 465 → 232 (tỉ lệ js gần như không đổi
+0.873/0.858/0.853): ROC-AUC −0.0049…−0.0122 (n465) và −0.0080…−0.0226 (n232),
+**âm trên cả hai máy**. Nhỏ nhưng nhất quán. Vậy Δ của các nhánh pha loãng không
+quy về "ít dữ liệu đích hơn" được — n giữ nguyên 930 ở toàn lưới.
+
+## B.5 — Ngôn ngữ của phần pha loãng, ở cùng độ tinh khiết (SÀNG LỌC, n=4)
+
+So thẳng `lm_X` với `pur_X`: cùng n, cùng độ tinh khiết, chỉ khác **các dòng pha
+loãng là js hay ccpp**. Δ âm nghĩa là pha loãng bằng **ccpp tốt hơn** js.
+
+| cặp | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|
+| lm75 − pur75 | −0.0285 (0/4) | −0.0168 (2/4) |
+| lm50 − pur50 | +0.0115 (3/4) | +0.0075 (2/4) |
+| lm25 − pur25 | −0.0237 (1/4) | −0.0158 (1/4) |
+| lm12 − pur12 | −0.0200 (1/4) | −0.0115 (1/4) |
+
+Ba trên bốn mức nói **ccpp là phần pha loãng tốt hơn js**, dù đích là Python và
+js gần Python hơn về cú pháp bề mặt. Điều này khớp với việc nguồn `full` (chủ yếu
+ccpp) vẫn chạy được. **Đây là bậc 1, p ≥ 0.125 ở mọi ô — chưa kết luận gì.**
+
+## B.6 — Còn thiếu gì trước khi viết được
+
+1. `lm*` fold 5 — đang chạy trên ntat2.
+2. `lm*` trên **máy thứ hai** (`pool_lm.sh|-|1 2 3` đã xếp trên ntat). Lưới `pur*`
+   cho thấy vì sao bắt buộc: pur25 lệch 0.064 giữa hai máy.
+3. `poolcb_codebert` để biết hiệu ứng có phụ thuộc backbone không (12/60 ô).

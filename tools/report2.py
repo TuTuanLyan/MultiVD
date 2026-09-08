@@ -41,7 +41,15 @@ def load(roots):
             except Exception: continue
             name = os.path.basename(os.path.dirname(os.path.dirname(p)))
             body = name.replace("transfer_latent_bottleneck_", "")
-            src, _, tag = body.partition("_l0p05_")
+            # Hai cach dat ten cung ton tai:
+            #   <nguon>_l0p05_<tag>   khoi asam/int/opt — nguon va tag tach roi
+            #   <ten pool>            khoi pool (pur*/lm*) — CA NHANH la mot bien the nguon
+            # Truoc 09/09 nhanh thu hai roi het vao cot `src` voi tag rong, nen --a/--b
+            # (so theo TAG) khong ghep duoc cap nao va cong cu im lang tra ve 0 cap.
+            if "_l0p05_" in body:
+                src, _, tag = body.partition("_l0p05_")
+            else:
+                src, tag = "-", body
             for suf in ("_adamw", "_spd"):
                 if tag.endswith(suf): tag = tag[:-len(suf)]; break
             cells[(root, src, tag, d.get("seed"), d.get("fold"))] = d
