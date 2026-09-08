@@ -379,6 +379,49 @@ nhất quán nhưng số fold cùng dấu chưa đủ. Một máy duy nhất, v�
 thấy một máy có thể lệch tới 0.064. Bản lặp `pool_lm.sh|-|1 2 3` đã xếp trên
 **ntat** và **158**; phải có nó rồi mới được viết.
 
+## B.2c — Điểm val của Phase 1 KHÔNG dự báo được transfer (Spearman −0.191)
+
+Phản biện hiển nhiên cho B.2b: "dòng lệch CWE làm **Phase 1 hỏng**, mất mát chỉ là
+hệ quả của một checkpoint tệ." Bác được bằng dữ liệu đã có — trường
+`phase1_val_macro_f1` nằm sẵn trong mọi ô, không cần chạy lại gì.
+
+11 pool trên `ntat2`, ΔROC-AUC ghép cặp từng fold so với `pur100_n930`:
+
+| pool | Phase 1 val | ΔROC-AUC |
+|---|---|---|
+| lm25_n930 | **0.6867** ← cao nhất | **−0.0221** |
+| lm100_n930 | 0.6458 | **+0.0041** ← tốt nhất |
+| lm50_n930 | 0.6417 | −0.0133 |
+| pur50_n930 | 0.6246 | −0.0301 |
+| pur75_n930 | 0.6190 | +0.0118 |
+| lm75_n930 | 0.6186 | −0.0171 |
+| lm12_n930 | 0.6046 | −0.0269 |
+| pur100_n465 | 0.5943 | −0.0049 |
+| pur25_n930 | 0.5636 | −0.0007 |
+| pur12_n930 | 0.5500 | −0.0082 |
+| pur100_n232 | **0.4933** ← thấp nhất | −0.0080 |
+
+**Spearman(Phase 1 val, ΔROC) = −0.191** — bằng không, hơi âm.
+
+Cặp đối lập rõ nhất: `lm25` học nguồn của chính nó **tốt nhất trong cả 11 pool**
+(0.6867) mà transfer **−0.0221**; `pur100_n232` học tệ nhất (0.4933, kém 0.19)
+mà transfer chỉ **−0.0080** — tốt gần gấp ba.
+
+### Hai điều rút ra
+
+1. **B.2b không phải hệ quả của Phase 1 hỏng.** `lm75` (Phase 1 0.6186) thua
+   `pur100_n232` (Phase 1 0.4933) ở transfer, dù Phase 1 hơn 0.125. Cơ chế nằm ở
+   **thành phần nguồn**, không ở chất lượng khớp nguồn.
+2. **Không được chọn nguồn transfer bằng điểm Phase 1** — đó là cách chọn tự
+   nhiên nhất và nó sai. Phải chọn bằng **độ trùng không gian nhãn** với đích.
+
+### Giới hạn phải nêu kèm
+
+Mỗi pool có tập val **của riêng nó**, nên điểm val giữa các pool không so trực
+tiếp được: 0.6867 của `lm25` là trên một bài dễ hơn. Nhưng đó **chính là lý do**
+con số ấy vô dụng cho việc chọn nguồn — người chọn nguồn chỉ có đúng con số đó
+cho từng ứng viên, và nó dẫn họ đi sai. Vẫn là n=11 pool, một máy, một backbone.
+
 ## B.3 — Lưới `pur*` KHÔNG đơn điệu, và một nửa không lặp lại được
 
 Hai máy độc lập, mỗi máy dùng đối chứng `pur100_n930` của chính nó (ROC-AUC):
