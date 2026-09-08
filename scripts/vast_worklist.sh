@@ -40,7 +40,7 @@ wait_free(){
 }
 
 n=0
-while IFS='|' read -r SCRIPT SRCS FOLDS; do
+while IFS='|' read -r SCRIPT SRCS FOLDS <&3; do
   [[ -z "${SCRIPT:-}" || "${SCRIPT:0:1}" == "#" ]] && continue
   KEY="$SCRIPT|$SRCS|$FOLDS"
   if grep -Fqx "$KEY" log/worklist.done 2>/dev/null; then
@@ -49,8 +49,14 @@ while IFS='|' read -r SCRIPT SRCS FOLDS; do
   [[ -f "$SCRIPT" ]] || { echo "$(ts) | !! khong co $SCRIPT — bo qua"; continue; }
   wait_free
   echo "########## $(ts) | CHAY: $KEY ##########"
-  FOLD_LIST="$FOLDS" SOURCES_LIST="$SRCS" SEED=42 PYTHON="$PY" bash "$SCRIPT" 8>&- \
+  # </dev/null VA doc worklist tren fd 3: BAY DA MAC 08/09/2026. Vong `while read`
+  # doc worklist qua STDIN, va tien trinh con thua ke dung stdin do. matrix.sh/python
+  # nuot phan con lai cua file -> vong lap thay EOF va driver in "WORKLIST xong | da
+  # chay 2 muc" trong khi danh sach con 9 muc. May vast NAM KHONG ma van tinh tien.
+  # Trieu chung: so muc trong worklist.done nho hon han so muc trong worklist.txt,
+  # va log ket thuc binh thuong chu khong bao loi.
+  FOLD_LIST="$FOLDS" SOURCES_LIST="$SRCS" SEED=42 PYTHON="$PY" bash "$SCRIPT" 8>&- 3<&- </dev/null \
     && echo "$KEY" >> log/worklist.done
   n=$((n+1))
-done < "$WL"
+done 3< "$WL"
 echo "########## WORKLIST xong $(ts) | da chay $n muc ##########"
