@@ -15,7 +15,13 @@
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WL="${WL:-log/worklist.txt}"
-PY="${PYTHON:-/venv/main/bin/python}"
+# TU DO tim env cua may, KHONG mac dinh duong cua vast: 08/09 chay script nay tren 158 va
+# no truyen /venv/main/bin/python (duong cua vast) xuong, lam moi muc bi tu choi. Cong
+# chan-truoc cua matrix.sh bat duoc va dung han thay vi pha gi — nhung may nam khong 45 phut.
+PY="${PYTHON:-$( for c in /venv/main/bin/python /data/ntat/envs/vdenv/bin/python \
+        /home/ntat/miniconda3/envs/vdenv/bin/python; do
+      [ -x "$c" ] && "$c" -c "import torch" 2>/dev/null && { echo "$c"; break; }; done )}"
+[ -n "$PY" ] || { echo "!! khong tim thay python co torch tren may nay"; exit 2; }
 LOCK=/tmp/multivd_opt1.lock
 exec 8>/tmp/mvd_worklist.lock || exit 1
 flock -n 8 || { echo "DA CO worklist dang chay"; exit 3; }
