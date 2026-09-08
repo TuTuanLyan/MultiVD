@@ -1183,7 +1183,8 @@ Chỉ số CHÍNH khai báo trước khi chạy: **ROC-AUC**.
 | 0.5 | 15 | +0.0020 (9/15) | +0.0007 (10/15) | +0.0033 (10/15) | +0.0085 (10/15) |
 | 1.0 | 15 | −0.0011 (8/15) | +0.0006 (10/15) | +0.0065 (11/15) | **+0.0159 (12/15, p=0.035)** |
 | **2.0** | 15 | **+0.0124 (10/15)** | +0.0136 (10/15) | +0.0088 (11/15) | **+0.0155 (13/15, p=0.007)** |
-| 4.0 | 8 | −0.1058 (2/8) | −0.1126 (2/8) | −0.1188 (3/8) | −0.1177 (3/8) |
+| 4.0 | 9 | −0.1246 (2/9) | −0.1314 (2/9) | −0.1402 (3/9) | −0.1414 (3/9) |
+| 8.0 | 9 | **−0.2621 (0/9, p=0.004)** | −0.2513 (0/9) | **−0.3006 (0/9, p=0.004)** | −0.2936 (0/9) |
 
 ### Đọc gì được từ bảng này
 
@@ -1275,6 +1276,55 @@ kết luận. Nhóm `none` ~112 hàng/fold thì đọc được.
 phụ theo CLAUDE.md §6): chạy ρ ∈ {0, 2.0} trên `data/sven_python_twin` — tập gom
 cụm gần trùng rồi mới chia, nên không có nhóm `train` để hưởng lợi. Nếu ρ=2.0 vẫn
 dương ở đó thì kết luận vững hẳn; nếu về 0 thì §21 phải phát biểu lại.
+
+---
+
+### §21.2 — ρ=8.0 chốt nhánh giảm (09/09, n=9)
+
+ρ=8.0 cho **0/9 fold dương trên cả bốn chỉ số, p=0.004**, ΔROC-AUC −0.3006. Tách
+nguồn: 4cwe −0.3078 (0/5), com −0.2915 (0/4). Kể cả `4cwe` — nguồn gần như không
+hề hấn ở ρ=4.0 (−0.0094) — cũng sập ở ρ=8.0.
+
+Trục ρ đầy đủ trên ROC-AUC:
+
+```
+ρ      0.1     0.2     0.5     1.0     2.0     4.0      8.0
+n       15      15      15      15      15       9        9
+ROC  −0.008  −0.002  +0.003  +0.007  +0.009  −0.140   −0.301
+```
+
+**Đơn đỉnh, hai phía đều chốt.** Nhánh giảm không còn là "một ô ngoại lệ": hai mức
+liên tiếp (4.0 và 8.0) đều âm, và ở 8.0 thì 0/9 fold trên cả bốn chỉ số.
+
+Nhưng đỉnh thì **nhỏ** và đã bị §21.1 hạn định: trên 73% hàng không rò rỉ, lợi ích
+ở ρ=2.0 chỉ +0.0075 ROC / +0.0071 F1, dưới sàn nhiễu 0.010. Phát biểu an toàn nhất:
+**ρ ∈ [1, 2] là vùng an toàn và ρ ≥ 4 phá mô hình**; còn "ASAM có đóng góp dương"
+thì chỉ đúng ở mức xếp hạng và biên độ nhỏ.
+
+### §21.3 — Lưới nguồn trên codebert (n=5): hai backbone BẤT ĐỒNG về hình dạng
+
+Cùng lưới `pur*`, cùng máy ntat2, đối chứng `pur100_n930` của chính backbone đó:
+
+| nhánh | codebert ΔROC | t5p ΔROC | codebert ΔPR | t5p ΔPR |
+|---|---|---|---|---|
+| pur75 | −0.0015 (2/5) | +0.0118 (4/5) | **+0.0282** (4/5) | +0.0018 (3/5) |
+| pur50 | −0.0086 (1/5) | −0.0301 (0/5) | +0.0105 (2/5) | −0.0396 (0/5) |
+| pur25 | −0.0211 (0/5) | −0.0007 (1/5) | +0.0128 (2/5) | −0.0002 (2/5) |
+| pur12 | −0.0294 (0/5) | −0.0082 (2/5) | −0.0211 (2/5) | −0.0109 (1/5) |
+
+Trên codebert, ROC-AUC giảm **đơn điệu** theo pha loãng (0/5 ở pur25 và pur12);
+trên t5p thì gấp khúc. Hai backbone chỉ **thống nhất ở đầu pha loãng nặng**
+(pur12 âm ở cả hai trên ROC và F1).
+
+Thêm một cảnh báo bốn-chỉ-số: trên codebert **PR-AUC đi NGƯỢC ROC-AUC** ở
+pur75/50/25 (dương trong khi ROC âm). Dữ liệu đích cân bằng 50/50 nên hai chỉ số
+này thường đồng thuận — chỗ chúng tách nhau là chỗ phải cẩn thận, chưa đọc được
+ở n=5.
+
+Sự bất đồng này **ủng hộ** lập luận ở RESEARCH §B.1: lưới `pur*` không đo một
+biến nào cả (pha loãng kéo tỉ lệ js sập theo), nên hình dạng của nó không có lý do
+gì phải giống nhau giữa hai backbone. Phép đo sạch là lưới `lm*` — đang chạy trên
+codebert (`pool_cb_lm`).
 
 ---
 
