@@ -192,3 +192,12 @@ Sinh bởi `tools/build_summary.py`. Chạy lại:
 ```
 python3 tools/build_summary.py results results_* > page/summary_pivot.json
 ```
+
+## Ma trận λ × ρ — 09/09/2026
+<https://claude.ai/code/artifact/fa8332be-9fb3-4fde-864e-5660a3738795>
+
+Ma trận tương tác **λ (Pha 1) × ρ (SAM/ASAM Pha 2)**, một bảng cho mỗi backbone. Gộp **3 804 ô
+ghép cặp** từ 46 cây kết quả (mọi khối từ 24/08). Bấm chọn backbone / nhánh / nguồn / optimizer /
+chỉ số / đợt; bấm vào ô để xem các dòng tạo nên nó. Ô có |Δ| dưới sàn nhiễu 0.010 để xám.
+
+Dựng bằng `tools/hp_matrix.py`. Số liệu và cách đọc ở FACTS §32.

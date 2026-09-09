@@ -2519,3 +2519,49 @@ Chiều ngược lại cũng phải đúng: `'run/chot2bb.sh'` khớp **đúng 1
 đúng không" mà "mẫu này khớp bao nhiêu, và con số đó có hợp lý với thứ tôi định làm không". Một
 mẫu driver hợp lệ khớp 1–2 tiến trình; khớp 44 nghĩa là mẫu sai, không phải là hôm nay có nhiều
 việc.
+
+---
+
+## §32 — Ma trận λ × ρ: codebert và t5p có vẻ muốn hai chỗ NGƯỢC nhau (09/09)
+
+`tools/hp_matrix.py` gộp **3 804 ô ghép cặp** từ 46 cây kết quả (mọi khối từ 24/08 đến nay),
+Δ luôn ghép cặp theo `(cây, backbone, seed, fold)` với `baseline` cùng chỗ. Trang tương tác:
+xem ARTIFACTS.md.
+
+### ρ trên t5p có cực đại nội tại, và sập rất dứt khoát
+
+λ=0.05, nhánh nút thắt, ΔROC-AUC:
+
+| ρ | 0 | 0.05 | 0.1 | 0.2 | 0.5 | **1.0** | **2.0** | 4.0 | 8.0 |
+|---|---|---|---|---|---|---|---|---|---|
+| ΔROC | −0.0101 | +0.0312 | +0.0109 | +0.0187 | +0.0229 | **+0.0359** | **+0.0352** | −0.1450 | **−0.2982** |
+| fold + | 619/982 | 6/6 | 74/100 | 43/51 | 55/59 | 20/21 | 52/57 | 9/25 | **0/15** |
+
+Đỉnh ở ρ=1–2, rồi **sập** ở ρ=4 và ρ=8 (0/15 fold dương ở ρ=8). Đây không phải "càng lớn càng
+tốt", cũng không phải "ASAM null" — nó là một cực đại nội tại, đo được trên hơn 1 300 ô.
+
+### codebert thì ngược ở cả hai trục
+
+| trục | mức | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|
+| **λ** (ρ=0) | **0.05** ← đang chạy | +0.0263 220/295 | **+0.0068 177/295** — dưới sàn nhiễu |
+| | 0.2 | +0.0572 19/20 | +0.0302 18/20 |
+| | 0.5 | +0.0512 10/10 | **+0.0350 8/10** |
+| | 1.0 | +0.0513 10/10 | +0.0290 8/10 |
+| **ρ** (λ=0.05) | 0 | +0.0263 220/295 | +0.0068 177/295 |
+| | **0.1** | +0.0419 37/40 | **+0.0244 40/40** |
+| | **2.0** ← đang chạy | −0.0070 8/12 | **−0.0439 6/12** |
+
+Trên t5p, λ0.05 (−0.0101) hơn λ0.2 (−0.0555); trên codebert thì λ0.05 là mức **kém nhất** trong
+bốn mức và là mức duy nhất không vượt sàn nhiễu 0.010. Tương tự với ρ: t5p thích ρ=1–2 còn
+codebert có 40/40 fold dương ở ρ=0.1 và âm ở ρ=2.0.
+
+### Vì sao đây là GIẢ THUYẾT chứ không phải phát hiện
+
+Các mức λ đến từ **các khối khác nhau** (λ0.2/0.5/1.0 là khối `n1`, tháng 8) với n rất lệch
+(295 / 20 / 10). Mỗi Δ **có** ghép cặp sạch trong cây của nó, nhưng **so giữa các mức λ thì
+không ghép cặp** — đó là lấy hiệu của hai Δ tính riêng, đúng cái §25.9 đã trả giá một lần.
+Muốn chắc phải chạy một khối λ trên codebert **cùng máy cùng fold**.
+
+Chưa xếp khối đó: λ nằm ở Pha 1 nên đổi λ là phải huấn luyện lại Pha 1 (CLAUDE.md mục 5), và
+người dùng chưa duyệt.
