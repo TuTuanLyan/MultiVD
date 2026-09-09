@@ -2165,78 +2165,43 @@ hỏng là hỏng vĩnh viễn.
 
 ---
 
-## §27 — Nội suy TRỌNG SỐ: ô đầu tiên nói KHÔNG (09/09 06:00, n=1 — sơ bộ)
+## §27 — Nội suy TRỌNG SỐ: chạy được, nhưng KHÔNG hơn trộn xác suất (09/09, n=6)
 
-`run/wblend.sh` chạy thật lần đầu. Ô đầu tiên (`4cwe`, fold 1, t5p) — **101 tensor nội suy được,
-4 tensor riêng của nhánh chuyển giao giữ nguyên**, đúng như cơ chế đã kiểm ở §25.5.
+> **TỰ SỬA.** Bản đầu của mục này viết ở **n=1** và kết luận *"nội suy trọng số nói KHÔNG — đường
+> α lõm xuống giữa, val chọn α=1.0, hai mô hình có hàng rào"*. Ở **n=6** thì **α chọn trên val là
+> nội tại (0.20–0.80) ở 5/6 ô**, trung bình 0.617 — chỉ **một** ô chọn 1.0, và tôi vơ đúng ô đó
+> làm kết luận. Đây là lần thứ hai trong đêm một kết luận ở n rất nhỏ phải rút; đúng cảnh báo
+> CLAUDE.md mục 1.
 
-| α (không gian **trọng số**) | 0.0 | 0.2 | **0.5** | 0.8 | 1.0 |
-|---|---|---|---|---|---|
-| test ROC-AUC | 0.8762 | 0.8736 | **0.8668** | 0.8821 | **0.8911** |
-| test F1@0.5 | 0.7696 | 0.7753 | **0.7456** | 0.7871 | **0.8211** |
+`run/wblend.sh`, t5p, 3 nguồn × 2 fold. Δ so với **baseline** cùng ô:
 
-**Đường α trong không gian trọng số LÕM XUỐNG GIỮA** — ngược hẳn với không gian xác suất (§25,
-đỉnh nội tại ở α≈0.5). α=0.5 **kém cả hai đầu mút**. Và **α chọn trên VAL = 1.0** trên cả hai tiêu
-chí, tức tập val tự nói *"chỉ dùng mô hình chuyển giao, nội suy trọng số không đóng góp gì"*.
-
-Đối chiếu trên **cùng cặp**: trộn **xác suất** α=0.5 cho ROC **0.8910** — ngang với mô hình chuyển
-giao một mình (0.8911) và hơn mọi mức nội suy trọng số ở giữa.
-
-**Đọc**: hai mô hình **không nối tuyến tính** theo nghĩa WiSE-FT cần — có một *hàng rào* giữa
-chúng. Phép thử ở §25.5 (trộn 50/50 hai bản codebert vẫn ra mô hình chạy được) đã gợi ý ngược lại,
-nhưng đó là **cặp khác** (hai baseline khác fold), còn cặp thật (baseline ↔ chuyển giao qua Pha 1)
-thì có hàng rào. Bài học: *"kiểm cơ chế trên một cặp thay thế"* rẻ và đáng làm, nhưng **không thay
-được cặp thật**.
-
-**Hệ quả cho phương pháp**: phép trộn của §25 vẫn phải giữ **hai mô hình khi suy luận**. Đó là một
-giới hạn phải nêu trong bài, không phải thứ có thể lấp bằng nội suy trọng số.
-
-**n=1 — sơ bộ.** Khối chạy 3 nguồn × 3 fold = 9 ô; sẽ cập nhật khi đủ. Nhưng cơ chế (val chọn
-α=1.0, đường lõm) rõ ngay ở ô đầu.
-
----
-
-## §28 — CẤU HÌNH CHỐT ở bậc 3: toàn bộ mức tăng nằm ở hai CWE hiếm (09/09/2026)
-
-Cấu hình chốt sau §7 + §24: **`latent_bottleneck` (nút thắt 8 chiều) · λ=0.05 · Pha 2 dùng AdamW +
-ASAM ρ=2.0**. Khối `asamaw` đã chạy đúng cấu hình này ở **n=15 (5 fold × 3 nguồn)**, đối chứng là
-**baseline** (không có Pha 1) cùng máy cùng fold. Không cần chạy thêm gì — số đã có sẵn.
-
-### Tổng thể
-
-| máy | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
-|---|---|---|---|---|---|
-| **ntat** | **15** | **+0.0535 (12/15)** | **+0.0685 (12/15)** | **+0.0337 (14/15)** | **+0.0300 (13/15)** |
-| ntat2 (độc lập) | 9 | +0.0319 (4/9) | +0.0280 (5/9) | +0.0264 (7/9) | +0.0204 (7/9) |
-
-Cả bốn chỉ số dương trên cả hai máy. Trên ntat, **cả ba nguồn** dương trên cả bốn chỉ số
-(4cwe ROC +0.0352 5/5 · com +0.0300 4/5 · full +0.0360 5/5).
-
-**So với chính nó khi TẮT ASAM** (`aw_r0`, cùng head cùng λ cùng AdamW): ROC +0.0137 (11/15) và
-PR **−0.0018 (6/15)**. Bật ASAM ρ=2.0 làm ROC hơn **gấp 2,5 lần** và lật PR từ null sang +0.0300.
-
-### Theo CWE — đây mới là chỗ đáng viết
-
-**ntat, n=15:**
-
-| CWE | hàng test | ΔF1@0.5 | ΔROC-AUC |
+| | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **022** path traversal | 13 | **+0.2050 (11/15, p=0.022)** | **+0.2238 (13/15, p=0.002)** |
-| 078 OS command inj. | 40 | −0.0082 (7/15, p=1.00) | −0.0097 (6/15, p=0.79) |
-| **079** XSS | 16 | **+0.2978 (14/15, p=0.001)** | **+0.3638 (15/15, p<0.001)** |
-| 089 SQL injection | 81 | +0.0142 (7/15, p=0.55) | +0.0079 (11/15, p=0.12) |
+| chuyển giao thuần (α=1) | +0.0112 (3/6) | +0.0224 (6/6) | +0.0047 (3/6) |
+| **nội suy TRỌNG SỐ, α chọn trên VAL** | +0.0214 (5/6) | **+0.0253 (6/6)** | **+0.0151 (6/6)** |
+| nội suy trọng số, α=0.5 cố định | −0.0055 (2/6) | +0.0155 (4/6) | +0.0088 (4/6) |
+| **trộn XÁC SUẤT, α=0.5 khai báo trước** | **+0.0274 (6/6)** | **+0.0259 (6/6)** | **+0.0170 (6/6)** |
 
-**ntat2 độc lập, n=9:** CWE-079 **+0.2614 ROC với 9/9 fold (p=0.004)**; CWE-022 +0.1619 (6/9);
-hai lớp thường null (078 +0.0173, 089 −0.0011).
+Ghép cặp trực tiếp trong cùng ô:
 
-**Đọc**: toàn bộ mức tăng của cấu hình chốt nằm ở **hai lớp hiếm**, và **CWE-079 đạt 15/15 fold
-trên ntat, 9/9 trên ntat2** — cùng dấu tuyệt đối trên hai máy độc lập. Hai lớp thường (chiếm 121
-trong 150 hàng test) **đúng bằng không**. Con số tổng +0.0337 nhỏ chỉ vì hai lớp thường áp đảo về
-số hàng, không phải vì hiệu ứng yếu.
+| | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| trọng số@val − chuyển giao thuần | +0.0101 (4/6) | +0.0029 (4/6) | +0.0105 (5/6, p=0.0625) |
+| **trọng số@val − xác suất@0.5** | **−0.0060 (0/6, p=0.0625)** | −0.0006 (4/6) | −0.0019 (3/6) |
 
-Biên độ ở đây (**+0.36** ROC cho CWE-079) **lớn hơn nhiều** §23 (+0.176) vì §23 gộp 507 ô của
-**mọi** cấu hình, kể cả các cấu hình yếu và các mức ρ đã bị loại. Đây là cấu hình chốt, đo riêng.
+**Ba điều đọc được:**
 
-**Cảnh báo phải in kèm**: CWE-079 chỉ có **16 hàng test mỗi fold**, CWE-022 **13**. Thứ làm con số
-đáng tin **không phải biên độ** mà là **15/15 và 9/9 fold cùng dấu trên hai máy độc lập**. Trích
-biên độ mà không trích đếm dấu là đọc sai theo đúng kiểu mục 2b đã cấm.
+1. **Nội suy trọng số CHẠY ĐƯỢC** khi α chọn trên val: hơn chuyển giao thuần trên cả ba chỉ số,
+   PR 5/6 fold. Không có "hàng rào" như bản n=1 kết luận.
+2. **Nhưng α=0.5 cố định trong không gian trọng số thì KHÔNG dùng được** (F1 −0.0055, 2/6) — khác
+   hẳn không gian xác suất, nơi α=0.5 cố định là lựa chọn tốt. Nội suy trọng số **cần hiệu chỉnh
+   α trên val**; trộn xác suất thì không cần gì.
+3. **Trên hai chỉ số xếp hạng, hai phép ngang nhau** (ROC −0.0006, PR −0.0019, đều không có ý
+   nghĩa); chỉ F1 là trọng số **thua đều** (0/6 fold, p=0.0625 — sàn ở n=6).
+
+**Hệ quả cho phương pháp**: nội suy trọng số **thu chi phí suy luận về một mô hình** mà giữ gần
+như trọn phần được ở ROC/PR. Đó là một lựa chọn thật, không phải ngõ cụt. Cái giá: phải hiệu chỉnh
+α trên val cho từng ô, và mất một ít ở F1.
+
+**n=6, bậc 1.** Khối chạy 9 ô; cập nhật khi đủ. Nhưng mẫu hình "α nội tại, trọng số ≈ xác suất ở
+AUC, thua ở F1" đã thấy nhất quán qua cả ba nguồn.
