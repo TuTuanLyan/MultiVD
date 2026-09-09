@@ -1471,6 +1471,37 @@ Vì trung bình bị CWE-089 (54% hàng, baseline đã 0.92, không còn chỗ t
 CWE-078 (27%) chi phối. Hai lớp có hiệu ứng lớn chỉ chiếm **20% hàng**. Báo cáo
 **chỉ bằng macro-F1 tổng là giấu mất phát hiện chính** — cùng họ với lỗi ở §2b.
 
+### Cơ chế: baseline ĐOÁN NGƯỢC ở CWE-022, transfer kéo nó về mức ngẫu nhiên
+
+| CWE | | recall | precision | F1 dương | accuracy |
+|---|---|---|---|---|---|
+| **CWE-022** | baseline | 0.384 | 0.328 | 0.333 | **0.338** |
+| | transfer | 0.477 | 0.474 | 0.447 | **0.501** |
+| | Δ | +0.092 | **+0.146** | +0.114 | +0.163 |
+| **CWE-079** | baseline | 0.621 | 0.569 | 0.570 | 0.561 |
+| | transfer | 0.716 | 0.724 | 0.708 | **0.721** |
+| | Δ | +0.096 | **+0.155** | +0.138 | +0.160 |
+| CWE-078 | Δ | −0.007 | −0.032 | −0.018 | −0.020 |
+| CWE-089 | Δ | −0.019 | −0.009 | −0.016 | −0.020 |
+
+Tập con CWE-022 **cân bằng đúng 33/33** qua 5 fold, nên accuracy **0.338** của
+baseline là **thấp hơn đoán bừa**. Mô hình chỉ huấn luyện trên đích không "bỏ qua"
+lớp này — nó **đoán ngược**: nó đã học một quy tắc phản tác dụng với path traversal.
+
+**Phải phát biểu đúng mức cho từng lớp:**
+
+- **CWE-022**: transfer kéo từ **đoán ngược (0.338) về mức ngẫu nhiên (0.501)**.
+  Đây là *gỡ một lỗi hệ thống*, KHÔNG phải "dò được path traversal". Nói quá lên
+  là chỗ reviewer sẽ bắt ngay.
+- **CWE-079**: 0.561 → **0.721**. Đây mới là biến một mô hình gần-ngẫu-nhiên thành
+  một bộ dò dùng được.
+- Đổi lại, transfer **mất ~0.02** ở hai lớp đích vốn đã làm tốt (078: 0.772→0.752;
+  089: 0.933→0.913).
+
+**Precision tăng nhiều hơn recall** ở cả hai lớp hiếm (+0.146 / +0.155 so với
++0.092 / +0.096), nên đây không phải hiệu ứng "đoán dương nhiều hơn" — khả năng
+phân biệt thật sự tăng, cả hai vế cùng lên.
+
 ### Giới hạn
 
 - CWE-022 trên hàng sạch p=0.096 (28/44) — dương nhưng chưa dưới 0.05. CWE-079 thì chắc.
