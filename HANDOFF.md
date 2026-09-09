@@ -20,6 +20,42 @@ hiểu sai.
 > Đọc mục này trước. Bên dưới (§0.1 trở đi) là bản ghi lúc 00:40 UTC, giữ lại để tra cứu
 > nhưng **đã lạc hậu**: các khối nêu ở đó đã xong. Trạng thái máy hiện tại ở `CURRENT_RUN.md`.
 
+### 0.-2 KHỐI `chot` ĐÃ XONG 09/09 16:00 UTC — 70/70 ô (FACTS §34)
+
+2 backbone × 2 điều kiện × 3 nguồn × 5 fold. **A** = RecAdam + ASAM ở ρ tốt nhất của chính
+backbone (t5p 2.0, codebert 0.1); **B** = AdamW tắt hết; đối chứng `baseline` cùng fold.
+Đọc bằng `python3 tools/chot_report.py results/chot_t5p results/chotv_t5p results/chot_codebert`.
+
+| | ΔF1@0.5 (gộp 15) | ΔROC-AUC | **A − B ghép cặp** |
+|---|---|---|---|
+| codebert B | +0.0540 15/15 | +0.0264 13/15 | |
+| codebert A | +0.0479 14/15 | +0.0228 12/15 | **−0.0061 6/15** (null) |
+| t5p B | +0.0337 12/15 | +0.0198 12/15 | |
+| t5p A | +0.0319 13/15 | +0.0111 13/15 | **−0.0018 10/15** (null) |
+
+Theo CWE, **cả bốn dòng** (2 backbone × 2 nhánh): CWE-022 và CWE-079 dương **14–15/15 fold**;
+CWE-078 và CWE-089 null. Nhưng CWE-022 chỉ **8 hàng test** và CWE-079 **19** trên 152.
+
+**Máy**: vast `ntat` id 50132360 đã **huỷ 15:29 UTC** sau khi đối chiếu 50/50 file khớp byte,
+md5 7/7, và có dòng kết thúc do chính driver in. 161 rảnh từ 16:00 UTC.
+
+### Việc chưa làm (ghi để không mất)
+
+- **Artifact riêng cho khối `chot`** — đã hỏi người dùng, chưa có trả lời.
+- **§30.1** — chưa từng đo head phụ có học được gì không. Sàn lớp-đa-số: `4cwe` 0.744, `com` 0.377,
+  `full` 0.529. Một lượt forward CPU trên checkpoint đã có là đủ, không tốn GPU.
+- **Khối λ trên codebert** (λ 0.05/0.2/0.5 tại ρ=0.1) — §32 chỉ đo λ cao ở ρ=0 nên chưa kết luận
+  được. Đổi λ phải huấn luyện lại Pha 1; **cần người dùng duyệt**.
+- **`cwe_mapping`** trong checkpoint `com`/`full` là rác (ghi bộ 4 CWE trong khi `num_cwes=10`).
+  Chỉ được ghi, chưa bao giờ được đọc — sửa `train_transfer.py:462` nếu muốn siêu dữ liệu đúng.
+- **`run/wblend.sh`** chưa chạy lại được (dọn checkpoint theo fold nên lần chạy bù không có gì
+  để nội suy).
+- **Hai file `.rejected` 0 byte** ở `model/s42/phase1/codebert__{none,latent_proto}_full/` —
+  ghi cụt từ đợt đĩa đầy 29/08, **không phải checkpoint tốt bị loại nhầm**. Đã đối chiếu: ô kết
+  quả tương ứng đều có (10 ô `none`, 5 ô `latent_proto`) và còn checkpoint khác dùng được. Không
+  đáng chạy lại — `latent_proto` đã bị loại có bằng chứng (§7), `none` ở λ0.05 đã đủ 5 fold ở
+  khối `ft2`. **Đừng điều tra lại.**
+
 ### 0.-1 ĐANG CHẠY 09/09 chiều — khối `chot`, hai backbone × hai điều kiện, n=5
 
 Cấu hình: `latent_bottleneck` λ=0.05, seed 42, đích `sven_python_folds_norm`.
