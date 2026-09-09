@@ -2316,3 +2316,36 @@ biến thể của bẫy "mã thoát 0 không có nghĩa là việc đã thành"
 đếm hiện vật **không bắt được**, vì nó đếm `fold*.json` — mà 3 ô Pha 2 đúng là đã sinh ra.
 Cổng đếm hiện vật nên đếm **thứ mà khối sinh ra để dùng** (ở đây là file nội suy), không phải thứ
 dễ đếm nhất.
+
+---
+
+## §29 — Huấn luyện lại Pha 1 một cách THỪA vì tra theo TÊN thay vì theo NỘI DUNG (09/09)
+
+Người dùng nhắc: *"Phase 1 dùng lại được thì nên dùng nhé."* Đúng — và tôi đã **huấn luyện lại
+thừa ~27 phút GPU**: codebert/`4cwe` (11 phút, 161) và codebert/`com` (16 phút, vast, phải giết
+giữa chừng).
+
+**Nguyên nhân**: tôi tìm checkpoint bằng đường dẫn `*/codebert__latent_bottleneck_<src>_l0p05/`
+và kết luận "không có". Nhưng khối **s42** (27–31/08) đặt tên **không có hậu tố λ** khi λ=0.05, và
+chỉ thêm `_l02` khi λ=0.02:
+
+| kho | tên | λ thật (đọc từ `training_args`) |
+|---|---|---|
+| `s42/phase1` | `codebert__latent_bottleneck_com` | **0.05** |
+| `s42/phase1` | `codebert__latent_bottleneck_com_l02` | 0.02 |
+| `n48/phase1` | `codebert__latent_bottleneck_4cwe_l0p05` | 0.05 |
+
+**Hai quy ước tên cho cùng một λ**, đặt ra ở hai đợt khác nhau. Tra theo tên thì trượt.
+
+Đối chiếu `training_args` của bản s42 và bản tôi vừa train: **trùng khít mọi trường** —
+`microsoft/codebert-base` · `cls` · `latent_bottleneck` · λ 0.05 · `fixed4` · 4 lớp · 15 epoch ·
+lr 2e-5 · `sam_rho 0` · seed 42 · `num_latent 8`. Chỉ khác `best_val_macro_f1` (0.6532 vs 0.6976)
+— dao động giữa các lần chạy, và §B.2c đã cho thấy val Pha 1 **không** dự báo transfer.
+
+Đã dùng bản **s42 cho cả ba nguồn** (cùng xuất xứ, tránh confound phiên bản thư viện) và đẩy lên
+vast; log xác nhận `phase1 ... | da co, dung lai`.
+
+**Quy tắc bổ sung**: tìm checkpoint Pha 1 dùng lại được thì **đọc `training_args` của mọi
+checkpoint có cùng backbone + aux_mode**, đừng lọc theo tên thư mục. Một lệnh
+`torch.load(...)['training_args']['lambda_cwe']` rẻ hơn 27 phút GPU. Chỉ **λ** mới buộc huấn
+luyện lại (CLAUDE.md mục 5); optimizer, SAM/ASAM, cách chia fold thì dùng lại được hết.
