@@ -1,6 +1,6 @@
 # HANDOFF — trạng thái bàn giao cho phiên làm việc mới
 
-**Cập nhật 06/09/2026.** Đọc file này trước, rồi `CLAUDE.md` (nạp tự động),
+**Cập nhật 09/09/2026** (mục 0 ở dưới là phần mới nhất). Đọc file này trước, rồi `CLAUDE.md` (nạp tự động),
 `SERVER.md`, `FACTS.md`.
 
 **Cách đọc:** đây chỉ là *cấu hình đã đặt*, *số đã đo*, *việc chưa chạy* và *ràng
@@ -12,6 +12,68 @@ Lý do làm vậy: dự án này đã có vài cách giải thích được nêu
 dữ liệu ("họ backbone giải thích được", "cực tiểu nhọn giải thích được", "hạ λ sẽ
 cứu T5"). Nạp sẵn cách hiểu hiện tại vào phiên sau nhiều khả năng là nạp một cách
 hiểu sai.
+
+---
+
+## 0. Bổ sung 08–09/09/2026 — khối đang chạy và bốn cổng đã sửa
+
+### 0.1 Đang chạy lúc 00:40 UTC 09/09
+
+| máy | mục | ghi vào |
+|---|---|---|
+| ntat (vast) | `asam_aw.sh` — ASAM ρ=2.0 trên nền **AdamW**, 3 nguồn × 3 fold | `results/asamaw_t5p/` |
+| ntat2 (vast) | `asam_aw.sh` — bản lặp máy thứ hai | `results/asamaw_t5p/` |
+| 161 | `night_161.sh` → lưới `lm*` fold 1–3 rồi 4–5 | `results/pool1_t5p/` |
+| 158 | `pool_lm.sh` fold 1–3 | `/data/ntat/MultiVD/results/pool1_t5p/` |
+
+Hàng đợi còn: `pool_cb_lm.sh` (lưới ngôn ngữ trên **codebert** — chưa máy nào chạy),
+`pool_lm.sh` trên ntat, `e60_cb.sh`.
+
+### 0.2 Khối đã xong, số ở đâu
+
+| khối | quy mô | ghi ở |
+|---|---|---|
+| Trục ρ của ASAM ở Phase 2, 7 mức | **n=15 mỗi mức**, đối chứng ρ=0 cùng máy | `FACTS.md` §21, §21.1–§21.3 |
+| Lưới nguồn `pur*` / `lm*` | n=5, hai máy, hai backbone | `RESEARCH_2026-09-08_transfer.md` phụ lục B |
+| Đọc lại head vs `none` bằng bốn chỉ số | 213 cặp có sẵn trên đĩa | `FACTS.md` §22 |
+| Fine-tune hai lần thuần | giữ nguyên, không chạy lại | `FACTS.md` §20 |
+
+Trang tổng hợp: <https://claude.ai/code/artifact/b6ba617d-eef2-4bee-ad8b-e8db92f7eadf>
+
+### 0.3 Bẫy thứ TƯ trong dữ liệu — bắt buộc tách nhóm rò rỉ trước khi gọi là phát hiện
+
+Bổ sung cho mục 5. Bộ `sven_python_folds_norm` chia theo **từng dòng**, nên ~16% hàng
+test có bản đối nghịch gần trùng trong TRAIN. Trong đêm 08→09/09, phép tách nhóm
+(`tools/leak_groups.py`, đọc `test_probabilities` có sẵn — **không cần chạy lại**) đã
+đổi **hai** phát biểu tiêu đề:
+
+- Δ tổng của ASAM ρ=2.0 là +0.0124 F1; trên 73% hàng sạch chỉ còn +0.0071 (dưới sàn nhiễu).
+- Δ tổng "697 dòng đúng CWE + 233 dòng lệch thua 232 dòng đúng" là −0.0174 F1; trên
+  hàng sạch là **+0.0038** — phát biểu đã rút.
+
+**Quy tắc:** mọi Δ tổng trên bộ `norm` phải kèm phép tách này trước khi được gọi là
+phát hiện.
+
+### 0.4 Bốn cổng đã sửa — cả bốn đều hỏng IM LẶNG
+
+| cổng | hỏng thế nào | sửa |
+|---|---|---|
+| `run/asam5.sh` | dấu nháy lệch nuốt cả vòng `for`; `bash -n` báo OK; chạy thật cho **0 ô** | viết lại; kiểm bằng stub `echo` + **đếm số lần gọi** |
+| `scripts/vast_worklist.sh` | `while read … done < file` cho tiến trình con thừa kế stdin và nuốt phần còn lại → driver thoát sớm, **máy vast nằm không** | đọc worklist trên **fd 3**, gọi con với `3<&- </dev/null` |
+| cổng "xong" của driver | mục thoát 0 mà sinh 0 ô vẫn được ghi `done` → **bỏ qua vĩnh viễn** | **đếm hiện vật** trước/sau; sinh 0 ô thì ghi `log/worklist.noop` + cảnh báo |
+| `watch_vast.sh` / `fleet_status.sh` | đếm **số dòng thô** của `worklist.done`; dòng của danh sách cũ làm nó khớp `done>=todo` → **không phóng lại** | đếm **số giao** `done ∩ todo` |
+
+Và `scripts/endpoints.sh`: `_vast_refresh` từng cài cache **rỗng/rác** khi `vastai`
+thoát 0 với output hỏng, biến một trục trặc mạng thành hỏng vĩnh viễn. Nay kiểm JSON
+trước khi thay; hỏng thì giữ cache cũ. `fleet_status.sh` phân biệt rõ **"đang chạy
+nhưng chưa giải được địa chỉ"** với **"máy không còn chạy"** — gộp hai cái là cách
+huỷ nhầm một máy đang làm việc.
+
+### 0.5 Ngưỡng VRAM
+
+Một ô `pool1_t5p` Phase 2 **đo được** 13468 MiB (161) và 14002 MiB (ntat2). `NEED=13000`
+trong `run/pool1.sh` là đúng, **không hạ**. Trên máy dùng chung, user khác giữ 3–4 GB
+là đủ để cổng chặn — đó là hành vi đúng, không phải lỗi.
 
 ---
 
