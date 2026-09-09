@@ -90,30 +90,31 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">MultiVD · 09/09/2026 · 87 khối độc lập · đối chứng âm n=32</div>
+  <div class="eyebrow">MultiVD · 09/09/2026 · 87 khối độc lập · đối chứng âm n=48 (đã chốt)</div>
   <h1>Chuyển giao đóng góp ở đâu</h1>
   <p class="lede"><strong>Đối chứng đúng cách: trộn với mô hình chuyển giao hơn hẳn trộn với một
-  bản chạy lại của chính baseline</strong> — ROC <span class="mono">+0.0148</span>, 33/36 fold,
+  bản chạy lại của chính baseline</strong> — ROC <span class="mono">+0.0121</span>, 42/48 fold,
   ghép cặp trực tiếp trong cùng fold. Trộn hai baseline khác seed <em>cũng</em> nâng điểm
-  (+0.0084), nên phép trộn một mình không phải bằng chứng; nhưng phần chuyển giao đóng góp thêm
+  (+0.0079), nên phép trộn một mình không phải bằng chứng; nhưng phần chuyển giao đóng góp thêm
   vẫn <strong>vượt sàn nhiễu</strong>.</p>
   <p class="lede" style="font-size:16px">Chỗ chuyển giao thật sự đóng góp nằm ở <strong>phân bố
-  theo CWE</strong>, không ở trung bình: đối chứng <em>phẳng hoặc âm</em> ở cả bốn lớp, còn chuyển
-  giao dồn <strong>+0.097</strong> và <strong>+0.151</strong> ROC vào đúng hai lớp hiếm mà mô hình
-  chỉ-đích yếu nhất, với 74/82 và 81/83 fold cùng dấu.</p>
+  theo CWE</strong>, không ở trung bình. Ghép cặp trực tiếp, toàn bộ khoảng cách giữa hai phép trộn nằm ở
+  <strong>đúng hai lớp hiếm</strong> — CWE-022 <strong>+0.108</strong> (40/48), CWE-079
+  <strong>+0.131</strong> (42/48) — còn hai lớp thường thì <strong>đúng bằng không</strong>
+  (p=1.00 và p=0.46).</p>
 </header>
 
 <section>
   <div class="claim">
     <div><div class="k">ĐỐI CHỨNG · trộn hai baseline khác seed</div>
-      <div class="v" style="color:var(--warn)">+0.0084</div>
-      <div class="s">ROC-AUC · 25/32 · p=0.0021</div></div>
+      <div class="v" style="color:var(--warn)">+0.0079</div>
+      <div class="s">ROC-AUC · 37/48 · p=0.0002</div></div>
     <div><div class="k">GHÉP CẶP · chuyển giao hơn baseline khác seed</div>
-      <div class="v g">+0.0148</div>
-      <div class="s">ROC-AUC · 33/36 · p&lt;1e-4 · trên sàn nhiễu</div></div>
+      <div class="v g">+0.0121</div>
+      <div class="s">ROC-AUC · 42/48 · p&lt;1e-4 · trên sàn nhiễu</div></div>
     <div><div class="k">CWE-022 · đối chứng vs chuyển giao</div>
-      <div class="v"><span class="l">−0.024</span> <span class="n">→</span> <span class="g">+0.097</span></div>
-      <div class="s">ROC-AUC · 9/32 → 74/82 · ngược dấu</div></div>
+      <div class="v"><span class="l">−0.026</span> <span class="n">→</span> <span class="g">+0.097</span></div>
+      <div class="s">ROC-AUC · 12/48 → 74/82 · ngược dấu</div></div>
   </div>
 </section>
 
@@ -122,15 +123,15 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
   <p>Phản biện: <em>“trộn hai mô hình nào cũng lợi, đó là trung bình hoá phương sai.”</em> Phép
   kiểm: trộn <strong>hai baseline chỉ khác seed</strong> — hai mô hình ngang tài, cùng kiến trúc,
   cùng dữ liệu, không có Pha 1. Chạy vào <em>đúng cây</em> đã có baseline seed 42 nên ghép cặp
-  được cùng máy cùng fold. <strong>n=32 cặp trên hai máy.</strong></p>
+  được cùng máy cùng fold. <strong>n=48 cặp trên hai máy — khối đã chạy xong.</strong></p>
   <div class="card scroll">
   <table>
     <thead><tr><th>trộn α=0.5</th><th>F1@0.5</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead>
     <tbody>
-      <tr class="hi"><td><strong>ĐỐI CHỨNG</strong> baseline ⊕ baseline′ (n=32)</td>
-        <td class="num">+0.0124<div class="sig">21/32 · p=0.07</div></td>
-        <td class="num" style="color:var(--warn);font-weight:600">+0.0084<div class="sig">25/32 · p=0.0021</div></td>
-        <td class="num" style="color:var(--warn);font-weight:600">+0.0092<div class="sig">29/32 · p&lt;1e-4</div></td></tr>
+      <tr class="hi"><td><strong>ĐỐI CHỨNG</strong> baseline ⊕ baseline′ (n=48)</td>
+        <td class="num">+0.0103<div class="sig">30/46 · p=0.054</div></td>
+        <td class="num" style="color:var(--warn);font-weight:600">+0.0079<div class="sig">37/48 · p=0.0002</div></td>
+        <td class="num" style="color:var(--warn);font-weight:600">+0.0111<div class="sig">41/48 · p&lt;1e-4</div></td></tr>
       <tr><td>baseline ⊕ chuyển giao (87 khối)</td>
         <td class="num g">+0.0317<div class="sig">76/87</div></td>
         <td class="num g">+0.0129<div class="sig">69/87</div></td>
@@ -157,31 +158,30 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
   <span class="mono">A = trộn(base, chuyển giao)</span> và
   <span class="mono">B = trộn(base, base khác seed)</span> rồi đo <strong>A − B</strong>. Mọi thứ
   triệt tiêu trừ đúng một câu: <em>mô hình thứ hai là bản chuyển giao hay chỉ là một bản chạy lại?</em>
-  36 cặp ghép trực tiếp:</p>
+  48 cặp ghép trực tiếp:</p>
   <div class="card scroll">
   <table>
     <thead><tr><th>A − B</th><th>F1@0.5</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead>
     <tbody><tr class="hi"><td><strong>trộn-với-chuyển-giao hơn trộn-với-baseline</strong></td>
-      <td class="num g">+0.0215<div class="sig">25/36 · p=0.029</div></td>
-      <td class="num g">+0.0148<div class="sig">33/36 · p&lt;1e-4 · trên sàn nhiễu</div></td>
-      <td class="num g">+0.0135<div class="sig">32/36 · p&lt;1e-4</div></td></tr></tbody>
+      <td class="num g">+0.0200<div class="sig">37/48 · p=0.0002</div></td>
+      <td class="num g">+0.0121<div class="sig">42/48 · p&lt;1e-4 · trên sàn nhiễu</div></td>
+      <td class="num g">+0.0116<div class="sig">43/48 · p&lt;1e-4</div></td></tr></tbody>
   </table>
   </div>
   <div class="card scroll">
   <table>
     <thead><tr><th>A − B theo CWE (ΔROC)</th><th>CWE-022</th><th>CWE-078</th><th>CWE-079</th><th>CWE-089</th></tr></thead>
     <tbody><tr><td>chênh lệch giữa hai phép trộn</td>
-      <td class="num g">+0.1303<div class="sig">31/36 · p&lt;1e-4</div></td>
-      <td class="num n">+0.0070<div class="sig">21/36 · p=0.41</div></td>
-      <td class="num g">+0.1554<div class="sig">33/36 · p&lt;1e-4</div></td>
-      <td class="num n">+0.0001<div class="sig">16/36 · p=0.86</div></td></tr></tbody>
+      <td class="num g">+0.1076<div class="sig">40/48 · p&lt;1e-4</div></td>
+      <td class="num n">+0.0042<div class="sig">24/48 · p=1.00</div></td>
+      <td class="num g">+0.1312<div class="sig">42/48 · p&lt;1e-4</div></td>
+      <td class="num n">+0.0021<div class="sig">26/48 · p=0.46</div></td></tr></tbody>
   </table>
   </div>
   <div class="arg">
     <p><strong>Toàn bộ khoảng cách giữa hai phép trộn nằm ở đúng hai lớp hiếm, và đúng bằng không
     ở hai lớp thường.</strong> Mô hình chuyển giao mang vào thứ mà một bản chạy lại của baseline
-    không có — và thứ đó chỉ nằm ở hai lớp mà baseline yếu nhất. Giới hạn: chỉ 6 khối / 36 cặp có
-    đủ cả ba thành phần, hẹp hơn 87 khối của phần trên. Nhưng <em>hẹp mà ghép cặp đúng</em> thì
+    không có — và thứ đó chỉ nằm ở hai lớp mà baseline yếu nhất. Giới hạn: chỉ những khối có đủ cả ba thành phần mới vào được (48 cặp), hẹp hơn 87 khối của phần trên. Nhưng <em>hẹp mà ghép cặp đúng</em> thì
     dùng được; <em>rộng mà lấy hiệu hai trung bình</em> thì không.</p>
   </div>
 
@@ -192,27 +192,26 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
       <th>baseline ⊕ chuyển giao</th><th>chênh</th></tr></thead>
     <tbody>
       <tr class="hi"><td><strong>CWE-022</strong> path traversal</td>
-        <td class="num l">−0.0242<div class="sig">9/32 — âm</div></td>
+        <td class="num l">−0.0257<div class="sig">12/48 · p=0.047 — âm có ý nghĩa</div></td>
         <td class="num g">+0.0967<div class="sig">74/82 · p&lt;1e-4</div></td>
         <td class="num"><strong>ngược dấu</strong></td></tr>
       <tr class="hi"><td><strong>CWE-079</strong> XSS</td>
-        <td class="num n">+0.0283<div class="sig">20/32 · p=0.22 — không ý nghĩa</div></td>
+        <td class="num n">+0.0297<div class="sig">30/48 · p=0.054 — ranh giới</div></td>
         <td class="num g">+0.1513<div class="sig">81/83 · p&lt;1e-4</div></td>
         <td class="num"><strong>5,3×</strong></td></tr>
       <tr><td>CWE-078</td>
-        <td class="num n">+0.0048<div class="sig">17/32 — tung đồng xu</div></td>
+        <td class="num n">+0.0045<div class="sig">27/48 — tung đồng xu</div></td>
         <td class="num n">−0.0014<div class="sig">40/81 · p=1.00</div></td><td class="num n">—</td></tr>
       <tr><td>CWE-089</td>
-        <td class="num n">+0.0037<div class="sig">16/32 — tung đồng xu</div></td>
+        <td class="num n">+0.0042<div class="sig">26/48 — tung đồng xu</div></td>
         <td class="num n">+0.0036<div class="sig">56/83</div></td><td class="num n">—</td></tr>
     </tbody>
   </table>
   </div>
   <div class="arg">
-    <p><strong>Đây mới là bằng chứng.</strong> Đối chứng cho cả bốn lớp <strong>16–20/32, tức tung
-    đồng xu</strong>, và CWE-022 còn <em>âm</em>. Chuyển giao dồn <span class="mono g">+0.097</span>
+    <p><strong>Đây mới là bằng chứng.</strong> Hai lớp thường đúng <strong>26–27/48, tức tung đồng xu</strong>, và CWE-022 còn <em>âm</em>. Chuyển giao dồn <span class="mono g">+0.097</span>
     và <span class="mono g">+0.151</span> vào đúng hai lớp hiếm với <strong>74/82</strong> và
-    <strong>81/83</strong> fold cùng dấu. Ngược dấu ở một lớp, gấp 5,3 lần ở lớp kia, và mẫu hình
+    <strong>81/83</strong> fold cùng dấu. Ngược dấu ở một lớp, gấp 5,1 lần ở lớp kia, và mẫu hình
     cùng dấu gần tuyệt đối — <strong>trung bình hoá phương sai không tạo ra được điều đó</strong>.
     Giá trị của Pha 1 nằm ở <em>phân bố</em>, không ở <em>trung bình</em>.</p>
   </div>
