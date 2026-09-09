@@ -92,10 +92,11 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
 <header>
   <div class="eyebrow">MultiVD · 09/09/2026 · 87 khối độc lập · đối chứng âm n=32</div>
   <h1>Chuyển giao đóng góp ở đâu</h1>
-  <p class="lede"><strong>Điểm tổng là cách đo sai.</strong> Trộn đều xác suất của baseline
-  (chỉ huấn luyện trên Python) với mô hình chuyển giao có nâng điểm tổng — nhưng đối chứng cho
-  thấy <strong>2/3 mức nâng đó chỉ là trung bình hoá phương sai</strong>: trộn hai baseline
-  <em>khác seed</em> cũng cho gần bằng thế.</p>
+  <p class="lede"><strong>Đối chứng đúng cách: trộn với mô hình chuyển giao hơn hẳn trộn với một
+  bản chạy lại của chính baseline</strong> — ROC <span class="mono">+0.0148</span>, 33/36 fold,
+  ghép cặp trực tiếp trong cùng fold. Trộn hai baseline khác seed <em>cũng</em> nâng điểm
+  (+0.0084), nên phép trộn một mình không phải bằng chứng; nhưng phần chuyển giao đóng góp thêm
+  vẫn <strong>vượt sàn nhiễu</strong>.</p>
   <p class="lede" style="font-size:16px">Chỗ chuyển giao thật sự đóng góp nằm ở <strong>phân bố
   theo CWE</strong>, không ở trung bình: đối chứng <em>phẳng hoặc âm</em> ở cả bốn lớp, còn chuyển
   giao dồn <strong>+0.097</strong> và <strong>+0.151</strong> ROC vào đúng hai lớp hiếm mà mô hình
@@ -107,9 +108,9 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
     <div><div class="k">ĐỐI CHỨNG · trộn hai baseline khác seed</div>
       <div class="v" style="color:var(--warn)">+0.0084</div>
       <div class="s">ROC-AUC · 25/32 · p=0.0021</div></div>
-    <div><div class="k">trộn baseline ⊕ chuyển giao</div>
-      <div class="v g">+0.0126</div>
-      <div class="s">ROC-AUC · 65/83 · phần dôi ra ≈ +0.0045</div></div>
+    <div><div class="k">GHÉP CẶP · chuyển giao hơn baseline khác seed</div>
+      <div class="v g">+0.0148</div>
+      <div class="s">ROC-AUC · 33/36 · p&lt;1e-4 · trên sàn nhiễu</div></div>
     <div><div class="k">CWE-022 · đối chứng vs chuyển giao</div>
       <div class="v"><span class="l">−0.024</span> <span class="n">→</span> <span class="g">+0.097</span></div>
       <div class="s">ROC-AUC · 9/32 → 74/82 · ngược dấu</div></div>
@@ -134,21 +135,57 @@ footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:
         <td class="num g">+0.0317<div class="sig">76/87</div></td>
         <td class="num g">+0.0129<div class="sig">69/87</div></td>
         <td class="num g">+0.0136<div class="sig">71/87</div></td></tr>
-      <tr><td><strong>phần dôi ra của chuyển giao</strong></td>
-        <td class="num">+0.0193</td>
-        <td class="num n">≈ +0.0045<div class="sig">dưới sàn nhiễu 0.010</div></td>
-        <td class="num n">≈ +0.0044<div class="sig">dưới sàn nhiễu 0.010</div></td></tr>
+      <tr><td class="n"><s>phần dôi ra của chuyển giao</s>
+        <div class="sig">hiệu của hai trung bình — KHÔNG dùng, xem bên dưới</div></td>
+        <td class="num n"><s>+0.0193</s></td>
+        <td class="num n"><s>≈ +0.0045</s></td>
+        <td class="num n"><s>≈ +0.0044</s></td></tr>
     </tbody>
   </table>
   </div>
   <div class="note">
-    <strong>Đối chứng KHÔNG null.</strong> Trộn hai bản chạy lại của <em>cùng một mô hình</em> đã
-    lấy <strong>65–68%</strong> mức tăng tổng. Phần chuyển giao đóng góp thêm nằm <strong>dưới sàn
-    nhiễu</strong>. Vì thế câu “trộn baseline ⊕ chuyển giao hơn baseline” <strong>không còn là bằng
-    chứng cho chuyển giao</strong> — nó đúng, nhưng phần lớn là trung bình hoá phương sai. Đã rút
-    khỏi luận điểm.
+    <strong>Đối chứng KHÔNG null</strong> — trộn hai bản chạy lại của <em>cùng một mô hình</em>
+    cũng cho +0.0084 ROC. Nên câu “trộn baseline ⊕ chuyển giao hơn baseline”, <em>một mình nó</em>,
+    không đủ làm bằng chứng cho chuyển giao.<br><br>
+    <strong>Nhưng dòng gạch ngang ở trên là một lỗi phải nêu rõ.</strong> Lấy +0.0129 (trên 87 khối,
+    nhiều cây) trừ +0.0084 (trên 32 cặp, một cây) là <strong>hiệu của hai trung bình trên hai tập
+    khác nhau</strong> — đúng thứ mà quy tắc của dự án cấm. Con số ghép cặp đúng cách nằm ở mục
+    ngay dưới, và nó <strong>lớn gấp 3,3 lần</strong>.
   </div>
-  <p>Nhưng tách theo CWE thì hai phép trộn <strong>không giống nhau chút nào</strong>:</p>
+  <h3 style="margin-top:6px">Ghép cặp trực tiếp — con số dùng được</h3>
+  <p>Trong <strong>cùng một (cây, fold)</strong>, với <strong>cùng một baseline</strong>, đặt
+  <span class="mono">A = trộn(base, chuyển giao)</span> và
+  <span class="mono">B = trộn(base, base khác seed)</span> rồi đo <strong>A − B</strong>. Mọi thứ
+  triệt tiêu trừ đúng một câu: <em>mô hình thứ hai là bản chuyển giao hay chỉ là một bản chạy lại?</em>
+  36 cặp ghép trực tiếp:</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>A − B</th><th>F1@0.5</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead>
+    <tbody><tr class="hi"><td><strong>trộn-với-chuyển-giao hơn trộn-với-baseline</strong></td>
+      <td class="num g">+0.0215<div class="sig">25/36 · p=0.029</div></td>
+      <td class="num g">+0.0148<div class="sig">33/36 · p&lt;1e-4 · trên sàn nhiễu</div></td>
+      <td class="num g">+0.0135<div class="sig">32/36 · p&lt;1e-4</div></td></tr></tbody>
+  </table>
+  </div>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>A − B theo CWE (ΔROC)</th><th>CWE-022</th><th>CWE-078</th><th>CWE-079</th><th>CWE-089</th></tr></thead>
+    <tbody><tr><td>chênh lệch giữa hai phép trộn</td>
+      <td class="num g">+0.1303<div class="sig">31/36 · p&lt;1e-4</div></td>
+      <td class="num n">+0.0070<div class="sig">21/36 · p=0.41</div></td>
+      <td class="num g">+0.1554<div class="sig">33/36 · p&lt;1e-4</div></td>
+      <td class="num n">+0.0001<div class="sig">16/36 · p=0.86</div></td></tr></tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Toàn bộ khoảng cách giữa hai phép trộn nằm ở đúng hai lớp hiếm, và đúng bằng không
+    ở hai lớp thường.</strong> Mô hình chuyển giao mang vào thứ mà một bản chạy lại của baseline
+    không có — và thứ đó chỉ nằm ở hai lớp mà baseline yếu nhất. Giới hạn: chỉ 6 khối / 36 cặp có
+    đủ cả ba thành phần, hẹp hơn 87 khối của phần trên. Nhưng <em>hẹp mà ghép cặp đúng</em> thì
+    dùng được; <em>rộng mà lấy hiệu hai trung bình</em> thì không.</p>
+  </div>
+
+  <p>Tách theo CWE, hai phép trộn <strong>không giống nhau chút nào</strong>:</p>
   <div class="card scroll">
   <table>
     <thead><tr><th>ΔROC-AUC theo CWE, α=0.5</th><th>ĐỐI CHỨNG<br>baseline ⊕ baseline′</th>

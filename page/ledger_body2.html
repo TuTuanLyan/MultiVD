@@ -61,14 +61,16 @@
     <li><strong>Giá trị chắc nhất của head không phải độ chính xác mà là chống sập Pha 1.</strong>
     Ở <code>codebert × full</code>, hai lần độc lập tại hai λ, nhánh <code>none</code> sập về
     ~0.34 còn <code>latent_bottleneck</code> giữ 0.545–0.564.</li>
-    <li><strong>Điểm tổng là cách đo sai — và đối chứng đã chứng minh điều đó.</strong> Trộn
-    hai baseline <em>chỉ khác seed</em> (n=32) cho ROC +0.0084 / PR +0.0092, tức 65–68% mức tăng
-    tổng của phép trộn là trung bình hoá phương sai. Phát biểu về biên độ tổng đã bị rút.</li>
-    <li><strong>Cái đứng vững là phân bố theo CWE.</strong> Đối chứng phẳng hoặc âm ở cả bốn lớp
-    (16–20/32 fold, CWE-022 <em>âm</em> −0.024), còn chuyển giao dồn <strong>+0.097</strong> và
-    <strong>+0.151</strong> ROC vào đúng hai lớp hiếm với <strong>74/82</strong> và
-    <strong>81/83</strong> fold cùng dấu. Ngược dấu ở một lớp, gấp 5,3× ở lớp kia — trung bình hoá
-    phương sai không tạo ra được. <em>Giá trị của Pha 1 nằm ở phân bố, không ở trung bình.</em></li>
+    <li><strong>Đối chứng âm đã chạy, và phải ghép cặp mới đọc đúng.</strong> Trộn hai baseline
+    <em>chỉ khác seed</em> (n=32) cũng cho ROC +0.0084 — nên phép trộn một mình không phải bằng
+    chứng. Nhưng ghép cặp trực tiếp trong cùng fold thì trộn-với-chuyển-giao hơn trộn-với-baseline
+    <strong>+0.0148 ROC (33/36, p&lt;1e-4)</strong>, trên sàn nhiễu. <em>Lấy hiệu của hai trung
+    bình trên hai tập khác nhau cho ra “+0.0045, dưới sàn nhiễu” — sai gấp 3,3 lần.</em></li>
+    <li><strong>Toàn bộ khoảng cách giữa hai phép trộn nằm ở đúng hai lớp hiếm.</strong> Ghép
+    cặp trực tiếp: CWE-022 <strong>+0.130</strong> (31/36), CWE-079 <strong>+0.155</strong>
+    (33/36); CWE-078 và CWE-089 <strong>đúng bằng không</strong> (p=0.41 · p=0.86). Mô hình chuyển
+    giao mang vào thứ mà một bản chạy lại của baseline không có — và thứ đó chỉ nằm ở hai lớp mà
+    baseline yếu nhất. <em>Giá trị của Pha 1 nằm ở phân bố, không ở trung bình.</em></li>
   </ol>
 </section>
 
