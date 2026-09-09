@@ -1944,7 +1944,7 @@ Nó **không** phải là "trộn luôn tốt hơn": ở `full` nó không thêm
 
 ---
 
-## §26 — Lưới `lm` trên codebert: pha loãng nặng lặp lại qua BACKBONE (09/09/2026, bậc 1 n=3)
+## §26 — Lưới `lm` trên codebert: pha loãng nặng lặp lại qua BACKBONE (09/09/2026, bậc 1 → **bậc 2**)
 
 Chi tiết và cách đọc ở `RESEARCH_2026-09-08_transfer.md` §B.2f. Tóm tắt: khối `pool_cb_lm` xong
 trên 161 lúc 04:08 UTC, đủ 15 ô + 3 baseline. Đối chứng `lm100_n930` cùng máy cùng phiên.
@@ -1956,9 +1956,32 @@ trên 161 lúc 04:08 UTC, đủ 15 ô + 3 baseline. Đối chứng `lm100_n930` 
 | `lm25` | −0.0441 (0/3) | −0.0350 (0/3) | −0.0187 (0/3) | +0.0064 (2/3) |
 | `lm12` | −0.0548 (0/3) | −0.0553 (0/3) | −0.0287 (0/3) | +0.0177 (2/3) |
 
-Pha loãng nặng lặp lại hướng của §B.2e trên backbone thứ hai (0/3 fold, ba trong bốn chỉ số).
-**PR-AUC ngược dấu** ở `lm75`/`lm25`/`lm12` — phải nêu kèm, đúng tình huống mục 2b. Ở n=3 thì
-p=0.250 là **sàn**, nên đây là **sàng lọc**, chưa phải kết luận. Chưa chạy fold 4–5.
+Pha loãng nặng lặp lại hướng của §B.2e trên backbone thứ hai. Ở n=3 thì p=0.250 là **sàn**, và
+**PR-AUC ngược dấu** ở `lm75`/`lm25`/`lm12` — đúng tình huống mục 2b.
+
+### BẬC 2 — n=5 trên ntat2 (09/09 05:52). Bất đồng PR-AUC ĐÃ HẾT
+
+`pool_cb_lm` fold 4–5 chạy trên **ntat2** (máy này đã có lm grid fold 1–3 và baseline fold 1–5,
+nên Δ ghép cặp trọn vẹn trong cùng máy). Đối chứng `lm100_n930`:
+
+| pool | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `lm75` | +0.0071 (3/5) | −0.0033 (2/5) | −0.0005 (2/5) | −0.0035 (2/5) |
+| `lm50` | −0.0092 (2/5) | −0.0154 (2/5) | −0.0110 (2/5) | −0.0152 (3/5) |
+| `lm25` | −0.0293 (1/5) | −0.0293 (2/5) | −0.0252 (1/5) | −0.0026 (1/5) |
+| **`lm12`** | **−0.0500 (0/5)** | **−0.0476 (0/5)** | **−0.0560 (0/5)** | **−0.0611 (0/5)** |
+
+**`lm12` âm ở 0/5 fold trên CẢ BỐN chỉ số**, mỗi cái p=0.0625 — tức **kết quả tốt nhất có thể đạt
+ở n=5**. Bất đồng PR-AUC ở bậc 1 (khi đó `lm12` cho PR **+0.0177**) **biến mất hoàn toàn** khi lên
+n=5: PR thành −0.0611, cũng 0/5. Đây là ví dụ sạch cho quy tắc *"n=3 chỉ đủ để DỪNG, không đủ để
+KẾT LUẬN"* — nếu chốt ở bậc 1 thì đã ghi vào bài một bất đồng không có thật.
+
+Và liều–đáp ứng **đơn điệu** theo mức pha loãng trên cả bốn chỉ số: `lm75` ≈ 0 → `lm50` âm nhẹ →
+`lm25` âm rõ → `lm12` âm mạnh nhất. Trên t5p (§B.2e) `lm50`/`lm75` từng **lệch dấu giữa hai máy**;
+ở codebert thì thang này sạch.
+
+**Phát biểu được phép dùng**: pha loãng nguồn dưới ~25% hàng CWE đích phá khái quát hoá — **lặp
+lại ở bậc 2 trên backbone thứ hai, trên cả bốn chỉ số**, với `lm12` đạt sàn thống kê của n=5.
 
 ---
 
