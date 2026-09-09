@@ -4,15 +4,17 @@
 #   "Bi chiem thi van thue vast ngay ... Toi da co the co 3 GPU chay cung luc"
 #   "neu vo ca 2 server rieng thi van chi duoc thue 1 va chi 1 vast"
 #
-#   bash scripts/rent_one_vast.sh <offer_id> <codebert|t5p> <seed>
 #
 # Chia viec de KHONG BAO GIO trung voi may local dang hoi phuc: vast nhan DUNG MOT SEED,
 # may local giu seed con lai. Cay ket qua rieng (`chotv15_<bb>`) nen khong the ghep cap nham.
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OFFER="${1:?can offer id — lay bang: vastai search offers 'gpu_name=RTX_A4000 num_gpus=1 rentable=true' -o dph+}"
-WHICH="${2:?can codebert hoac t5p}"
-SEED="${3:?can seed, vd 1234}"
+#   bash scripts/rent_one_vast.sh <codebert|t5p> <seed> [offer_id]
+# Khong truyen offer_id thi TU TIM tai thoi diem chay — nguoi dung 10/09: "luc nao can thi tim
+# nhe, pre truoc thi no cung chua chac con khi can". Tran gia $0.080/h.
+WHICH="${1:?can codebert hoac t5p}"
+SEED="${2:?can seed, vd 1234}"
+OFFER="${3-}"
 IMG="${IMG:-vastai/pytorch:2.9.1-cuda-12.8.1-py310-24.04-2026-08-21}"
 LOG=log/rent_vast.log
 ts(){ date -u '+%F %T'; }
@@ -23,6 +25,12 @@ source scripts/endpoints.sh
 cur=$(vast_labels)
 if [[ -n "$cur" ]]; then
   say "!! DA CO vast dang chay ($cur) — luat cho phep DUNG MOT. Tu choi thue them."; exit 3
+fi
+if [[ -z "$OFFER" ]]; then
+  say "tim offer A4000 <= \$0.080/h ngay bay gio"
+  OFFER=$(python3 tools/pick_vast_offer.py --max-dph 0.080 2>>"$LOG") || {
+    say "!! khong chon duoc offer nao — KHONG THUE (xem $LOG)"; exit 2; }
+  tail -8 "$LOG" | sed 's/^/    /'
 fi
 say "thue offer $OFFER cho $WHICH seed $SEED"
 out=$(vastai create instance "$OFFER" --image "$IMG" --disk 60 --label ntat --ssh --direct 2>&1)
