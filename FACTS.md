@@ -1535,3 +1535,48 @@ chỉ **độ yếu của baseline** dự báo được (Pearson −0.886).
 
 **Hệ quả vận hành:** mọi phép so cắt nguồn theo nhóm CWE phải chạy nhánh **`none`**,
 vì head phụ sẽ thấy số pillar khác nhau ở hai nhánh và phép so đổi hai biến.
+
+---
+
+## §24 — ASAM ρ=2.0 MẠNH HƠN khi BỎ neo RecAdam (09/09/2026, đang chạy)
+
+Trục ρ ở §21 đo **trên nền RecAdam**. Nhưng RecAdam null ở mọi γ (§20), nên cấu
+hình chốt sẽ dùng AdamW. Khối `asam_aw` đo cùng ρ=2.0 nhưng **Phase 2 dùng AdamW,
+không neo**; đối chứng `aw_r0` = AdamW ρ=0, cùng máy cùng phiên.
+
+**Bậc 1 (n=3 fold × 3 nguồn = 9 cặp), máy `ntat`:**
+
+| nền Phase 2 | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| **AdamW** | 9 | +0.0246 (7/9) | +0.0272 (7/9) | **+0.0260 (8/9, p=0.039)** | **+0.0379 (9/9, p=0.004)** |
+| RecAdam (§21) | 15 | +0.0124 (10/15) | +0.0136 (10/15) | +0.0088 (11/15) | +0.0155 (13/15) |
+
+Tách nguồn dưới AdamW — **cả ba đều dương trên cả bốn chỉ số**:
+4cwe +0.0394 ROC (3/3) · com +0.0129 (2/3) · full +0.0258 (3/3).
+
+**Đọc được gì:** ASAM ρ=2.0 cho hiệu ứng **gấp ~3 lần** khi bỏ neo (ROC +0.0260 so
+với +0.0088; PR +0.0379 so với +0.0155). Neo RecAdam **kìm** ASAM chứ không phối
+hợp với nó. Nếu đứng vững, cấu hình chốt là **AdamW + ASAM ρ=2.0**, và §21 phải
+được đọc như một *cận dưới* bị neo làm hụt.
+
+### CHƯA CHỐT — máy thứ hai chưa xác nhận
+
+`ntat2` chạy đúng khối này song song và ở n=6 cho **null**: ΔROC +0.0004 (4/6),
+ΔF1 −0.0081 (2/6). Hai máy chưa hợp nhau. Đây đúng kiểu bất đồng đã thấy ở lưới
+`lm` (§B.2e) nơi máy thứ hai lật dấu ở mức pha loãng nhẹ.
+
+`ntat` đang chạy nốt fold 4–5 để lên n=15 trên máy có hiệu ứng; `ntat2` vẫn đang
+chạy fold 1–3. Chưa được trích §24 khi chưa có cả hai.
+
+### Lỗi vận hành ghi kèm
+
+Khi `asam_aw` xong, driver ntat chạy tiếp `pool_lm.sh` và chết ngay:
+`bash: run/pool1.sh: No such file or directory` — **`pool1.sh` chưa từng được đẩy
+lên ntat**, dù `pool_lm.sh`/`pool_pur.sh` (chỉ là wrapper `exec bash run/pool1.sh`)
+thì có. Cùng đợt, `e60_cb.sh` lại được ghi `done` với **0 ô** vì máy này cũng thiếu
+checkpoint Pha 1 codebert. Cả hai đều bị driver **cũ** xử lý (phóng lúc 20:58,
+trước bản vá đếm hiện vật), nên không có cảnh báo nào. Máy trống ~3 phút.
+
+**Quy tắc rút ra:** đẩy một wrapper mà không đẩy thứ nó `exec` là một lỗi im lặng
+nữa. Trước khi xếp một script vào worklist của máy xa, phải kiểm **mọi file nó gọi
+đến** đã có trên máy đó chưa.
