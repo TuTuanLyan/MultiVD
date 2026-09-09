@@ -1666,6 +1666,20 @@ nên chúng nuốt hết phần được ở hai lớp hiếm và làm ΔROC t�
 hại** (078 về đúng null, 089 thành lợi) mà vẫn giữ 43% phần được ở CWE-022 và 64% ở CWE-079.
 Đó là lý do ΔROC tổng lật từ −0.0039 sang +0.0126.
 
+### Hai phép kiểm ổn định (thêm 09/09 04:1x)
+
+**(a) Không cây kết quả nào chi phối.** 87 khối trải trên **~20 cặp `(cây, run)` khác nhau**; cây
+đóng góp nhiều nhất chỉ có **5 khối** (5 fold × 1 seed). Không có chuyện một khối chạy lớn kéo cả
+kết luận. Danh sách đầu bảng: `results/pool1_t5p` 5, `results_asam1_ntat/.` 5,
+`results_asam1_ntat/asam1_t5p` 5, `results_asam1_ntat/e60_t5p` 5, `results_asam1_ntat2/pool1_t5p`
+5, `results_asam1_ntat2/poolcb_codebert` 5, `results_asamcb_158/.` 5, `results_e60_ntat/.` 5,
+`results_pool1_ntat2/.` 5, `results_asamaw_ntat/.` 4… (`tools/ensemble2.py --by-tree`).
+
+**(b) Ổn định khi thêm dữ liệu.** Đo lại sau khi ntat sinh thêm ô của `asam_aw` fold 4–5, số khối
+83 → 87: `trộn − chuyển giao thuần` trên ROC đi từ +0.0165 (59/83, p=0.0002) sang **+0.0156
+(61/87, p=0.0002)**; PR giữ nguyên +0.0235 → +0.0224 (63/87). Biên độ nhích nhẹ, đếm dấu và p
+không đổi hạng.
+
 ### Ba giới hạn phải nêu
 
 1. **α=0.5 là lựa chọn KHÔNG THAM SỐ khai báo trước** (hai mô hình một phiếu ngang nhau), không

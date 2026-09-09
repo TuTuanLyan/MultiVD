@@ -61,6 +61,8 @@ def main():
     ap.add_argument("--min-p1val", type=float, default=None, help="loai o co phase1_val duoi nguong")
     ap.add_argument("--percwe", action="store_true")
     ap.add_argument("--by-backbone", action="store_true")
+    ap.add_argument("--by-tree", action="store_true",
+                    help="tach theo (cay ket qua, run) — kiem xem mot cay co chi phoi khong")
     a = ap.parse_args()
     alphas = [float(x) for x in a.alphas.split(",")]
     only = re.compile(a.only) if a.only else None
@@ -126,6 +128,16 @@ def main():
         return [float(np.nanmean(v)) for v in store.get(k, {}).values() if len(v)]
 
     bbs = ["TAT CA"] + ([b for b in BACKBONES if any(k[0] == b for k in cell)] if a.by_backbone else [])
+    if a.by_tree:
+        # dem so khoi moi cay truoc, roi in cac cay lon nhat
+        per_tree = defaultdict(set)
+        for k, blks in cell.items():
+            if k[0] != "TAT CA": continue
+            for blk_key in blks: per_tree[(blk_key[0], blk_key[1])].add(blk_key)
+        print("# so KHOI theo cay ket qua (giam dan):")
+        for t, v in sorted(per_tree.items(), key=lambda x: -len(x[1]))[:12]:
+            print(f"#   {len(v):>3d}  {t[0]}/{t[1] or '.'}")
+        print()
     print(f"# nhanh ghep cap: {n_arm} | KHOI doc lap (cay,run,seed,fold): {n_block} | bo vi lech hang test: {n_align}")
     print(f"# only={a.only or '-'} exclude={a.exclude or '-'} min-p1val={a.min_p1val}")
     print("# Delta = tron(alpha) - baseline. Moi KHOI mot so (trung binh cac nhanh), dem dau tren khoi.\n")
