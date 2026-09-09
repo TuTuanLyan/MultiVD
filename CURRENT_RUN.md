@@ -12,8 +12,8 @@ ASAM ρ=2.0**; tốt nhất hiện có là `r0p1` (+0.0125 ROC, 10/10) và `plai
 
 | máy | backbone | fold | cây kết quả | mốc | trạng thái |
 |---|---|---|---|---|---|
-| **vast `ntat`** 5060 Ti, id 50132360 | **codebert** (ρ=0.1) | 1–5 | `results/chot_codebert` | 35 | **XONG 14:18 UTC** |
-| ↳ rồi **t5p** (ρ=2.0) | | **4** | `results/chotv_t5p` | 7 | đang chạy |
+| ~~**vast `ntat`** 5060 Ti, id 50132360~~ | **codebert** (ρ=0.1) | 1–5 | `results/chot_codebert` | 35 | **XONG 14:18 UTC** |
+| ↳ rồi **t5p** (ρ=2.0) | | **4** | `results/chotv_t5p` | 7 | **XONG 15:26 UTC — máy ĐÃ HUỶ 15:29** |
 | **161** (A4000, dùng chung) | **t5p** (ρ=2.0) | **1, 2, 3, 5** | `results/chot_t5p` | 28 | fold 1–3 xong 14:21 UTC, fold 5 đang chạy |
 
 > **Chia lần hai, 09/09 21:27 VN.** 161 xong fold 1–3 lúc 14:21 UTC trong khi vast vừa nhận
@@ -212,3 +212,26 @@ Ngang trộn xác suất ở AUC (ROC −0.0004, PR +0.0025, đều ns), thua �
 - Sổ kết quả (1 162 phép so sánh, lọc + sắp xếp, 2 chế độ bảng):
   https://claude.ai/code/artifact/35c5f832-c306-42e4-959d-9d51adfdcef0
 - Phép trộn, chi tiết + đối chứng: https://claude.ai/code/artifact/d18d51d3-ac51-491d-b8b6-90685506a8a6
+
+---
+
+## Vast đã huỷ 09/09 15:29 UTC (22:29 VN)
+
+Instance `ntat` id **50132360** (RTX 5060 Ti) hết việc đáng chạy trong khối: 35 ô codebert
+(+8 ô `r2p0` bằng chứng) và 7 ô t5p fold 4, driver tự in `CHOT2BB xong 15:26:01 | 7 o`.
+Fold 5 thuộc 161 nên không chia tiếp được mà không phá nguyên tắc fold trọn vẹn.
+
+Qua đủ cổng trước khi huỷ:
+
+| cổng | kết quả |
+|---|---|
+| số file + **kích thước byte**, `LC_ALL=C` cho cả `sort` lẫn `comm` | 50/50, **lệch 0 cả hai chiều** |
+| md5 kiểm xác suất | **7/7 khớp** |
+| log kéo về (`chot_cb.log` 285 950 B, `chotv_t5p.log` 34 751 B) | khớp byte hai phía |
+| dòng kết thúc **do chính driver in** (không phải phép đếm) | có |
+| `destroy` output | `destroying instance 50132360.`, exit 0, **không có `Aborted`** |
+| `vastai show instances` sau đó | chỉ còn `cuongtm4070s` — **máy người khác, không đụng** |
+| `vast_labels` sau đó | **rỗng** |
+
+Còn lại: **161 chạy nốt 4 ô cuối của fold 5** (24/28). Xong thì đọc bằng
+`python3 tools/chot_report.py results/chot_t5p results/chotv_t5p results/chot_codebert`.
