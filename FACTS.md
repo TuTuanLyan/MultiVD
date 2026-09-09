@@ -2204,3 +2204,27 @@ phần được ở ROC/PR. Giá phải trả: hiệu chỉnh α trên val cho t
 
 **Đang chạy**: fold 4–5 trên ntat để lên n=15 (bậc 3) — lý do leo bậc đọc được từ PR 9/9 ở đây.
 Bản lặp **codebert** đang chạy trên ntat2 (`p1fill_cb` → `wblend_cb`).
+
+---
+
+## §27.1 — Pha 1 `full` trên ntat2 hỏng vì THIẾU FILE DỮ LIỆU, không phải vì huấn luyện (09/09 07:33)
+
+`run/p1fill_cb.sh` tạo được Pha 1 codebert cho `4cwe` (498 700 261 byte) và `com`
+(498 700 453 byte) nhưng **hỏng ở `full`**. Nguyên nhân, nguyên văn:
+
+```
+FileNotFoundError: [Errno 2] No such file or directory: 'data/phase1_full.jsonl'
+```
+
+**Không phải Pha 1 sập** — `full` là nguồn khó nhất (123 CWE, lệch mạnh về ccpp) và là chỗ Pha 1
+của backbone yếu hay sập thật (CLAUDE.md mục 6), nên rất dễ đọc nhầm thành "codebert không học nổi
+`full`" rồi ghi vào bài một kết luận sai. Log dừng ở **0.00s**, trước cả khi tải mô hình — đó là
+dấu hiệu phân biệt: sập vì huấn luyện thì phải có ít nhất một epoch.
+
+Đã đẩy `data/phase1_full.jsonl` (18 569 689 byte, **7 598 dòng** — khớp mục 6) lên ntat2 và xếp bù
+`p1fill_cb.sh|full|-` rồi `wblend_cb.sh|full|1 2 3` vào **cuối** hàng đợi, không cắt ngang khối
+đang chạy. `p1fill_cb.sh` tự bỏ qua nguồn đã có nên chỉ chạy đúng `full`.
+
+**Quy tắc bổ sung**: khi xếp một khối lên máy xa, kiểm cả **file DỮ LIỆU** nó đọc, không chỉ file
+mã nó gọi. Danh sách kiểm trước đó của tôi có `run/*.sh`, `src/*.py`, `tools/*.py` và một file
+fold của tập đích — nhưng **không** có ba file nguồn Pha 1.
