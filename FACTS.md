@@ -1792,3 +1792,49 @@ nguyên điểm vận hành đang triển khai, chỉ đổi mô hình"*:
 `+0.146 recall` nghĩa là **bắt thêm khoảng 1,2 lỗ hổng mỗi fold** — nhỏ về tuyệt đối. Thứ làm nó
 đáng tin **không phải biên độ** mà là **58/73 khối cùng dấu** (và 83/85 ở precision). Trích biên độ
 mà không trích số khối cùng dấu là đọc sai theo đúng kiểu CLAUDE.md mục 2b đã cấm.
+
+---
+
+## §25.4 — §25 SỐNG SÓT phép kiểm rò rỉ, và lợi ích của phép trộn nằm ĐÚNG ở hàng sạch (09/09/2026)
+
+Phép kiểm này đã từng **đánh sập** một kết luận của chính dự án (§21.1: lợi của ASAM ρ=2.0 hoá ra
+dồn vào nhóm `train`, còn nhóm `none` chiếm 73% dữ liệu thì dưới sàn nhiễu). Bắt buộc chạy cho §25.
+
+`tools/ens_leak.py`, 86 khối, α=0.5, Δ so với baseline **trên cùng nhóm hàng**:
+
+| nhóm (hàng/fold) | mô hình | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| **`none`** (~111, 73%) | **trộn** | **+0.0264 (74/86, p<1e-4)** | **+0.0080 (58/86, p=0.0016)** | **+0.0070 (62/86, p=0.0001)** |
+| | chuyển giao thuần | +0.0089 (59/86) | **−0.0102 (46/86, p=0.59)** | −0.0159 (42/86) |
+| **`test`** (~9) | **trộn** | **+0.0742 (35/52, p<1e-4)** | **+0.0432 (37/52, p=0.0002)** | **+0.0333 (37/52, p=0.0002)** |
+| | chuyển giao thuần | +0.0429 (26/52, p=0.29) | +0.0242 (31/52, p=0.21) | +0.0208 (31/52, p=0.21) |
+| `train` (~23) | trộn | +0.0569 (58/86) | +0.0289 (57/86) | +0.0287 (52/86) |
+| | chuyển giao thuần | **+0.0692 (67/86)** | **+0.0436 (53/86)** | +0.0339 (53/86) |
+| `val` (~11) | trộn | +0.0292 (39/66) | +0.0164 (27/66) | +0.0141 (29/66) |
+| | chuyển giao thuần | +0.0016 (33/66) | −0.0056 (26/66) | −0.0113 (24/66) |
+
+**Đọc theo hiệu `trộn − chuyển giao thuần` trên ROC-AUC — đây mới là chỗ đáng nhìn:**
+
+| nhóm | `none` | `test` | `val` | **`train`** |
+|---|---|---|---|---|
+| trộn − chuyển giao | **+0.0182** | **+0.0190** | **+0.0220** | **−0.0147** |
+
+Phép trộn **hơn** chuyển giao thuần ở ba nhóm phải khái quát hoá, và **kém hơn** ở đúng nhóm
+`train` — nhóm có bản đối nghịch nằm trong TRAIN, tức nhóm học vẹt được. Nói cách khác: **cái mà
+chuyển giao thuần được nhiều nhất lại là nhóm dễ học vẹt nhất**, còn cái mà phép trộn thêm vào
+nằm đúng ở hàng sạch. Đây là ngược hẳn với §21.1.
+
+**Nhóm `test` là ô mạnh nhất cho bài**: đó là bài toán của bộ `twin` thu nhỏ — hàng chưa từng
+thấy cặp nào tương tự. Trộn cho **+0.0432 ROC (37/52, p=0.0002)**, trên sàn nhiễu 4 lần; chuyển
+giao thuần +0.0242 nhưng **không có ý nghĩa** (31/52, p=0.21).
+
+**Phải nêu — biên độ ở nhóm `none` dưới sàn nhiễu.** ROC +0.0080 và PR +0.0070 nằm **dưới** sàn
+0.010 (cùng loại GPU). Đếm dấu có ý nghĩa (58/86, 62/86) nhưng biên độ thì không vượt sàn. Chỉ
+F1@0.5 (+0.0264) là trên sàn rõ ràng. Phát biểu đúng: *trên hàng sạch, phép trộn dương ổn định về
+dấu ở cả ba chỉ số và vượt sàn ở F1; chuyển giao thuần thì âm ở cả hai chỉ số AUC.*
+
+**Lỗi đã sửa trong chính công cụ trước khi trích**: nhãn `val` trong `data/leak_groups.json`
+**không** có nghĩa "hàng này thuộc val" mà là "bản đối nghịch của hàng test này nằm trong VAL".
+Danh sách có đúng một mục cho mỗi hàng TEST. Bản đầu tôi lọc bỏ `val` → độ dài lệch → **100/100
+khối bị bỏ im lặng**, công cụ in bảng rỗng mà không báo lỗi. Đã thêm nhóm `val` thành một nhóm
+riêng và đếm số ô bị bỏ ra đầu bảng.
