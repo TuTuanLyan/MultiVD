@@ -690,3 +690,46 @@ so với finetune trên đích — đó là câu trả lời cho phản biện �
    **trọng số** — cơ chế đã kiểm: 201/205 tensor nội suy được, và hai bản fine-tune nằm trong
    vùng nối tuyến tính. Nếu chạy được thì chi phí về lại một mô hình.
 4. **F1@ngưỡng-val của bản trộn** — cần ô mới có xác suất val (mục 2 gỡ luôn cái này).
+
+---
+
+## B.2f — Lưới `lm` trên backbone THỨ HAI (codebert): pha loãng NẶNG lặp lại (09/09, SÀNG LỌC n=3)
+
+§B.2e phát biểu trên **hai máy** nhưng **một backbone** (t5p). Đây là lỗ hổng lớn nhất của nó:
+"pha loãng nguồn dưới ~25% hàng CWE đích phá khái quát hoá" có thể chỉ là đặc tính của t5p.
+`run/pool_cb_lm.sh` chạy đúng năm pool `lm*` (js ghim ở 0.87) trên **codebert**, 161, đối chứng
+`lm100_n930` cùng máy cùng phiên. Khối xong 04:08 UTC, đủ 15 ô + 3 baseline, không thiếu ô nào.
+
+**BẬC 1 — sàng lọc, n=3 fold, seed 42. Chỉ đủ để DỪNG, không đủ để KẾT LUẬN.**
+
+| pool | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `lm75` | −0.0300 (1/3) | −0.0180 (1/3) | +0.0019 (2/3) | **+0.0185 (3/3)** |
+| `lm50` | **−0.0553 (0/3)** | **−0.0465 (0/3)** | −0.0287 (1/3) | −0.0089 (2/3) |
+| `lm25` | **−0.0441 (0/3)** | **−0.0350 (0/3)** | **−0.0187 (0/3)** | +0.0064 (2/3) |
+| `lm12` | **−0.0548 (0/3)** | **−0.0553 (0/3)** | **−0.0287 (0/3)** | +0.0177 (2/3) |
+
+### Cái gì lặp lại
+
+**Pha loãng nặng (`lm25`, `lm12`) âm ở 0/3 fold trên BA trong bốn chỉ số** — cùng hướng, cùng
+kiểu "0/n", với phát biểu ở t5p (`lm12` âm 0/10 fold trên cả F1@0.5 lẫn ROC-AUC, p=0.0020 mỗi
+cái). Đây là **bản lặp qua backbone** ở mức sàng lọc mà §B.2e còn thiếu. `lm50` cũng 0/3 trên cả
+hai chỉ số F1 — trên t5p thì `lm50` lệch dấu giữa hai máy, ở codebert nó âm rõ trên F1.
+
+### Cái gì KHÔNG khớp — phải nêu
+
+**PR-AUC ngược dấu với ba chỉ số kia ở `lm75`, `lm25`, `lm12`.** `lm12` cho F1 −0.0548 (0/3)
+nhưng PR **+0.0177 (2/3)**; `lm75` cho F1 −0.0300 nhưng PR +0.0185 (3/3). Đây đúng là tình huống
+CLAUDE.md mục 2b cảnh báo: một chỉ số nói "không" trong khi chỉ số kia nói "có". Ở n=3 thì
+`p=0.250` là **sàn** — "0/3 cùng dấu" là kết quả tốt nhất có thể đạt, nên nó **không** phân biệt
+được hiệu ứng thật với may mắn.
+
+### Phát biểu được phép dùng lúc này
+
+> Ở mức **sàng lọc trên backbone thứ hai**, hướng của §B.2e lặp lại cho pha loãng **nặng**: dưới
+> ~25% hàng CWE đích, cả bốn mức đều âm trên hai chỉ số F1 và `lm25`/`lm12` âm ở 0/3 fold trên cả
+> ROC-AUC. PR-AUC **không** lặp lại và phải nêu kèm.
+
+**Chưa được nâng lên "kết luận"** khi chưa có n=5. 161 hiện trống nhưng người dùng nêu 09/09 là
+local cứ để trống chờ quyết hướng — **không tự xếp fold 4–5**; đây là lựa chọn để người dùng
+quyết, không phải việc thiếu.

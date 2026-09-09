@@ -1930,3 +1930,21 @@ thuần gây hại (`4cwe`: −0.0209 → +0.0078) và **trung tính** khi chuy�
 Đó mới là câu đáng viết vào bài: *không cần biết trước nguồn có chuyển giao tốt hay không — bản
 trộn đều không bao giờ kém hơn mô hình chỉ-đích, và lấy lại phần lớn thiệt hại khi nguồn kém.*
 Nó **không** phải là "trộn luôn tốt hơn": ở `full` nó không thêm được gì.
+
+---
+
+## §26 — Lưới `lm` trên codebert: pha loãng nặng lặp lại qua BACKBONE (09/09/2026, bậc 1 n=3)
+
+Chi tiết và cách đọc ở `RESEARCH_2026-09-08_transfer.md` §B.2f. Tóm tắt: khối `pool_cb_lm` xong
+trên 161 lúc 04:08 UTC, đủ 15 ô + 3 baseline. Đối chứng `lm100_n930` cùng máy cùng phiên.
+
+| pool | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `lm75` | −0.0300 (1/3) | −0.0180 (1/3) | +0.0019 (2/3) | +0.0185 (3/3) |
+| `lm50` | −0.0553 (0/3) | −0.0465 (0/3) | −0.0287 (1/3) | −0.0089 (2/3) |
+| `lm25` | −0.0441 (0/3) | −0.0350 (0/3) | −0.0187 (0/3) | +0.0064 (2/3) |
+| `lm12` | −0.0548 (0/3) | −0.0553 (0/3) | −0.0287 (0/3) | +0.0177 (2/3) |
+
+Pha loãng nặng lặp lại hướng của §B.2e trên backbone thứ hai (0/3 fold, ba trong bốn chỉ số).
+**PR-AUC ngược dấu** ở `lm75`/`lm25`/`lm12` — phải nêu kèm, đúng tình huống mục 2b. Ở n=3 thì
+p=0.250 là **sàn**, nên đây là **sàng lọc**, chưa phải kết luận. Chưa chạy fold 4–5.
