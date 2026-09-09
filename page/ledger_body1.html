@@ -62,6 +62,48 @@
     </tbody>
   </table>
   </div>
+  <div class="card scroll">
+  <table class="pf">
+    <thead><tr><th>Tách theo nhóm RÒ RỈ (ntat, n=15)</th><th>hàng/fold</th><th>ΔF1@0.5</th><th>ΔROC-AUC</th></tr></thead>
+    <tbody>
+      <tr><td>tất cả</td><td>152</td>
+        <td class="yes">+0.0535 <span class="sg">12/15</span></td>
+        <td class="yes">+0.0337 <span class="sg">14/15</span></td></tr>
+      <tr><td>có bản gần trùng trong TRAIN — <em>nhóm học vẹt được</em></td><td>23</td>
+        <td class="yes">+0.1527 <span class="sg">13/15</span></td>
+        <td class="yes">+0.1308 <span class="sg">13/15</span></td></tr>
+      <tr class="hi"><td><strong>none — hàng SẠCH, 73% dữ liệu</strong></td><td>111</td>
+        <td class="yes">+0.0369 <span class="sg">14/15 · p=0.001</span></td>
+        <td class="n">+0.0202 <span class="sg">10/15 · p=0.30</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="card scroll">
+  <table class="pf">
+    <thead><tr><th>Theo CWE, CHỈ trên hàng sạch</th><th>ntat (n=15) ΔROC</th><th>ntat2 (n=9) ΔROC</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>CWE-022</strong></td>
+        <td class="yes">+0.2567 <span class="sg">13/15 · p=0.002</span></td>
+        <td class="yes">+0.2354 <span class="sg">6/9</span></td></tr>
+      <tr class="hi"><td><strong>CWE-079</strong></td>
+        <td class="yes">+0.3158 <span class="sg">14/15 · p&lt;0.001</span></td>
+        <td class="yes">+0.2673 <span class="sg">9/9 · p=0.004</span></td></tr>
+      <tr><td>CWE-078</td><td class="n">−0.0154 <span class="sg">5/15</span></td>
+        <td class="n">+0.0135 <span class="sg">6/9</span></td></tr>
+      <tr><td>CWE-089</td><td class="n">+0.0064 <span class="sg">8/15</span></td>
+        <td class="n">+0.0088 <span class="sg">4/9</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="key">
+    <p><strong>Qua được phép kiểm rò rỉ — nhưng phải nêu cả hai vế.</strong> Bỏ hết hàng có bản gần
+    trùng, phần CWE hiếm <em>gần như không mất gì</em>: CWE-022 còn <em>tăng</em> (+0.2238 → +0.2567),
+    CWE-079 giữ <strong>87%</strong> và vẫn 14/15 fold, 9/9 trên máy thứ hai. <em>Không</em> phải
+    hiệu ứng do rò rỉ.<br><br>
+    Vế phải thừa nhận: <strong>biên độ tổng thì có dựa vào rò rỉ một phần</strong> — nhóm rò rỉ cho
+    ΔROC +0.1308 so với +0.0202 ở nhóm sạch, và trên hàng sạch đếm dấu ROC tụt còn 10/15 (p=0.30)
+    dù F1 vẫn 14/15. <strong>Viết bài thì lấy con số trên hàng sạch làm số chính.</strong></p>
+  </div>
   <div class="key">
     <p><strong>Toàn bộ mức tăng nằm ở hai lớp hiếm.</strong> CWE-079 cùng dấu <em>tuyệt đối</em>
     trên hai máy độc lập — <strong>15/15</strong> và <strong>9/9</strong> fold. Hai lớp thường
@@ -94,7 +136,7 @@
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
       <tr><td><strong>§28</strong> Cấu hình chốt ở bậc 3: mức tăng dồn vào CWE-022 / 079</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td>
-        <td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
       <tr><td><strong>§23</strong> Chuyển giao cứu hai CWE hiếm 022 / 079</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
@@ -110,9 +152,9 @@
       <tr><td><strong>§22</strong> Head cải thiện <em>quyết định</em>, ASAM cải thiện <em>xếp hạng</em></td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
         <td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
-      <tr><td><strong>§27</strong> Nội suy trọng số: suy luận 1 mô hình, ngang trộn xác suất ở AUC</td>
+      <tr><td><strong>§27</strong> Nội suy trọng số: suy luận 1 mô hình, không thua trộn xác suất</td>
         <td class="yes">✓</td><td class="part">±</td><td class="run">▸</td><td class="no">—</td>
-        <td class="run">▸</td><td class="no">—</td><td class="yes">✓</td></tr>
+        <td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
       <tr><td><strong>§20</strong> Finetune hai lần thuần — đối chứng, không phải phát hiện</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td>
         <td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
