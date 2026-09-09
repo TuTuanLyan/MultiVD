@@ -2165,47 +2165,45 @@ hỏng là hỏng vĩnh viễn.
 
 ---
 
-## §27 — Nội suy TRỌNG SỐ: chạy được, ngang trộn xác suất ở AUC, thua ở F1 (09/09, n=9)
+## §27 — Nội suy TRỌNG SỐ: một mô hình, ngang trộn xác suất (09/09, **n=15, bậc 3**)
 
-> **TỰ SỬA (giữ lại để nhớ).** Bản đầu của mục này viết ở **n=1** và kết luận *"nội suy trọng số
-> nói KHÔNG — đường α lõm, val chọn α=1.0, hai mô hình có hàng rào"*, kèm cả cơ chế. Ở n=9 thì
-> **α chọn trên val nội tại ở 8/9 ô** (0.10–0.80, trung bình 0.567); chỉ **một** ô chọn 1.0 và tôi
-> vơ đúng ô đó. Lần thứ hai trong đêm một kết luận ở n rất nhỏ phải rút — CLAUDE.md mục 1.
+> **TỰ SỬA (giữ lại để nhớ).** Bản đầu viết ở **n=1**: *"nội suy trọng số nói KHÔNG — đường α lõm,
+> val chọn α=1.0, hai mô hình có hàng rào"*, kèm cả cơ chế. Ở n=15 thì **α chọn trên val nội tại ở
+> 13/15 ô** (0.10–0.90, trung bình 0.627). Tôi đã vơ đúng ô ngoại lệ làm kết luận.
 
-`run/wblend.sh`, t5p, **3 nguồn × 3 fold = 9 ô**. Δ so với **baseline** cùng ô:
+`run/wblend.sh`, t5p, **3 nguồn × 5 fold = 15 ô**. Δ so với **baseline** cùng ô:
 
-| | F1@0.5 | ROC-AUC | PR-AUC |
-|---|---|---|---|
-| chuyển giao thuần (α=1) | +0.0085 (5/9) | +0.0154 (8/9, p=0.039) | +0.0010 (5/9) |
-| **nội suy TRỌNG SỐ, α chọn trên VAL** | +0.0185 (7/9) | **+0.0198 (8/9, p=0.008)** | **+0.0152 (9/9, p=0.004)** |
-| nội suy trọng số, α=0.5 cố định | −0.0127 (3/9) | +0.0087 (5/9) | +0.0056 (5/9) |
-| **trộn XÁC SUẤT, α=0.5 khai báo trước** | **+0.0262 (9/9, p=0.004)** | +0.0202 (8/9, p=0.039) | +0.0126 (8/9, p=0.039) |
+| | F1@0.5 | ROC-AUC | PR-AUC | chi phí suy luận |
+|---|---|---|---|---|
+| chuyển giao thuần (α=1) | +0.0091 (10/15) | +0.0112 (11/15, p=0.12) | +0.0064 (8/15) | **1 mô hình** |
+| **nội suy TRỌNG SỐ, α chọn trên VAL** | +0.0150 (11/15, p=0.057) | **+0.0174 (12/15, p=0.013)** | **+0.0205 (14/15, p=0.001)** | **1 mô hình** |
+| nội suy trọng số, α=0.5 **cố định** | **−0.0149 (4/15)** | +0.0094 (8/15) | +0.0154 (9/15) | 1 mô hình |
+| **trộn XÁC SUẤT, α=0.5 khai báo trước** | **+0.0197 (15/15, p=0.0001)** | +0.0170 (12/15, p=0.035) | +0.0158 (13/15, p=0.007) | 2 mô hình |
 
 Ghép cặp trực tiếp trong cùng ô:
 
 | | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| trọng số@val − chuyển giao thuần | +0.0100 (6/9) | +0.0044 (6/9) | **+0.0141 (8/9, p=0.008)** |
-| **trọng số@val − xác suất@0.5** | **−0.0077 (1/9, p=0.070)** | −0.0004 (6/9) | +0.0025 (5/9) |
+| trọng số@val − chuyển giao thuần | +0.0059 (8/15, ns) | **+0.0062 (11/15, p=0.023)** | **+0.0141 (13/15, p=0.0002)** |
+| trọng số@val − xác suất@0.5 | −0.0047 (3/15, **p=0.092**) | +0.0005 (9/15, ns) | +0.0048 (8/15, ns) |
 
-**Ba điều, đã ổn định từ n=6 sang n=9:**
+**Ba kết luận ở bậc 3:**
 
-1. **Nội suy trọng số CHẠY ĐƯỢC** khi α chọn trên val: hơn chuyển giao thuần ở PR (**8/9,
-   p=0.008**), hơn baseline ở ROC (8/9) và PR (**9/9**). Không có "hàng rào" như bản n=1 kết luận.
-2. **α=0.5 cố định trong không gian trọng số thì KHÔNG dùng được** (F1 −0.0127, 3/9) — khác hẳn
-   không gian xác suất, nơi α=0.5 cố định là lựa chọn tốt nhất. Trọng số **bắt buộc hiệu chỉnh α
-   trên val**; xác suất thì không cần tham số nào.
-3. **Trên hai chỉ số xếp hạng, hai phép KHÔNG phân biệt được** (ROC −0.0004, PR +0.0025, đều không
-   có ý nghĩa). Chỉ F1 là trọng số thua đều (**1/9 fold**, p=0.070).
+1. **Nội suy trọng số với α chọn trên val HƠN chuyển giao thuần** — ROC +0.0062 (11/15, p=0.023),
+   PR +0.0141 (13/15, p=0.0002). Có ý nghĩa, và **không tốn thêm mô hình nào**.
+2. **Không phân biệt được với trộn xác suất trên cả ba chỉ số** (F1 −0.0047 p=0.092, ROC +0.0005,
+   PR +0.0048). Ở n=9 F1 còn thua đều (1/9); lên n=15 thì **thế thua đó biến mất**. Nghĩa là
+   **thu chi phí suy luận từ hai mô hình xuống một mà không mất gì đo được**.
+3. **α=0.5 CỐ ĐỊNH trong không gian trọng số thì KHÔNG dùng được** (F1 −0.0149, 4/15) — khác hẳn
+   không gian xác suất, nơi α=0.5 cố định lại là lựa chọn tốt nhất (F1 **15/15**). Trọng số
+   **bắt buộc** hiệu chỉnh α trên val; xác suất không cần tham số nào.
 
-**Hệ quả cho phương pháp**: nội suy trọng số **thu chi phí suy luận về một mô hình** mà giữ trọn
-phần được ở ROC/PR. Giá phải trả: hiệu chỉnh α trên val cho từng ô, và mất ~0.008 F1. Đó là một
-đánh đổi thật để nêu trong bài, **không** phải ngõ cụt.
+**Đánh đổi để nêu trong bài**: hai mô hình + không tham số (trộn xác suất), hay một mô hình + một
+lần hiệu chỉnh α trên val (nội suy trọng số). Hai cái ngang nhau về điểm.
 
-**Đang chạy**: fold 4–5 trên ntat để lên n=15 (bậc 3) — lý do leo bậc đọc được từ PR 9/9 ở đây.
-Bản lặp **codebert** đang chạy trên ntat2 (`p1fill_cb` → `wblend_cb`).
-
----
+**Bản lặp backbone** (`wblend_cb` trên codebert) đang chạy trên ntat2 — mọi phát biểu khác của dự
+án đều phải lặp trên backbone thứ hai trước khi viết, và §25.11 vừa cho thấy **biên độ tổng có thể
+không lặp**.
 
 ## §27.1 — Pha 1 `full` trên ntat2 hỏng vì THIẾU FILE DỮ LIỆU, không phải vì huấn luyện (09/09 07:33)
 

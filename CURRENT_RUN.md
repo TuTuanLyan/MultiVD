@@ -6,14 +6,18 @@
 
 | máy | đang chạy | còn trong hàng đợi | xong (ước) |
 |---|---|---|---|
-| **ntat** ($0.0818/h) | `wblend.sh\|4cwe com full\|4 5` — nâng §27 lên n=15 | hết | ~08:00 UTC |
+| ~~**ntat**~~ | **ĐÃ HUỶ 08:07 UTC** — hết việc đáng chạy | — | — |
 | **ntat2** ($0.1222/h) | `wblend_cb.sh\|4cwe com full\|1 2 3` — bản lặp backbone của §27 | `p1fill_cb\|full`, `wblend_cb\|full` | ~10:00 UTC |
 | 161 (local) | trống — **được phép**, người dùng nêu để trống chờ quyết hướng | | |
 | 158 (local) | không ssh được; local nên không tốn tiền | | |
 
-**Khi ntat xong (~08:00)**: đọc `tools/wblend_report.py results_wblend_ntat` để chốt §27 ở n=15.
-Nếu hết việc đáng chạy thì kéo hết về, đối chiếu **số file + byte**, rồi
-`vastai destroy instance 50223254 -y`. Đã đối chiếu ntat2 lúc 06:57: **222/222 file khớp byte**.
+**ntat đã huỷ lúc 08:07 UTC** sau khi §27 đủ n=15: kéo hết 6 cây kết quả + 204 file log về, đối
+chiếu **221/221 file khớp cả byte**, `destroy` (không phải `stop`), rồi xác nhận bằng
+`vastai show instances` — nhãn `ntat` không còn trong danh sách, `ntat2` vẫn chạy.
+Trước đó đã đối chiếu ntat2 lúc 06:57: **222/222 file khớp byte**.
+
+**Khi ntat2 xong (~10:00)**: đọc `tools/wblend_report.py results_wblend_cb_ntat2` cho bản lặp
+backbone của §27. Hết việc đáng chạy thì lặp lại đúng trình tự trên với id **50223345**.
 
 ## Kết quả đêm nay — đọc theo thứ tự này
 
