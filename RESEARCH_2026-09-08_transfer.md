@@ -606,22 +606,43 @@ Có một phép kiểm trực tiếp cho câu đó, và nó không cần huấn 
 Đây là lập luận cổ điển của lý thuyết ensemble, nhưng ở đây nó được dùng làm **phép chẩn đoán**
 chứ không phải để lấy thêm điểm: hình dạng của đường α trả lời một câu về **bản chất** của Pha 1.
 
-## C.3 — Kết quả: đường α có đỉnh nội tại
+## C.3 — Kết quả, và phép loại trừ đã cắt mất một nửa nó
 
-83 khối độc lập `(cây, run, seed, fold)`, hai backbone, cấu hình đã chốt (`latent_bottleneck`,
-λ=0.05). Δ so với baseline:
+83 khối độc lập `(cây, run, seed, fold)`, hai backbone, cấu hình đã chốt. Δ so với baseline:
 
 | α | 0 | 0.25 | **0.5** | 0.75 | 1.0 |
 |---|---|---|---|---|---|
 | ROC-AUC | 0 | +0.0092 | **+0.0126** | +0.0111 | **−0.0039** |
 | PR-AUC | 0 | +0.0108 | **+0.0136** | +0.0120 | **−0.0098** |
 
-Ghép cặp trực tiếp, **α=0.5 vượt α=1.0**: ROC +0.0165 (59/83, p=0.0002), PR +0.0235 (62/83,
-p<1e-4). Trên F1@0.5 thì **không** (p=0.078) — phải nêu.
+Đường α có **đỉnh nội tại**, và α=0.5 vượt α=1.0 (ROC +0.0165, 59/83, p=0.0002). Ở bản đầu tôi
+định dừng ở đây và gọi đó là bằng chứng cho C.2.
 
-Lặp trên hai backbone với **cùng biên độ**: codet5p +0.0126 (68 khối), codebert +0.0129 (15 khối),
-lệch 0.0003 tức nhỏ hơn sàn nhiễu 33 lần. Đây là điều kiện người dùng nêu 09/09: *không phụ thuộc
-backbone*.
+**Đối chứng âm đã cắt phát biểu đó xuống một nửa.** Trộn **hai baseline chỉ khác seed** — hai mô
+hình ngang tài, không có Pha 1, ghép cặp cùng máy cùng fold, n=48 — cũng cho **ROC +0.0079
+(37/48, p=0.0002)** và **PR +0.0111 (41/48)**. Nghĩa là *"bản trộn hơn baseline"* **một mình nó
+không phải bằng chứng cho chuyển giao**: một phần đáng kể là trung bình hoá phương sai.
+
+### Con số dùng được: ghép cặp trực tiếp hai phép trộn
+
+Không được lấy hiệu của hai trung bình đo trên hai tập khác nhau (tôi đã mắc đúng lỗi này một
+lần và nó cho ra kết luận ngược). Phép đúng: trong **cùng một `(cây, fold)`**, với **cùng một
+baseline**, đặt
+
+  A = trộn(base, chuyển_giao)   ·   B = trộn(base, base_khác_seed)
+
+rồi đo **A − B**. Mọi thứ triệt tiêu trừ đúng một câu: *mô hình thứ hai là bản chuyển giao hay
+chỉ là một bản chạy lại?* **48 cặp**:
+
+| A − B | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| | **+0.0200 (37/48, p=0.0002)** | **+0.0121 (42/48, p<1e-4)** | **+0.0116 (43/48, p<1e-4)** |
+
++0.0121 ROC **vẫn trên sàn nhiễu 0.010**, và F1 cũng có ý nghĩa — tức hiệu ứng không chỉ ở xếp
+hạng. (Biên độ ROC đi từ +0.0148 ở n=36 xuống +0.0121 ở n=48; phải nêu là nó co khi thêm dữ liệu.)
+
+Lặp trên hai backbone với cùng biên độ ở phần trộn-vs-baseline: codet5p +0.0126 (68 khối),
+codebert +0.0129 (15 khối). Bản lặp của **phép ghép cặp trực tiếp** trên codebert đang chạy.
 
 ## C.4 — Cơ chế: Pha 1 biết gì mà baseline không biết
 
@@ -651,15 +672,34 @@ chuyển giao thuần **âm** ở cả hai AUC. Hiệu *trộn − thuần* theo
 nằm ở nhóm **học vẹt được**, còn cái phép trộn thêm vào nằm ở hàng **sạch**. Ngược hẳn với §21.1,
 nơi lợi của ASAM hoá ra là lợi do rò rỉ.
 
-**(b) Không phải "trộn gì cũng lợi".** Trong cùng một khối, so với cùng một baseline: trộn với mô
-hình chuyển giao từ nguồn **nguyên chất** cho ROC +0.0109, từ nguồn **pha loãng** cho **−0.0036**.
-Hiệu ghép cặp +0.0145 (12/13 khối, p=0.0034). Đáng chú ý nhất: ở nhóm nguyên chất, chuyển giao
-thuần cho PR **+0.0003** (đúng bằng không) nhưng bản trộn **+0.0154** — một mô hình *một mình
-không hơn gì* vẫn **đóng góp** được khi trộn. Đó đúng là định nghĩa của bổ trợ.
+**(b) Không phải "trộn gì cũng lợi".** Hai phép kiểm, cả hai đều dương tính:
+*(i)* trong cùng một khối, trộn với mô hình chuyển giao từ nguồn **nguyên chất** cho ROC +0.0109,
+từ nguồn **pha loãng** cho **−0.0036** — trung bình hoá phương sai không phân biệt được nguồn.
+*(ii)* trộn hai **baseline khác seed** cho +0.0079, còn trộn với chuyển giao hơn nó **+0.0121**
+(42/48, ghép cặp trực tiếp). Và theo CWE thì hai phép trộn khác nhau hoàn toàn — xem C.5b.
 
 **(c) Không phải chỉ cứu bản yếu.** Chia theo `phase1_val` (độc lập với tập test đích): phần trộn
 **thêm** vào có ý nghĩa ở nhóm Pha 1 **mạnh** (+0.0154, p=0.0025) và **không** có ý nghĩa ở nhóm
 yếu (+0.0051, p=0.79). Nếu là chính quy hoá thuần thì phải ngược lại.
+
+## C.5b — Chỗ phân biệt nằm ở PHÂN BỐ, không ở trung bình
+
+Ghép cặp trực tiếp A − B, tính riêng từng CWE (ΔROC, 48 cặp):
+
+| CWE | A − B | |
+|---|---|---|
+| **022** | **+0.1076 (40/48, p<1e-4)** | trộn với chuyển giao hơn hẳn |
+| **079** | **+0.1312 (42/48, p<1e-4)** | trộn với chuyển giao hơn hẳn |
+| 078 | +0.0042 (24/48, p=1.00) | **đúng bằng không** |
+| 089 | +0.0021 (26/48, p=0.46) | **đúng bằng không** |
+
+**Toàn bộ** khoảng cách giữa hai phép trộn nằm ở đúng hai lớp hiếm, và **đúng bằng không** ở hai
+lớp thường. Trong chính đối chứng, CWE-022 còn **âm có ý nghĩa** (−0.0257, 12/48, p=0.047).
+
+Đây là phiên bản mạnh nhất của luận điểm C.2, và nó **không** phải phát biểu về biên độ tổng:
+*mô hình chuyển giao mang vào thứ mà một bản chạy lại của baseline không có, và thứ đó chỉ nằm ở
+hai lớp mà mô hình chỉ-đích yếu nhất.* Trung bình hoá phương sai không tạo ra được một phân bố
+như thế.
 
 ## C.6 — Phát biểu cuối, đã thu hẹp cho đúng
 
@@ -669,20 +709,24 @@ giao thuần **gây hại**, −0.0209 → +0.0078) và **null** ở `full` (nơ
 
 Vậy phát biểu đúng **không** phải *"trộn luôn tốt hơn"* mà là:
 
-> **Phép trộn đều cho một sàn.** Nó dương so với baseline ở cả ba nguồn và cả hai nhóm Pha 1 —
-> chưa bao giờ kém hơn mô hình chỉ-đích. Nó **sửa** trường hợp chuyển giao gây hại và **trung
-> tính** khi chuyển giao đã tốt. Người dùng không cần biết trước nguồn của mình có chuyển giao
-> tốt hay không.
+> **Điểm tổng là cách đo sai.** Trộn hai mô hình bất kỳ đã nâng điểm tổng, nên biên độ tổng
+> không phân biệt được chuyển giao với việc chạy lại. **Giá trị của Pha 1 nằm ở phân bố**: ghép
+> cặp trực tiếp, toàn bộ khoảng cách giữa *trộn-với-chuyển-giao* và *trộn-với-một-bản-chạy-lại*
+> dồn vào hai lớp hiếm (+0.108 và +0.131, 40/48 và 42/48) và **đúng bằng không** ở hai lớp thường.
+>
+> Kèm theo, phép trộn cho một **sàn** thực dụng: dương so với baseline ở cả ba nguồn và cả hai
+> nhóm Pha 1, sửa trường hợp chuyển giao gây hại và trung tính khi chuyển giao đã tốt.
 
-Và, độc lập với giá trị thực dụng đó, **hình dạng đường α là bằng chứng** rằng Pha 1 không thừa
-so với finetune trên đích — đó là câu trả lời cho phản biện ở C.1.
+Đó là câu trả lời cho phản biện ở C.1 — nhưng chỉ sau khi đã trừ đi phần mà một bản chạy lại
+cũng làm được. **Bài học phương pháp luận của cả phụ lục này**: mọi phát biểu dạng *"gộp hai thứ
+thì tốt hơn"* phải kèm đối chứng *"gộp hai bản của cùng một thứ"*, và phần dôi ra phải đo bằng
+**ghép cặp**, không bằng hiệu của hai trung bình.
 
 ## C.7 — Còn thiếu gì trước khi viết được
 
-1. **Đối chứng baseline ⊕ baseline khác seed.** Hai mô hình *ngang tài* thì trộn có cho +0.013
-   không? Không kiểm ngoài tuyến được (21 cặp baseline đa-seed duy nhất trong kho là của khối 47,
-   chạy trước khi lưu xác suất từng mẫu). `run/ensctl.sh` đang xếp trên **cả ntat và ntat2** —
-   §B.2e đã từng cho hai máy lệch dấu nên đối chứng này cần hai máy. **Chưa có thì chưa trích C.**
+1. ~~Đối chứng baseline ⊕ baseline khác seed.~~ **ĐÃ CHẠY XONG** (n=48, hai máy) và đã buộc
+   viết lại C.3 / C.5 / C.6. Bản lặp trên **backbone thứ hai** (codebert, cây `poolcb`) đang chạy —
+   §B.2e đã từng cho hai máy lệch dấu nên phép so quyết định này cũng cần hơn một nền.
 2. **α chọn trên val.** α=0.5 là lựa chọn không tham số khai báo trước, nhưng hình dạng đường cong
    thì có nhìn trên test. Đã vá `src/train_{transfer,baseline}.py` ghi thêm `val_probabilities`;
    mọi ô từ 09/09 chọn được α trên val.
