@@ -28,7 +28,7 @@ for L in ntat ntat2; do
 echo job=\$(ps -eo args --no-headers | grep -c '[s]rc/train_[a-z]*\.py')
 echo wl=\$(ps -eo args --no-headers | grep -c '[v]ast_worklist.sh')
 echo todo=\$(grep -vc '^\s*#\|^\s*$' log/worklist.txt 2>/dev/null)
-echo done=\$(grep -c . log/worklist.done 2>/dev/null)
+echo done=\$(grep -xF -f <(grep -v '^\s*#\|^\s*\$' log/worklist.txt) log/worklist.done 2>/dev/null | grep -c .)
 echo vram=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
 echo last=\$(tail -1 log/worklist.log 2>/dev/null | cut -c1-100)" 2>/dev/null)
   if [[ -z "$out" ]]; then say "$L | KHONG SSH DUOC ($H:$P) — KHONG ket luan may chet"; continue; fi
@@ -39,6 +39,10 @@ echo last=\$(tail -1 log/worklist.log 2>/dev/null | cut -c1-100)" 2>/dev/null)
   # ba tinh huong, ba xu ly — gop lai thi hoac bo lo may trong hoac phong lai nham
   if (( ${wl:-0} > 0 )); then continue; fi                       # con danh sach viec dang chay
   if (( ${job:-0} > 0 )); then say "$L | worklist chet nhung job con chay — cho"; continue; fi
+  # `dn` phai la SO GIAO giua worklist.done va worklist.txt, khong phai so dong tho.
+  # 09/09/2026 00:15: ntat2 co worklist.done 6 dong nhung BA dong thuoc danh sach CU
+  # (da xep lai). Dem tho cho 6/6 nen cong nay se ket luan "DA XONG HET" va KHONG phong
+  # lai — trong khi ba muc moi chua chay. May vast se nam khong ma van tinh tien.
   if (( ${dn:-0} >= ${todo:-0} )) && (( ${todo:-0} > 0 )); then
     say "$L | *** DA XONG HET ${todo} MUC — MAY TRONG, can them viec vao log/worklist.txt hoac huy may ***"
     continue
