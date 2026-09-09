@@ -201,3 +201,19 @@ ghép cặp** từ 46 cây kết quả (mọi khối từ 24/08). Bấm chọn b
 chỉ số / đợt; bấm vào ô để xem các dòng tạo nên nó. Ô có |Δ| dưới sàn nhiễu 0.010 để xám.
 
 Dựng bằng `tools/hp_matrix.py`. Số liệu và cách đọc ở FACTS §32.
+
+## Khối chốt: hai backbone — 09/09/2026
+<https://claude.ai/code/artifact/1ced3c61-bf8a-48b1-ab17-6ad575a0123b>
+
+Trang kết quả **riêng cho khối `chot`**: cấu hình đã chốt (`latent_bottleneck`, λ=0.05) chạy trên
+**codebert và t5p**, bật/tắt toàn bộ optimizer, trên cả ba nguồn Pha 1 — **70 ô**, 5 fold mỗi ô.
+
+Bố cục: giải thích ký hiệu một dòng → **ba phát hiện** kèm bảng bằng chứng → bảng đầy đủ từng
+fold (lọc được, đổi giữa Δ và trị tuyệt đối, bật/tắt 8 ô ρ=2.0 đã bỏ) → bốn giới hạn → ba đề xuất.
+
+Ba phát hiện: (1) cả hai điều kiện hơn baseline, mạnh nhất là codebert `plain` +0.0540 F1 15/15;
+(2) **optimizer đóng góp bằng không ở cả hai backbone** (A−B: −0.0061 6/15 và −0.0018 10/15);
+(3) theo CWE thì CWE-022 và CWE-079 dương 14–15/15 ở **cả bốn** phép đo, hai CWE kia null —
+nhưng đó là hai lớp nhỏ nhất (8 và 19 hàng trên 152).
+
+Dựng bằng `tools/chot_export.py`. Số đầy đủ ở FACTS §34; quy tắc hoà ở §34.1.
