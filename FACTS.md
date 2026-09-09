@@ -2017,11 +2017,16 @@ cùng fold. **n=32 cặp trên hai máy.** Số ổn định từ n=8 lên n=32.
 |---|---|---|---|
 | **baseline ⊕ baseline′** (đối chứng, n=32) | +0.0124 (21/32, p=0.07) | **+0.0084 (25/32, p=0.0021)** | **+0.0092 (29/32, p<1e-4)** |
 | baseline ⊕ chuyển giao (§25, 87 khối) | +0.0317 (76/87) | +0.0129 (69/87) | +0.0136 (71/87) |
-| **phần dôi ra của chuyển giao** | +0.0193 | **≈ +0.0045** | **≈ +0.0044** |
+| ~~phần dôi ra của chuyển giao~~ | ~~+0.0193~~ | ~~≈ +0.0045~~ | ~~≈ +0.0044~~ |
 
-Trộn **hai mô hình ngang tài chỉ khác seed** đã lấy **65% / 68%** mức tăng tổng của §25. Phần dôi
-ra nằm **dưới sàn nhiễu 0.010**. Phát biểu *"trộn baseline⊕chuyển giao hơn baseline"* vì thế
-**không còn là bằng chứng cho chuyển giao** — nó đúng, nhưng phần lớn là trung bình hoá phương sai.
+> **CẢNH BÁO — dòng “phần dôi ra” ở trên là HIỆU CỦA HAI TRUNG BÌNH và KHÔNG được dùng.** Nó lấy
+> +0.0129 (trên 87 khối, nhiều cây) trừ +0.0084 (trên 32 cặp, một cây) — hai tập khác nhau. Đó
+> đúng là điều CLAUDE.md mục 2 cấm. Con số ghép cặp đúng cách nằm ở §25.9 và nó **lớn gấp ba**.
+
+Trộn **hai mô hình ngang tài chỉ khác seed** cũng cho +0.0084 ROC / +0.0092 PR. Điều này đứng
+vững và có ý nghĩa: **một phần mức tăng của phép trộn là trung bình hoá phương sai**, nên
+*"trộn hơn baseline"* một mình **không** đủ làm bằng chứng cho chuyển giao. Nhưng **bao nhiêu**
+phần thì phải đo bằng phép ghép cặp trực tiếp — xem §25.9.
 
 ### Theo CWE thì đối chứng PHẲNG hoặc ÂM — đây mới là chỗ phân biệt
 
@@ -2057,3 +2062,46 @@ nhóm `train` thì âm).
 **Bài học chung**: đối chứng này đáng giá đúng bằng cả khối §25 — nếu bỏ qua nó thì đã viết vào bài
 một phát biểu mà 2/3 biên độ đến từ việc chạy lại cùng một mô hình. Mọi phát biểu dạng *"gộp hai
 thứ thì tốt hơn"* phải có đối chứng *"gộp hai bản của cùng một thứ"*.
+
+
+---
+
+## §25.9 — GHÉP CẶP TRỰC TIẾP hai phép trộn: con số đúng lớn gấp ba (09/09/2026)
+
+§25.8 so hai đại lượng đo trên **hai tập khác nhau** rồi trừ nhau. Đó là *hiệu của hai trung bình*
+— chính điều CLAUDE.md mục 2 cấm, và tôi đã mắc. Bản ghép cặp đúng:
+
+Trong **cùng một `(cây, fold)`**, với **cùng một baseline seed 42**, lấy
+`A = trộn(base42, chuyển_giao)` và `B = trộn(base42, base_khác_seed)`, rồi đo **A − B**. Mọi thứ
+triệt tiêu trừ đúng một câu hỏi: *mô hình thứ hai là bản chuyển giao hay chỉ là một bản chạy lại?*
+
+`tools/ens_headtohead.py` · 6 khối có đủ cả ba thành phần · **36 cặp ghép trực tiếp**:
+
+| A − B | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| | **+0.0215 (25/36, p=0.029)** | **+0.0148 (33/36, p<1e-4)** | **+0.0135 (32/36, p<1e-4)** |
+
+**+0.0148 ROC vượt sàn nhiễu 0.010**, và 33/36 fold cùng dấu. So với con số sai ở §25.8
+(“≈+0.0045, dưới sàn nhiễu”) thì lớn **gấp 3,3 lần** và **đổi hẳn kết luận**.
+
+Theo CWE (A − B, ΔROC):
+
+| CWE | A − B | |
+|---|---|---|
+| **022** | **+0.1303 (31/36, p<1e-4)** | trộn với chuyển giao hơn hẳn |
+| **079** | **+0.1554 (33/36, p<1e-4)** | trộn với chuyển giao hơn hẳn |
+| 078 | +0.0070 (21/36, p=0.41) | null |
+| 089 | +0.0001 (16/36, p=0.86) | null |
+
+Toàn bộ khoảng cách giữa hai phép trộn nằm ở **đúng hai lớp hiếm**, và **đúng bằng không** ở hai
+lớp thường. Đây là phiên bản mạnh nhất của luận điểm: **mô hình chuyển giao mang vào thứ mà một
+bản chạy lại của baseline không có, và thứ đó chỉ nằm ở hai lớp mà baseline yếu nhất.**
+
+**Giới hạn**: chỉ **6 khối / 36 cặp** có đủ cả ba thành phần (baseline seed 42 + baseline khác
+seed + nhánh chuyển giao cùng cây cùng fold), toàn bộ từ cây `asamaw_t5p` trên hai máy. Hẹp hơn
+nhiều so với 87 khối của §25 — nhưng **hẹp mà ghép cặp đúng** thì dùng được, còn **rộng mà lấy
+hiệu hai trung bình** thì không. `ensctl` chạy xong trên ntat sẽ nâng số khối lên.
+
+**Bài học**: cùng một dữ liệu, đọc bằng hiệu-hai-trung-bình cho “dưới sàn nhiễu, kết luận sập”,
+đọc bằng ghép-cặp cho “+0.0148, 33/36, p<1e-4”. Khoảng cách giữa hai cách đọc lớn hơn khoảng cách
+giữa có hiệu ứng và không.
