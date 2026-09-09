@@ -98,7 +98,13 @@ for key, arms in cells.items():
         dot = dot_of(key[1], key[2], exp)
         # "TB" = gop MOI backbone. Gop cac Delta DA ghep cap theo fold lai voi nhau —
         # KHONG lay trung binh cua cac trung binh (do la loi CLAUDE.md muc 2 cam).
-        for gk in ((mode, tag, opt, lam, bb, dot), (mode, tag, opt, lam, "TB", dot)):
+        # NGUON phai nam trong DINH DANH phuong phap khi no la bien thi nghiem.
+        # Bay da mac: gop luoi PHA LOANG (lm12/pur12... co y lam hong, §B.2e am 0/10 fold)
+        # chung voi nguon nguyen chat vao mot dong "(goc) adamw" -> dong do cho ROC -0.0052
+        # va doc thang se ra ket luan SAI "AdamW am". Tach ra: nguon chuan (4cwe/com/full)
+        # gop lam mot; moi pool la mot dong rieng vi pool CHINH LA bien cua thi nghiem do.
+        sgrp = "3 nguồn chuẩn" if src in SRCS else (src if src != "-" else "—")
+        for gk in ((mode, tag, opt, lam, bb, dot, sgrp), (mode, tag, opt, lam, "TB", dot, sgrp)):
             for mk, f in MET:
                 if d.get(f) is not None and b.get(f) is not None:
                     agg[gk][mk].append(d[f] - b[f])
@@ -113,12 +119,13 @@ def stat(v):
             "p": round(p,4) if p is not None else None}
 
 rows=[]
-for (mode, tag, opt, lam, bb, dot), v in agg.items():
+for (mode, tag, opt, lam, bb, dot, sgrp), v in agg.items():
+    gk = (mode,tag,opt,lam,bb,dot,sgrp)
     r = {"nhanh": mode, "tag": tag, "opt": opt, "lam": lam, "backbone": bb, "dot": dot,
-         "nguon": len(srcs[(mode,tag,opt,lam,bb,dot)]), "may": sorted(mays[(mode,tag,opt,lam,bb,dot)])}
+         "sgrp": sgrp, "nguon": len(srcs[gk]), "may": sorted(mays[gk])}
     for mk,_ in MET: r[mk] = stat(v.get(mk, []))
     r["n"] = r["roc"]["n"] if r["roc"] else 0
     if r["n"] >= 3: rows.append(r)
-rows.sort(key=lambda r: (r["dot"], r["nhanh"], r["tag"], r["backbone"]))
+rows.sort(key=lambda r: (r["dot"], r["nhanh"], r["sgrp"], r["tag"], r["backbone"]))
 sys.stderr.write(f"# {len(cells)} khoi, bo {ndup} o trung, {len(rows)} dong tong hop\n")
 print(json.dumps(rows, ensure_ascii=False))

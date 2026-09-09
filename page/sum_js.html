@@ -95,6 +95,10 @@ function makePane(el,id,compact){
   // khong mot the nao trung giua hai dot — nen gop vao mot bang la tron hai giao thuc.
   const fDot = MS(host, id+'dot', 'đợt', ['optimize-v1','trước optimize-v1'],
                   ()=>draw(), ['optimize-v1']);
+  // MAC DINH chi "3 nguon chuan". Luoi pha loang (lm*/pur*) la thi nghiem ve NGUON, khong
+  // phai ve phuong phap — gop chung vao mot dong lam ROC am va doc thang ra ket luan sai.
+  const SG = [...new Set(DATA.map(x=>x.sgrp))].sort();
+  const fSg = MS(host, id+'sg2', 'nguồn', SG, ()=>draw(), ['3 nguồn chuẩn']);
   function shownBB(){ return bbs.filter(b=>fBb.has(b)); }
   function redrawHead(){
     const h = el.querySelector('thead tr');
@@ -107,7 +111,7 @@ function makePane(el,id,compact){
     const mets=VIEWS[el.querySelector(`#mt-${id}`).value]||VIEWS.f1roc;
     const mt=mets[mets.length-1];
     let r=DATA.slice();
-    r = r.filter(x=>fNh.has(x.nhanh) && fOp.has(x.opt) && fDot.has(x.dot));
+    r = r.filter(x=>fNh.has(x.nhanh) && fOp.has(x.opt) && fDot.has(x.dot) && fSg.has(x.sgrp));
     const vis = shownBB();
     const nn=+el.querySelector(`#nn-${id}`).value; if(nn) r=r.filter(x=>x.n>=nn);
     if(el.querySelector(`#sg-${id}`).checked)
@@ -131,6 +135,7 @@ function makePane(el,id,compact){
       const chot = x.tag==='aw_r2p0' && x.nhanh==='latent_bottleneck';
       return `<tr class="${chot?'key':''}"><td>${chot?'<strong>':''}${x.mo_ta}${chot?'</strong>':''}`
         + `<span class="mt">${x.nhanh} · ${x.tag} · ${x.opt}${x.lam!=='0.05'?' · λ='+x.lam:''}`
+        + `${x.sgrp!=='3 nguồn chuẩn'?' · nguồn '+x.sgrp:''}`
         + `${x.dot!=='optimize-v1'?' · <em>đợt trước</em>':''}</span></td>`
         + `<td class="v">${x.n}</td>` + vis.map(b=>cell(x.bb[b],mets)).join('') + '</tr>';
     }).join('') || `<tr><td colspan="${vis.length+2}" style="text-align:center;color:var(--ink3);padding:12px">không có dòng nào khớp bộ lọc</td></tr>`;
@@ -138,16 +143,17 @@ function makePane(el,id,compact){
   redrawHead();
   el.querySelectorAll('select,input[type=checkbox]:not(.msp input)').forEach(x=>x.addEventListener('input',draw));
   el.querySelector(`#rs-${id}`).addEventListener('click',()=>{
-    fNh.clear(); fOp.clear(); fBb.clear(); fDot.set(['optimize-v1']);
+    fNh.clear(); fOp.clear(); fBb.clear();
+    fDot.set(['optimize-v1']); fSg.set(['3 nguồn chuẩn']);
     el.querySelector(`#nn-${id}`).value='0';
     ['sg','nz'].forEach(k=>el.querySelector(`#${k}-${id}`).checked=false); draw();});
   draw();
   return {setNhanh(vs){ fNh.set(vs); redrawHead(); draw(); }};
 }
 const A=makePane(document.getElementById('paneA'),'a',false);
-const NV1=DATA.filter(x=>x.dot==='optimize-v1').length;
-document.getElementById('tot').textContent=NV1+' phương pháp (optimize-v1) × 5 backbone · '
-  +(DATA.length-NV1)+' phương pháp đợt trước, tắt sẵn';
+const NV1=DATA.filter(x=>x.dot==='optimize-v1'&&x.sgrp==='3 nguồn chuẩn').length;
+document.getElementById('tot').textContent=NV1+' phương pháp (optimize-v1, 3 nguồn chuẩn)'
+  +' × trung bình + 5 backbone · '+(DATA.length-NV1)+' dòng khác bật được ở bộ lọc';
 document.getElementById('nm').textContent=NV1;
 let B=null,C=null;
 const b1=document.getElementById('m1'),b2=document.getElementById('m2');
