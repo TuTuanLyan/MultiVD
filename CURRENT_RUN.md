@@ -10,11 +10,30 @@ ASAM ρ=2.0**; tốt nhất hiện có là `r0p1` (+0.0125 ROC, 10/10) và `plai
 
 **Chia theo backbone** (CLAUDE.md mục 4: một backbone trọn một máy — Δ nội bộ sạch):
 
-| máy | backbone | fold | cây kết quả | trạng thái |
-|---|---|---|---|---|
-| **vast `ntat`** RTX **5060 Ti** 16 GB, id 50132360 | **codebert** — ưu tiên xong trước | 1–5 | `results/chot_codebert` | chạy từ 09:42 UTC |
-| ↳ rồi **t5p** | | **4–5** | `results/chotv_t5p` | nhận sau khi codebert xong |
-| **161** (A4000 16 GB, dùng chung) | **t5p** | **1–3** | `results/chot_t5p` | chạy từ 09:44 UTC |
+| máy | backbone | fold | cây kết quả | mốc | trạng thái |
+|---|---|---|---|---|---|
+| **vast `ntat`** 5060 Ti, id 50132360 | **codebert** (ρ=0.1) | 1–5 | `results/chot_codebert` | 35 | **XONG 14:18 UTC** |
+| ↳ rồi **t5p** (ρ=2.0) | | **4** | `results/chotv_t5p` | 7 | đang chạy |
+| **161** (A4000, dùng chung) | **t5p** (ρ=2.0) | **1, 2, 3, 5** | `results/chot_t5p` | 28 | fold 1–3 xong 14:21 UTC, fold 5 đang chạy |
+
+> **Chia lần hai, 09/09 21:27 VN.** 161 xong fold 1–3 lúc 14:21 UTC trong khi vast vừa nhận
+> fold 4–5. Người dùng đã nêu *"cứ chia bớt mà chạy đừng phí vast là được"*, nên 161 nhận nốt
+> **fold 5** và vast chỉ giữ **fold 4** — cả khối xong sớm hơn ~45 phút. Vẫn chia theo **fold
+> trọn vẹn** (CLAUDE.md mục 4) nên Δ trong mỗi fold vẫn ghép cặp sạch.
+>
+> Driver vast lúc đó đang chạy `FOLD_LIST="4 5"`, nên có waiter dừng nó **đúng lúc fold 4 xong**
+> rồi phóng ngay GD2 `full` fold 4 — nếu để nó lấn sang fold 5 thì hai máy làm trùng một fold,
+> và vì hai **cây kết quả khác nhau** nên không bên nào bỏ qua bên nào.
+>
+> **8 ô `r2p0` của codebert** (fold 1–4, hai nguồn) giữ trong cây làm bằng chứng ρ=2.0 không hợp
+> codebert; mọi phép đếm của khối đều `grep -v _r2p0/`.
+
+### Kết quả nửa codebert (đã xong, FACTS §33)
+
+3 nguồn × 5 fold, Δ so với baseline cùng fold. **B (AdamW trần) +0.0540 F1@0.5 15/15**;
+**A (ρ=0.1 + RecAdam) +0.0479 14/15**. **A − B ghép cặp: null** (−0.0061, 6/15 — dưới sàn nhiễu).
+Theo CWE thì **cả hai nhánh giống hệt nhau**: CWE-022 +0.41/+0.40 (15/15), CWE-079 +0.37/+0.38
+(15/15), CWE-078 và CWE-089 null. Nghĩa là lợi ích đến từ **Pha 1 + head**, không từ optimizer.
 
 ### Chia fold sang vast (09/09 17:25 VN)
 
