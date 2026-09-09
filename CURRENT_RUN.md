@@ -1,64 +1,65 @@
-# CURRENT_RUN — sáng 09/09/2026
+# CURRENT_RUN — 09/09/2026, 07:36 UTC (14:36 giờ VN)
 
-> Cập nhật **09/09 03:45 UTC (10:45 giờ VN)**. Người dùng đã quay lại lúc 02:00 UTC.
-> File cũ (đêm 08→09) đã bị thay: nó nói về `asam4`/`pool_lm` — cả hai đã xong.
+> Bản trước viết 03:45, trước khi có §25.8 → §28. Đã thay hẳn.
 
-## Đang chạy ở đâu — không máy nào nằm không
+## Máy — không máy vast nào nằm không
 
-| máy | mục đang chạy | xong lúc (ước) | còn lại trong worklist |
+| máy | đang chạy | còn trong hàng đợi | xong (ước) |
 |---|---|---|---|
-| **ntat** (vast, $0.0818/h) | `asam_aw.sh\|4cwe com full\|4 5` — fold 5 | ~03:55 UTC | `ensctl.sh` (~1h), rồi `wblend.sh` (~1,5h) |
-| **ntat2** (vast, $0.1222/h) | `pool_cb_lm.sh\|-\|1 2 3` — codebert × lưới `lm*` | ~06:40 UTC | hết — **cần cấp việc hoặc huỷ** |
-| **161** (local, GPU chung) | `pool_cb.sh` — codebert × lưới `lm*` | — | — |
-| **158** (local, A4000) | có job | — | — |
+| **ntat** ($0.0818/h) | `wblend.sh\|4cwe com full\|4 5` — nâng §27 lên n=15 | hết | ~08:00 UTC |
+| **ntat2** ($0.1222/h) | `wblend_cb.sh\|4cwe com full\|1 2 3` — bản lặp backbone của §27 | `p1fill_cb\|full`, `wblend_cb\|full` | ~10:00 UTC |
+| 161 (local) | trống — **được phép**, người dùng nêu để trống chờ quyết hướng | | |
+| 158 (local) | không ssh được; local nên không tốn tiền | | |
 
-**Việc phải làm khi ntat2 xong (~06:40 UTC):** hoặc cấp việc đáng chạy, hoặc `vastai destroy
-instance 50223345 -y` sau khi kéo hết kết quả về và đối chiếu số file + byte.
+**Khi ntat xong (~08:00)**: đọc `tools/wblend_report.py results_wblend_ntat` để chốt §27 ở n=15.
+Nếu hết việc đáng chạy thì kéo hết về, đối chiếu **số file + byte**, rồi
+`vastai destroy instance 50223254 -y`. Đã đối chiếu ntat2 lúc 06:57: **222/222 file khớp byte**.
 
-## Ba mục đã xếp trên ntat, theo thứ tự
+## Kết quả đêm nay — đọc theo thứ tự này
 
-### 1. `asam_aw.sh` fold 4–5 — ĐANG CHẠY, để lên n=15
-Kết quả hiện tại ở FACTS §24. Bất đồng hai máy **đã giải**: ntat n=10 cho ROC +0.0244 (9/10,
-p=0.021) và PR +0.0352 (10/10, p=0.002); ntat2 n=9 độc lập cho ROC +0.0135 (7/9), PR +0.0216
-(7/9). Cộng số fold: ROC 16/19, PR 17/19. **Hiệu ứng ở XẾP HẠNG, không ở F1** — ntat2 cho F1 chỉ
-4/9. Chưa chốt cấu hình cuối khi ntat chưa xong fold 4–5.
+### 1. §28 — con số đầu bài (cấu hình chốt, bậc 3, KHÔNG cần chạy thêm)
 
-### 2. `ensctl.sh` — ĐỐI CHỨNG BẮT BUỘC cho §25
-Chỉ baseline, seed 7 và 1234, 5 fold, ghi vào **đúng cây `asamaw_t5p`** đã có baseline seed 42
-→ trộn baseline⊕baseline ghép cặp cùng máy cùng fold. Trả lời: *"trộn hai mô hình nào cũng lợi"*
-hay *"lợi đến từ Pha 1"*. **Nếu nó cũng cho +0.013 ROC thì §25 sập.** ~10 ô, ~1h.
+`latent_bottleneck` + λ0.05 + **AdamW + ASAM ρ=2.0** vs **baseline**, ntat n=15:
+F1 **+0.0535** (12/15) · F1@val **+0.0685** (12/15) · ROC **+0.0337** (14/15) · PR **+0.0300** (13/15).
+ntat2 độc lập n=9 cùng dấu cả bốn. Tắt ASAM thì ROC chỉ +0.0137 và PR **−0.0018**.
 
-### 3. `wblend.sh` — NỘI SUY TRỌNG SỐ (FACTS §25.5)
-`4cwe com full`, fold 1–3, bậc 1, seed 42. α chọn trên **VAL**, báo trên TEST, in kèm trộn xác
-suất α=0.5 trên **cùng cặp**. Cơ chế đã kiểm 0 GPU: 201/205 tensor nội suy được. Cần
-`KEEP_CKPT=1` (đã vá `run/matrix.sh`, mặc định vẫn XOÁ) và tự dọn checkpoint sau mỗi fold.
-Khối này cũng sinh ô có `val_probabilities` → gỡ giới hạn "α chỉ chọn được trên test" của §25.
+Theo CWE (ntat n=15): **022 +0.2238 ROC (13/15)** · **079 +0.3638 ROC (15/15)** ·
+078 −0.0097 (ns) · 089 +0.0079 (ns). ntat2: **079 +0.2614 với 9/9 fold**.
+→ Toàn bộ mức tăng nằm ở hai lớp hiếm; hai lớp thường chiếm 121/150 hàng và đúng bằng không.
 
-## Kết quả đêm nay — xem FACTS §25 → §25.5
+### 2. §25.x — phép trộn, sau khi đã trừ đối chứng
 
-Tất cả **0 GPU**, tính lại trên xác suất từng mẫu đã lưu sẵn:
+- Đối chứng âm (trộn hai baseline **khác seed**, n=48): ROC +0.0079, PR +0.0111. Nên
+  *"trộn hơn baseline"* **một mình nó không phải bằng chứng**.
+- **Ghép cặp trực tiếp** (cùng fold, cùng baseline) t5p n=48: ROC **+0.0121 (42/48)**,
+  F1 +0.0200, PR +0.0116. Trên sàn nhiễu.
+- **codebert n=50**: biên độ tổng **KHÔNG lặp** (ROC +0.0052, p=0.48) nhưng **per-CWE thì lặp**:
+  022 +0.0858 (38/50) · 079 **+0.1127 (45/50)**; CWE-089 (54% hàng) **âm có ý nghĩa** → tổng triệt tiêu.
+- ⇒ **Phát biểu không phụ thuộc backbone là phát biểu per-CWE**, không phải biên độ tổng.
 
-| mục | nội dung một dòng |
-|---|---|
-| §25 | trộn đều baseline ⊕ chuyển giao (α=0.5) **vượt cả hai đầu mút**: ROC +0.0165 so với chuyển giao thuần (59/83 khối, p=0.0002). Lặp trên hai backbone cùng biên độ. |
-| §25.1 | đối chứng âm: trộn với nguồn **pha loãng** cho ROC −0.0036 — không lợi bừa. Hiệu ghép cặp nguyên−loãng +0.0145 (12/13, p=0.0034). |
-| §25.3 | ở điểm vận hành: CWE-022 recall +0.073, CWE-079 **+0.146**, precision cũng tăng; hai CWE thường **không bị đụng**. Cảnh báo: 079 chỉ ~8 hàng dương/fold. |
-| §25.4 | **sống sót phép kiểm rò rỉ**. Trên hàng sạch (`none`, 73%) trộn dương cả ba chỉ số còn chuyển giao thuần **âm** ở cả hai AUC. Hiệu trộn−chuyển giao: `none` +0.0182, `test` +0.0190, **`train` −0.0147**. |
-| §25.5 | cơ chế nội suy trọng số đã kiểm; khối đã xếp. |
+### 3. §27 — chi phí suy luận (t5p n=9, đang lên n=15)
 
-Trang tổng hợp: https://claude.ai/code/artifact/d18d51d3-ac51-491d-b8b6-90685506a8a6
+Nội suy **trọng số** với α chọn trên val: ROC +0.0198 (8/9), PR +0.0152 (**9/9**) — **một mô hình**.
+Ngang trộn xác suất ở AUC (ROC −0.0004, PR +0.0025, đều ns), thua ở F1 (−0.0077, 1/9).
+α=0.5 **cố định** trong không gian trọng số thì **không dùng được** (F1 −0.0127).
 
-## Hai điều §25 CHƯA trả lời được
+### 4. §26 — nguồn, lên bậc 2 trên codebert
 
-1. **Đối chứng baseline⊕baseline khác seed** — `ensctl` đang xếp. Chưa có thì chưa trích §25.
-2. **F1@ngưỡng-val của bản trộn** — ô cũ không lưu xác suất val. Đã vá
-   `src/train_{transfer,baseline}.py` ghi thêm `val_probabilities`/`val_labels`, **đã xác minh
-   chạy thật** trên ô ntat sinh sau bản vá. Mọi ô từ 09/09 đọc được chỉ số thứ tư.
+`lm12` âm **0/5 fold trên cả bốn chỉ số** (p=0.0625 mỗi cái, sàn ở n=5). Bất đồng PR-AUC ở bậc 1
+(n=3, khi đó PR **+0.0177**) đã **biến mất** — ví dụ sạch cho quy tắc *n=3 chỉ đủ để dừng*.
 
-## Hai lỗi vận hành đêm nay, đã vá
+## Ba lần phải rút kết luận trong đêm — đọc để không lặp
 
-- `vast_worklist.sh` in "xong" khi worklist bị **ghi đè** lúc đang đọc → bỏ sót mục, ntat2 nằm
-  không ~2 phút. Đã thêm **vòng ngoài**: hết một lượt thì mở lại file, đối chiếu `todo − done`,
-  còn việc thì chạy lượt nữa. Kiểm ba chiều. FACTS §25.2.
-- `run/pool1.sh` chưa từng được đẩy lên ntat trong khi worklist gọi wrapper của nó → driver chết.
-  Quy tắc: xếp script vào máy xa thì kiểm **mọi file nó gọi tới**.
+1. **Hiệu của hai trung bình**: lấy +0.0129 (87 khối) trừ +0.0079 (48 cặp) → "+0.0050, dưới sàn
+   nhiễu, §25 sập". Ghép cặp đúng cho **+0.0121, 42/48, p<1e-4**. Dấu hiệu: hai số sắp trừ nhau có
+   **n khác nhau**.
+2. **Kết luận từ n=1**: ô đầu của `wblend` cho α=1.0 → tôi ghi "nội suy trọng số là ngõ cụt, có
+   hàng rào giữa hai mô hình", kèm cơ chế. Ở n=9 thì α **nội tại ở 8/9 ô**.
+3. **Biên độ tổng ≠ tính chất chung**: §25.9 trên t5p đẹp, trên codebert **không lặp** — chỉ
+   per-CWE mới lặp.
+
+## Trang cho người hướng dẫn
+
+- Sổ kết quả (1 162 phép so sánh, lọc + sắp xếp, 2 chế độ bảng):
+  https://claude.ai/code/artifact/35c5f832-c306-42e4-959d-9d51adfdcef0
+- Phép trộn, chi tiết + đối chứng: https://claude.ai/code/artifact/d18d51d3-ac51-491d-b8b6-90685506a8a6

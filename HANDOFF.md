@@ -20,48 +20,77 @@ hiểu sai.
 > Đọc mục này trước. Bên dưới (§0.1 trở đi) là bản ghi lúc 00:40 UTC, giữ lại để tra cứu
 > nhưng **đã lạc hậu**: các khối nêu ở đó đã xong. Trạng thái máy hiện tại ở `CURRENT_RUN.md`.
 
-### 0.0 §25 — trộn đều baseline ⊕ chuyển giao (09/09, toàn bộ 0 GPU)
+### 0.0 KẾT QUẢ ĐẦU BÀI — §28, cấu hình chốt ở bậc 3
 
-Đây là kết quả đáng kể nhất của đêm và là **câu trả lời trực tiếp cho yêu cầu 09/09 của người
-dùng**: một phương thức *không phụ thuộc backbone*, *không quét siêu tham số*, nâng riêng hai
-CWE hiếm 022/079.
+`latent_bottleneck` (nút thắt 8 chiều) + λ=0.05 + Pha 2 dùng **AdamW + ASAM ρ=2.0**, so với
+**baseline** (không có Pha 1) cùng máy cùng fold. **Số đã có sẵn, không cần chạy thêm.**
 
-Lấy trung bình xác suất của baseline và mô hình chuyển giao, mỗi bên một phiếu (α=0.5):
+| máy | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| **ntat** | **15** | **+0.0535 (12/15)** | **+0.0685 (12/15)** | **+0.0337 (14/15)** | **+0.0300 (13/15)** |
+| ntat2 (độc lập) | 9 | +0.0319 | +0.0280 | +0.0264 (7/9) | +0.0204 (7/9) |
 
-| | ROC-AUC | PR-AUC |
-|---|---|---|
-| α=0.5 vs baseline | +0.0126 (65/83, p<1e-4) | +0.0136 (67/83, p<1e-4) |
-| chuyển giao thuần vs baseline | **−0.0039** (53/83) | **−0.0098** (47/83) |
-| **α=0.5 vs chuyển giao thuần** | **+0.0165 (59/83, p=0.0002)** | **+0.0235 (62/83, p<1e-4)** |
+Tắt ASAM (cùng head, cùng λ): ROC chỉ +0.0137 và PR **−0.0018**. Bật ρ=2.0 làm ROC hơn **2,5×**.
 
-Vượt **cả hai** đầu mút ⇒ hai mô hình sai ở chỗ khác nhau ⇒ Pha 1 mang vào thông tin mô hình
-chỉ-đích không có. Đó là lập luận chống phản biện *"hai pha tất nhiên hơn một pha"*.
-Trên F1@0.5 thì **không** vượt được chuyển giao thuần (p=0.078) — phải nêu.
+**Theo CWE — đây là chỗ đáng viết** (ntat n=15):
 
-Đơn vị độc lập là **KHỐI** `(cây, run, seed, fold)`, không phải ô: 536 nhánh chia nhau 83
-baseline. Công cụ: `tools/ensemble2.py`.
+| CWE | hàng test | ΔF1@0.5 | ΔROC-AUC | ntat2 (n=9) |
+|---|---|---|---|---|
+| **022** | 13 | **+0.2050 (11/15)** | **+0.2238 (13/15, p=0.002)** | +0.1619 (6/9) |
+| **079** | 16 | **+0.2978 (14/15)** | **+0.3638 (15/15, p<0.001)** | **+0.2614 (9/9, p=0.004)** |
+| 078 | 40 | −0.0082 (ns) | −0.0097 (ns) | +0.0173 |
+| 089 | 81 | +0.0142 (ns) | +0.0079 (ns) | −0.0011 |
 
-| mục | nội dung |
-|---|---|
-| §25.1 | đối chứng âm: trộn với nguồn **pha loãng** cho ROC −0.0036 — không lợi bừa (`tools/ens_dilute.py`) |
-| §25.3 | điểm vận hành: CWE-022 recall +0.073, CWE-079 +0.146, precision **cũng tăng**; hai CWE thường không bị đụng (`tools/percwe_op.py`) |
-| §25.4 | **sống sót phép kiểm rò rỉ**; hiệu trộn−chuyển giao: `none` +0.0182, `test` +0.0190, **`train` −0.0147** (`tools/ens_leak.py`) |
-| §25.5 | nội suy **trọng số**: 201/205 tensor nội suy được, công cụ đã kiểm hai chiều (`tools/wblend.py`) |
+Toàn bộ mức tăng nằm ở **hai lớp hiếm**; hai lớp thường chiếm **121/150** hàng test và **đúng bằng
+không**. Con số tổng nhỏ vì lớp đa số áp đảo, không phải vì hiệu ứng yếu.
+**Cảnh báo phải in kèm**: CWE-079 chỉ 16 hàng test/fold, CWE-022 13 hàng — thứ đáng tin là
+**15/15 và 9/9 fold cùng dấu trên hai máy độc lập**, không phải biên độ.
 
-**CHƯA ĐƯỢC TRÍCH** khi chưa có đối chứng baseline⊕baseline khác seed (`run/ensctl.sh`, đang xếp
-trên ntat). Nếu nó cũng cho +0.013 ROC thì §25 sập.
+### 0.0b §25 — phép trộn, SAU khi trừ đối chứng
 
-### 0.0b Ba thay đổi mã đêm nay
+Đối chứng âm (trộn hai baseline **khác seed**, n=48) cũng cho ROC +0.0079 / PR +0.0111, nên
+*"trộn hơn baseline"* **một mình nó không phải bằng chứng cho chuyển giao**. Con số dùng được là
+**ghép cặp trực tiếp** trong cùng fold, cùng baseline:
 
-- `src/train_{transfer,baseline}.py` ghi thêm **`val_probabilities`/`val_labels`**. Không có nó
-  thì mọi siêu tham số hậu kiểm (ngưỡng, hệ số trộn) chỉ chọn được trên TEST, tức rò rỉ. Đã xác
-  minh chạy thật trên ô ntat sinh sau bản vá.
-- `run/matrix.sh` thêm cờ **`KEEP_CKPT=1`** giữ checkpoint Pha 2 (mặc định vẫn XOÁ).
-- `scripts/vast_worklist.sh` thêm **vòng ngoài**: hết một lượt thì mở lại worklist, đối chiếu
-  `todo − done`, còn việc thì chạy lượt nữa. Trước đó nó in "xong" và để máy vast nằm không khi
-  worklist bị ghi đè lúc đang đọc (§25.2).
+| A − B (A=trộn với chuyển giao, B=trộn với bản chạy lại) | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| t5p (n=48) | +0.0200 (37/48) | **+0.0121 (42/48, p<1e-4)** | +0.0116 (43/48) |
+| codebert (n=50) | +0.0139 (36/50) | +0.0052 (28/50, **p=0.48**) | +0.0042 (**p=1.00**) |
 
----
+**Biên độ tổng KHÔNG lặp qua backbone.** Nhưng per-CWE thì lặp và mạnh hơn ở đếm dấu:
+codebert 022 +0.0858 (38/50) · 079 **+0.1127 (45/50)**. Cơ chế nhìn thấy trực tiếp — trên codebert
+**CWE-089 (54% hàng test) đi âm có ý nghĩa** (13/50, p=0.0009) nên kéo triệt tiêu biên độ tổng.
+
+> **Phát biểu không phụ thuộc backbone là phát biểu PER-CWE, không phải biên độ tổng.**
+
+### 0.0c §27 — chi phí suy luận (t5p n=9, đang lên n=15; bản codebert đang chạy)
+
+Nội suy **trọng số** với α chọn trên **val**: ROC +0.0198 (8/9), PR +0.0152 (**9/9**) — và chỉ tốn
+**một mô hình** khi suy luận. Ngang trộn xác suất ở AUC (ROC −0.0004, PR +0.0025, đều ns), thua ở
+F1 (−0.0077, 1/9). **α=0.5 cố định trong không gian trọng số thì không dùng được** (F1 −0.0127) —
+trọng số bắt buộc hiệu chỉnh α trên val; xác suất thì không cần tham số nào.
+
+### 0.0d Ba lần phải rút kết luận trong đêm 08→09/09
+
+1. **Hiệu của hai trung bình** — lấy +0.0129 (87 khối) trừ +0.0079 (48 cặp) rồi kết luận "dưới sàn
+   nhiễu, §25 sập". Ghép cặp đúng cho **+0.0121, 42/48, p<1e-4**. Dấu hiệu nhận ra: hai số sắp trừ
+   nhau có **n khác nhau** ⇒ tập khác nhau.
+2. **Kết luận từ n=1** — ô đầu của `wblend` cho α=1.0, tôi ghi "nội suy trọng số là ngõ cụt, hai mô
+   hình có hàng rào", kèm cơ chế. Ở n=9 thì α **nội tại ở 8/9 ô**.
+3. **Biên độ tổng ≠ tính chất chung** — đẹp trên t5p, không lặp trên codebert.
+
+### 0.0e Thay đổi mã đêm nay
+
+- `src/train_{transfer,baseline}.py` ghi thêm **`val_probabilities`/`val_labels`** — không có nó thì
+  mọi siêu tham số hậu kiểm chỉ chọn được trên TEST, tức rò rỉ.
+- `run/matrix.sh` thêm cờ **`KEEP_CKPT=1`** (mặc định vẫn XOÁ).
+- `scripts/vast_worklist.sh`: **vòng ngoài** — hết một lượt thì mở lại worklist, đối chiếu
+  `todo − done`, còn việc thì chạy lượt nữa.
+- `scripts/endpoints.sh`: file tạm **riêng theo `$$`** và **kiểm cache lúc ĐỌC**. Trước đó hai tiến
+  trình ghi chung một file tạm làm cache hỏng → báo "máy không giải được địa chỉ" trong khi máy
+  đang chạy.
+- Ba script đếm job theo **tên chương trình** (`comm`), không theo dòng lệnh.
+- `run/ensctl.sh` · `ensctl_cb.sh` · `wblend.sh` · `wblend_cb.sh` · `p1fill_cb.sh` — mới.
 
 ### 0.1 Đang chạy lúc 00:40 UTC 09/09 — ĐÃ LẠC HẬU, giữ để tra cứu
 
