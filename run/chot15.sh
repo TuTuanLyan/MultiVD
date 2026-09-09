@@ -31,7 +31,14 @@ SEED_LIST="${SEED_LIST:-7 1234}"
 FOLD_LIST="${FOLD_LIST:-1 2 3 4 5}"
 SOURCES_LIST="${SOURCES_LIST:-4cwe com full}"
 STORE="${STORE:-model/n48/phase1}"
-NEED_VRAM="${NEED_VRAM:-13000}"
+# NEED_VRAM phai theo BACKBONE, khong dat chung mot muc. Do that: codebert dinh 6674 MiB,
+# t5p dinh ~13468 MiB. Dat chung 13000 cho ca hai la qua chat cho codebert — 00:17 VN 10/09
+# `cuongtm` chiem 2738 MiB tren 161 (con trong 12798) va job codebert LE RA van chay thoai mai
+# nhung se ngoi cho vo ich, tham chi kich hoat thue vast khong can thiet.
+case "${BB%%=*}" in
+  codebert|unixcoder) NEED_VRAM="${NEED_VRAM:-8500}" ;;
+  *)                  NEED_VRAM="${NEED_VRAM:-13000}" ;;
+esac
 LOCK="${CHOT15_LOCK:-/tmp/mvd_chot15.lock}"
 exec 9>"$LOCK" || exit 1
 flock -n 9 || { echo "DA CO chot15 dang chay tren may nay — dung"; exit 3; }

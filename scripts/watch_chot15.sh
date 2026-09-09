@@ -66,7 +66,7 @@ elif (( alive == 0 )); then
   set_state 161 ok
   RUN=chot161 BB="$CB" CFG_A="$A_CB" CFG_B="$B" SEED_LIST="7 1234" \
     setsid nohup bash run/chot15.sh >> log/chot15_161.log 2>&1 </dev/null & disown
-elif (( train == 0 && free161 < 13000 )); then
+elif (( train == 0 && free161 < 8500 )); then
   set_state 161 gpu-bi-chiem          # driver song nhung ngoi cho VRAM -> bao NGAY
 else
   set_state 161 ok
