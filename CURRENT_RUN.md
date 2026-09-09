@@ -8,7 +8,7 @@
 |---|---|---|
 | **ntat** (vast, $0.0818/h) | `asam4.sh\|full\|1-5` — ρ=4.0 | 8 mục, kết bằng `asam_aw` |
 | **ntat2** (vast, $0.1222/h) | `pool_lm.sh\|-\|4 5` | 6 mục |
-| **161** (local, GPU dùng chung) | `night_161.sh` → `pool1.sh` | chuỗi đêm |
+| **161** (local, GPU dùng chung) | `pool_cb_lm.sh` — codebert × lưới `lm*`, fold 1–3 | chuỗi `night_161` đã xong 01:06 |
 | **158** (local, A4000) | `e60_codebert` Phase 2 | `e60_cb`, `pool_lm 1-3`, `pool_pur 4-5`, `asam_aw` |
 
 Cả bốn máy đều có việc. Không máy nào nằm không.
@@ -58,3 +58,21 @@ phiên. Xếp trên **158** (3 mục phía trước) và **ntat** (cuối hàng,
 4. Tôi **giết nhầm** một ô của chuỗi `night_161.sh` khi chẩn đoán sai một tiến
    trình là của mình; chuỗi tự phóng lại, mất ~30 giây. Phải truy `ppid` lên tận
    gốc **trước** khi giết, không chỉ khớp dòng lệnh.
+
+
+---
+
+## Bổ sung 09/09 01:16 UTC — `pool_cb_lm` trên 161
+
+Chuỗi `night_161.sh` xong lúc 01:06 (lưới `lm` đủ 5 fold × 5 pool). 161 rảnh thật:
+chỉ còn `ollama` của user khác giữ 684 MiB, còn 15,7 GB, `NEED=9000` của
+`pool_cb.sh` dư sức, lock trống.
+
+Phóng `run/pool_cb_lm.sh` (fold 1–3, seed 42) — **lưới ngôn ngữ trên codebert**.
+Đây là chỗ hở duy nhất còn lại của phát biểu vừa chốt ở RESEARCH §B.2e: hiệu ứng
+"pha loãng ≤25% dòng đúng CWE làm hỏng khái quát hoá" mới đo trên **t5p**. Khối này
+đang xếp trên ntat2 nhưng nằm sau `asam_aw` nên hàng giờ nữa mới tới lượt.
+
+Đây **không phải việc bịa ra để lấp chỗ**: script đã commit, câu hỏi đã nêu trong
+§B.2e là "còn thiếu gì trước khi viết được", và máy rảnh thật. Dừng dễ:
+`flock -n /tmp/mvd_poolcb.lock -c true` để kiểm, rồi giết theo PID của `run/pool_cb.sh`.
