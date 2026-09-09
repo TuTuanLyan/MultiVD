@@ -1393,3 +1393,89 @@ hạng điểm** — dấu hiệu biểu diễn không sụp — chứ không ph
 optimizer, seed, fold)` nên λ khác nhau vẫn nằm chung một dòng. Các fold **không
 độc lập** (dùng lại cùng bộ fold đích), nên p lạc quan; phần chắc là **số fold
 cùng dấu**. Nhóm `t5pe` chỉ n=3, đừng đọc.
+
+---
+
+## §23 — TRANSFER CỨU HAI LỚP CWE HIẾM: hiệu ứng dồn đúng chỗ đích yếu (09/09/2026)
+
+**Đọc lại 507 cặp đã có trên đĩa. Không chạy lại ô nào.** Công cụ: `tools/percwe.py`.
+
+### Vì sao nhìn theo CWE
+
+Tập đích Python **lệch nặng**, và nguồn Phase 1 giàu đúng chỗ đích nghèo:
+
+| CWE | đích: hàng test (5 fold) | đích: tỉ lệ | nguồn `4cwe` | baseline macro-F1 |
+|---|---|---|---|---|
+| CWE-089 | 408 | 54% | 46 | **0.9217** |
+| CWE-078 | 204 | 27% | 100 | 0.7782 |
+| **CWE-079** | 82 | **11%** | **692** | 0.5780 |
+| **CWE-022** | 66 | **9%** | 92 | **0.3032** |
+
+Huấn luyện chỉ trên đích cho một mô hình **rất tốt ở lớp phổ biến và hỏng ở lớp
+hiếm**: CWE-022 đạt macro-F1 **0.3032** — thấp hơn cả đoán bừa.
+
+### Δ (latent_bottleneck − baseline) theo từng CWE, 507 cặp
+
+| CWE | ΔF1 | fold cùng dấu | p | ΔROC-AUC | fold cùng dấu |
+|---|---|---|---|---|---|
+| **CWE-022** | **+0.1611** | 396/507 | <0.001 | **+0.1688** | 58/78 |
+| **CWE-079** | **+0.1653** | 430/507 | <0.001 | **+0.1758** | 67/78 |
+| CWE-078 | −0.0217 | 179/507 | <0.001 | −0.0459 | 12/78 |
+| CWE-089 | −0.0236 | 217/507 | 0.001 | −0.0003 | 43/78 |
+
+**Lợi ích dồn trọn vào hai lớp hiếm**, biên độ +0.16…+0.18 — gấp **16 lần** sàn
+nhiễu 0.010. Hai lớp phổ biến phẳng hoặc hơi âm.
+
+### Không phụ thuộc backbone — cả bốn đều dương ở cả hai lớp hiếm
+
+| backbone | Δ CWE-022 | Δ CWE-079 |
+|---|---|---|
+| codebert | +0.2408 (72/75) | **+0.2609 (75/75)** |
+| t5p | +0.1564 (260/348) | +0.1482 (297/348) |
+| unixcoder | +0.1010 (56/75) | +0.1461 (51/75) |
+| t5pe | +0.1787 (8/9) | +0.1894 (7/9) |
+
+### Không phụ thuộc nguồn — cả ba đều dương, p<0.001
+
+| nguồn | Δ CWE-022 | Δ CWE-079 |
+|---|---|---|
+| 4cwe | +0.1425 (150/198) | +0.1981 (181/198) |
+| com | +0.2080 (114/131) | +0.1523 (103/131) |
+| full | +0.1889 (94/109) | +0.1644 (97/109) |
+
+Kể cả `full` — 7 598 dòng, 123 CWE, chủ yếu ccpp — cũng cho hiệu ứng. Vậy **không
+phải** do đã chọn sẵn một nguồn khớp 4 CWE của đích.
+
+### Đây là TRANSFER, không phải cái head
+
+Nhánh `none` (Phase 1 **không** head, 225 cặp) cho **+0.1492 CWE-022 (190/225)** và
+**+0.1799 CWE-079 (188/225)**. Hiệu ứng đến từ bản thân việc học Phase 1 trên nguồn,
+head không cần thiết cho nó.
+
+### Sống qua phép tách nhóm rò rỉ
+
+| CWE | nhóm SẠCH (~73% hàng) ΔF1 |
+|---|---|
+| CWE-022 | +0.1196 (28/44, p=0.096) |
+| **CWE-079** | **+0.1213 (43/58, p<0.001)** |
+| CWE-078 | −0.0302 (21/78) |
+| CWE-089 | +0.0022 (31/78) |
+
+Và hai lớp hiếm **không đủ 8 hàng rò rỉ mỗi fold để lập nhóm** — nên lợi ích của
+chúng *không thể* là hiện vật rò rỉ. Đây là điểm khác căn bản so với §21.1 (ASAM),
+nơi lợi ích phần lớn nằm ở nhóm rò rỉ.
+
+### Vì sao con số TỔNG chỉ +0.02
+
+Vì trung bình bị CWE-089 (54% hàng, baseline đã 0.92, không còn chỗ tăng) và
+CWE-078 (27%) chi phối. Hai lớp có hiệu ứng lớn chỉ chiếm **20% hàng**. Báo cáo
+**chỉ bằng macro-F1 tổng là giấu mất phát hiện chính** — cùng họ với lỗi ở §2b.
+
+### Giới hạn
+
+- CWE-022 trên hàng sạch p=0.096 (28/44) — dương nhưng chưa dưới 0.05. CWE-079 thì chắc.
+- 507 cặp gộp qua nhiều khối/λ/optimizer; các fold **không độc lập** nên p lạc quan.
+  Phần chắc là **số fold cùng dấu** và việc nó lặp trên 4 backbone × 3 nguồn.
+- CWE-022 chỉ 66 hàng test qua cả 5 fold (13 hàng/fold) — phương sai lớn.
+- Chưa tách được ảnh hưởng của độ tinh khiết nguồn (§B.2e) trong lát cắt này:
+  `com` cho CWE-022 cao nhất (+0.2080) dù kém tinh khiết hơn `4cwe`.
