@@ -30,23 +30,34 @@ PYTHON="${PYTHON:-$( for c in /venv/main/bin/python /data/ntat/envs/vdenv/bin/py
 [ -n "$PYTHON" ] || { echo "!! khong tim thay python co torch"; exit 2; }
 export PYTHON
 RUN="${RUN:-chot}"
-SRC="${SRC:-4cwe}"
+# GIAI DOAN 1 = 4cwe + com. `full` chay RIENG sau khi ca khoi nay xong, vi Pha 1 cua no
+# phai huan luyen tu dau cho ca hai backbone (~40 phut) va nguoi dung muon thay du ket qua
+# hai nguon kia truoc.
+SOURCES_LIST="${SOURCES_LIST:-4cwe com}"
 FOLD_LIST="${FOLD_LIST:-1 2 3 4 5}"
 SEED="${SEED:-42}"
 STORE="${STORE:-model/n48/phase1}"
-BBS="${BBS:-t5p=Salesforce/codet5p-220m-bimodal:mean codebert=microsoft/codebert-base:cls}"
+# THU TU: codebert TRUOC. Nguoi dung 09/09: "uu tien xong backbone codebert truoc".
+BBS="${BBS:-codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-220m-bimodal:mean}"
 NEED_VRAM="${NEED_VRAM:-13000}"
 
-LOCK="${MVD_LOCK:-/tmp/multivd_opt1.lock}"
+# LOCK RIENG, KHONG dung /tmp/multivd_opt1.lock. Bay da mac 09/09 09:23: script nay giu
+# dung cai lock ma `run/opt1.sh` can, nen moi lan goi con no in "DA CO driver opt1 dang
+# chay" roi thoat — khoi chay het 5 fold x 2 backbone ma sinh ra DUNG 0 o. Cong dem hien
+# vat bat duoc ("xong | 0 o") nhung mat 10 phut. Mot driver MOT lock, va lock cua cha
+# phai KHAC lock cua con.
+# Ten bien RIENG (khong phai MVD_LOCK): opt1.sh cung doc MVD_LOCK, nen dung chung ten
+# bien thi chi can ai do dat no la cha con lai gianh cung mot lock.
+LOCK="${CHOT_LOCK:-/tmp/mvd_chot2bb.lock}"
 exec 9>"$LOCK" || exit 1
-flock -n 9 || { echo "DA CO driver giu GPU tren may nay — dung"; exit 3; }
+flock -n 9 || { echo "DA CO chot2bb dang chay tren may nay — dung"; exit 3; }
 
 data_of(){ case "$1" in
   4cwe) echo "data/phase1_4cwe.jsonl fixed4" ;;
   com)  echo "data/phase1_common.jsonl precomputed" ;;
   full) echo "data/phase1_full.jsonl precomputed" ;;
 esac; }
-read -r DATA VOCAB <<< "$(data_of "$SRC")"
+
 
 wait_vram(){ local w=0 t u a
   while true; do
@@ -57,37 +68,48 @@ wait_vram(){ local w=0 t u a
   done; }
 
 echo "########## CHOT2BB bat dau $(date -u '+%F %T') | $(hostname) ##########"
-echo "  nguon $SRC | fold $FOLD_LIST | seed $SEED | lambda 0.05"
+echo "  nguon: $SOURCES_LIST | fold $FOLD_LIST | seed $SEED | lambda 0.05"
+echo "  thu tu: BACKBONE vong ngoai (codebert truoc) -> fold -> nguon"
 echo "  A = r2p0  (RecAdam + ASAM rho=2.0)   B = plain (AdamW, khong SAM)"
 
-# --- 1) bu Pha 1 cho backbone nao con thieu ---
+# --- 1) bu Pha 1 cho moi (backbone, nguon) con thieu ---
 for BB in $BBS; do
   L="${BB%%=*}"
-  T="$STORE/${L}__latent_bottleneck_${SRC}_l0p05/seed_${SEED}/best.pt"
-  if [[ -f "$T" ]]; then echo "=== Pha 1 $L | da co: $T ==="; continue; fi
-  echo "===== $(date -u '+%F %T') | Pha 1 | $L | $SRC -> $T ====="
-  wait_vram
-  RUN_NAME=p1fill SEED="$SEED" FOLDS="" \
-  BACKBONES="$BB" MODES="latent_bottleneck" OPTIMIZERS="adamw" \
-  PHASE1_DATA_PATH="$DATA" CWE_VOCAB="$VOCAB" \
-  PHASE1_TAG="_${SRC}_l0p05" ARM_TAG="_${SRC}_l0p05" PHASE1_STORE="$STORE" \
-  LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 PHASE1_EXTRA="--sam_rho 0" \
-  DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
-  PYTHON="$PYTHON" bash run/matrix.sh 9>&-
-  [[ -f "$T" ]] && echo "  => DA TAO: $T" || echo "  !! VAN THIEU: $T — cac o cua $L se TRONG"
-done
-
-# --- 2) FOLD la vong ngoai (CLAUDE.md muc 1): xong mot fold la co mot lat cat so duoc ---
-for FOLD in $FOLD_LIST; do
-  for BB in $BBS; do
-    L="${BB%%=*}"
-    echo "===== $(date -u '+%F %T') | fold $FOLD | $L ====="
+  for SRC in $SOURCES_LIST; do
+    read -r DATA VOCAB <<< "$(data_of "$SRC")"
+    T="$STORE/${L}__latent_bottleneck_${SRC}_l0p05/seed_${SEED}/best.pt"
+    if [[ -f "$T" ]]; then echo "=== Pha 1 $L/$SRC | da co ==="; continue; fi
+    echo "===== $(date -u '+%F %T') | Pha 1 | $L | $SRC ====="
     wait_vram
-    RUN="$RUN" SEEDS="$SEED" SOURCES="$SRC" FOLD_LIST="$FOLD" MIN_EP=3 BB="$BB" \
-    P1STORE="$STORE" \
-    CONFIGS="r2p0|recadam|--sam_rho 2.0 --sam_variant asam
-plain|adamw|--sam_rho 0" \
-    bash run/opt1.sh 9>&-
+    RUN_NAME=p1fill SEED="$SEED" FOLDS="" \
+    BACKBONES="$BB" MODES="latent_bottleneck" OPTIMIZERS="adamw" \
+    PHASE1_DATA_PATH="$DATA" CWE_VOCAB="$VOCAB" \
+    PHASE1_TAG="_${SRC}_l0p05" ARM_TAG="_${SRC}_l0p05" PHASE1_STORE="$STORE" \
+    LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 PHASE1_EXTRA="--sam_rho 0" \
+    DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
+    PYTHON="$PYTHON" bash run/matrix.sh
+    [[ -f "$T" ]] && echo "  => DA TAO: $T" || echo "  !! VAN THIEU: $T — o cua $L/$SRC se TRONG"
   done
 done
+
+# --- 2) BACKBONE ngoai (codebert truoc), FOLD giua, NGUON trong ---
+# Nguoi dung muon xong han codebert roi moi sang t5p. Trong moi backbone van giu fold o
+# vong ngoai hon nguon, nen xong mot fold la co ngay mot lat cat so duoc ca hai nguon.
+for BB in $BBS; do
+  L="${BB%%=*}"
+  echo "########## BACKBONE $L | bat dau $(date -u '+%F %T') ##########"
+  for FOLD in $FOLD_LIST; do
+    for SRC in $SOURCES_LIST; do
+      echo "===== $(date -u '+%F %T') | $L | fold $FOLD | $SRC ====="
+      wait_vram
+      RUN="$RUN" SEEDS="$SEED" SOURCES="$SRC" FOLD_LIST="$FOLD" MIN_EP=3 BB="$BB" \
+      P1STORE="$STORE" \
+      CONFIGS="r2p0|recadam|--sam_rho 2.0 --sam_variant asam
+plain|adamw|--sam_rho 0" \
+      bash run/opt1.sh
+    done
+  done
+  echo "########## BACKBONE $L | xong $(date -u '+%F %T') | $(find results/${RUN}_${L} -name 'fold*.json' 2>/dev/null | wc -l) o ##########"
+done
+
 echo "########## CHOT2BB xong $(date -u '+%F %T') | $(find results -path "*${RUN}_*" -name 'fold*.json' 2>/dev/null | wc -l) o ##########"

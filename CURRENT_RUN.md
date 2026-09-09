@@ -2,41 +2,64 @@
 
 > Bản trước viết 03:45, trước khi có §25.8 → §28. Đã thay hẳn.
 
-## ĐANG CHẠY — ưu tiên mới 09/09 16:20 VN: cấu hình chốt trên HAI backbone
+## ĐANG CHẠY — cấu hình chốt trên HAI backbone, chia hai máy
 
-Người dùng: *"chốt gần như là latent_bottleneck + ASAM 2.0 + RecAdam 0.05 trên t5p nhưng codebert
-thì tôi chưa rõ. Hyper param có thể điều chỉnh theo từng backbone được."* — đúng: bảng tổng hợp
-cho thấy **codebert CHƯA HỀ được chạy với ASAM ρ=2.0**; mức tốt nhất hiện có của nó là `r0p1`
-(+0.0125 ROC, 10/10) và `plain` (+0.0112, 11/16), đều ở n nhỏ.
+Ưu tiên 09/09 16:20 VN. Người dùng: *"chốt gần như là latent_bottleneck + ASAM 2.0 + RecAdam trên
+t5p nhưng codebert thì tôi chưa rõ"* — đúng: bảng tổng hợp cho thấy **codebert CHƯA HỀ chạy với
+ASAM ρ=2.0**; tốt nhất hiện có là `r0p1` (+0.0125 ROC, 10/10) và `plain` (+0.0112, 11/16), n nhỏ.
 
-**Khối `run/chot2bb.sh`** trên **161**, phóng 09:23 UTC. Thiết kế đúng như người dùng nêu —
-2 backbone × 2 điều kiện × 5 fold:
+**Chia theo backbone** (CLAUDE.md mục 4: một backbone trọn một máy — Δ nội bộ sạch):
 
-| | điều kiện | Pha 2 |
+| máy | backbone | trạng thái |
 |---|---|---|
-| **A** | `r2p0` | **RecAdam + ASAM ρ=2.0** — đầy đủ optimizer của phương pháp |
-| **B** | `plain` | **AdamW, không SAM/ASAM** — tắt cả hai cùng lúc |
+| **vast `ntat`** RTX **5060 Ti** 16 GB, id 50132360 | **codebert** — ưu tiên xong trước | chạy từ 09:42 UTC |
+| **161** (A4000 16 GB, dùng chung) | **t5p** | chạy từ 09:44 UTC |
 
-Backbone: `t5p` (codet5p-220m-bimodal, mean) và `codebert` (codebert-base, cls).
-Nguồn **4cwe**, λ **0.05**, seed 42, fold 1–5. Đối chứng `baseline` chạy cùng máy cùng fold, dùng
-chung cho cả hai điều kiện. **30 ô** (10 baseline + 20 Pha 2).
+Máy vast là máy đồng nghiệp bàn giao (đã backup, đổi nhãn thành `ntat`). Môi trường sẵn
+`torch 2.11.0+cu128`, 23 GB trống, **GPU đã nằm không ~1 tiếng** trước khi tôi nhận (lần chạy cuối
+của họ ghi lúc 08:39, GPU 2 MiB/0%/6 W). Thư mục `MAML` của họ **giữ nguyên** — 469 MB, đĩa còn
+thừa nên không cần xoá.
 
-**Vì sao λ=0.05 chứ không phải 0.01**: dòng λ=0.01 mà người dùng thấy (`r2p0`, ROC +0.0553) chỉ
-có ở **n=3** — bậc 1, nơi p=0.250 là **sàn**, không phân biệt được với may mắn. Bản λ=0.05 có
-**n=18, ROC +0.0399 (17/18)**. Thêm nữa λ nằm ở Pha 1 nên đổi λ là phải huấn luyện lại Pha 1 cả
-hai backbone (CLAUDE.md mục 5).
+### Hai giai đoạn, mỗi máy tự chuyển
 
-Pha 1: t5p đã có ở `model/n48/phase1`; **codebert phải huấn luyện lại** (checkpoint cũ nằm trên
-ntat2 đã huỷ) — script tự làm, ~20 phút.
+| | nguồn | ô/máy | ghi chú |
+|---|---|---|---|
+| **GD1** | `4cwe` + `com` | 25 | 5 fold × (1 baseline + 2 nguồn × 2 cấu hình) |
+| **GD2** | `full` | 10 | chỉ chạy **sau khi GD1 của máy đó xong**; Pha 1 phải huấn luyện từ đầu |
 
-**Giám sát**: `scripts/watch_chot2bb.sh` chạy cron 10 phút, phóng lại nếu driver chết mà chưa đủ
-30 ô. Nó hỏi **lock** chứ không đếm tiến trình (`ps|grep` bắt luôn dòng lệnh của chính nó — lần
-đầu báo driver=4 trong khi chỉ có một).
+Người dùng: *"sau khi xong toàn bộ khối thì chạy với full từ Phase 1, vì tôi muốn thấy đủ kết quả
+cwe và common trước."* `scripts/watch_chot.sh` (cron 10 phút) tự chuyển sang GD2 cho **từng máy**
+khi máy đó đủ 25 ô — hai máy xong lệch nhau nên không dùng script chuỗi chung.
 
-**Đọc kết quả khi xong**:
+### Hai điều kiện so sánh
+
+| | Pha 2 |
+|---|---|
+| **A** `r2p0` | RecAdam + **ASAM ρ=2.0** — đầy đủ optimizer của phương pháp |
+| **B** `plain` | **AdamW, không SAM/ASAM** — tắt cả hai cùng lúc |
+
+λ **0.05**, seed 42, fold 1–5, đối chứng `baseline` cùng máy cùng fold dùng chung cho cả hai.
+
+**Vì sao λ=0.05 chứ không phải 0.01**: dòng λ=0.01 (`r2p0`, ROC +0.0553) chỉ có ở **n=3** — bậc 1,
+p=0.250 là **sàn**. Bản λ=0.05 có **n=18, ROC +0.0399 (17/18)**. λ nằm ở Pha 1 nên đổi λ là phải
+huấn luyện lại Pha 1 cả hai backbone (CLAUDE.md mục 5).
+
+### Ba bẫy đã mắc và sửa trong lúc dựng khối này
+
+1. **Cha và con giành cùng một lock.** `chot2bb.sh` giữ `/tmp/multivd_opt1.lock` — đúng cái
+   `opt1.sh` cần — nên mọi lần gọi con đều in *"DA CO driver opt1 dang chay"* và khối chạy hết
+   5 fold × 2 backbone mà sinh **đúng 0 ô**. Cổng đếm hiện vật bắt được. Đã cho nó lock riêng, và
+   đổi luôn **tên biến** (`CHOT_LOCK`) vì cả hai cùng đọc `MVD_LOCK`.
+2. **Giết driver không giết tiến trình train.** Nó thành mồ côi (ppid=1) và chạy tiếp, giữ lock,
+   chặn khối mới. Phải truy `ps` rồi giết theo PID.
+3. **Đếm tiến trình tự khớp.** `ps|grep 'chot2bb.sh'` báo `driver=4` trong khi chỉ có **một** —
+   nó bắt cả dòng lệnh của chính watchdog. Đổi sang **hỏi lock** (CLAUDE.md mục 8).
+
+### Đọc kết quả
+
 ```
-python3 tools/report2.py --a r2p0  --b plain results/chot_t5p results/chot_codebert
-python3 tools/build_summary.py results/chot_t5p results/chot_codebert   # tổng hợp riêng
+python3 tools/report2.py --a r2p0 --b plain results/chot_t5p results/chot_codebert
+python3 tools/build_summary.py results/chot_t5p results/chot_codebert    # tổng hợp RIÊNG
 ```
 
 ## Máy — CẢ HAI MÁY VAST ĐÃ HUỶ, không còn gì tính tiền
