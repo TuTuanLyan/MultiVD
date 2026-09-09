@@ -65,24 +65,33 @@ def load(roots):
             else: v[t.replace("A:","(bang chung) ")] = v.pop(t)
     return cells
 
+# ROC-AUC la thong ke THU HANG: hai vector xac suat khac han nhau ma sinh cung mot thu tu
+# duong/am thi cho DUNG cung mot AUC. Tren 152 hang test thi AUC chi nhan cac gia tri roi rac
+# nen hoa la chuyen thuong — do duoc 2/15 o cua codebert A-B. Hieu khi do khong phai 0 chan ma
+# la +-1e-16 do thu tu cong don dau phay dong, VA DAU CUA NO LA NGAU NHIEN. Ban dau ham nay
+# dem cai +1.1e-16 do thanh mot fold "thang" (full 4/5 thay vi 3/5). Coi moi |d| < EPS la HOA:
+# bo khoi phep thu dau (dung cach xu ly hoa chuan) va bao ro so o hoa.
+EPS = 1e-12
+
 def stat(v):
     v=np.asarray(v,float); v=v[~np.isnan(v)]
     if not len(v): return None
-    nz=v[v!=0]; pos=int((nz>0).sum())
+    nz=v[np.abs(v)>=EPS]; pos=int((nz>0).sum()); ties=len(v)-len(nz)
     p=binomtest(pos,len(nz),.5).pvalue if len(nz) else float("nan")
-    return v.mean(), pos, len(v), p
+    return v.mean(), pos, len(v), p, ties
 
 def fmt(s):
     if not s: return f"{'-':>24}"
-    d,pos,n,p = s
-    return f"{d:>+9.4f} {pos:>3d}/{n:<3d} p={p:<6.4f}"
+    d,pos,n,p,ties = s
+    t = f"~{ties}" if ties else "  "
+    return f"{d:>+9.4f} {pos:>3d}/{n:<3d}{t} p={p:<6.4f}"
 
 def show(title, pairs):
     """pairs: {(bb,src): [ (a_cell, b_cell) ]}"""
     keys = sorted({k for k in pairs})
     if not keys: return
     print(f"\n=== {title} ===")
-    print(f"{'backbone':<11}{'nguon':<8}{'n':>3}  " + "".join(f"{m:>24}" for m,_ in MET))
+    print(f"{'backbone':<11}{'nguon':<8}{'n':>3}  " + "".join(f"{m:>26}" for m,_ in MET))
     for bb in sorted({k[0] for k in keys}):
         rows = [(k,v) for k,v in pairs.items() if k[0]==bb]
         allv = defaultdict(list)

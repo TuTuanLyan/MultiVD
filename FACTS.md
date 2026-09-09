@@ -2716,3 +2716,33 @@ lần; CWE-078 và CWE-089 null mọi lần.** Vì A và B trùng nhau trong sai
 - t5p fold 4 chạy trên GPU khác ba fold kia.
 - 8 ô codebert ở ρ=2.0 giữ lại làm bằng chứng (ROC **−0.0439**, 6/12 so với baseline) — không
   thuộc 35 ô của khối.
+
+### §34.1 — ROC-AUC **hoà thật** trên tập đích, và dấu phẩy động đang âm thầm phá vỡ thế hoà
+
+Khi dựng trang cho khối, trang và `chot_report.py` lệch nhau đúng một fold (7/15 vs 8/15 ở
+`codebert A−B` ROC). Truy ra không phải lỗi làm tròn mà là một hiện tượng thật:
+
+| | codebert `4cwe` fold 5 | codebert `full` fold 3 |
+|---|---|---|
+| ROC-AUC nhánh A | 0.8781249999999999 | 0.896701388888889 |
+| ROC-AUC nhánh B | 0.878125 | 0.8967013888888888 |
+| **hiệu** | **−1.11e-16** | **+1.11e-16** |
+| xác suất hai nhánh có giống nhau không | **không** (lệch tối đa 0.958) | **không** (0.958) |
+| F1@0.5 | 0.7889 vs 0.8078 | 0.8485 vs 0.8618 |
+
+Hai mô hình **khác hẳn nhau** nhưng ROC-AUC bằng nhau đến epsilon. Lý do: **ROC-AUC là thống kê
+thứ hạng.** Hai vector xác suất rất khác nhau mà sinh **cùng một thứ tự** dương/âm thì cho đúng
+cùng một AUC. Trên 152 hàng test (76/76) thì AUC chỉ nhận các giá trị rời rạc `k/5776`, nên hoà
+là chuyện thường — đo được **2/15 ô**.
+
+**Cái nguy hiểm**: hiệu không phải 0 chẵn mà là ±1.1e-16 do thứ tự cộng dồn dấu phẩy động, và
+**dấu của nó là ngẫu nhiên**. `stat()` cũ lọc `v != 0` nên cái +1.1e-16 lọt qua và được đếm thành
+một fold "thắng" — `full` thành 4/5 thay vì 3/5. Một phép thử dấu đang lấy dữ liệu từ nhiễu làm
+tròn của phép cộng.
+
+**Sửa**: coi mọi `|Δ| < 1e-12` là **HOÀ** — bỏ khỏi phép thử dấu (cách xử lý hoà chuẩn) và **in ra
+số ô hoà** (`~k`) thay vì giấu. Tìm thấy hoà ở cả F1 nữa (F1 cũng là hàm bậc thang trên 152 hàng).
+
+**Quy tắc chung**: mọi phép so hai mô hình bằng thống kê **thứ hạng hoặc bậc thang** trên tập nhỏ
+đều phải có ngưỡng hoà tường minh. `x != 0` không phải phép kiểm hoà — nó là phép kiểm "có khác
+nhau ở bit cuối cùng không".
