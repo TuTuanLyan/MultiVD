@@ -4,13 +4,14 @@
 #   158 -> t5p      rho 2.0  (results/chot158_t5p)        70 o
 #
 # --- LUAT DEM 10/09 (nguoi dung dat) ---
-# * 158 chi DISCONNECT / TU KHOI DONG LAI / REBOOT  -> CHO no len roi chay lai, KHONG thue vast.
+# * BI CHIEM GPU (nguoi khac vao truoc luc chuyen pha/fold) -> BAO NGAY, khong cho.
+#   Nguoi dung 10/09: "Bi chiem thi van thue vast ngay". GRACE = 0.
+# * 158 chi DISCONNECT / TU KHOI DONG LAI / REBOOT -> CHO no len roi chay lai, KHONG thue vast.
 #   Han cho: 20 PHUT. Duoi 20 phut la "dang len lai", khong phai vo.
-# * Bi TRANH MAT GPU luc chuyen pha/fold -> driver con song nhung ngoi trong wait_vram.
-#   Qua han thi coi la VO.
-# * May VO  -> duoc phep thue DUNG MOT vast A4000 gia re. VO CA HAI cung chi MOT.
-#   Script nay KHONG tu thue: no chi dung co BROKEN de monitor bao ve. Viec thue lam tay,
-#   vi phai kiem gia va cai dat, va vi dung bo phi vast la bi phat.
+# * Van tiep tuc go cua may da mat: khi no ranh lai thi nhay vao chay tiep va chia lai viec.
+# * TOI DA 3 GPU cung luc = 161 + 158 + DUNG MOT vast. Vo ca hai cung chi MOT vast.
+# * Script nay KHONG tu thue: no chi dung co VO de monitor bao ve. Viec thue lam tay, vi phai
+#   kiem gia va cai dat, va vi dung bo phi vast la bi phat.
 export HOME="${HOME:-/home/ntat}"; export USER="${USER:-$(id -un)}"
 export PATH="/home/ntat/.local/bin:/home/ntat/miniconda3/envs/vdenv/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
 set -u
@@ -27,7 +28,10 @@ A_CB='r0p1|recadam|--sam_rho 0.1 --sam_variant asam'
 A_T5='r2p0|recadam|--sam_rho 2.0 --sam_variant asam'
 B='plain|adamw|--sam_rho 0'
 NEED=70
-GRACE=1200                       # 20 phut, cho ca "158 chua len" lan "GPU bi tranh"
+# Hai loai su co, hai han khac nhau:
+GRACE_SSH=1200                   # 158 mat ket noi / reboot: cho 20 phut roi moi coi la vo
+GRACE_GPU=0                      # bi chiem GPU: bao NGAY, khong cho
+grace_of(){ case "$1" in gpu-bi-chiem) echo $GRACE_GPU;; *) echo $GRACE_SSH;; esac; }
 
 touch "$ST"
 get_since(){ awk -F: -v m="$1" '$1==m{print $3}' "$ST" | tail -1; }
@@ -39,11 +43,12 @@ set_state(){ # may tinh_trang
   if [[ "$old_s" == "$s" && -n "$old_t" ]]; then t="$old_t"; else t=$(now); fi
   grep -v "^$m:" "$ST" > "$ST.t" 2>/dev/null; mv "$ST.t" "$ST"
   echo "$m:$s:$t" >> "$ST"
-  local mins=$(( ( $(now) - t ) / 60 ))
-  if (( $(now) - t >= GRACE )); then
-    echo "$(ts) | !! $m VO ($s da $mins phut, qua han $((GRACE/60)) phut) — DUOC PHEP THUE MOT VAST A4000" >> "$LOG"
+  local g mins=$(( ( $(now) - t ) / 60 ))
+  g=$(grace_of "$s")
+  if (( $(now) - t >= g )); then
+    echo "$(ts) | !! $m VO ($s, $mins phut) — DUOC PHEP THUE MOT VAST A4000 (toi da 3 GPU)" >> "$LOG"
   else
-    echo "$(ts) | $m: $s da $mins phut (con $(( (GRACE - ($(now)-t)) / 60 )) phut truoc khi coi la vo)" >> "$LOG"
+    echo "$(ts) | $m: $s da $mins phut (con $(( (g - ($(now)-t)) / 60 )) phut truoc khi coi la vo)" >> "$LOG"
   fi
 }
 
@@ -62,7 +67,7 @@ elif (( alive == 0 )); then
   RUN=chot161 BB="$CB" CFG_A="$A_CB" CFG_B="$B" SEED_LIST="7 1234" \
     setsid nohup bash run/chot15.sh >> log/chot15_161.log 2>&1 </dev/null & disown
 elif (( train == 0 && free161 < 13000 )); then
-  set_state 161 gpu-bi-tranh          # driver con song nhung ngoi cho VRAM
+  set_state 161 gpu-bi-chiem          # driver song nhung ngoi cho VRAM -> bao NGAY
 else
   set_state 161 ok
 fi
@@ -90,7 +95,7 @@ elif (( ${b:-1} == 0 )); then
     SEED_LIST='7 1234' PYTHON=/data/ntat/envs/vdenv/bin/python \
     setsid nohup bash run/chot15.sh >> log/chot15_158.log 2>&1 </dev/null & disown" >/dev/null 2>&1
 elif (( ${tt:-0} == 0 && ${ff:-99999} < 13000 )); then
-  set_state 158 gpu-bi-tranh
+  set_state 158 gpu-bi-chiem
 else
   set_state 158 ok
 fi
