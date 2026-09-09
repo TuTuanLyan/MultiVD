@@ -2634,3 +2634,85 @@ khi phát biểu ở mức **tổng hợp** yếu đi.
   n=5, sàn p=0.0625.
 - **PR-AUC null ở mọi nhánh** (6/10, 6/10, 3/8). Ba chỉ số kia đồng thuận, PR thì không.
 - Nửa t5p của khối chưa xong.
+
+---
+
+## §34 — KHỐI `chot` TRỌN VẸN: 2 backbone × 2 điều kiện × 3 nguồn × 5 fold = 70 ô (09/09)
+
+Người dùng đặt: *"chạy 2 backbone với cái tốt nhất có đầy đủ optimizer hiện tại của phương pháp"*
+và *"cái này sẽ tổng hợp riêng kĩ nhé"*. Đây là bản tổng hợp đó.
+
+**Cấu hình.** `latent_bottleneck` (nút thắt 8 chiều), λ=0.05 ở Pha 1, seed 42, đích
+`sven_python_folds_norm` (152 hàng test/fold). Pha 1 **dùng lại cả sáu checkpoint**, không huấn
+luyện lại cái nào.
+
+| | Pha 2 | t5p | codebert |
+|---|---|---|---|
+| **A** | RecAdam + ASAM, ρ **tốt nhất của chính backbone đó** | ρ=2.0 | ρ=0.1 |
+| **B** | AdamW, tắt cả SAM lẫn RecAdam | ρ=0 | ρ=0 |
+| đối chứng | `baseline` — không Pha 1, dùng chung cho A và B trong cùng fold | | |
+
+**Máy.** codebert trọn trên vast 5060 Ti. t5p chia theo **fold trọn vẹn**: fold 1,2,3,5 trên 161
+(A4000), fold 4 trên vast. Δ luôn ghép cặp trong cùng cây/fold nên không bao giờ lấy hiệu giữa
+hai máy; nhưng độ tản **giữa các fold** của t5p có thêm phần phần cứng.
+
+### 1. Cả hai điều kiện đều hơn baseline, ở cả hai backbone
+
+| | nguồn | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|
+| **codebert A** (ρ0.1) | 4cwe / com / full | +0.0389 4/5 · +0.0432 5/5 · +0.0617 5/5 | +0.0187 · +0.0159 · +0.0338 |
+| | **GỘP** | **+0.0479 14/15** | **+0.0228 12/15** |
+| **codebert B** | **GỘP** | **+0.0540 15/15** | **+0.0264 13/15** |
+| **t5p A** (ρ2.0) | 4cwe / com / **full** | +0.0541 4/5 · +0.0580 5/5 · **−0.0165 4/5** | +0.0445 · +0.0254 · **−0.0364** |
+| | **GỘP** | +0.0319 13/15 | +0.0111 13/15 |
+| **t5p B** | **GỘP** | +0.0337 12/15 | +0.0198 12/15 |
+
+### 2. Optimizer đóng góp ĐÚNG BẰNG KHÔNG — ở CẢ HAI backbone
+
+A − B ghép cặp trong cùng ô (tách riêng phần optimizer):
+
+| backbone | nguồn | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|
+| codebert | 4cwe / com / full | −0.0146 1/5 · −0.0049 2/5 · +0.0012 3/5 | −0.0069 · −0.0062 · +0.0024 |
+| | **GỘP** | **−0.0061 6/15** | **−0.0036 8/15** |
+| t5p | **4cwe** | **+0.0305 5/5** p=0.0625 | +0.0298 4/5 |
+| | com | +0.0093 2/5 | −0.0029 2/5 |
+| | **full** | **−0.0450 3/5** | **−0.0530 4/5** |
+| | **GỘP** | **−0.0018 10/15** | **−0.0087 10/15** |
+
+**Đây là kết quả quan trọng nhất của khối, và nó sửa lại §28.** Trên codebert, optimizer null
+(mọi số dưới sàn nhiễu 0.010, đếm dấu quanh 50%). Trên t5p, **gộp cả ba nguồn cũng null** — lợi
+ích ASAM chỉ có ở `4cwe` (+0.0305, **5/5**) và bị `full` triệt tiêu (−0.0450). §28 đo ASAM chỉ
+trên một nhánh nguồn nên thấy hiệu ứng lớn; trải đủ ba nguồn thì nó **phụ thuộc nguồn**, không
+phải một hiệu ứng chung.
+
+Trị tuyệt đối cho thấy rõ mức thiệt: `t5p × full × A` ROC **0.8532** trong khi baseline 0.8896 và
+B 0.9061 — ASAM ρ=2.0 **làm hỏng** t5p ở nguồn `full`.
+
+### 3. Theo CWE: mẫu hình LẶP LẠI qua cả hai backbone VÀ cả hai nhánh
+
+ΔROC-AUC so với baseline:
+
+| backbone | nhánh | CWE-022 (8 hàng) | CWE-078 (42) | CWE-079 (19) | CWE-089 (83) |
+|---|---|---|---|---|---|
+| codebert | A | **+0.4151 15/15** | +0.0147 9/15 | **+0.3745 15/15** | −0.0036 5/15 |
+| codebert | B | **+0.4038 15/15** | +0.0059 7/15 | **+0.3818 15/15** | −0.0047 6/15 |
+| t5p | A | **+0.2224 15/15** | −0.0184 7/15 | **+0.2456 15/15** | −0.0168 11/15 |
+| t5p | B | **+0.2349 14/15** | −0.0371 3/15 | **+0.2495 15/15** | +0.0070 12/15 |
+
+**Bốn dòng, hai backbone, hai cấu hình optimizer — CWE-022 và CWE-079 dương ở 14–15/15 fold mọi
+lần; CWE-078 và CWE-089 null mọi lần.** Vì A và B trùng nhau trong sai số, lợi ích này đến từ
+**Pha 1 + head nút thắt**, không từ optimizer.
+
+### 4. Chỗ phải nói kèm, nếu không sẽ đọc sai
+
+- **Hai CWE thắng là hai nhóm NHỎ NHẤT**: CWE-022 chỉ **8 hàng test**, CWE-079 **19** — cộng lại
+  18% dữ liệu. Hai nhóm null là hai nhóm lớn nhất (42 và 83). Đó chính là lý do ROC tổng thể chỉ
+  ~+0.02 trong khi per-CWE tới +0.4. ROC trên 8 hàng rất nhiễu **trong một fold**; điều đỡ cho
+  phát biểu là **đếm dấu 15/15 qua fold**, không phải biên độ.
+- Cột GỘP n=15 dùng **chung 5 baseline** cho 3 nguồn ⇒ không phải 15 quan sát độc lập. Mỗi nguồn
+  thực chất n=5, **sàn p=0.0625**.
+- **PR-AUC yếu nhất trong bốn chỉ số** ở codebert (11/15 và 10/15).
+- t5p fold 4 chạy trên GPU khác ba fold kia.
+- 8 ô codebert ở ρ=2.0 giữ lại làm bằng chứng (ROC **−0.0439**, 6/12 so với baseline) — không
+  thuộc 35 ô của khối.
