@@ -25,11 +25,36 @@ thừa nên không cần xoá.
 | | nguồn | ô/máy | ghi chú |
 |---|---|---|---|
 | **GD1** | `4cwe` + `com` | 25 | 5 fold × (1 baseline + 2 nguồn × 2 cấu hình) |
-| **GD2** | `full` | 10 | chỉ chạy **sau khi GD1 của máy đó xong**; Pha 1 phải huấn luyện từ đầu |
+| **GD2** | `full` | 10 | chỉ chạy **sau khi GD1 của máy đó xong**; Pha 1 **đã có sẵn**, dùng lại |
 
 Người dùng: *"sau khi xong toàn bộ khối thì chạy với full từ Phase 1, vì tôi muốn thấy đủ kết quả
 cwe và common trước."* `scripts/watch_chot.sh` (cron 10 phút) tự chuyển sang GD2 cho **từng máy**
 khi máy đó đủ 25 ô — hai máy xong lệch nhau nên không dùng script chuỗi chung.
+
+### Pha 1 — dùng lại cả sáu, không huấn luyện lại cái nào
+
+Người dùng 09/09: *"Phase 1 dùng lại được thì nên dùng nhé cứ seed 42 đã n=5."*
+
+| backbone | 4cwe | com | full | nguồn |
+|---|---|---|---|---|
+| codebert | ✅ | ✅ | ✅ | chép từ `model/s42/phase1/`, md5 khớp cả hai phía |
+| t5p | ✅ | ✅ | ✅ | `model/n48/phase1/` |
+
+Log xác nhận ở **cả hai máy**: `phase1 <bb>/latent_bottleneck | da co, dung lai`.
+
+Đã lỡ huấn luyện lại **~27 phút GPU** trước khi phát hiện (codebert `4cwe` 11 ph trên 161,
+`com` 16 ph trên vast, phải giết giữa chừng) vì tra checkpoint **theo tên thư mục**: khối s42
+đặt tên **không có hậu tố λ** khi λ=0.05 và chỉ thêm `_l02` khi λ=0.02 — hai quy ước tên cho
+cùng một λ. `training_args` của bản s42 trùng khít mọi trường với bản đang huấn luyện lại.
+FACTS §29.
+
+### Head phụ trên `com`/`full` là **10 pillar**, không phải 94/123 CWE
+
+Phát hiện khi đối chiếu ba checkpoint trên: `com` và `full` **cùng đúng 498 700 197 byte** trong
+khi lẽ ra phải lệch ~1 KB. `cwe_head` của cả hai là `(10, 8)` — `cwe_class` trong file dữ liệu là
+**pillar CWE-1000**, không phải CWE cụ thể. Ba lớp chỉ có 2–4 dòng; hai lớp chiếm 2/3 dữ liệu;
+`full` ném **10.1%** số dòng khỏi loss phụ (`-100`). Không có confound (mọi file dữ liệu còn nguyên
+mtime 27/08). **Mô tả phương pháp trong bài không được viết "head phụ 94 lớp".** FACTS §30.
 
 ### Hai điều kiện so sánh
 
