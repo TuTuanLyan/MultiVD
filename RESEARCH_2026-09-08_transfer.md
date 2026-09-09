@@ -777,3 +777,92 @@ CLAUDE.md mục 2b cảnh báo: một chỉ số nói "không" trong khi chỉ s
 **Chưa được nâng lên "kết luận"** khi chưa có n=5. 161 hiện trống nhưng người dùng nêu 09/09 là
 local cứ để trống chờ quyết hướng — **không tự xếp fold 4–5**; đây là lựa chọn để người dùng
 quyết, không phải việc thiếu.
+
+---
+
+# Phụ lục D — KẾT QUẢ CHÍNH: cấu hình chốt, và vì sao phải đọc theo CWE
+
+> Viết 09/09/2026. Số ở `FACTS.md` §28 và §28.1.
+
+## D.1 — Cấu hình và phép so
+
+Sau §7 (chọn nhánh, chọn λ) và §24 (chọn optimizer + ρ), cấu hình chốt là:
+
+```
+Pha 1:  latent_bottleneck, nút thắt 8 chiều, λ = 0.05, không SAM
+Pha 2:  AdamW + ASAM ρ = 2.0
+Đối chứng bắt buộc: baseline — KHÔNG có Pha 1, chỉ finetune trên Python, cùng máy cùng fold
+```
+
+Khối `asamaw` đã chạy đúng cấu hình này ở **n=15 (5 fold × 3 nguồn)** trên `ntat`, và **n=9** độc
+lập trên `ntat2`. Không phải chạy thêm gì — số đã có sẵn, chỉ chưa ai đọc nó theo góc này.
+
+## D.2 — Con số tổng, và vì sao nó gây hiểu nhầm
+
+| máy | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| ntat | 15 | +0.0535 (12/15) | +0.0685 (12/15) | +0.0337 (14/15) | +0.0300 (13/15) |
+| ntat2 | 9 | +0.0319 | +0.0280 | +0.0264 (7/9) | +0.0204 (7/9) |
+
+Cả bốn chỉ số dương trên cả hai máy; cả ba nguồn dương trên cả bốn chỉ số. Tắt ASAM (giữ nguyên
+head và λ): ROC chỉ còn +0.0137 và PR **−0.0018** — nên ρ=2.0 là thành phần thật, không phải trang trí.
+
+**Nhưng +0.0337 ROC là một con số dễ đọc sai.** Tập đích lệch rất mạnh: CWE-089 chiếm **81/150**
+hàng test và CWE-078 thêm **40**. Hai lớp đó quyết định gần như toàn bộ trung bình.
+
+## D.3 — Đọc theo CWE: toàn bộ mức tăng nằm ở hai lớp hiếm
+
+| CWE | hàng test | ΔF1@0.5 | ΔROC-AUC | ntat2 (n=9) ΔROC |
+|---|---|---|---|---|
+| **022** path traversal | 13 | **+0.2050 (11/15, p=0.022)** | **+0.2238 (13/15, p=0.002)** | +0.1619 (6/9) |
+| **079** XSS | 16 | **+0.2978 (14/15, p=0.001)** | **+0.3638 (15/15, p<0.001)** | **+0.2614 (9/9, p=0.004)** |
+| 078 OS command inj. | 40 | −0.0082 (ns) | −0.0097 (ns) | +0.0173 |
+| 089 SQL injection | 81 | +0.0142 (ns) | +0.0079 (ns) | −0.0011 |
+
+CWE-079 cùng dấu **tuyệt đối** trên hai máy độc lập: **15/15** và **9/9** fold. Hai lớp thường —
+chiếm 121 trong 150 hàng — **đúng bằng không**. Con số tổng nhỏ **vì lớp đa số áp đảo**, không
+phải vì hiệu ứng yếu.
+
+## D.4 — Qua phép kiểm rò rỉ (§28.1)
+
+Bộ `norm` chia theo từng dòng nên ~16% hàng test có bản gần trùng trong TRAIN. Tách nhóm:
+
+| nhóm | hàng/fold | ΔROC-AUC |
+|---|---|---|
+| có bản gần trùng trong TRAIN | 23 | +0.1308 (13/15) |
+| **hàng sạch (`none`), 73% dữ liệu** | 111 | +0.0202 (10/15, p=0.30) |
+
+Theo CWE **chỉ trên hàng sạch**: CWE-022 **+0.2567 (13/15)**, CWE-079 **+0.3158 (14/15)**;
+ntat2 cho CWE-079 **+0.2673 với 9/9 fold**.
+
+**Hai vế phải nêu cả hai.** Phần CWE hiếm gần như không mất gì — CWE-022 còn *tăng* khi bỏ hàng rò
+rỉ, CWE-079 giữ **87%**. Nhưng *biên độ tổng* thì có dựa vào rò rỉ một phần: nhóm rò rỉ cho
++0.1308 so với +0.0202 ở nhóm sạch, và trên hàng sạch đếm dấu ROC tụt còn 10/15.
+
+⇒ **Bài phải lấy con số trên hàng sạch làm số chính**, và nêu rõ hạn chế của bộ `norm`.
+
+## D.5 — Vì sao đây là kết quả bán được, chứ không phải "hai pha thì hơn một pha"
+
+Ghép ba mảnh lại:
+
+1. **Chuyển giao không làm mô hình tốt lên đều.** Nó *sửa* hai lớp mà mô hình chỉ-đích yếu nhất và
+   *không đụng* hai lớp còn lại. Trên CWE-022, mô hình chỉ-đích còn **dưới ngẫu nhiên** (accuracy
+   0.338 trên tập con cân bằng) — tức *phản dự báo*; chuyển giao xoá sai lệch hệ thống đó.
+2. **Không phải hiệu ứng do trộn hay do rò rỉ.** Đối chứng trộn hai bản chạy lại cho *phẳng hoặc
+   âm* theo CWE (phụ lục C); tách nhóm rò rỉ giữ nguyên phần CWE hiếm (D.4).
+3. **Lặp qua backbone ở đúng chỗ nên lặp.** Per-CWE lặp trên cả t5p lẫn codebert; *biên độ tổng*
+   thì không (§25.11) — và đó là bằng chứng thêm cho luận điểm, vì nó cho thấy trung bình bị lớp
+   đa số quyết định chứ không đo được điều ta hỏi.
+
+> **Phát biểu cho bài**: phương pháp hai pha không nâng đều mọi lớp; nó chuyển năng lực sang đúng
+> những CWE mà dữ liệu đích quá ít để học — và ở tập đích lệch mạnh, đó là điều mà điểm tổng
+> **không** nhìn thấy được.
+
+## D.6 — Còn thiếu
+
+1. **`twin`** (chia theo cụm gần trùng) — câu trả lời trực diện cho phản biện rò rỉ. Người dùng đã
+   nêu là để sau; bộ `norm` là tập chính theo yêu cầu reviewer.
+2. **Chi phí suy luận** — xem §27: trộn xác suất cần hai mô hình; nội suy trọng số với α chọn trên
+   val thu về một mô hình mà không mất gì đo được (n=15). Bản lặp codebert đang chạy.
+3. **CWE-079 chỉ 16 hàng test/fold, CWE-022 13 hàng.** Thứ làm con số đáng tin là **15/15 và 9/9
+   fold cùng dấu trên hai máy độc lập**, không phải biên độ — phải in kèm mọi lần trích.
