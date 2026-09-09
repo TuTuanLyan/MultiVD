@@ -2228,3 +2228,49 @@ dấu hiệu phân biệt: sập vì huấn luyện thì phải có ít nhất m
 **Quy tắc bổ sung**: khi xếp một khối lên máy xa, kiểm cả **file DỮ LIỆU** nó đọc, không chỉ file
 mã nó gọi. Danh sách kiểm trước đó của tôi có `run/*.sh`, `src/*.py`, `tools/*.py` và một file
 fold của tập đích — nhưng **không** có ba file nguồn Pha 1.
+
+---
+
+## §28.1 — §28 qua phép kiểm RÒ RỈ: phần CWE hiếm gần như không mất gì (09/09)
+
+Bộ đích chia theo từng dòng nên ~16% hàng test có bản gần trùng trong TRAIN. Phép kiểm này đã
+**đánh sập §21.1**, nên bắt buộc chạy cho con số đầu bài.
+
+**ntat, n=15** — cấu hình chốt vs baseline, tách theo nhóm rò rỉ:
+
+| nhóm | hàng/fold | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|
+| tất cả | 152 | +0.0535 (12/15, p=0.035) | +0.0337 (14/15, p=0.001) |
+| `train` (rò rỉ vào TRAIN) | 23 | **+0.1527 (13/15)** | **+0.1308 (13/15)** |
+| `val` | 10 | +0.0281 (6/12) | +0.0243 (4/12) |
+| `test` | 9 | +0.1242 (5/9) | +0.0887 (7/9) |
+| **`none` — hàng SẠCH, 73% dữ liệu** | **111** | **+0.0369 (14/15, p=0.001)** | +0.0202 (10/15, **p=0.30**) |
+
+**Theo CWE, CHỈ trên hàng sạch (`none`):**
+
+| CWE | ntat n=15 | ntat2 n=9 |
+|---|---|---|
+| **022** | **+0.2567 (13/15, p=0.002)** | +0.2354 (6/9) |
+| **079** | **+0.3158 (14/15, p<0.001)** | **+0.2673 (9/9, p=0.004)** |
+| 078 | −0.0154 (5/15, ns) | +0.0135 (6/9, ns) |
+| 089 | +0.0064 (8/15, ns) | +0.0088 (4/9, ns) |
+
+### Đọc cho đúng — hai vế, cả hai đều phải nêu
+
+**Vế tốt**: phần CWE hiếm **gần như không mất gì** khi bỏ hết hàng có bản gần trùng.
+CWE-022 đi từ +0.2238 (tất cả) xuống +0.2567 (sạch) — *tăng*; CWE-079 từ +0.3638 xuống +0.3158,
+tức **giữ 87%**, và vẫn **14/15 fold** trên ntat, **9/9** trên ntat2. Đây **không** phải hiệu ứng
+do rò rỉ.
+
+**Vế phải thừa nhận**: *biên độ tổng* thì có phần dựa vào rò rỉ. Nhóm `train` (23 hàng/fold) cho
+ΔROC **+0.1308**, cao hơn hẳn nhóm sạch (+0.0202), và trên hàng sạch **đếm dấu ROC tụt xuống
+10/15 (p=0.30)** dù F1 vẫn 14/15 (p=0.001). Nghĩa là con số tổng +0.0337 **được rò rỉ giúp một
+phần**; con số per-CWE thì không.
+
+> Lại đúng mẫu hình của cả đêm: **phát biểu ở mức TỔNG yếu đi khi kiểm; phát biểu ở mức PHÂN BỐ
+> thì đứng vững.** Ba lần trước là đối chứng seed, bản lặp backbone, và hiệu-hai-trung-bình — lần
+> này là rò rỉ. Bốn phép kiểm độc lập, cùng một kết luận về *cách đo nào dùng được*.
+
+**Phải viết vào bài**: nêu con số **trên hàng sạch** (CWE-022 +0.2567, CWE-079 +0.3158) làm số
+chính, và nêu rõ số tổng có phần dựa vào rò rỉ của bộ `norm`. Bộ `twin` (chia theo cụm gần trùng)
+là câu trả lời trực diện nếu reviewer hỏi — chưa chạy, người dùng đã nêu là để sau.
