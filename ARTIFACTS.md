@@ -157,3 +157,12 @@ Các trang được sinh từ script trong thư mục tạm của phiên, dữ l
 `results/`. Muốn dựng lại sau khi có kết quả mới thì chạy lại script sinh trang rồi
 xuất bản **vào đúng URL cũ** — xuất bản mà không kèm URL sẽ tạo ra một artifact mới
 thay vì cập nhật cái đang có.
+
+## Trộn đều hai mô hình (09/09/2026)
+https://claude.ai/code/artifact/d18d51d3-ac51-491d-b8b6-90685506a8a6
+
+FACTS §25. Trộn xác suất baseline ⊕ chuyển giao ở α=0.5 vượt **cả hai** đầu mút trên hai chỉ số
+xếp hạng (ROC +0.0165 so với chuyển giao thuần, 59/83, p=0.0002). Lặp trên hai backbone với
+cùng biên độ. Cơ chế theo CWE: giữ 43%/64% phần được ở CWE-022/079, xoá sạch phần hại ở
+CWE-078/089. Nêu rõ ba giới hạn, trong đó đối chứng "trộn hai mô hình nào cũng lợi" **chưa
+chạy xong** — chưa trích được khi chưa có nó.
