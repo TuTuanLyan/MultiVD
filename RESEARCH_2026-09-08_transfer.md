@@ -475,33 +475,50 @@ phép tách này trước khi được gọi là phát hiện.**
 **Giới hạn:** n=7–8 (một số fold không đủ 8 hàng trong nhóm nên bị bỏ). Ở n=7 thì
 p=0.016 là **sàn** — nghĩa là "cùng dấu ở cả 7", không phải "rất có ý nghĩa".
 
-## B.2e — Bản lặp trên máy thứ hai (161, n=2–3): CHỈ pha loãng nặng lặp lại được
+## B.2e — Bản lặp trên máy thứ hai ĐÃ ĐỦ n=5: chỉ pha loãng NẶNG lặp lại
 
-| nhánh | **ntat2** (n=5) ΔROC | **161** (n=2–3) ΔROC | ntat2 ΔF1 | 161 ΔF1 | lặp? |
+Cả hai máy đều n=5, mỗi máy dùng đối chứng `lm100_n930` của chính nó.
+
+| nhánh | ntat2 ΔROC | 161 ΔROC | ntat2 ΔF1@0.5 | 161 ΔF1@0.5 | lặp? |
 |---|---|---|---|---|---|
-| lm75 | −0.0213 (0/5) | **+0.0086** (1/3) | −0.0306 | −0.0017 | **KHÔNG** — đổi dấu ở AUC |
-| lm50 | −0.0175 (1/5) | **+0.0081** (1/3) | −0.0118 | −0.0133 | **KHÔNG** — đổi dấu ở AUC |
-| lm25 | −0.0262 (1/5) | −0.0166 (1/3) | −0.0294 | −0.0308 | CÓ |
-| lm12 | −0.0310 (0/5) | −0.0586 (0/2) | −0.0358 | −0.0592 | CÓ, mạnh hơn |
+| lm75 | −0.0213 (0/5) | **+0.0028** (2/5) | −0.0306 (0/5) | −0.0023 (1/5) | **KHÔNG** |
+| lm50 | −0.0175 (1/5) | **+0.0054** (2/5) | −0.0118 (2/5) | −0.0001 (3/5) | **KHÔNG** |
+| lm25 | −0.0262 (1/5) | −0.0188 (1/5) | −0.0294 (0/5) | −0.0276 (1/5) | CÓ |
+| **lm12** | −0.0310 (**0/5**) | −0.0400 (**0/5**) | −0.0358 (**0/5**) | −0.0420 (**0/5**) | **CÓ, cả hai chạm sàn** |
 
-Ở `lm75` hai máy lệch **0.030** trên ROC-AUC — ngay trên sàn liên-GPU 0.028, và
-**đổi dấu**. `lm50` cũng đổi dấu ở cả ROC lẫn PR.
+Gộp **dấu** của hai máy (mỗi Δ vẫn ghép cặp trong-máy, nên đây là gộp hai bản lặp
+độc lập chứ không phải trộn phần cứng):
 
-**Điều này KHỚP với B.2d chứ không mâu thuẫn.** B.2d đã cho thấy pha loãng nhẹ
-(75%, 50%) là **null trên hàng sạch** (ROC −0.0010 và −0.0093, 3/8 và 2/7). Một
-hiệu ứng null thì dấu của nó phụ thuộc rút thăm fold và máy — đúng như quan sát.
+| nhánh | F1@0.5 | ROC-AUC |
+|---|---|---|
+| **lm12** | **0/10, p=0.0020** | **0/10, p=0.0020** |
+| lm25 | 1/10, p=0.0215 | 2/10, p=0.1094 |
+| lm50 | 5/10, p=1.000 | 3/10, p=0.3438 |
+| lm75 | 1/10, p=0.0215 | 2/10, p=0.1094 |
 
-**Phát biểu cuối cùng, đã qua ba phép kiểm độc lập** (n=5 một máy → tách nhóm rò
-rỉ → lặp trên máy thứ hai):
+`lm12` là ô duy nhất **âm ở cả 10/10 fold trên cả F1 lẫn ROC-AUC**, hai máy độc lập.
+`lm75` âm ở F1 (1/10) nhưng **không** ở ROC (2/10, và 161 đổi dấu) — đúng kiểu hiệu
+ứng chỉ ở ngưỡng chứ không ở xếp hạng, và B.2d đã cho thấy nó null trên hàng sạch.
 
-> Pha loãng nguồn xuống **≤25% dòng đúng CWE** làm hỏng khả năng khái quát hoá:
-> âm trên cả hai máy, âm trên hàng sạch (0/7 fold, cả F1 lẫn ROC-AUC), biên độ
-> −0.017…−0.059 ROC-AUC. Pha loãng **nhẹ (75%, 50%) thì không phân biệt được với
-> nhiễu** — null trên hàng sạch và đổi dấu giữa hai máy.
+**Khớp với B.2d, không mâu thuẫn.** B.2d đo trên 73% hàng không rò rỉ: lm75 −0.0010
+và lm50 −0.0093 ROC (3/8 và 2/7) — null. Hiệu ứng null thì dấu phụ thuộc rút thăm
+fold và máy, đúng như quan sát ở đây.
 
-Và phải rút phần "16/16 ô âm, `lm75` 0/5 trên cả bốn chỉ số" ở B.2: con số đó đúng
-trên ntat2 nhưng **không lặp lại**. Ở n=5 một máy, "0/5" là sàn kiểm dấu — nó
-không phân biệt được hiệu ứng thật với may mắn (CLAUDE.md §2b nói đúng điều này).
+**Phải rút** phần "16/16 ô âm, `lm75` 0/5 trên cả bốn chỉ số" ở B.2: đúng trên ntat2
+nhưng không lặp lại. Ở n=5 một máy, "0/5" là **sàn** kiểm dấu — nó không phân biệt
+được hiệu ứng thật với may mắn (CLAUDE.md §2b).
+
+### Phát biểu cuối, sau ba phép kiểm độc lập
+
+> Pha loãng nguồn Phase 1 xuống **≤25% dòng có CWE trùng đích** làm hỏng khả năng
+> khái quát hoá của mô hình đích. Ở mức 12%: **0/10 fold** trên cả F1@0.5 lẫn
+> ROC-AUC qua **hai máy độc lập** (p=0.002 mỗi chỉ số), biên độ −0.031…−0.040
+> ROC-AUC — gấp 3–4 lần sàn nhiễu. Hiệu ứng **sống trên 73% hàng test không có bản
+> gần trùng** (0/7 fold, cả hai chỉ số). Pha loãng **nhẹ (75%, 50%) không phân biệt
+> được với nhiễu**: null trên hàng sạch và đổi dấu giữa hai máy.
+>
+> Tỉ lệ ngôn ngữ được **ghim ở js 0.87** trong toàn lưới, nên đây là hiệu ứng của
+> **trùng lớp CWE**, không phải của khoảng cách ngôn ngữ.
 
 ## B.3 — Lưới `pur*` KHÔNG đơn điệu, và một nửa không lặp lại được
 
