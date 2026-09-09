@@ -14,7 +14,7 @@ khong bao gio bac cau qua may (CLAUDE.md muc 2 va muc 4).
 Luon in DU BON chi so kem so fold cung dau (muc 2b).
 """
 import json, os, re, sys
-from collections import defaultdict
+from collections import defaultdict, Counter
 import numpy as np
 from scipy.stats import binomtest
 
@@ -38,9 +38,31 @@ def load(roots):
                 src = "-"
                 for s in ("4cwe","com","full"):
                     if f"_{s}_" in arm: src = s; break
-                tag = "baseline" if arm=="baseline" else ("r2p0" if "r2p0" in arm else
-                      ("plain" if "plain" in arm else arm))
-                cells[(root,bb,src,seed,fold)][tag] = d
+                # Nhanh A la nhanh ASAM CUA CHINH BACKBONE DO — rho khac nhau giua hai
+                # backbone (t5p r2p0, codebert r0p1; FACTS §32), nen khong duoc viet cung
+                # mot tag. Bat moi tag dang r<so>p<so> thanh "A". Ban dau chi bat "r2p0",
+                # nen bang A-B cua codebert lay nham nhanh rho=2.0 DA BO thay vi rho=0.1.
+                mr = re.search(r"_(r\d+p\d+)$", arm)
+                tag = ("baseline" if arm == "baseline"
+                       else "A" if mr
+                       else "B" if "plain" in arm
+                       else arm)
+                rho = mr.group(1) if mr else None
+                if tag == "A": d["_rho_tag"] = rho
+                cells[(root,bb,src,seed,fold)][tag if tag != "A" else f"A:{rho}"] = d
+    # Mot (cay, backbone) co the co NHIEU nhanh rho — khoi nay giu 8 o codebert o rho=2.0
+    # lam BANG CHUNG ben canh 10 o rho=0.1 la nhanh that. Neu goi chung la "A" thi chung
+    # ghi de nhau va bang tron hai cau hinh khac han. Chon nhanh co NHIEU O NHAT lam A;
+    # phan con lai giu nguyen ten de van doc duoc rieng, nhung khong vao bang A.
+    cnt = defaultdict(Counter)
+    for (root,bb,src,seed,fold),v in cells.items():
+        for t in v:
+            if t.startswith("A:"): cnt[(root,bb)][t] += 1
+    keep = {k: c.most_common(1)[0][0] for k,c in cnt.items()}
+    for (root,bb,src,seed,fold),v in list(cells.items()):
+        for t in [t for t in v if t.startswith("A:")]:
+            if t == keep.get((root,bb)): v["A"] = v.pop(t)
+            else: v[t.replace("A:","(bang chung) ")] = v.pop(t)
     return cells
 
 def stat(v):
@@ -98,13 +120,13 @@ def main():
         if src == "-": continue                      # o baseline khong tu ghep voi chinh no
         b = base_of.get((root,bb,seed,fold))
         if b is not None:
-            if "r2p0"  in v: A[(bb,src)].append((v["r2p0"], b))
-            if "plain" in v: B[(bb,src)].append((v["plain"], b))
-        if "r2p0" in v and "plain" in v: AB[(bb,src)].append((v["r2p0"], v["plain"]))
+            if "A" in v: A[(bb,src)].append((v["A"], b))
+            if "B" in v: B[(bb,src)].append((v["B"], b))
+        if "A" in v and "B" in v: AB[(bb,src)].append((v["A"], v["B"]))
     thieu = sum(1 for (root,bb,src,seed,fold),v in cells.items()
                 if src != "-" and base_of.get((root,bb,seed,fold)) is None)
     if thieu: print(f"# CANH BAO: {thieu} o co nhanh nhung KHONG co baseline cung fold — da bo")
-    show("A  (RecAdam + ASAM 2.0)  −  baseline", A)
+    show("A  (RecAdam + ASAM o rho tot nhat CUA BACKBONE do)  −  baseline", A)
     show("B  (AdamW, khong SAM)    −  baseline", B)
     show("A − B   RIENG phan optimizer dong gop (ghep cap trong CUNG o)", AB)
 
@@ -117,9 +139,11 @@ def main():
           "".join(f"{m:>11}" for m,_ in MET) + f"{'val Pha1':>10}")
     abs_rows = defaultdict(list)
     for (root,bb,src,seed,fold),v in cells.items():
-        for tag,d in v.items(): abs_rows[(bb, src if tag!="baseline" else "-", tag)].append(d)
-    order = {"baseline":0, "r2p0":1, "plain":2}
-    for k in sorted(abs_rows, key=lambda k:(k[0], k[1], order.get(k[2],9))):
+        for tag,d in v.items():
+            lab = tag if tag != "A" else f"A/{d.get('_rho_tag','?')}"
+            abs_rows[(bb, src if tag!="baseline" else "-", lab)].append(d)
+    order = {"baseline":0, "A":1, "B":2}
+    for k in sorted(abs_rows, key=lambda k:(k[0], k[1], order.get(k[2][0] if k[2].startswith("A/") else k[2],9))):
         bb,src,tag = k; lst = abs_rows[k]
         line = f"{bb:<11}{src:<7}{tag:<10}{len(lst):>3}"
         for _,f in MET:
