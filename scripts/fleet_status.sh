@@ -25,7 +25,7 @@ for L in ntat ntat2; do
   out=$(timeout 60 ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p "$P" root@"$H" \
     "cd $R 2>/dev/null || exit 1
      echo \"  job=\$(ps -eo args --no-headers|grep -c '[s]rc/train_[a-z]*\.py') worklist=\$(ps -eo args --no-headers|grep -c '[v]ast_worklist.sh') vram=\$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits)MiB\"
-     echo \"  muc xong: \$(grep -c . log/worklist.done 2>/dev/null)/\$(grep -vc '^\s*#\|^\s*\$' log/worklist.txt 2>/dev/null)\"
+     echo \"  muc xong: \$(grep -xF -f <(grep -v '^\s*#\|^\s*\$' log/worklist.txt) log/worklist.done 2>/dev/null | grep -c .)/\$(grep -vc '^\s*#\|^\s*\$' log/worklist.txt 2>/dev/null)  (dem SO GIAO done∩todo — dem tho bi thoi phong boi dong cua danh sach cu)\"
      echo \"  o: int1=\$(ls results/int1_t5p/*/seed_*/fold*.json 2>/dev/null|wc -l) asam1=\$(ls results/asam1_t5p/*/seed_*/fold*.json 2>/dev/null|wc -l)\"
      echo \"  dang chay: \$(grep 'CHAY:' log/worklist.log 2>/dev/null | tail -1 | cut -c1-84)\"
      echo \"  con lai:\"; grep -v '^\s*#\|^\s*\$' log/worklist.txt 2>/dev/null | while read -r l; do
