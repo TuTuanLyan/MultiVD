@@ -2,6 +2,43 @@
 
 > Bản trước viết 03:45, trước khi có §25.8 → §28. Đã thay hẳn.
 
+## ĐANG CHẠY — ưu tiên mới 09/09 16:20 VN: cấu hình chốt trên HAI backbone
+
+Người dùng: *"chốt gần như là latent_bottleneck + ASAM 2.0 + RecAdam 0.05 trên t5p nhưng codebert
+thì tôi chưa rõ. Hyper param có thể điều chỉnh theo từng backbone được."* — đúng: bảng tổng hợp
+cho thấy **codebert CHƯA HỀ được chạy với ASAM ρ=2.0**; mức tốt nhất hiện có của nó là `r0p1`
+(+0.0125 ROC, 10/10) và `plain` (+0.0112, 11/16), đều ở n nhỏ.
+
+**Khối `run/chot2bb.sh`** trên **161**, phóng 09:23 UTC. Thiết kế đúng như người dùng nêu —
+2 backbone × 2 điều kiện × 5 fold:
+
+| | điều kiện | Pha 2 |
+|---|---|---|
+| **A** | `r2p0` | **RecAdam + ASAM ρ=2.0** — đầy đủ optimizer của phương pháp |
+| **B** | `plain` | **AdamW, không SAM/ASAM** — tắt cả hai cùng lúc |
+
+Backbone: `t5p` (codet5p-220m-bimodal, mean) và `codebert` (codebert-base, cls).
+Nguồn **4cwe**, λ **0.05**, seed 42, fold 1–5. Đối chứng `baseline` chạy cùng máy cùng fold, dùng
+chung cho cả hai điều kiện. **30 ô** (10 baseline + 20 Pha 2).
+
+**Vì sao λ=0.05 chứ không phải 0.01**: dòng λ=0.01 mà người dùng thấy (`r2p0`, ROC +0.0553) chỉ
+có ở **n=3** — bậc 1, nơi p=0.250 là **sàn**, không phân biệt được với may mắn. Bản λ=0.05 có
+**n=18, ROC +0.0399 (17/18)**. Thêm nữa λ nằm ở Pha 1 nên đổi λ là phải huấn luyện lại Pha 1 cả
+hai backbone (CLAUDE.md mục 5).
+
+Pha 1: t5p đã có ở `model/n48/phase1`; **codebert phải huấn luyện lại** (checkpoint cũ nằm trên
+ntat2 đã huỷ) — script tự làm, ~20 phút.
+
+**Giám sát**: `scripts/watch_chot2bb.sh` chạy cron 10 phút, phóng lại nếu driver chết mà chưa đủ
+30 ô. Nó hỏi **lock** chứ không đếm tiến trình (`ps|grep` bắt luôn dòng lệnh của chính nó — lần
+đầu báo driver=4 trong khi chỉ có một).
+
+**Đọc kết quả khi xong**:
+```
+python3 tools/report2.py --a r2p0  --b plain results/chot_t5p results/chot_codebert
+python3 tools/build_summary.py results/chot_t5p results/chot_codebert   # tổng hợp riêng
+```
+
 ## Máy — CẢ HAI MÁY VAST ĐÃ HUỶ, không còn gì tính tiền
 
 | máy | trạng thái |
