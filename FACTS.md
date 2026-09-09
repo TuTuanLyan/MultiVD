@@ -2193,3 +2193,50 @@ giới hạn phải nêu trong bài, không phải thứ có thể lấp bằng 
 
 **n=1 — sơ bộ.** Khối chạy 3 nguồn × 3 fold = 9 ô; sẽ cập nhật khi đủ. Nhưng cơ chế (val chọn
 α=1.0, đường lõm) rõ ngay ở ô đầu.
+
+---
+
+## §28 — CẤU HÌNH CHỐT ở bậc 3: toàn bộ mức tăng nằm ở hai CWE hiếm (09/09/2026)
+
+Cấu hình chốt sau §7 + §24: **`latent_bottleneck` (nút thắt 8 chiều) · λ=0.05 · Pha 2 dùng AdamW +
+ASAM ρ=2.0**. Khối `asamaw` đã chạy đúng cấu hình này ở **n=15 (5 fold × 3 nguồn)**, đối chứng là
+**baseline** (không có Pha 1) cùng máy cùng fold. Không cần chạy thêm gì — số đã có sẵn.
+
+### Tổng thể
+
+| máy | n | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| **ntat** | **15** | **+0.0535 (12/15)** | **+0.0685 (12/15)** | **+0.0337 (14/15)** | **+0.0300 (13/15)** |
+| ntat2 (độc lập) | 9 | +0.0319 (4/9) | +0.0280 (5/9) | +0.0264 (7/9) | +0.0204 (7/9) |
+
+Cả bốn chỉ số dương trên cả hai máy. Trên ntat, **cả ba nguồn** dương trên cả bốn chỉ số
+(4cwe ROC +0.0352 5/5 · com +0.0300 4/5 · full +0.0360 5/5).
+
+**So với chính nó khi TẮT ASAM** (`aw_r0`, cùng head cùng λ cùng AdamW): ROC +0.0137 (11/15) và
+PR **−0.0018 (6/15)**. Bật ASAM ρ=2.0 làm ROC hơn **gấp 2,5 lần** và lật PR từ null sang +0.0300.
+
+### Theo CWE — đây mới là chỗ đáng viết
+
+**ntat, n=15:**
+
+| CWE | hàng test | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|---|
+| **022** path traversal | 13 | **+0.2050 (11/15, p=0.022)** | **+0.2238 (13/15, p=0.002)** |
+| 078 OS command inj. | 40 | −0.0082 (7/15, p=1.00) | −0.0097 (6/15, p=0.79) |
+| **079** XSS | 16 | **+0.2978 (14/15, p=0.001)** | **+0.3638 (15/15, p<0.001)** |
+| 089 SQL injection | 81 | +0.0142 (7/15, p=0.55) | +0.0079 (11/15, p=0.12) |
+
+**ntat2 độc lập, n=9:** CWE-079 **+0.2614 ROC với 9/9 fold (p=0.004)**; CWE-022 +0.1619 (6/9);
+hai lớp thường null (078 +0.0173, 089 −0.0011).
+
+**Đọc**: toàn bộ mức tăng của cấu hình chốt nằm ở **hai lớp hiếm**, và **CWE-079 đạt 15/15 fold
+trên ntat, 9/9 trên ntat2** — cùng dấu tuyệt đối trên hai máy độc lập. Hai lớp thường (chiếm 121
+trong 150 hàng test) **đúng bằng không**. Con số tổng +0.0337 nhỏ chỉ vì hai lớp thường áp đảo về
+số hàng, không phải vì hiệu ứng yếu.
+
+Biên độ ở đây (**+0.36** ROC cho CWE-079) **lớn hơn nhiều** §23 (+0.176) vì §23 gộp 507 ô của
+**mọi** cấu hình, kể cả các cấu hình yếu và các mức ρ đã bị loại. Đây là cấu hình chốt, đo riêng.
+
+**Cảnh báo phải in kèm**: CWE-079 chỉ có **16 hàng test mỗi fold**, CWE-022 **13**. Thứ làm con số
+đáng tin **không phải biên độ** mà là **15/15 và 9/9 fold cùng dấu trên hai máy độc lập**. Trích
+biên độ mà không trích đếm dấu là đọc sai theo đúng kiểu mục 2b đã cấm.
