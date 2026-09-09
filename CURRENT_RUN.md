@@ -76,10 +76,28 @@ mtime 27/08). **Mô tả phương pháp trong bài không được viết "head 
 
 ### Hai điều kiện so sánh
 
-| | Pha 2 |
-|---|---|
-| **A** `r2p0` | RecAdam + **ASAM ρ=2.0** — đầy đủ optimizer của phương pháp |
-| **B** `plain` | **AdamW, không SAM/ASAM** — tắt cả hai cùng lúc |
+| | Pha 2 | t5p | codebert |
+|---|---|---|---|
+| **A** | RecAdam + ASAM, ρ **theo từng backbone** | `r2p0` **ρ=2.0** | `r0p1` **ρ=0.1** |
+| **B** `plain` | **AdamW, không SAM/ASAM** — tắt cả hai cùng lúc | ρ=0 | ρ=0 |
+
+> **Sửa 09/09 19:00 VN.** Ban đầu tôi đặt **cả hai** backbone ở ρ=2.0. Đó là cái tốt nhất của
+> **t5p** áp cho codebert, không phải cái tốt nhất của codebert — trái với yêu cầu *"chạy 2
+> backbone với cái tốt nhất của nó"*. Ma trận λ×ρ (FACTS §32) đo được, codebert λ=0.05:
+>
+> | ρ | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+> |---|---|---|---|---|
+> | 0 | +0.0263 220/295 | +0.0234 220/295 | +0.0068 177/295 | +0.0034 161/295 |
+> | **0.1** | **+0.0419 37/40** | **+0.0389 38/40** | **+0.0244 40/40** | **+0.0271 37/40** |
+> | 2.0 | −0.0070 8/12 | +0.0017 8/12 | **−0.0439 6/12** | −0.0370 6/12 |
+>
+> λ **giữ 0.05**: tại ρ=0.1 thì λ0.05 cho +0.0244 (40/40) còn λ0.02 cho −0.0050 (16/30). Các
+> mức λ 0.2/0.5/1.0 chỉ đo ở **ρ=0** nên không dùng để chọn λ tại ρ=0.1 được.
+>
+> **8 ô `r2p0` của codebert đã chạy thì GIỮ**, không xoá — chúng trả lời một câu có thật
+> ("ρ=2.0 có hợp codebert không": không). Nhưng chúng **không** thuộc 35 ô khối này cần, nên
+> `scripts/watch_chot.sh` đếm codebert có `grep -v _r2p0/` — đếm cả vào là watchdog tưởng xong
+> sớm 8 ô. ρ giờ truyền qua `CFG_A` cho từng máy thay vì viết cứng trong `run/chot2bb.sh`.
 
 λ **0.05**, seed 42, fold 1–5, đối chứng `baseline` cùng máy cùng fold dùng chung cho cả hai.
 

@@ -29,6 +29,12 @@ VE="ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p 475
 VH=root@171.227.33.18
 T5P='t5p=Salesforce/codet5p-220m-bimodal:mean'
 CB='codebert=microsoft/codebert-base:cls'
+# Nhanh A = TOT NHAT CUA CHINH BACKBONE DO (nguoi dung: "chay 2 backbone voi cai tot nhat
+# cua no"). rho la sieu tham so Pha 2 nen khac nhau giua hai backbone — FACTS §32:
+#   t5p      rho 2.0 -> dROC +0.0352 (52/57)
+#   codebert rho 0.1 -> dROC +0.0244 (40/40);  rho 2.0 cho -0.0439 (6/12)
+A_T5P='r2p0|recadam|--sam_rho 2.0 --sam_variant asam'
+A_CB='r0p1|recadam|--sam_rho 0.1 --sam_variant asam'
 
 # ---- 161 / t5p, CHI fold 1 2 3 ----
 # GD1 = 3 fold x 5 o = 15 ; GD2 (`full`) = +3 fold x 2 o = 21
@@ -38,11 +44,11 @@ echo "$(ts) | 161/t5p  o=$n/21 (fold 1-3) alive=$alive" >> "$LOG"
 if (( alive == 0 )); then
   if   (( n < 15 )); then
     echo "$(ts) | 161 | GD1 con thieu ($n/15) — phong lai" >> "$LOG"
-    BBS="$T5P" SOURCES_LIST="4cwe com" FOLD_LIST="1 2 3" \
+    BBS="$T5P" CFG_A="$A_T5P" SOURCES_LIST="4cwe com" FOLD_LIST="1 2 3" \
       setsid nohup bash run/chot2bb.sh >> log/chot_t5p.log 2>&1 </dev/null & disown
   elif (( n < 21 )); then
     echo "$(ts) | 161 | GD1 xong, sang GD2 full ($n/21)" >> "$LOG"
-    BBS="$T5P" SOURCES_LIST="full" FOLD_LIST="1 2 3" \
+    BBS="$T5P" CFG_A="$A_T5P" SOURCES_LIST="full" FOLD_LIST="1 2 3" \
       setsid nohup bash run/chot2bb.sh >> log/chot_t5p.log 2>&1 </dev/null & disown
   else
     echo "$(ts) | 161 | DU 21 o — xong phan cua 161" >> "$LOG"
@@ -52,7 +58,7 @@ fi
 # ---- vast: codebert (5 fold) TRUOC, roi t5p fold 4-5 ----
 # codebert: GD1 25 -> GD2 35 ;  t5p fold 4-5: GD1 10 -> GD2 14  (cay `chotv_t5p`)
 out=$(timeout 60 $VE $VH "cd /workspace/MultiVD 2>/dev/null || exit 1
-echo cb=\$(find results/chot_codebert  -name 'fold*.json' 2>/dev/null | wc -l)
+echo cb=\$(find results/chot_codebert -name 'fold*.json' 2>/dev/null | grep -v _r2p0/ | wc -l)
 echo tp=\$(find results/chotv_t5p      -name 'fold*.json' 2>/dev/null | wc -l)
 if flock -n /tmp/mvd_chot2bb.lock -c true 2>/dev/null; then echo alive=0; else echo alive=1; fi" 2>/dev/null)
 if [[ -z "$out" ]]; then
@@ -67,16 +73,16 @@ launch(){ timeout 40 $VE $VH "cd /workspace/MultiVD && $1 PYTHON=/venv/main/bin/
 
 if   (( ${vc:-0} < 25 )); then
   echo "$(ts) | vast | codebert GD1 con thieu ($vc/25) — phong lai" >> "$LOG"
-  launch "BBS='$CB' SOURCES_LIST='4cwe com'" log/chot_cb.log
+  launch "BBS='$CB' CFG_A='$A_CB' SOURCES_LIST='4cwe com'" log/chot_cb.log
 elif (( ${vc:-0} < 35 )); then
   echo "$(ts) | vast | codebert GD1 xong, sang GD2 full ($vc/35)" >> "$LOG"
-  launch "BBS='$CB' SOURCES_LIST='full'" log/chot_cb.log
+  launch "BBS='$CB' CFG_A='$A_CB' SOURCES_LIST='full'" log/chot_cb.log
 elif (( ${vt:-0} < 10 )); then
   echo "$(ts) | vast | codebert XONG — nhan t5p fold 4-5 GD1 ($vt/10)" >> "$LOG"
-  launch "RUN=chotv BBS='$T5P' SOURCES_LIST='4cwe com' FOLD_LIST='4 5'" log/chotv_t5p.log
+  launch "RUN=chotv BBS='$T5P' CFG_A='$A_T5P' SOURCES_LIST='4cwe com' FOLD_LIST='4 5'" log/chotv_t5p.log
 elif (( ${vt:-0} < 14 )); then
   echo "$(ts) | vast | t5p fold 4-5 GD1 xong, sang GD2 full ($vt/14)" >> "$LOG"
-  launch "RUN=chotv BBS='$T5P' SOURCES_LIST='full' FOLD_LIST='4 5'" log/chotv_t5p.log
+  launch "RUN=chotv BBS='$T5P' CFG_A='$A_T5P' SOURCES_LIST='full' FOLD_LIST='4 5'" log/chotv_t5p.log
 else
   echo "$(ts) | vast | DU 35 codebert + 14 t5p — HET VIEC, cho lenh huy" >> "$LOG"
 fi

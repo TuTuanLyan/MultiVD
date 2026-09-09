@@ -39,6 +39,15 @@ SEED="${SEED:-42}"
 STORE="${STORE:-model/n48/phase1}"
 # THU TU: codebert TRUOC. Nguoi dung 09/09: "uu tien xong backbone codebert truoc".
 BBS="${BBS:-codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-220m-bimodal:mean}"
+# Nhanh A = "day du optimizer, o muc TOT NHAT CUA CHINH BACKBONE DO". Nguoi dung 09/09:
+# "chay 2 backbone voi cai tot nhat cua no". rho la sieu tham so PHA 2 nen no khac nhau
+# giua hai backbone, va do duoc tren ma tran lambda x rho (FACTS §32):
+#   t5p      rho 2.0  -> dROC +0.0352 (52/57)   [dinh o rho 1-2, sap o rho >= 4]
+#   codebert rho 0.1  -> dROC +0.0244 (40/40)   [rho 2.0 cho -0.0439 (6/12)]
+# Ban dau toi dat CA HAI o rho 2.0 — do la cai tot nhat cua t5p ap cho codebert, khong phai
+# cai tot nhat cua codebert. Nguoi dung bat duoc. Gio truyen qua CFG_A cho tung may.
+CFG_A="${CFG_A:-r2p0|recadam|--sam_rho 2.0 --sam_variant asam}"
+CFG_B="${CFG_B:-plain|adamw|--sam_rho 0}"
 NEED_VRAM="${NEED_VRAM:-13000}"
 
 # LOCK RIENG, KHONG dung /tmp/multivd_opt1.lock. Bay da mac 09/09 09:23: script nay giu
@@ -70,7 +79,7 @@ wait_vram(){ local w=0 t u a
 echo "########## CHOT2BB bat dau $(date -u '+%F %T') | $(hostname) ##########"
 echo "  nguon: $SOURCES_LIST | fold $FOLD_LIST | seed $SEED | lambda 0.05"
 echo "  thu tu: BACKBONE vong ngoai (codebert truoc) -> fold -> nguon"
-echo "  A = r2p0  (RecAdam + ASAM rho=2.0)   B = plain (AdamW, khong SAM)"
+echo "  A = ${CFG_A%%|*}   B = ${CFG_B%%|*}   (rho theo tung backbone, xem CFG_A)"
 
 # --- 1) bu Pha 1 cho moi (backbone, nguon) con thieu ---
 for BB in $BBS; do
@@ -104,8 +113,8 @@ for BB in $BBS; do
       wait_vram
       RUN="$RUN" SEEDS="$SEED" SOURCES="$SRC" FOLD_LIST="$FOLD" MIN_EP=3 BB="$BB" \
       P1STORE="$STORE" \
-      CONFIGS="r2p0|recadam|--sam_rho 2.0 --sam_variant asam
-plain|adamw|--sam_rho 0" \
+      CONFIGS="$CFG_A
+$CFG_B" \
       bash run/opt1.sh
     done
   done
