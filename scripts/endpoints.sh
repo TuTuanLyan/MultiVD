@@ -115,3 +115,26 @@ for inst in data:
 sys.exit(1)
 PYID
 }
+
+# vast_labels — in cac NHAN CUA MINH dang CHAY. Dung de vong lap giam sat khong con bao
+# dong ve mot may da co y huy: 09/09/2026 08:07 huy `ntat` xong thi monitor keu
+# "SSHERR ntat | khong giai duoc dia chi 3 vong lien" — bao dong dung ky thuat nhung SAI
+# y nghia, va mot cong bao nham lau ngay se che mat su co that.
+#
+# DANH SACH TRANG LA CUNG: chi ntat/ntat2. Khong bao gio duoc tra ve nhan cua nguoi khac
+# (`dung`, `cuongtm4070s`) du chung co dang chay — VAST_RULES.md.
+vast_labels() {
+  _vast_refresh
+  [[ -f "$VAST_CACHE" ]] || return 0
+  python3 - "$VAST_CACHE" <<'PYEOF'
+import json, sys
+ALLOW = {"ntat", "ntat2"}
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+for i in d:
+    if i.get("label") in ALLOW and i.get("actual_status") == "running":
+        print(i["label"])
+PYEOF
+}

@@ -23,7 +23,7 @@ DRY="${DRY:-0}"
 ts(){ date -u '+%F %T'; }
 say(){ echo "$(ts) | $*" >> "$LOG"; }
 
-for L in ntat ntat2; do
+for L in $(vast_labels); do
   VAST_CACHE_TTL=1 read -r H P <<< "$(vast_endpoint "$L" 2>/dev/null)"
   if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then say "$L | KHONG giai duoc dia chi"; continue; fi
   SSH="ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p $P"
@@ -59,7 +59,7 @@ echo last=\$(tail -1 log/worklist.log 2>/dev/null | cut -c1-100)" 2>/dev/null)
 done
 
 # keo ket qua ve, moi khoi mot thu muc rieng theo may
-for L in ntat ntat2; do
+for L in $(vast_labels); do
   VAST_CACHE_TTL=1 read -r H P <<< "$(vast_endpoint "$L" 2>/dev/null)"
   [[ -n "${H:-}" && "${P:-None}" != "None" ]] || continue
   SSH="ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p $P"

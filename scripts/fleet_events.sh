@@ -19,7 +19,7 @@ tick=0
 while true; do
   tick=$((tick+1))
   # ---- hai may vast ----
-  for L in ntat ntat2; do
+  for L in $(vast_labels); do
     VAST_CACHE_TTL=1 read -r H P <<< "$(vast_endpoint "$L" 2>/dev/null)" || true
     if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then
       ERRN[$L]=$(( ${ERRN[$L]:-0} + 1 ))

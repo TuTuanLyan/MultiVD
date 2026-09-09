@@ -8,7 +8,7 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source scripts/endpoints.sh
 R=/workspace/MultiVD
 echo "===== $(date -u '+%F %T UTC') / $(date '+%H:%M gio VN') ====="
-for L in ntat ntat2; do
+for L in $(vast_labels); do
   VAST_CACHE_TTL=1 read -r H P <<< "$(vast_endpoint "$L" 2>/dev/null)" || true
   if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then
     # PHAI phan biet "khong giai duoc dia chi" voi "may khong con chay". Gop lam mot
