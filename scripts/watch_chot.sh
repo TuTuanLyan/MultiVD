@@ -40,49 +40,21 @@ A_CB='r0p1|recadam|--sam_rho 0.1 --sam_variant asam'
 # GD1 = 3 fold x 5 o = 15 ; GD2 (`full`) = +3 fold x 2 o = 21
 n=$(find results/chot_t5p -name 'fold*.json' 2>/dev/null | wc -l)
 if flock -n /tmp/mvd_chot2bb.lock -c true 2>/dev/null; then alive=0; else alive=1; fi
-echo "$(ts) | 161/t5p  o=$n/21 (fold 1-3) alive=$alive" >> "$LOG"
+echo "$(ts) | 161/t5p  o=$n/28 (fold 1,2,3,5) alive=$alive" >> "$LOG"
 if (( alive == 0 )); then
-  if   (( n < 15 )); then
-    echo "$(ts) | 161 | GD1 con thieu ($n/15) — phong lai" >> "$LOG"
-    BBS="$T5P" CFG_A="$A_T5P" SOURCES_LIST="4cwe com" FOLD_LIST="1 2 3" \
+  if   (( n < 20 )); then
+    echo "$(ts) | 161 | GD1 con thieu ($n/20) — phong lai" >> "$LOG"
+    BBS="$T5P" CFG_A="$A_T5P" SOURCES_LIST="4cwe com" FOLD_LIST="1 2 3 5" \
       setsid nohup bash run/chot2bb.sh >> log/chot_t5p.log 2>&1 </dev/null & disown
-  elif (( n < 21 )); then
-    echo "$(ts) | 161 | GD1 xong, sang GD2 full ($n/21)" >> "$LOG"
-    BBS="$T5P" CFG_A="$A_T5P" SOURCES_LIST="full" FOLD_LIST="1 2 3" \
+  elif (( n < 28 )); then
+    echo "$(ts) | 161 | GD1 xong, sang GD2 full ($n/28)" >> "$LOG"
+    BBS="$T5P" CFG_A="$A_T5P" SOURCES_LIST="full" FOLD_LIST="1 2 3 5" \
       setsid nohup bash run/chot2bb.sh >> log/chot_t5p.log 2>&1 </dev/null & disown
   else
-    echo "$(ts) | 161 | DU 21 o — xong phan cua 161" >> "$LOG"
+    echo "$(ts) | 161 | DU 28 o — xong phan cua 161" >> "$LOG"
   fi
 fi
 
-# ---- vast: codebert (5 fold) TRUOC, roi t5p fold 4-5 ----
-# codebert: GD1 25 -> GD2 35 ;  t5p fold 4-5: GD1 10 -> GD2 14  (cay `chotv_t5p`)
-out=$(timeout 60 $VE $VH "cd /workspace/MultiVD 2>/dev/null || exit 1
-echo cb=\$(find results/chot_codebert -name 'fold*.json' 2>/dev/null | grep -v _r2p0/ | wc -l)
-echo tp=\$(find results/chotv_t5p      -name 'fold*.json' 2>/dev/null | wc -l)
-if flock -n /tmp/mvd_chot2bb.lock -c true 2>/dev/null; then echo alive=0; else echo alive=1; fi" 2>/dev/null)
-if [[ -z "$out" ]]; then
-  echo "$(ts) | vast | KHONG SSH DUOC — KHONG ket luan may chet" >> "$LOG"; exit 0
-fi
-vc=$(sed -n 's/^cb=//p' <<<"$out"); vt=$(sed -n 's/^tp=//p' <<<"$out"); va=$(sed -n 's/^alive=//p' <<<"$out")
-echo "$(ts) | vast  codebert=$vc/35  t5p(f4-5)=$vt/14  alive=$va" >> "$LOG"
-(( ${va:-1} == 1 )) && exit 0
-
-launch(){ timeout 40 $VE $VH "cd /workspace/MultiVD && $1 PYTHON=/venv/main/bin/python \
-  setsid nohup bash run/chot2bb.sh >> $2 2>&1 </dev/null & disown" >/dev/null 2>&1; }
-
-if   (( ${vc:-0} < 25 )); then
-  echo "$(ts) | vast | codebert GD1 con thieu ($vc/25) — phong lai" >> "$LOG"
-  launch "BBS='$CB' CFG_A='$A_CB' SOURCES_LIST='4cwe com'" log/chot_cb.log
-elif (( ${vc:-0} < 35 )); then
-  echo "$(ts) | vast | codebert GD1 xong, sang GD2 full ($vc/35)" >> "$LOG"
-  launch "BBS='$CB' CFG_A='$A_CB' SOURCES_LIST='full'" log/chot_cb.log
-elif (( ${vt:-0} < 10 )); then
-  echo "$(ts) | vast | codebert XONG — nhan t5p fold 4-5 GD1 ($vt/10)" >> "$LOG"
-  launch "RUN=chotv BBS='$T5P' CFG_A='$A_T5P' SOURCES_LIST='4cwe com' FOLD_LIST='4 5'" log/chotv_t5p.log
-elif (( ${vt:-0} < 14 )); then
-  echo "$(ts) | vast | t5p fold 4-5 GD1 xong, sang GD2 full ($vt/14)" >> "$LOG"
-  launch "RUN=chotv BBS='$T5P' CFG_A='$A_T5P' SOURCES_LIST='full' FOLD_LIST='4 5'" log/chotv_t5p.log
-else
-  echo "$(ts) | vast | DU 35 codebert + 14 t5p — HET VIEC, cho lenh huy" >> "$LOG"
-fi
+# ---- vast: DA HUY 09/09 15:29 UTC sau khi doi chieu byte + md5 (xem CURRENT_RUN.md).
+# Khong con may nao de hoi. Giu khoi 161 o tren; khi 161 du 28 o thi watchdog nay het viec.
+exit 0
