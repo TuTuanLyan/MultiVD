@@ -27,7 +27,14 @@ export PYTHON
 RUN="${RUN:-asamaw}"
 SEEDS="${SEEDS:-7 1234}"
 FOLD_LIST="${FOLD_LIST:-1 2 3 4 5}"
-BB="${BB:-t5p=Salesforce/codet5p-220m:enc}"
+# BB PHAI TRUNG KHIT voi BB da sinh ra baseline seed 42 trong cay asamaw_t5p, neu khong
+# Delta khong ghep cap duoc (CLAUDE.md muc 4). Doc tu chinh o da co:
+#   model_name = Salesforce/codet5p-220m-bimodal , pooling = mean
+# BAY DA MAC 09/09 04:21: dat ':enc' -> train_baseline.py chi nhan (cls, mean) nen no
+# tu choi ngay, ca ba fold hong, muc ghi `done` voi 0 o va ntat2 nam khong. Cong dem
+# hien vat da bat duoc va ghi vao worklist.noop — nhung phai kiem THAM SO chu khong chi
+# kiem file co ton tai.
+BB="${BB:-t5p=Salesforce/codet5p-220m-bimodal:mean}"
 echo "########## ENSCTL bat dau $(date -u '+%F %T') | $(hostname) ##########"
 echo "  chi BASELINE, seed $SEEDS, fold $FOLD_LIST, cay ${RUN}_t5p"
 for FOLD in $FOLD_LIST; do

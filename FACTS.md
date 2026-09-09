@@ -1962,3 +1962,45 @@ trên 161 lúc 04:08 UTC, đủ 15 ô + 3 baseline. Đối chứng `lm100_n930` 
 Pha loãng nặng lặp lại hướng của §B.2e trên backbone thứ hai (0/3 fold, ba trong bốn chỉ số).
 **PR-AUC ngược dấu** ở `lm75`/`lm25`/`lm12` — phải nêu kèm, đúng tình huống mục 2b. Ở n=3 thì
 p=0.250 là **sàn**, nên đây là **sàng lọc**, chưa phải kết luận. Chưa chạy fold 4–5.
+
+---
+
+## §25.7 — `ensctl` hỏng cả ba fold vì MỘT tham số, và cổng đếm hiện vật đã bắt được (09/09 04:21)
+
+`run/ensctl.sh` chạy trên ntat2, **hỏng cả ba fold trong 65 giây**, ghi `done` với **0 ô**, và máy
+nằm không ~3 phút. Lỗi thật, nguyên văn:
+
+```
+train_baseline.py: error: argument --pooling: invalid choice: 'enc' (choose from cls, mean)
+```
+
+**Hai lỗi trong một dòng**, cả hai đều do tôi đặt `BB="t5p=Salesforce/codet5p-220m:enc"`:
+
+1. **`enc` không phải lựa chọn hợp lệ của `train_baseline.py`.** `train_transfer.py` nhận `enc`
+   nhưng `train_baseline.py` chỉ nhận `(cls, mean)`. Tôi đã kiểm **mọi file** script gọi tới đều
+   tồn tại — nhưng **không kiểm tham số có hợp lệ với đúng trình huấn luyện đó không**.
+2. **Sai cả backbone.** Baseline seed 42 trong cây `asamaw_t5p` dùng
+   `Salesforce/codet5p-220m-**bimodal**` với `pooling=mean` (đọc thẳng từ `hyperparameters` của ô
+   đã có). Nếu script cứ thế chạy được thì Δ **không ghép cặp được** — hỏng theo kiểu im lặng,
+   tệ hơn nhiều so với hỏng ồn ào.
+
+**Cổng đếm hiện vật (thêm 08/09) đã làm đúng việc**: nó thấy `196 → 196` ô, in
+`!! MUC NAY KHONG SINH RA O NAO ... CAN NGUOI XEM` và ghi vào `log/worklist.noop`. Không có cổng
+đó thì mục này bị đánh dấu xong vĩnh viễn mà chưa bao giờ chạy.
+
+**Đã sửa**: `BB` mặc định của `ensctl.sh` đổi thành `t5p=Salesforce/codet5p-220m-bimodal:mean`,
+khớp đúng ô đã có; kiểm hai chiều bằng chính `train_baseline.py --help` (`mean` chấp nhận, `enc`
+từ chối). Xoá dòng `done` giả trên cả hai máy rồi phóng lại.
+
+**Quy tắc bổ sung**: xếp một script vào máy xa thì ngoài "mọi file nó gọi tới có tồn tại không"
+phải kiểm thêm **"mọi tham số nó truyền có hợp lệ với đúng trình nhận không"** — hai trình huấn
+luyện trong cùng dự án này **không** nhận cùng tập lựa chọn. Và với khối đối chứng, đọc
+`hyperparameters` của ô sẽ-được-ghép-cặp để lấy cấu hình, đừng đặt tay.
+
+### Phụ: `vast_endpoint` trả rỗng một lần, và vì sao KHÔNG được kết luận máy chết
+
+Cùng lúc đó `vast_endpoint ntat2` trả chuỗi rỗng. Theo quy tắc đã ghi trong `scripts/endpoints.sh`,
+tôi **không** kết luận máy chết mà hỏi thẳng API: `state=running/running`, và cổng SSH thật
+(`ports['22/tcp']` = 52121) **không hề đổi**. Nối trực tiếp thì vào được ngay. Cache
+`/tmp/vast_endpoints.json` kiểm lại vẫn hợp lệ (JSON, 4 mục) và lần gọi sau trả đúng — đây là
+trục trặc thoáng qua. Nếu lúc đó tin vào chuỗi rỗng thì đã huỷ nhầm một máy đang chạy.
