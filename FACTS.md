@@ -2009,21 +2009,21 @@ trục trặc thoáng qua. Nếu lúc đó tin vào chuỗi rỗng thì đã hu�
 Đây là phép kiểm tôi đã ghi là *"chưa có thì chưa trích §25"*. `run/ensctl.sh` sinh baseline seed
 7 và 1234 vào **đúng cây `asamaw_t5p`** đã có baseline seed 42 — cùng model, cùng pooling, cùng lr,
 cùng epochs (đã đối chiếu `hyperparameters`) — nên trộn baseline⊕baseline ghép cặp được cùng máy
-cùng fold. **n=32 cặp trên hai máy.** Số ổn định từ n=8 lên n=32.
+cùng fold. **n=48 cặp trên hai máy — khối đã chạy xong.** Số ổn định suốt từ n=8 lên n=48.
 
 ### Tổng thể: đối chứng KHÔNG null — §25 mất phần lớn biên độ tổng
 
 | trộn α=0.5 | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **baseline ⊕ baseline′** (đối chứng, n=32) | +0.0124 (21/32, p=0.07) | **+0.0084 (25/32, p=0.0021)** | **+0.0092 (29/32, p<1e-4)** |
+| **baseline ⊕ baseline′** (đối chứng, **n=48 — đã chốt**) | +0.0103 (30/46, p=0.054) | **+0.0079 (37/48, p=0.0002)** | **+0.0111 (41/48, p<1e-4)** |
 | baseline ⊕ chuyển giao (§25, 87 khối) | +0.0317 (76/87) | +0.0129 (69/87) | +0.0136 (71/87) |
-| ~~phần dôi ra của chuyển giao~~ | ~~+0.0193~~ | ~~≈ +0.0045~~ | ~~≈ +0.0044~~ |
+| ~~phần dôi ra của chuyển giao~~ | ~~+0.0214~~ | ~~≈ +0.0050~~ | ~~≈ +0.0025~~ |
 
 > **CẢNH BÁO — dòng “phần dôi ra” ở trên là HIỆU CỦA HAI TRUNG BÌNH và KHÔNG được dùng.** Nó lấy
 > +0.0129 (trên 87 khối, nhiều cây) trừ +0.0084 (trên 32 cặp, một cây) — hai tập khác nhau. Đó
 > đúng là điều CLAUDE.md mục 2 cấm. Con số ghép cặp đúng cách nằm ở §25.9 và nó **lớn gấp ba**.
 
-Trộn **hai mô hình ngang tài chỉ khác seed** cũng cho +0.0084 ROC / +0.0092 PR. Điều này đứng
+Trộn **hai mô hình ngang tài chỉ khác seed** cũng cho +0.0079 ROC / +0.0111 PR. Điều này đứng
 vững và có ý nghĩa: **một phần mức tăng của phép trộn là trung bình hoá phương sai**, nên
 *"trộn hơn baseline"* một mình **không** đủ làm bằng chứng cho chuyển giao. Nhưng **bao nhiêu**
 phần thì phải đo bằng phép ghép cặp trực tiếp — xem §25.9.
@@ -2034,13 +2034,13 @@ phần thì phải đo bằng phép ghép cặp trực tiếp — xem §25.9.
 
 | CWE | **đối chứng** baseline⊕baseline′ (n=32) | §25 baseline⊕chuyển giao (86 khối) | tỉ lệ |
 |---|---|---|---|
-| **022** | **−0.0242 (9/32)** — *âm* | **+0.0967 (74/82, p<1e-4)** | **ngược dấu** |
-| 078 | +0.0048 (17/32) — tung đồng xu | −0.0014 (40/81, p=1.00) | — |
-| **079** | **+0.0283 (20/32, p=0.215)** — không có ý nghĩa | **+0.1513 (81/83, p<1e-4)** | **5,3×** |
-| 089 | +0.0037 (16/32) — tung đồng xu | +0.0036 (56/83, p=0.0019) | — |
+| **022** | **−0.0257 (12/48, p=0.047)** — *âm CÓ Ý NGHĨA* | **+0.0967 (74/82, p<1e-4)** | **ngược dấu** |
+| 078 | +0.0045 (27/48, p=0.47) — tung đồng xu | −0.0014 (40/81, p=1.00) | — |
+| **079** | **+0.0297 (30/48, p=0.054)** — ranh giới | **+0.1513 (81/83, p<1e-4)** | **5,1×** |
+| 089 | +0.0042 (26/48, p=0.46) — tung đồng xu | +0.0036 (56/83, p=0.0019) | — |
 
-Đối chứng: bốn lớp đều **16–20/32, tức tung đồng xu**, và CWE-022 **âm** (ở α=0.25 còn là
-−0.0233 với 5/32, p=0.007 — âm **có ý nghĩa**). Trộn với mô hình chuyển giao thì CWE-022 **dương
+Đối chứng: hai lớp thường đúng **26–27/48, tức tung đồng xu**; CWE-022 **âm có ý nghĩa**
+(−0.0257, 12/48, p=0.047) và CWE-079 chỉ ở **ranh giới** (30/48, p=0.054). Trộn với mô hình chuyển giao thì CWE-022 **dương
 +0.097 với 74/82 fold** và CWE-079 **+0.151 với 81/83 fold**. Ngược dấu ở một lớp, gấp 5,3 lần ở
 lớp kia, và mẫu hình cùng dấu gần tuyệt đối — trung bình hoá phương sai **không** tạo ra được.
 
