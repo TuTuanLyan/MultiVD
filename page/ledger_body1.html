@@ -110,6 +110,9 @@
       <tr><td><strong>§22</strong> Head cải thiện <em>quyết định</em>, ASAM cải thiện <em>xếp hạng</em></td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
         <td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+      <tr><td><strong>§27</strong> Nội suy trọng số: suy luận 1 mô hình, ngang trộn xác suất ở AUC</td>
+        <td class="yes">✓</td><td class="part">±</td><td class="run">▸</td><td class="no">—</td>
+        <td class="run">▸</td><td class="no">—</td><td class="yes">✓</td></tr>
       <tr><td><strong>§20</strong> Finetune hai lần thuần — đối chứng, không phải phát hiện</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td>
         <td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
@@ -129,6 +132,17 @@
     <strong>Ô vẫn chưa xanh:</strong> §25 mới <em>một phần</em> ở cột “đủ bốn chỉ số” —
     F1@ngưỡng-val của bản trộn không tính được ngoài tuyến vì ngưỡng phải hiệu chỉnh trên val, mà
     các ô cũ không lưu xác suất val; bịa ngưỡng từ test là rò rỉ.
+  </div>
+  <div class="note">
+    <strong>Phạm vi của cột “≥2 backbone” — phải đọc cho đúng.</strong> Bản lặp trên
+    <strong>codebert</strong> (n=50) cho thấy <em>biên độ tổng</em> <strong>KHÔNG</strong> lặp lại:
+    ROC +0.0052 (28/50, p=0.48) và PR +0.0042 (p=1.00), trong khi t5p cho +0.0121 (42/48, p&lt;1e-4).
+    Nhưng <em>per-CWE thì lặp lại và còn mạnh hơn ở đếm dấu</em>: CWE-022 +0.0858 (38/50, p=0.0003),
+    CWE-079 <strong>+0.1127 (45/50, p&lt;1e-4)</strong>.<br><br>
+    Cơ chế nhìn thấy trực tiếp: trên codebert, <strong>CWE-089 — lớp chiếm 54% hàng test — đi âm
+    có ý nghĩa</strong> (−0.0047, 13/50, p=0.0009), kéo ngược phần được ở hai lớp hiếm nên biên độ
+    tổng triệt tiêu. Trên t5p, CWE-089 trung tính nên biên độ tổng sống sót.
+    <strong>Vậy phát biểu không phụ thuộc backbone là phát biểu per-CWE, không phải biên độ tổng.</strong>
   </div>
 </section>
 
