@@ -2586,3 +2586,51 @@ cùng fold, cùng nguồn, cùng baseline, cùng máy, cùng phiên**. Nên khi 
 sẽ có **8 cặp ghép được thật** cho câu hỏi "ρ nào hợp codebert" — mạnh hơn hẳn §32, nơi buộc phải
 lấy hiệu của hai Δ tính ở hai khối khác nhau (đúng chỗ yếu §25.9 đã cảnh báo). Đọc bằng
 `tools/rho_paired.py results/chot_codebert r2p0 r0p1`. Ở n=8 sàn phép thử dấu là p=0.0078.
+
+---
+
+## §33 — Khối `chot`, nửa codebert (GD1, n=5): optimizer null, nhưng theo CWE thì LẶP LẠI (09/09)
+
+Cấu hình: `latent_bottleneck` λ=0.05, seed 42, đích `sven_python_folds_norm`, nguồn `4cwe`+`com`,
+5 fold, tất cả trên **một máy một phiên** (vast 5060 Ti). Δ ghép cặp với `baseline` cùng fold.
+**A** = RecAdam + ASAM **ρ=0.1** (mức tốt nhất của chính codebert, §32). **B** = AdamW, không SAM.
+
+| nhánh | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|
+| **B** `plain` | **+0.0508 10/10** p=0.002 | **+0.0599 10/10** p=0.002 | +0.0239 9/10 p=0.021 | +0.0058 6/10 |
+| **A** ρ=0.1 | +0.0410 9/10 p=0.021 | +0.0463 9/10 p=0.021 | +0.0173 8/10 p=0.109 | +0.0013 6/10 |
+| A cũ ρ=2.0 (n=8) | −0.0153 5/8 | +0.0026 5/8 | −0.0449 4/8 | −0.0511 3/8 |
+
+### A − B ghép cặp trong CÙNG ô — phần optimizer đóng góp riêng
+
+| nguồn | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|
+| 4cwe | −0.0146 1/5 | **−0.0199 0/5** p=0.062 | −0.0069 1/5 | −0.0024 2/5 |
+| com | −0.0049 2/5 | −0.0073 3/5 | −0.0062 3/5 | −0.0065 3/5 |
+| GỘP | −0.0098 3/10 | −0.0136 3/10 | −0.0066 4/10 | −0.0044 5/10 |
+
+**Trên codebert, bật RecAdam+ASAM không thêm gì so với AdamW trần.** Âm ở cả bốn chỉ số nhưng
+biên độ −0.004 đến −0.020, phần lớn ở hoặc dưới sàn nhiễu 0.010; chỉ F1@val trên `4cwe` chạm sàn
+phép thử (0/5). Gọi đúng là **null đến hơi âm**, không phải "có hại". **Ngược với t5p** (§28), nơi
+ASAM ρ=2.0 làm ROC hơn 2,5×.
+
+### Theo CWE thì mẫu hình LẶP LẠI qua backbone — chỗ đáng viết
+
+A(ρ=0.1) − baseline, ΔROC-AUC theo CWE, so với §28 trên t5p:
+
+| | CWE-022 | CWE-078 | CWE-079 | CWE-089 |
+|---|---|---|---|---|
+| **codebert** (n=10, đây) | **+0.3965 10/10** p=0.002 | +0.0104 5/10 | **+0.3474 10/10** p=0.002 | −0.0036 3/10 |
+| **t5p** (n=15, §28) | **+0.2238 13/15** | — | **+0.3638 15/15** | — |
+
+**Cùng hai CWE thắng, cùng hai CWE null, trên hai backbone khác nhau với hai cấu hình optimizer
+khác nhau.** Đây là lần thứ **sáu** trong dự án này mẫu hình ở mức **phân phối** giữ vững trong
+khi phát biểu ở mức **tổng hợp** yếu đi.
+
+### Chưa chắc
+
+- Mới là **GD1** (`4cwe`+`com`); nguồn `full` đang chạy.
+- Cột GỘP n=10 dùng **chung 5 baseline** nên p=0.002 ở đó **lạc quan** — mỗi nguồn thực chất
+  n=5, sàn p=0.0625.
+- **PR-AUC null ở mọi nhánh** (6/10, 6/10, 3/8). Ba chỉ số kia đồng thuận, PR thì không.
+- Nửa t5p của khối chưa xong.
