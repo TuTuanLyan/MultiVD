@@ -45,6 +45,22 @@ def parse_arm(arm):
 
 # ---- doc, khu trung theo (may, experiment, seed, fold) ----
 MACHINE = [("_ntat2","ntat2"),("_ntat","ntat"),("_158","158"),("_161","161")]
+
+# DOT CHAY. Nguoi dung 09/09: "tong hop may cai chay tu hoi optimize-v1 thoi chu?"
+# Ranh gioi doc duoc tu moc thoi gian cua chinh cac o:
+#   truoc optimize-v1  24-31/08 : m1 (465 o), n1 (258), r1 (89), s42_* (723), l1_t5pe (61)
+#   optimize-v1        03/09 -> : sw, n48, opt1, ret1, spd1, int1, pool1, poolcb, e60,
+#                                 asam1, asamcb, asamaw, wb, wblend, confirm47, vast47, night48
+# Gop hai dot vao mot bang la tron hai giao thuc khac nhau — cac the la trong bang
+# (uw, sam1r01, l50, ctl) deu la cua dot cu. Van GIU lai du lieu cu vi cau hinh chot cua
+# §7 duoc quyet dinh tren luoi s42; chi tach ra de doc rieng.
+PRE = ("m1", "n1", "r1", "l1", "s42", "s42tw")
+def dot_of(root, run, exp):
+    hay = f"{root}/{run}/{exp}"
+    for k in PRE:
+        if f"/{k}_" in hay or f"_{k}_" in hay or hay.startswith(f"results_{k}") or f"/{k}/" in hay:
+            return "trước optimize-v1"
+    return "optimize-v1"
 def may_of(root):
     for suf, n in MACHINE:
         if root.endswith(suf): return n
@@ -79,11 +95,14 @@ for key, arms in cells.items():
         if pa is None: continue
         mode, src, tag, opt, lam = pa
         bb = bb_of(f"{exp} {key[1]} {key[2]}")
-        gk = (mode, tag, opt, lam, bb)
-        for mk, f in MET:
-            if d.get(f) is not None and b.get(f) is not None:
-                agg[gk][mk].append(d[f] - b[f])
-        srcs[gk].add(src); mays[gk].add(key[0])
+        dot = dot_of(key[1], key[2], exp)
+        # "TB" = gop MOI backbone. Gop cac Delta DA ghep cap theo fold lai voi nhau —
+        # KHONG lay trung binh cua cac trung binh (do la loi CLAUDE.md muc 2 cam).
+        for gk in ((mode, tag, opt, lam, bb, dot), (mode, tag, opt, lam, "TB", dot)):
+            for mk, f in MET:
+                if d.get(f) is not None and b.get(f) is not None:
+                    agg[gk][mk].append(d[f] - b[f])
+            srcs[gk].add(src); mays[gk].add(key[0])
 
 def stat(v):
     v = np.asarray(v, float); v = v[~np.isnan(v)]
@@ -94,12 +113,12 @@ def stat(v):
             "p": round(p,4) if p is not None else None}
 
 rows=[]
-for (mode, tag, opt, lam, bb), v in agg.items():
-    r = {"nhanh": mode, "tag": tag, "opt": opt, "lam": lam, "backbone": bb,
-         "nguon": len(srcs[(mode,tag,opt,lam,bb)]), "may": sorted(mays[(mode,tag,opt,lam,bb)])}
+for (mode, tag, opt, lam, bb, dot), v in agg.items():
+    r = {"nhanh": mode, "tag": tag, "opt": opt, "lam": lam, "backbone": bb, "dot": dot,
+         "nguon": len(srcs[(mode,tag,opt,lam,bb,dot)]), "may": sorted(mays[(mode,tag,opt,lam,bb,dot)])}
     for mk,_ in MET: r[mk] = stat(v.get(mk, []))
     r["n"] = r["roc"]["n"] if r["roc"] else 0
     if r["n"] >= 3: rows.append(r)
-rows.sort(key=lambda r: (r["nhanh"], r["tag"], r["backbone"]))
+rows.sort(key=lambda r: (r["dot"], r["nhanh"], r["tag"], r["backbone"]))
 sys.stderr.write(f"# {len(cells)} khoi, bo {ndup} o trung, {len(rows)} dong tong hop\n")
 print(json.dumps(rows, ensure_ascii=False))
