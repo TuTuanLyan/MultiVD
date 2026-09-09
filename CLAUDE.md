@@ -210,11 +210,15 @@ nhánh mới sẽ tự huấn luyện một Phase 1 khác và phép so đổi ha
 
 ### Nguồn Phase 1 — ccpp (PrimeVul) + js (CleanVul), đã cân bằng nhãn 50/50
 
-| nguồn | file | n | ccpp / js | số CWE | ghi chú |
-|---|---|---|---|---|---|
-| `4cwe` | `data/phase1_4cwe.jsonl` | 930 | 118 / 812 | **4** | CWE-79 692, CWE-78 100, CWE-22 92, CWE-89 46 |
-| `com` | `data/phase1_common.jsonl` | 3 744 | 2 360 / 1 384 | 94 | CWE chung giữa hai ngôn ngữ |
-| `full` | `data/phase1_full.jsonl` | 7 598 | 6 042 / 1 556 | 123 | toàn bộ |
+| nguồn | file | n | ccpp / js | số CWE-ID | **lớp head phụ** | ghi chú |
+|---|---|---|---|---|---|---|
+| `4cwe` | `data/phase1_4cwe.jsonl` | 930 | 118 / 812 | 4 | **4** (`fixed4`) | CWE-79 692, CWE-78 100, CWE-22 92, CWE-89 46 |
+| `com` | `data/phase1_common.jsonl` | 3 744 | 2 360 / 1 384 | 94 | **10** (`precomputed`) | CWE chung giữa hai ngôn ngữ |
+| `full` | `data/phase1_full.jsonl` | 7 598 | 6 042 / 1 556 | 123 | **10** (`precomputed`) | toàn bộ; **764 dòng (10.1%) `-100`** |
+
+> **Số CWE-ID ≠ số lớp head.** Trên `com`/`full`, `cwe_class` trong file là **pillar CWE-1000**
+> (10 lớp: 284/435/664/682/691/693/697/703/707/710), không phải CWE cụ thể — xem FACTS §30.
+> Ba lớp chỉ có 2–4 dòng, hai lớp chiếm 2/3 dữ liệu. Đừng viết "head phụ 94 lớp" vào bài.
 
 Chỉ **js mới có nhãn CWE** trong CleanVul, nên nhánh `cwe` (head 4 lớp có nhãn)
 **chỉ chạy được trên nguồn `4cwe`**. Hai nguồn kia chỉ có `none`,

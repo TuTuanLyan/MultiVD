@@ -2349,3 +2349,54 @@ vast; log xác nhận `phase1 ... | da co, dung lai`.
 checkpoint có cùng backbone + aux_mode**, đừng lọc theo tên thư mục. Một lệnh
 `torch.load(...)['training_args']['lambda_cwe']` rẻ hơn 27 phút GPU. Chỉ **λ** mới buộc huấn
 luyện lại (CLAUDE.md mục 5); optimizer, SAM/ASAM, cách chia fold thì dùng lại được hết.
+
+---
+
+## §30 — Head phụ trên `com`/`full` học **10 pillar**, KHÔNG phải 94/123 CWE (09/09)
+
+Đi kiểm một chuyện nhỏ — vì sao Pha 1 `com` và `full` **cùng đúng 498 700 197 byte** trong khi
+một cái có 94 CWE còn cái kia 123 — thì ra `cwe_head` của **cả hai** đều là `(10, 8)`:
+
+| nguồn | `cwe_vocab` | số CWE-ID | **số lớp head thật** | dòng bị `-100` |
+|---|---|---|---|---|
+| `4cwe` | `fixed4` | 4 | **4** | 0 |
+| `com` | `precomputed` | 94 | **10** | 0 |
+| `full` | `precomputed` | 123 | **10** | **764 (10.1%)** |
+
+`precomputed` (`train_transfer.py:562`) lấy `cwe_class` **nguyên văn** từ file dữ liệu. Và
+`cwe_class` trong `data/phase1_{common,full}.jsonl` là **pillar của CWE-1000 Research Concept**,
+không phải CWE cụ thể. Mười pillar, `sorted()` nên chỉ số là tất định:
+
+| lớp | pillar | ví dụ CWE trong đó | dòng (`com`) | dòng (`full`) |
+|---:|---|---|---:|---:|
+| 0 | CWE-284 Improper Access Control | 284, 269, 862, 287 | 266 | 266 |
+| 1 | CWE-435 Improper Interaction Between Entities | 115 | **2** | **2** |
+| 2 | CWE-664 Improper Control of a Resource | 119, 125, 787, 200, 401, 22 | 1 026 | 3 616 |
+| 3 | CWE-682 Incorrect Calculation | 190, 369 | 372 | 380 |
+| 4 | CWE-691 Insufficient Control Flow Management | 835, 617, 362 | 136 | 258 |
+| 5 | CWE-693 Protection Mechanism Failure | 352, 347, 345 | 216 | 216 |
+| 6 | CWE-697 Incorrect Comparison | 697 | **4** | **4** |
+| 7 | CWE-703 Improper Check of Exceptional Conditions | 703, 755, 754, 476 | 310 | 680 |
+| 8 | CWE-707 Improper Neutralization | 79, 20, 78, 89 | 1 410 | 1 410 |
+| 9 | CWE-710 Improper Adherence to Coding Standards | 1125 | **2** | **2** |
+
+**Ba hệ quả phải nêu khi viết bài:**
+
+1. **Mô tả phương pháp không được viết "head phụ 94 lớp".** Nó là head **10 pillar** — nói *kiểu
+   sai lầm*, không nói *lỗ hổng nào*. Đúng như `src/build_parent_labels.py` đặt ra chủ ý.
+2. **Ba lớp gần như rỗng** (1, 6, 9 với 2–4 dòng trên 3 744/7 598). Thực tế head chỉ học được
+   **7 lớp**, và hai lớp 2 và 8 chiếm 65% (`com`) đến 66% (`full`). Cái head "10 lớp" này gần
+   với nhị phân *neutralization vs resource-control* hơn là một bộ phân loại mười lớp.
+3. **`full` ném đi 10.1% dòng khỏi loss phụ** (`cwe_class = -100`: CWE-264, 189, 399, 310 — các
+   CWE loại "category"/đã bỏ, không có pillar). Nhánh `none` không bị vì nó không dùng loss phụ.
+   Đây là một khác biệt thật giữa `full` và `com` ngoài chuyện kích thước, và nó nằm đúng chỗ
+   Pha 1 của backbone yếu hay sập.
+
+**Không có confound.** `data/phase1_{4cwe,common,full}.jsonl` đều còn nguyên mtime **27/08 09:28**
+— tức mọi Pha 1 của mọi khối từ trước tới nay đều dùng đúng nhãn này. Không hề có chuyện file bị
+ghi đè giữa dự án làm hai checkpoint khác nhãn bị đem so với nhau.
+
+**Cách phát hiện**: hai file lẽ ra phải khác kích thước (94 vs 123 lớp ⇒ lệch ~1 KB) mà **giống
+nhau từng byte**. Kích thước bằng nhau ở nơi lẽ ra phải khác là một tín hiệu, y như hai số khác
+`n` bị đem trừ nhau ở §25.9. md5 xác nhận chúng vẫn là hai checkpoint **khác nhau** — cùng cỡ,
+khác nội dung.
