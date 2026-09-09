@@ -22,9 +22,7 @@ PY="${PYTHON:-$( for c in /venv/main/bin/python /data/ntat/envs/vdenv/bin/python
         /home/ntat/miniconda3/envs/vdenv/bin/python; do
       [ -x "$c" ] && "$c" -c "import torch" 2>/dev/null && { echo "$c"; break; }; done )}"
 [ -n "$PY" ] || { echo "!! khong tim thay python co torch tren may nay"; exit 2; }
-# LOCK/JOBPAT cho phep ghi de DE KIEM DUOC: mac dinh y het truoc.
-LOCK="${LOCK:-/tmp/multivd_opt1.lock}"
-JOBPAT="${JOBPAT:-[s]rc/train_[a-z]*\.py}"
+LOCK=/tmp/multivd_opt1.lock
 exec 8>/tmp/mvd_worklist.lock || exit 1
 flock -n 8 || { echo "DA CO worklist dang chay"; exit 3; }
 ts(){ date -u '+%F %T'; }
@@ -35,23 +33,13 @@ wait_free(){
   local w=0
   while true; do
     local free=0; flock -n "$LOCK" -c true 2>/dev/null && free=1
-    local jobs; jobs=$(ps -eo args --no-headers | grep -c "$JOBPAT")
+    local jobs; jobs=$(ps -eo args --no-headers | grep -c '[s]rc/train_[a-z]*\.py')
     (( free == 1 && jobs == 0 )) && return 0
     sleep 30; w=$((w+30)); (( w % 600 == 0 )) && echo "$(ts) | cho GPU... ${w}s"
   done
 }
 
-# VONG NGOAI. BAY DA MAC 09/09/2026 02:40 tren ntat2: worklist.txt bi GHI DE trong khi
-# driver dang giu no tren fd 3, nen offset byte cua driver roi vao giua noi dung MOI ->
-# no doc rac, in "WORKLIST xong | da chay 8 muc" (danh sach chi co 6) roi THOAT, trong
-# khi muc `pool_cb_lm` chua bao gio chay. May vast NAM KHONG ma van tinh tien.
-# Sua: het mot luot thi MO LAI file va doi chieu todo-done. Con viec thi chay luot nua.
-# Chan quay vong vo han bang hai dieu kien: het luot cho phep, HOAC mot luot khong chay
-# duoc muc nao (moi thu con lai deu hong/thieu file) — luc do moi thoat.
-MAXPASS_WL="${MAXPASS_WL:-20}"
-n=0; pass=0
-while :; do
-pass=$((pass+1)); ran_this_pass=0
+n=0
 while IFS='|' read -r SCRIPT SRCS FOLDS <&3; do
   [[ -z "${SCRIPT:-}" || "${SCRIPT:0:1}" == "#" ]] && continue
   KEY="$SCRIPT|$SRCS|$FOLDS"
@@ -88,20 +76,6 @@ while IFS='|' read -r SCRIPT SRCS FOLDS <&3; do
   else
     echo "$(ts) | !! MUC LOI ma thoat $rc — KHONG ghi done, se thu lai: $KEY"
   fi
-  n=$((n+1)); ran_this_pass=$((ran_this_pass+1))
+  n=$((n+1))
 done 3< "$WL"
-  left=$(grep -v '^[[:space:]]*#\|^[[:space:]]*$' "$WL" | grep -vxF -f log/worklist.done | grep -c .)
-  if (( left == 0 )); then
-    echo "$(ts) | het viec: todo - done = 0 sau $pass luot"; break
-  fi
-  if (( ran_this_pass == 0 )); then
-    echo "$(ts) | !! con $left muc nhung luot $pass KHONG chay duoc muc nao — CAN NGUOI XEM"
-    grep -v '^[[:space:]]*#\|^[[:space:]]*$' "$WL" | grep -vxF -f log/worklist.done | sed 's/^/    con: /'
-    break
-  fi
-  if (( pass >= MAXPASS_WL )); then
-    echo "$(ts) | !! da $pass luot ma con $left muc — DUNG, can nguoi xem"; break
-  fi
-  echo "$(ts) | con $left muc sau luot $pass (danh sach co the da doi) — chay luot $((pass+1))"
-done
-echo "########## WORKLIST xong $(ts) | da chay $n muc / $pass luot ##########"
+echo "########## WORKLIST xong $(ts) | da chay $n muc ##########"

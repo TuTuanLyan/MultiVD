@@ -1665,3 +1665,67 @@ Suy luận **hai lần** (hai mô hình). `train_transfer.py:1086 sweep_source_i
 phép nội suy **trọng số** θ_Pha1 ⊕ θ_Pha2 (WiSE-FT, chọn α trên val) — nhưng đó là **cặp khác**.
 Cặp ở đây là baseline ⊕ chuyển giao, hai mô hình *cùng tác vụ đích*, và nội suy trọng số của cặp
 đó chưa đo. Nếu nó chạy được thì chi phí suy luận về lại một mô hình.
+
+---
+
+## §25.1 — Đối chứng ÂM cho §25: trộn với nguồn PHA LOÃNG thì KHÔNG lợi (09/09/2026, 0 GPU)
+
+Phản biện "trộn hai mô hình nào cũng lợi, đó là trung bình hoá phương sai" **loại được một
+phần ngay ngoài tuyến**, không cần đợi `run/ensctl.sh`.
+
+Các cây pool chứa **cả hai loại nhánh trong CÙNG một khối**, so với **CÙNG một baseline**:
+nguồn nguyên chất (`pur100_n930`, `lm100_n930`) và nguồn pha loãng (`pur12/25`, `lm12/25` —
+§B.2e đo được là âm, 0/10 fold). Cả hai đều là "một mô hình thứ hai" đã finetune trên cùng dữ
+liệu đích, nên giả thuyết trung bình-hoá dự đoán **cùng một mức lợi**.
+
+`tools/ens_dilute.py`, 13 khối, ghép cặp trong khối:
+
+| | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| **nguyên chất** · trộn α=0.5 | +0.0240 (12/13) | **+0.0109** (9/13) | **+0.0154** (10/13) |
+| **nguyên chất** · thuần α=1.0 | +0.0315 (12/13) | +0.0054 (7/13) | +0.0003 (6/13) |
+| **pha loãng** · trộn α=0.5 | +0.0062 (6/13) | **−0.0036** (4/13) | **−0.0004** (4/13) |
+| **pha loãng** · thuần α=1.0 | −0.0060 (3/13) | −0.0162 (2/13, p=0.023) | −0.0140 (2/13, p=0.023) |
+| **hiệu ghép cặp (nguyên − loãng), trộn** | **+0.0177 (12/13, p=0.0034)** | **+0.0145 (12/13, p=0.0034)** | **+0.0157 (11/13, p=0.023)** |
+
+**Trộn không lợi bừa.** Trộn với mô hình chuyển giao từ nguồn pha loãng cho **−0.0036 ROC**,
+tức không lợi gì so với chính baseline. Chỉ khi Pha 1 thấy nguồn nguyên chất thì bản trộn mới
+dương. Hiệu ghép cặp trong khối là **+0.0145 ROC, 12/13 khối, p=0.0034**.
+
+**Đọc thêm một tầng.** Ở *cả hai* nhóm, trộn tốt hơn chuyển giao thuần — đó chỉ là nội suy về
+phía baseline, không có gì lạ. Điều phân biệt hai giả thuyết là: trộn tốt hơn **baseline** thì
+**chỉ xảy ra ở nhóm nguyên chất**. Chú ý riêng cột PR-AUC nhóm nguyên chất: chuyển giao thuần
++0.0003 (đúng bằng không) nhưng bản trộn +0.0154 — mô hình chuyển giao *một mình không hơn gì*
+vẫn **đóng góp** được khi trộn. Đó là định nghĩa của bổ trợ, không phải của trung bình hoá.
+
+**Vẫn còn thiếu** đối chứng baseline⊕baseline khác seed (`run/ensctl.sh`, đang xếp trên ntat):
+nguồn pha loãng dù sao cũng là mô hình *kém hơn*, nên chưa loại triệt để. Hai đối chứng bổ nhau.
+
+---
+
+## §25.2 — Driver worklist bỏ sót mục và để máy vast nằm không (09/09/2026 02:40)
+
+`scripts/vast_worklist.sh` trên ntat2 in `WORKLIST xong | da chay 8 muc` trong khi danh sách chỉ
+có **6** mục, và `run/pool_cb_lm.sh` **chưa bao giờ chạy** mà cũng không nằm trong `worklist.done`.
+Máy nằm không cho tới khi phóng lại tay (~2 phút).
+
+**Nguyên nhân**: `log/worklist.txt` bị **ghi đè** trong lúc driver đang giữ nó trên fd 3. Offset
+byte của driver rơi vào giữa nội dung mới → đọc ra dòng rác/lặp, đếm 8, rồi gặp EOF và **thoát**.
+Đây là họ hàng của bẫy stdin đã sửa hôm qua: cả hai đều làm driver **thoát sớm** chứ không báo lỗi.
+
+**Sửa**: bọc vòng đọc bằng một **vòng ngoài**. Hết một lượt thì **mở lại** worklist và đối chiếu
+`todo − done`; còn việc thì chạy lượt nữa. Hai cửa chặn quay vòng vô hạn: hết `MAXPASS_WL` (20),
+hoặc một lượt **không chạy được mục nào** (mọi thứ còn lại đều thiếu file) — lúc đó in rõ mục nào
+còn và dừng.
+
+**Kiểm cả hai chiều** (bản cũ *phải* hỏng, bản mới *phải* chạy đúng):
+
+| tình huống | bản CŨ | bản MỚI |
+|---|---|---|
+| danh sách không đổi | done=2, còn 0, 1 lượt | done=2, còn 0, 1 lượt — **y hệt** |
+| một mục thiếu file ở lượt 1, file xuất hiện sau | **done=2, CÒN 1, chỉ 2 ô** | **done=3, còn 0, 3 ô, 2 lượt** |
+| một mục thiếu file **vĩnh viễn** | — | dừng ở lượt 2, in `con: run/khong_ton_tai.sh`, **không** quay vòng |
+
+Bài học chung: **ghi đè một file mà tiến trình khác đang đọc thì phải coi như tiến trình đó sẽ
+đọc ra rác** — nối thêm (`>>`) thì an toàn, ghi đè thì không. Và mọi driver giữ máy tính tiền
+phải kết thúc bằng một phép **đối chiếu trạng thái**, không bằng "đã tới EOF".
