@@ -1540,6 +1540,28 @@ vì head phụ sẽ thấy số pillar khác nhau ở hai nhánh và phép so đ
 
 ## §24 — ASAM ρ=2.0 MẠNH HƠN khi BỎ neo RecAdam (09/09/2026, đang chạy)
 
+> **CẬP NHẬT 02:56 09/09 — bất đồng hai máy ĐÃ GIẢI, nghiêng về CÓ hiệu ứng.**
+> Lúc viết §24, `ntat2` đang null ở n=6 (ROC +0.0004, 4/6) nên tôi ghi "chưa được trích".
+> Chạy xong fold 1–3, `ntat2` **lật sang cùng dấu**:
+>
+> | máy | n | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+> |---|---|---|---|---|---|
+> | ntat (fold 4–5 còn chạy) | 10 | +0.0228 (8/10) | +0.0258 (8/10) | **+0.0244 (9/10, p=0.021)** | **+0.0352 (10/10, p=0.002)** |
+> | ntat2 (fold 1–3, độc lập) | 9 | +0.0164 (4/9) | +0.0152 (4/9) | **+0.0135 (7/9)** | **+0.0216 (7/9)** |
+>
+> Hai máy độc lập, cùng dấu trên **cả bốn** chỉ số trung bình. Cộng số fold cùng dấu:
+> **ROC 16/19, PR 17/19**. Biên độ ROC (+0.0244 / +0.0135) vẫn lớn hơn sàn nhiễu cùng-loại-GPU
+> (0.010) trên cả hai máy.
+>
+> **Nhưng đọc cho đúng chỗ**: `ntat2` cho F1@0.5 và F1@val chỉ **4/9** dù trung bình dương —
+> hiệu ứng nằm ở **XẾP HẠNG**, không ở **quyết định tại ngưỡng 0.5**. Đúng y hệt kết luận §2b về
+> ASAM. Phát biểu đúng là *"ASAM ρ=2.0 trên nền AdamW cải thiện ROC/PR-AUC"*, **không** phải
+> *"cải thiện F1"*. Nguồn `com` trên ntat2 âm ở ROC (−0.0146, 2/3) — một nguồn ngược dấu ở n=3
+> chưa nói lên gì, nhưng phải nêu.
+>
+> Còn thiếu: ntat chạy nốt fold 4–5 để lên n=15. Chưa chốt cấu hình cuối khi chưa đủ.
+
+
 Trục ρ ở §21 đo **trên nền RecAdam**. Nhưng RecAdam null ở mọi γ (§20), nên cấu
 hình chốt sẽ dùng AdamW. Khối `asam_aw` đo cùng ρ=2.0 nhưng **Phase 2 dùng AdamW,
 không neo**; đối chứng `aw_r0` = AdamW ρ=0, cùng máy cùng phiên.
