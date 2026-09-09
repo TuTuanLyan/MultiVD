@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# DEM THEO TEN CHUONG TRINH (comm), khong theo dong lenh: dong lenh cua chinh minh
+# (bash/ssh/git) co chua chuoi 'tools/wblend.py' se bi mau cu dem vao -> bao 'may dang
+# ban' GIA, ma huong nguy hiem la no CHE MAT mot may thuc su dang trong. CLAUDE.md muc 8.
 # vast_worklist.sh — CHAY TREN MAY VAST. Doc mot DANH SACH VIEC va chay tuan tu het,
 # nen may khong bao gio nam khong giua hai khoi.
 #
@@ -35,7 +38,7 @@ wait_free(){
   local w=0
   while true; do
     local free=0; flock -n "$LOCK" -c true 2>/dev/null && free=1
-    local jobs; jobs=$(ps -eo args --no-headers | grep -c "$JOBPAT")
+    local jobs; jobs=$(ps -eo comm=,args= | grep -cE '^python[0-9.]*[[:space:]].*(src/train_|tools/wblend)')
     (( free == 1 && jobs == 0 )) && return 0
     sleep 30; w=$((w+30)); (( w % 600 == 0 )) && echo "$(ts) | cho GPU... ${w}s"
   done

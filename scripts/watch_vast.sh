@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# DEM THEO TEN CHUONG TRINH (comm), khong theo dong lenh: dong lenh cua chinh minh
+# (bash/ssh/git) co chua chuoi 'tools/wblend.py' se bi mau cu dem vao -> bao 'may dang
+# ban' GIA, ma huong nguy hiem la no CHE MAT mot may thuc su dang trong. CLAUDE.md muc 8.
 # watch_vast.sh — giam sat HAI may vast va PHONG LAI danh sach viec khi no chet.
 # Thay watch_int1_vast.sh: cai cu chi BAO DONG "may dang trong" vao log, va bao dong
 # khong phai hanh dong — ntat2 nam khong 23 phut trong khi bao dong da keu 13 phut truoc.
@@ -25,7 +28,7 @@ for L in ntat ntat2; do
   if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then say "$L | KHONG giai duoc dia chi"; continue; fi
   SSH="ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p $P"
   out=$(timeout 90 $SSH root@"$H" "cd $R 2>/dev/null || exit 1
-echo job=\$(ps -eo args --no-headers | grep -c '[s]rc/train_[a-z]*\.py\|[t]ools/wblend\.py')
+echo job=\$(ps -eo comm=,args= | grep -cE '^python[0-9.]*[[:space:]].*(src/train_|tools/wblend)')
 echo wl=\$(ps -eo args --no-headers | grep -c '[v]ast_worklist.sh')
 echo todo=\$(grep -vc '^\s*#\|^\s*$' log/worklist.txt 2>/dev/null)
 echo done=\$(grep -xF -f <(grep -v '^\s*#\|^\s*\$' log/worklist.txt) log/worklist.done 2>/dev/null | grep -c .)
