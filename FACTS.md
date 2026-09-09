@@ -2413,3 +2413,33 @@ ghi đè giữa dự án làm hai checkpoint khác nhãn bị đem so với nhau
 nhau từng byte**. Kích thước bằng nhau ở nơi lẽ ra phải khác là một tín hiệu, y như hai số khác
 `n` bị đem trừ nhau ở §25.9. md5 xác nhận chúng vẫn là hai checkpoint **khác nhau** — cùng cỡ,
 khác nội dung.
+
+### §30.1 — Chưa từng đo head phụ có HỌC được gì không (09/09)
+
+Đi tiếp từ §30: cả phương pháp dựa trên giả thiết head phụ dạy encoder một tín hiệu hữu ích.
+Nhưng **không chỗ nào ghi lại độ chính xác của head phụ** — `src/train.py` không log, checkpoint
+không lưu. Khoá duy nhất về chất lượng trong checkpoint là `best_val_macro_f1`, và đó là F1 của
+**đầu ra lỗ hổng nhị phân**, không phải của head CWE.
+
+Sàn mà head phải vượt (bộ đoán luôn lớp đa số, không học gì):
+
+| nguồn | K | n có nhãn | độ chính xác sàn | macro-F1 sàn |
+|---|---:|---:|---:|---:|
+| `4cwe` | 4 | 930 | **0.744** | 0.2133 |
+| `com` | 10 | 3 744 | 0.377 | 0.0547 |
+| `full` | 10 | 6 834 | 0.529 | 0.0692 |
+
+Sàn của `4cwe` **0.744** là con số đáng chú ý: CWE-79 chiếm 692/930. Một head "đoán CWE-79" đã
+đúng 74%, nên λ·loss_phụ có thể gần như bằng hằng số ngay từ đầu và không ép encoder học gì.
+
+**Đây là câu hỏi mở, không phải kết luận.** Đo được bằng một lượt forward trên CPU với checkpoint
+đã có — không tốn GPU, không cắt ngang khối nào. Chưa chạy vì cả hai máy đang bận và CPU của 161
+còn phải nuôi dataloader.
+
+**Kèm theo: `cwe_mapping` trong checkpoint `com`/`full` là RÁC.** Nó ghi
+`{CWE-022:0, CWE-078:1, CWE-079:2, CWE-089:3}` trong khi `num_cwes=10` và lớp 2 thật ra là pillar
+**CWE-664**, không phải CWE-079. `train_transfer.py:462` ghi một hằng số `CWE_MAPPING` cứng bất kể
+`cwe_vocab` là gì. **Không tai nạn nào đã xảy ra**: grep toàn bộ `src/ tools/ run/ scripts/` cho
+thấy trường này **chỉ được ghi, chưa bao giờ được đọc**. Bảng per-CWE trong báo cáo lấy nhãn từ
+`test_cwe_classes` của tập **đích** Python (đúng là bộ 4 CWE), không đi qua trường này. Nhưng nó là
+bẫy cho bất kỳ phân tích nào sau này tin vào siêu dữ liệu của checkpoint.
