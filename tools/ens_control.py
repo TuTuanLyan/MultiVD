@@ -35,6 +35,9 @@ for root in sys.argv[1:]:
                 groups[(run, int(m.group(1)))][sm.group(1)] = d
 
 res = defaultdict(list)
+cwe = defaultdict(list)          # DIEM PHAN BIET: tron hai baseline co tai lap duoc mau
+                                 # hinh "chi an o hai CWE hiem" cua §23/§25 khong?
+CWEN = {0:"CWE-022",1:"CWE-078",2:"CWE-079",3:"CWE-089"}
 npair = 0
 for key, seeds in sorted(groups.items()):
     ss = sorted(seeds)
@@ -48,9 +51,16 @@ for key, seeds in sorted(groups.items()):
             pa = np.asarray(A["test_probabilities"], float)
             pb = np.asarray(B["test_probabilities"], float)
             ma = met(y, pa); npair += 1
+            cw = np.asarray(A.get("test_cwe_classes") or [])
             for al in (0.25, 0.5, 0.75, 1.0):
-                me = met(y, (1 - al) * pa + al * pb)
+                pe = (1 - al) * pa + al * pb
+                me = met(y, pe)
                 for k in ma: res[(al, k)].append(me[k] - ma[k])
+                if len(cw) == len(y):
+                    for c in sorted(set(cw.tolist())):
+                        m = cw == c
+                        if len(set(y[m].tolist())) < 2: continue
+                        cwe[(al, c)].append(roc_auc_score(y[m], pe[m]) - roc_auc_score(y[m], pa[m]))
 
 print(f"# cap baseline<->baseline (ca hai chieu): {npair}")
 print(f"{'alpha':<7}" + "".join(f"{h:>24}" for h in ("F1@0.5", "ROC-AUC", "PR-AUC")))
@@ -62,3 +72,17 @@ for al in (0.25, 0.5, 0.75, 1.0):
         p = binomtest(pos, len(nz), .5).pvalue if len(nz) else float("nan")
         line += f"{v.mean():>+9.4f} {pos:>4d}/{len(nz):<4d} p={p:<6.4f}"
     print(line)
+
+print("\n# DROC-AUC theo CWE — tron BASELINE + BASELINE (doi chung am cua §23/§25)")
+cls = sorted({c for (_, c) in cwe})
+if cls:
+    print(f"{'alpha':<7}" + "".join(f"{CWEN.get(c,c):>22}" for c in cls))
+    for al in (0.25, 0.5, 0.75, 1.0):
+        line = f"{al:<7.2f}"
+        for c in cls:
+            v = np.asarray(cwe[(al, c)]); v = v[~np.isnan(v)]
+            if not len(v): line += f"{'-':>22}"; continue
+            nz = v[v != 0]; pos = int((nz > 0).sum())
+            p = binomtest(pos, len(nz), .5).pvalue if len(nz) else float("nan")
+            line += f"{v.mean():>+9.4f} {pos:>2d}/{len(v):<2d} p={p:<5.3f}"
+        print(line)

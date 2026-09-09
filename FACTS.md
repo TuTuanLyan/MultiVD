@@ -2001,3 +2001,59 @@ tôi **không** kết luận máy chết mà hỏi thẳng API: `state=running/r
 (`ports['22/tcp']` = 52121) **không hề đổi**. Nối trực tiếp thì vào được ngay. Cache
 `/tmp/vast_endpoints.json` kiểm lại vẫn hợp lệ (JSON, 4 mục) và lần gọi sau trả đúng — đây là
 trục trặc thoáng qua. Nếu lúc đó tin vào chuỗi rỗng thì đã huỷ nhầm một máy đang chạy.
+
+---
+
+## §25.8 — ĐỐI CHỨNG ÂM chạy được: trộn hai baseline khác seed. §25 phải PHÁT BIỂU LẠI (09/09, n=8, đang chạy tiếp)
+
+Đây là phép kiểm tôi nêu là *"chưa có thì chưa trích §25"*. `run/ensctl.sh` sinh baseline seed 7
+và 1234 vào **đúng cây `asamaw_t5p`** đã có baseline seed 42, nên trộn baseline⊕baseline ghép cặp
+được cùng máy cùng fold. **Số dưới đây ở n=8 cặp, khối vẫn đang chạy** — ghi lại vì nó đổi cách
+phát biểu, sẽ cập nhật khi đủ.
+
+### Kết quả tổng: đối chứng KHÔNG null — §25 mất phần lớn biên độ tổng
+
+| trộn α=0.5 | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| **baseline ⊕ baseline′** (đối chứng, n=8) | +0.0149 (5/8) | **+0.0083 (6/8)** | **+0.0092 (8/8, p=0.008)** |
+| baseline ⊕ chuyển giao (§25, 87 khối) | +0.0317 (76/87) | +0.0129 (69/87) | +0.0136 (71/87) |
+| **phần dôi ra của chuyển giao** | +0.0168 | **≈ +0.0046** | **≈ +0.0044** |
+
+Trộn **hai mô hình ngang tài chỉ khác seed** đã cho +0.0083 ROC — tức **~2/3 mức tăng tổng của
+§25 là trung bình hoá phương sai**, không phải chuyển giao. Phần dôi ra (~+0.0045) **dưới sàn
+nhiễu 0.010**. Phát biểu *"trộn baseline⊕chuyển giao hơn baseline"* vì thế **không còn là bằng
+chứng cho chuyển giao**.
+
+### Nhưng theo CWE thì đối chứng PHẲNG, còn §25 thì không — đây mới là chỗ phân biệt
+
+ΔROC-AUC theo CWE, α=0.5:
+
+| CWE | **đối chứng** baseline⊕baseline′ (n=8) | §25 baseline⊕chuyển giao (86 khối) |
+|---|---|---|
+| **022** | **−0.0056 (3/8)** | **+0.0967 (74/82, p<1e-4)** |
+| 078 | +0.0059 (5/8) | −0.0014 (40/81, p=1.00) |
+| **079** | **+0.0153 (5/8)** | **+0.1513 (81/83, p<1e-4)** |
+| 089 | +0.0025 (5/8) | +0.0036 (56/83, p=0.0019) |
+
+Đối chứng cho **bốn lớp đều xấp xỉ 5/8 hoặc 3/8 — tung đồng xu**, biên độ nhỏ, CWE-022 còn **âm**.
+Trộn với mô hình chuyển giao cho **+0.097 / +0.151** ở đúng hai lớp hiếm với **74/82 và 81/83 fold
+cùng dấu**. Chênh nhau **một bậc độ lớn**, và mẫu hình cùng dấu gần như tuyệt đối thì trung bình
+hoá phương sai không tạo ra được.
+
+### Phát biểu lại §25 — hẹp hơn nhưng đứng vững hơn
+
+> ~~Trộn đều baseline ⊕ chuyển giao vượt cả hai đầu mút~~ **← không dùng nữa cho luận điểm tổng.**
+>
+> **Giá trị của Pha 1 không nằm ở điểm tổng — điểm tổng là cách đo sai.** Trên tổng thể, phần mà
+> chuyển giao đóng góp thêm so với việc chỉ trộn hai bản chạy lại (≈+0.0045 ROC) nằm **dưới sàn
+> nhiễu**. Nhưng tính riêng từng CWE thì đối chứng **phẳng và ngẫu nhiên** ở cả bốn lớp, còn chuyển
+> giao dồn **+0.097 / +0.151** vào đúng hai lớp hiếm mà mô hình chỉ-đích yếu nhất, với 74/82 và
+> 81/83 fold cùng dấu. **Đó** là bằng chứng chuyển giao mang vào thông tin mới.
+
+Ba mục vẫn đứng vì chúng **không** phải phát biểu về biên độ tổng: §25.1 (nguồn pha loãng cho
+−0.0036 còn nguyên chất +0.0109 — trung bình hoá phương sai không phân biệt được nguồn),
+§25.3 (recall **và** precision cùng tăng ở hai CWE hiếm), §25.4 (hiệu trộn−chuyển giao dồn vào
+hàng **sạch**, `train` thì âm).
+
+**Còn thiếu**: n=8 là cặp baseline trên một cây; `ensctl` đang chạy nốt trên cả hai máy (ntat 5
+fold × 2 seed, ntat2 3 fold × 2 seed). Cập nhật khi đủ.
