@@ -2565,3 +2565,18 @@ Muốn chắc phải chạy một khối λ trên codebert **cùng máy cùng fo
 
 Chưa xếp khối đó: λ nằm ở Pha 1 nên đổi λ là phải huấn luyện lại Pha 1 (CLAUDE.md mục 5), và
 người dùng chưa duyệt.
+
+### §32.1 — "Chưa thử" bị tôi đọc thành "tốt nhất" (09/09)
+
+Người dùng yêu cầu *"chạy 2 backbone với cái tốt nhất của nó"*. Tôi đặt **cả hai** ở ρ=2.0, lý do
+tự nhủ là *"codebert chưa hề chạy ở ρ=2.0"* — tức đã lặng lẽ đổi câu hỏi từ **cái tốt nhất của nó**
+sang **cái chưa thử**. Số cần để chọn đúng thì **đã nằm sẵn trong dữ liệu cũ** từ trước khi khối
+bắt đầu: codebert ρ=0.1 cho ΔROC +0.0244 (**40/40 fold**), ρ=2.0 cho −0.0439 (6/12).
+
+Người dùng bắt được sau khi khối đã chạy **8 ô** ở nhánh sai. Giá: ~40 phút GPU, và 8 ô đó vẫn
+giữ vì chúng trả lời một câu có thật (ρ=2.0 không hợp codebert) — nhưng phải **loại khỏi phép
+đếm** của khối, nếu không watchdog tưởng xong sớm 8 ô.
+
+**"Tốt nhất" là phát biểu về số ĐÃ ĐO, không phải về khoảng trống trong lưới.** Chưa đo thì là
+*chưa biết*. Muốn thăm dò ô chưa đo thì đó là thí nghiệm riêng và phải hỏi (CLAUDE.md mục 9),
+không được gói vào khối "chạy cấu hình tốt nhất".
