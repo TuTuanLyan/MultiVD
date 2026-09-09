@@ -2443,3 +2443,45 @@ còn phải nuôi dataloader.
 thấy trường này **chỉ được ghi, chưa bao giờ được đọc**. Bảng per-CWE trong báo cáo lấy nhãn từ
 `test_cwe_classes` của tập **đích** Python (đúng là bộ 4 CWE), không đi qua trường này. Nhưng nó là
 bẫy cho bất kỳ phân tích nào sau này tin vào siêu dữ liệu của checkpoint.
+
+---
+
+## §31 — Quét mồ côi bắt LÁ mà không bắt VỎ: một `matrix.sh` sống sót rồi đẻ lại python (09/09)
+
+Khởi động lại driver 161 để đổi `FOLD_LIST` sang `1 2 3`. Script khởi động lại có đủ hai bước
+đúng sách: giết theo **PID** (không `pkill -f`), rồi **quét mồ côi**. Vẫn sót.
+
+Sau 12 phút, `log/chot_t5p.log` đứng ở một dòng, `job=1`, mà **không có `train_transfer` nào của
+tôi** — trong khi GPU 13 320 MiB / 100%. Tra ra:
+
+| pid | ppid | là gì | tuổi |
+|---|---|---|---|
+| 2302684 | 1 | `bash run/chot2bb.sh` (driver MỚI) | đang kẹt ở `wait_vram` (`wchan=do_wait`) |
+| **2302594** | **1** | **`bash run/matrix.sh` — MỒ CÔI sót lại** | 608 s |
+| 2302799 | 2302594 | `train_baseline.py --run_name chot_t5p --fold 2` | 600 s, **12 628 MiB** |
+
+**Lỗi ở đâu**: `kill_tree` duyệt con trước rồi mới giết cha — đúng ý định, nhưng trong lúc nó
+đang giết ở dưới sâu thì cha **vẫn sống** và kịp sinh một `matrix.sh` mới mà lần liệt kê đầu
+không hề thấy. Bước quét mồ côi lẽ ra vớt được, nhưng mẫu của nó là
+
+```
+$2==1 && /train_(transfer|baseline)\.py/
+```
+
+tức **chỉ bắt cái LÁ**. Kẻ sống sót là `bash run/matrix.sh` — một **vỏ trung gian**, và chính nó
+đẻ ra một python mới *sau* khi quét đã chạy xong. Quét lá không bao giờ dọn được thứ đẻ ra lá.
+
+**Sửa**: mẫu quét phải phủ **cả chuỗi** — `train_*.py` **và** `run/matrix.sh` **và** `run/opt1.sh`
+— và phải **lặp cho đến khi không còn gì**, không phải quét đúng một lượt.
+
+**Cái đã cứu**: `wait_vram` của `chot2bb.sh`. Driver mới thấy chỉ còn 3 056 MiB trống (cần
+13 000) nên **ngồi chờ 12 phút** thay vì nhảy vào. Nếu không có nó, đây là đúng cấu hình đã hỏng
+26 ô hôm nay: **hai chuỗi một GPU**, vì `run/matrix.sh` KHÔNG giữ lock. Nghịch lý đáng nhớ:
+cổng chờ VRAM làm máy nằm không 12 phút, và đó là điều tốt nhất nó có thể làm.
+
+**Giá phải trả**: ~10 phút GPU của ô `baseline fold 2` bị bỏ dở khi tôi giết mồ côi. Tôi chọn
+giết thay vì để nó chạy nốt, vì thời điểm nó nhả bộ nhớ giữa hai ô chính là lúc driver kia thoát
+`wait_vram` — cửa sổ đâm nhau. Máy local được phép nằm không; hai chuỗi một GPU thì không.
+
+**Dấu hiệu nhận ra sớm**: `job=1` (lock có người giữ) **nhưng** không có tiến trình huấn luyện
+nào của mình, **và** GPU vẫn 100%. Ba dữ kiện đó cùng lúc = có chuỗi thứ hai ngoài tầm kiểm soát.
