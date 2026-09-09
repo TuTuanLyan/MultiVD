@@ -2485,3 +2485,37 @@ giết thay vì để nó chạy nốt, vì thời điểm nó nhả bộ nhớ 
 
 **Dấu hiệu nhận ra sớm**: `job=1` (lock có người giữ) **nhưng** không có tiến trình huấn luyện
 nào của mình, **và** GPU vẫn 100%. Ba dữ kiện đó cùng lúc = có chuỗi thứ hai ngoài tầm kiểm soát.
+
+### §31.1 — Công cụ giết không tự từ chối khi mẫu khớp quá nhiều: suýt xoá cả phiên làm việc (09/09)
+
+Viết `scripts/kill_my_chain.sh` để sửa §31. Trong lúc **thử chính nó**, một lệnh gọi hỏng làm
+`PAT` thành **rỗng**, và bản đầu của script không chặn gì cả — nó khớp **mọi tiến trình tôi sở
+hữu** và in ra danh sách sẽ giết:
+
+```
+[DRY] se giet 31344  (systemd --user)        [DRY] se giet 2728629 (claude)
+[DRY] se giet 2726411 (code-server)          [DRY] se giet 1272876 (tmux new -s ml4vd)
+[DRY] se giet 3459844 (ssh -L 8080 ...)      [DRY] se giet 2302684 (bash run/chot2bb.sh)  <-- driver dang chay
+[DRY] se giet 2323984 (train_transfer.py fold 2)                                          <-- o dang huan luyen
+```
+
+**Chỉ `DRY=1` cứu.** Nếu là lần chạy thật thì mất phiên VS Code, tmux, daemon Claude, kết nối ssh,
+**và** ô `fold 2` đang huấn luyện của chính khối ưu tiên.
+
+Điều đáng nói không phải lệnh gọi hỏng — lệnh gọi lúc nào chẳng hỏng được. Điều đáng nói là
+**công cụ chấp nhận nó**. Một công cụ giết mà không tự từ chối khi mẫu khớp quá nhiều thì
+không được phép tồn tại. Đã dựng **ba chặn**, thử cả hai chiều:
+
+| chặn | từ chối cái gì | đã thử |
+|---|---|---|
+| 1. mẫu phải có thật, ≥6 ký tự, không phải mẫu bắt-tất-cả | `""`, `sh`, `.*`, `*` | 4/4 từ chối |
+| 2. khớp > `MAXROOTS` (mặc định 4) ⇒ gần như chắc chắn sai mẫu | `/bin/bash` khớp 12 | từ chối, in ra danh sách |
+| 3. danh sách cấm tuyệt đối (systemd, code-server, tmux, claude, ssh, dbus, pipewire, sshd) | `tmux new -s ml4vd`, `server-main.js` | BẢO VỆ, bỏ qua cả cây |
+
+Chiều ngược lại cũng phải đúng: `'run/chot2bb.sh'` khớp **đúng 1** gốc và chỉ ra đủ 4 tầng
+(`chot2bb.sh → opt1.sh → matrix.sh → train_transfer.py`). Driver sống nguyên sau mọi phép thử.
+
+**Quy tắc rút ra**: mọi công cụ có sức phá phải có **ngưỡng bán kính nổ**. Không phải "mẫu này
+đúng không" mà "mẫu này khớp bao nhiêu, và con số đó có hợp lý với thứ tôi định làm không". Một
+mẫu driver hợp lệ khớp 1–2 tiến trình; khớp 44 nghĩa là mẫu sai, không phải là hôm nay có nhiều
+việc.
