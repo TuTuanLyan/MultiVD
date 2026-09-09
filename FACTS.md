@@ -2165,86 +2165,42 @@ hỏng là hỏng vĩnh viễn.
 
 ---
 
-## §27 — Nội suy TRỌNG SỐ: chạy được, nhưng KHÔNG hơn trộn xác suất (09/09, n=6)
+## §27 — Nội suy TRỌNG SỐ: chạy được, ngang trộn xác suất ở AUC, thua ở F1 (09/09, n=9)
 
-> **TỰ SỬA.** Bản đầu của mục này viết ở **n=1** và kết luận *"nội suy trọng số nói KHÔNG — đường
-> α lõm xuống giữa, val chọn α=1.0, hai mô hình có hàng rào"*. Ở **n=6** thì **α chọn trên val là
-> nội tại (0.20–0.80) ở 5/6 ô**, trung bình 0.617 — chỉ **một** ô chọn 1.0, và tôi vơ đúng ô đó
-> làm kết luận. Đây là lần thứ hai trong đêm một kết luận ở n rất nhỏ phải rút; đúng cảnh báo
-> CLAUDE.md mục 1.
+> **TỰ SỬA (giữ lại để nhớ).** Bản đầu của mục này viết ở **n=1** và kết luận *"nội suy trọng số
+> nói KHÔNG — đường α lõm, val chọn α=1.0, hai mô hình có hàng rào"*, kèm cả cơ chế. Ở n=9 thì
+> **α chọn trên val nội tại ở 8/9 ô** (0.10–0.80, trung bình 0.567); chỉ **một** ô chọn 1.0 và tôi
+> vơ đúng ô đó. Lần thứ hai trong đêm một kết luận ở n rất nhỏ phải rút — CLAUDE.md mục 1.
 
-`run/wblend.sh`, t5p, 3 nguồn × 2 fold. Δ so với **baseline** cùng ô:
+`run/wblend.sh`, t5p, **3 nguồn × 3 fold = 9 ô**. Δ so với **baseline** cùng ô:
 
 | | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| chuyển giao thuần (α=1) | +0.0112 (3/6) | +0.0224 (6/6) | +0.0047 (3/6) |
-| **nội suy TRỌNG SỐ, α chọn trên VAL** | +0.0214 (5/6) | **+0.0253 (6/6)** | **+0.0151 (6/6)** |
-| nội suy trọng số, α=0.5 cố định | −0.0055 (2/6) | +0.0155 (4/6) | +0.0088 (4/6) |
-| **trộn XÁC SUẤT, α=0.5 khai báo trước** | **+0.0274 (6/6)** | **+0.0259 (6/6)** | **+0.0170 (6/6)** |
+| chuyển giao thuần (α=1) | +0.0085 (5/9) | +0.0154 (8/9, p=0.039) | +0.0010 (5/9) |
+| **nội suy TRỌNG SỐ, α chọn trên VAL** | +0.0185 (7/9) | **+0.0198 (8/9, p=0.008)** | **+0.0152 (9/9, p=0.004)** |
+| nội suy trọng số, α=0.5 cố định | −0.0127 (3/9) | +0.0087 (5/9) | +0.0056 (5/9) |
+| **trộn XÁC SUẤT, α=0.5 khai báo trước** | **+0.0262 (9/9, p=0.004)** | +0.0202 (8/9, p=0.039) | +0.0126 (8/9, p=0.039) |
 
 Ghép cặp trực tiếp trong cùng ô:
 
 | | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| trọng số@val − chuyển giao thuần | +0.0101 (4/6) | +0.0029 (4/6) | +0.0105 (5/6, p=0.0625) |
-| **trọng số@val − xác suất@0.5** | **−0.0060 (0/6, p=0.0625)** | −0.0006 (4/6) | −0.0019 (3/6) |
+| trọng số@val − chuyển giao thuần | +0.0100 (6/9) | +0.0044 (6/9) | **+0.0141 (8/9, p=0.008)** |
+| **trọng số@val − xác suất@0.5** | **−0.0077 (1/9, p=0.070)** | −0.0004 (6/9) | +0.0025 (5/9) |
 
-**Ba điều đọc được:**
+**Ba điều, đã ổn định từ n=6 sang n=9:**
 
-1. **Nội suy trọng số CHẠY ĐƯỢC** khi α chọn trên val: hơn chuyển giao thuần trên cả ba chỉ số,
-   PR 5/6 fold. Không có "hàng rào" như bản n=1 kết luận.
-2. **Nhưng α=0.5 cố định trong không gian trọng số thì KHÔNG dùng được** (F1 −0.0055, 2/6) — khác
-   hẳn không gian xác suất, nơi α=0.5 cố định là lựa chọn tốt. Nội suy trọng số **cần hiệu chỉnh
-   α trên val**; trộn xác suất thì không cần gì.
-3. **Trên hai chỉ số xếp hạng, hai phép ngang nhau** (ROC −0.0006, PR −0.0019, đều không có ý
-   nghĩa); chỉ F1 là trọng số **thua đều** (0/6 fold, p=0.0625 — sàn ở n=6).
+1. **Nội suy trọng số CHẠY ĐƯỢC** khi α chọn trên val: hơn chuyển giao thuần ở PR (**8/9,
+   p=0.008**), hơn baseline ở ROC (8/9) và PR (**9/9**). Không có "hàng rào" như bản n=1 kết luận.
+2. **α=0.5 cố định trong không gian trọng số thì KHÔNG dùng được** (F1 −0.0127, 3/9) — khác hẳn
+   không gian xác suất, nơi α=0.5 cố định là lựa chọn tốt nhất. Trọng số **bắt buộc hiệu chỉnh α
+   trên val**; xác suất thì không cần tham số nào.
+3. **Trên hai chỉ số xếp hạng, hai phép KHÔNG phân biệt được** (ROC −0.0004, PR +0.0025, đều không
+   có ý nghĩa). Chỉ F1 là trọng số thua đều (**1/9 fold**, p=0.070).
 
-**Hệ quả cho phương pháp**: nội suy trọng số **thu chi phí suy luận về một mô hình** mà giữ gần
-như trọn phần được ở ROC/PR. Đó là một lựa chọn thật, không phải ngõ cụt. Cái giá: phải hiệu chỉnh
-α trên val cho từng ô, và mất một ít ở F1.
+**Hệ quả cho phương pháp**: nội suy trọng số **thu chi phí suy luận về một mô hình** mà giữ trọn
+phần được ở ROC/PR. Giá phải trả: hiệu chỉnh α trên val cho từng ô, và mất ~0.008 F1. Đó là một
+đánh đổi thật để nêu trong bài, **không** phải ngõ cụt.
 
-**n=6, bậc 1.** Khối chạy 9 ô; cập nhật khi đủ. Nhưng mẫu hình "α nội tại, trọng số ≈ xác suất ở
-AUC, thua ở F1" đã thấy nhất quán qua cả ba nguồn.
-
----
-
-## §25.11 — Bản lặp §25.9 trên CODEBERT: per-CWE lặp lại, biên độ TỔNG thì KHÔNG (09/09, n=50)
-
-`run/ensctl_cb.sh` sinh baseline seed 7/1234 vào cây `poolcb_codebert` (đã có baseline seed 42
-5 fold + 10 nhánh chuyển giao). Ghép cặp trực tiếp y hệt §25.9:
-`A = trộn(base42, chuyển giao)` · `B = trộn(base42, base khác seed)`, **50 cặp**.
-
-| A − B | F1@0.5 | ROC-AUC | PR-AUC |
-|---|---|---|---|
-| **codebert (n=50)** | **+0.0139 (36/50, p=0.0026)** | +0.0052 (28/50, **p=0.48**) | +0.0042 (25/50, **p=1.00**) |
-| t5p (n=48) | +0.0200 (37/48, p=0.0002) | **+0.0121 (42/48, p<1e-4)** | **+0.0116 (43/48, p<1e-4)** |
-
-**Biên độ TỔNG không lặp lại.** Trên codebert, lợi thế của *trộn-với-chuyển-giao* so với
-*trộn-với-một-bản-chạy-lại* chỉ còn ở F1; ROC và PR **không có ý nghĩa** và dưới sàn nhiễu.
-
-### Nhưng per-CWE thì lặp lại, và mạnh hơn cả t5p ở đếm dấu
-
-| CWE | codebert (n=50) | t5p (n=48) |
-|---|---|---|
-| **022** | **+0.0858 (38/50, p=0.0003)** | +0.1076 (40/48, p<1e-4) |
-| **079** | **+0.1127 (45/50, p<1e-4)** | +0.1312 (42/48, p<1e-4) |
-| 078 | +0.0178 (34/50, p=0.015) | +0.0042 (24/48, p=1.00) |
-| **089** | **−0.0047 (13/50, p=0.0009)** — *âm CÓ Ý NGHĨA* | +0.0021 (26/48, p=0.46) |
-
-**Và đây chính là cơ chế, nhìn thấy trực tiếp**: trên codebert, CWE-089 — lớp chiếm **54% hàng
-test** — đi **âm có ý nghĩa** (13/50 fold). Phần được ở hai lớp hiếm bị lớp đa số kéo ngược, nên
-**biên độ tổng triệt tiêu**. Trên t5p, CWE-089 trung tính nên biên độ tổng sống sót.
-
-### Phát biểu phải sửa cho đúng phạm vi
-
-> Phát biểu **không phụ thuộc backbone** là phát biểu **per-CWE**: mô hình chuyển giao mang vào
-> thứ mà một bản chạy lại của baseline không có, và thứ đó nằm ở **CWE-022 và CWE-079** —
-> lặp lại trên **cả hai backbone** với 38/50 · 45/50 (codebert) và 40/48 · 42/48 (t5p).
->
-> Phát biểu về **biên độ tổng** (+0.0121 ROC) là **đặc tính của t5p**, không được viết như một
-> tính chất chung. Nó tồn tại hay không tuỳ vào lớp đa số CWE-089 trung tính hay âm trên backbone
-> đó.
-
-Đây là lần thứ ba trong ngày một phát biểu ở mức **tổng** không sống sót phép kiểm, còn phát biểu
-ở mức **phân bố** thì sống. Với bộ đích lệch mạnh như thế này (81/150 hàng là một lớp), trung bình
-là đại lượng bị lớp đa số quyết định — không phải đại lượng đo được điều ta muốn hỏi.
+**Đang chạy**: fold 4–5 trên ntat để lên n=15 (bậc 3) — lý do leo bậc đọc được từ PR 9/9 ở đây.
+Bản lặp **codebert** đang chạy trên ntat2 (`p1fill_cb` → `wblend_cb`).
