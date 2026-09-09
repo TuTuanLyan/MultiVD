@@ -1510,3 +1510,28 @@ phân biệt thật sự tăng, cả hai vế cùng lên.
 - CWE-022 chỉ 66 hàng test qua cả 5 fold (13 hàng/fold) — phương sai lớn.
 - Chưa tách được ảnh hưởng của độ tinh khiết nguồn (§B.2e) trong lát cắt này:
   `com` cho CWE-022 cao nhất (+0.2080) dù kém tinh khiết hơn `4cwe`.
+
+### §23.1 — `cwe_class` của `com`/`full` là PILLAR, không phải từng CWE (đo 09/09)
+
+Không phải lỗi dữ liệu — là thiết kế. 123 CWE của `full` gộp thành **10 lớp theo
+pillar** của CWE-1000:
+
+| class | pillar | CWE tiêu biểu |
+|---|---|---|
+| 0 | CWE-284 Improper Access Control | 269–295, 732, 798, 862, 863 |
+| **2** | CWE-664 Improper Control of a Resource | **22**, 59, 119–125, 401, 415, 416, 787 |
+| 3 | CWE-682 Incorrect Calculation | 190, 191, 193, 369 |
+| 4 | CWE-691 Control Flow Management | 362, 617, 670, 834, 835 |
+| 5 | CWE-693 Protection Mechanism Failure | 311, 326, 327, 338, 352 |
+| 7 | CWE-703 Improper Check of Exceptional Conditions | 252, 476, 754, 755 |
+| **8** | CWE-707 Improper Neutralization | 20, 74, 77, **78**, **79**, 88, **89**, 116 |
+
+Chỉ `4cwe` mới dùng vocab `fixed4` với đúng 4 lớp = 4 CWE.
+
+**Hệ quả cho §23:** CWE-022 (pillar 2) và CWE-079 (pillar 8) nằm ở **hai pillar
+khác nhau** mà cùng được lợi lớn; CWE-089 **cùng pillar 8 với 079** và nguồn có 692
+dòng pillar-8, nhưng **không** được lợi. Vậy pillar cũng không dự báo được lợi ích —
+chỉ **độ yếu của baseline** dự báo được (Pearson −0.886).
+
+**Hệ quả vận hành:** mọi phép so cắt nguồn theo nhóm CWE phải chạy nhánh **`none`**,
+vì head phụ sẽ thấy số pillar khác nhau ở hai nhánh và phép so đổi hai biến.
