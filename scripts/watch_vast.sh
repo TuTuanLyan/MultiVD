@@ -60,9 +60,26 @@ for L in ntat ntat2; do
   VAST_CACHE_TTL=1 read -r H P <<< "$(vast_endpoint "$L" 2>/dev/null)"
   [[ -n "${H:-}" && "${P:-None}" != "None" ]] || continue
   SSH="ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p $P"
-  for RUN in int1 asam1; do
-    mkdir -p "results_${RUN}_${L}"
-    rsync -az -e "$SSH" "root@$H:$R/results/${RUN}_t5p/" "results_${RUN}_${L}/" 2>/dev/null
+  # DANH SACH CU CUNG `int1 asam1` DA BO SOT: 09/09 cac khoi asamaw / poolcb / wblend
+  # deu ghi vao cay khac va watchdog KHONG keo ve. Voi quy tac "mat log => khong huy",
+  # mot cay khong duoc keo ve la mot cay co the mat khi huy may. Gio HOI MAY XA xem no
+  # co nhung cay nao roi keo het, thay vi giu danh sach cung tay.
+  RUNS=$(timeout 40 $SSH root@"$H" "ls -1 $R/results 2>/dev/null" 2>/dev/null | tr -d '\r')
+  [[ -n "$RUNS" ]] || { say "$L | khong liet ke duoc results/ — BO QUA lan keo nay"; continue; }
+  pulled=""
+  for RUN in $RUNS; do
+    # CAT hau to backbone: cay tren may xa ten <run>_<backbone> nhung quy uoc thu muc
+    # local o day la results_<run>_<may> (results_pool1_ntat2, results_e60_ntat...).
+    # Giu nguyen ca ten se tao thu muc TRUNG ben canh cay cu -> moi cong cu glob
+    # `results_*` dem MOT o thanh HAI. Da mac dung loi nay luc 04:20 va da hoa giai.
+    BASE="${RUN%_t5p}"; BASE="${BASE%_t5pe}"; BASE="${BASE%_codebert}"
+    BASE="${BASE%_unixcoder}"; BASE="${BASE%_roberta}"
+    D="results_${BASE}_${L}"
+    mkdir -p "$D"
+    rsync -az -e "$SSH" "root@$H:$R/results/${RUN}/" "$D/" 2>/dev/null
+    n=$(find "$D" -name 'fold*.json' 2>/dev/null | wc -l)
+    # thu muc rong thi don di cho khoi rac cay ket qua
+    if (( n == 0 )); then rmdir "$D" 2>/dev/null; else pulled="$pulled ${BASE}=$n"; fi
   done
-  say "$L | keo ve: int1 $(find results_int1_$L -name 'fold*.json' 2>/dev/null|wc -l) | asam1 $(find results_asam1_$L -name 'fold*.json' 2>/dev/null|wc -l)"
+  say "$L | keo ve:${pulled:- (khong co o nao)}"
 done
