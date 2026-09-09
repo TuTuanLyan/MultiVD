@@ -2075,29 +2075,32 @@ Trong **cùng một `(cây, fold)`**, với **cùng một baseline seed 42**, l�
 `A = trộn(base42, chuyển_giao)` và `B = trộn(base42, base_khác_seed)`, rồi đo **A − B**. Mọi thứ
 triệt tiêu trừ đúng một câu hỏi: *mô hình thứ hai là bản chuyển giao hay chỉ là một bản chạy lại?*
 
-`tools/ens_headtohead.py` · 6 khối có đủ cả ba thành phần · **36 cặp ghép trực tiếp**:
+`tools/ens_headtohead.py` · **48 cặp ghép trực tiếp** (cập nhật khi `ensctl` chạy thêm fold; ở
+n=36 các số là +0.0215 / +0.0148 / +0.0135 — ổn định):
 
 | A − B | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| | **+0.0215 (25/36, p=0.029)** | **+0.0148 (33/36, p<1e-4)** | **+0.0135 (32/36, p<1e-4)** |
+| | **+0.0200 (37/48, p=0.0002)** | **+0.0121 (42/48, p<1e-4)** | **+0.0117 (43/48, p<1e-4)** |
 
-**+0.0148 ROC vượt sàn nhiễu 0.010**, và 33/36 fold cùng dấu. So với con số sai ở §25.8
-(“≈+0.0045, dưới sàn nhiễu”) thì lớn **gấp 3,3 lần** và **đổi hẳn kết luận**.
+**+0.0121 ROC vẫn vượt sàn nhiễu 0.010** với 42/48 fold cùng dấu, và **F1@0.5 giờ cũng có ý nghĩa**
+(p=0.0002) — tức không chỉ ở xếp hạng. So với con số sai ở §25.8 (“≈+0.0045, dưới sàn nhiễu”) thì
+lớn **gấp 2,7 lần** và **đổi hẳn kết luận**. (Biên độ ROC đi từ +0.0148 ở n=36 xuống +0.0121 ở
+n=48 — vẫn trên sàn, nhưng phải nêu là nó co lại khi thêm dữ liệu.)
 
 Theo CWE (A − B, ΔROC):
 
 | CWE | A − B | |
 |---|---|---|
-| **022** | **+0.1303 (31/36, p<1e-4)** | trộn với chuyển giao hơn hẳn |
-| **079** | **+0.1554 (33/36, p<1e-4)** | trộn với chuyển giao hơn hẳn |
-| 078 | +0.0070 (21/36, p=0.41) | null |
-| 089 | +0.0001 (16/36, p=0.86) | null |
+| **022** | **+0.1076 (40/48, p<1e-4)** | trộn với chuyển giao hơn hẳn |
+| **079** | **+0.1323 (42/48, p<1e-4)** | trộn với chuyển giao hơn hẳn |
+| 078 | +0.0055 (27/48, p=0.47) | null |
+| 089 | +0.0021 (26/48, p=0.46) | null |
 
 Toàn bộ khoảng cách giữa hai phép trộn nằm ở **đúng hai lớp hiếm**, và **đúng bằng không** ở hai
 lớp thường. Đây là phiên bản mạnh nhất của luận điểm: **mô hình chuyển giao mang vào thứ mà một
 bản chạy lại của baseline không có, và thứ đó chỉ nằm ở hai lớp mà baseline yếu nhất.**
 
-**Giới hạn**: chỉ **6 khối / 36 cặp** có đủ cả ba thành phần (baseline seed 42 + baseline khác
+**Giới hạn**: chỉ những khối có **đủ cả ba thành phần** mới vào được phép so (48 cặp) (baseline seed 42 + baseline khác
 seed + nhánh chuyển giao cùng cây cùng fold), toàn bộ từ cây `asamaw_t5p` trên hai máy. Hẹp hơn
 nhiều so với 87 khối của §25 — nhưng **hẹp mà ghép cặp đúng** thì dùng được, còn **rộng mà lấy
 hiệu hai trung bình** thì không. `ensctl` chạy xong trên ntat sẽ nâng số khối lên.
