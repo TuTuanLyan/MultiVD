@@ -2,22 +2,27 @@
 
 > Bản trước viết 03:45, trước khi có §25.8 → §28. Đã thay hẳn.
 
-## Máy — không máy vast nào nằm không
+## Máy — CẢ HAI MÁY VAST ĐÃ HUỶ, không còn gì tính tiền
 
-| máy | đang chạy | còn trong hàng đợi | xong (ước) |
-|---|---|---|---|
-| ~~**ntat**~~ | **ĐÃ HUỶ 08:07 UTC** — hết việc đáng chạy | — | — |
-| **ntat2** ($0.1222/h) | `wblend_cb.sh\|4cwe com full\|1 2 3` — bản lặp backbone của §27 | `p1fill_cb\|full`, `wblend_cb\|full` | ~10:00 UTC |
-| 161 (local) | trống — **được phép**, người dùng nêu để trống chờ quyết hướng | | |
-| 158 (local) | không ssh được; local nên không tốn tiền | | |
+| máy | trạng thái |
+|---|---|
+| ~~ntat~~ (id 50223254) | **huỷ 08:07 UTC** — 221/221 file khớp byte, 204 file log đã kéo về |
+| ~~ntat2~~ (id 50223345) | **huỷ 09:18 UTC** — 240/240 file khớp byte, 258 file log đã kéo về |
+| 161 · 158 (local) | trống — được phép, không tốn tiền |
 
-**ntat đã huỷ lúc 08:07 UTC** sau khi §27 đủ n=15: kéo hết 6 cây kết quả + 204 file log về, đối
-chiếu **221/221 file khớp cả byte**, `destroy` (không phải `stop`), rồi xác nhận bằng
-`vastai show instances` — nhãn `ntat` không còn trong danh sách, `ntat2` vẫn chạy.
-Trước đó đã đối chiếu ntat2 lúc 06:57: **222/222 file khớp byte**.
+Cả hai lần đều theo đủ trình tự: kéo **mọi** cây kết quả + log → đối chiếu **số file và kích
+thước byte** → `destroy` (không phải `stop`) → xác nhận bằng `vastai show instances`.
+Máy của người khác (`dung`, `cuongtm4070s`) **không bị đụng tới**.
 
-**Khi ntat2 xong (~10:00)**: đọc `tools/wblend_report.py results_wblend_cb_ntat2` cho bản lặp
-backbone của §27. Hết việc đáng chạy thì lặp lại đúng trình tự trên với id **50223345**.
+## Việc CÒN LẠI nếu thuê máy tiếp
+
+1. **`wblend_cb` nguồn `full`** — 3 ô Pha 2 đã chạy nhưng bước nội suy bị bỏ vì `wblend.sh` dọn
+   checkpoint baseline sau mỗi fold (§27.2). Muốn có n=9 cho bản lặp codebert thì phải **xoá file
+   kết quả JSON** của baseline + nhánh `full` để `matrix.sh` huấn luyện lại, rồi chạy
+   `run/wblend_cb.sh|full|1 2 3`. ~40 phút.
+2. **Sửa `run/wblend.sh`** trước khi chạy lại: giữ checkpoint baseline đến hết khối, hoặc xoá JSON
+   khi chạy bù. Và cổng đếm hiện vật nên đếm **file nội suy**, không phải `fold*.json`.
+3. **`twin`** — người dùng đã nêu để sau.
 
 ## Kết quả đêm nay — đọc theo thứ tự này
 
