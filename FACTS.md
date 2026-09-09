@@ -2105,3 +2105,34 @@ hiệu hai trung bình** thì không. `ensctl` chạy xong trên ntat sẽ nâng
 **Bài học**: cùng một dữ liệu, đọc bằng hiệu-hai-trung-bình cho “dưới sàn nhiễu, kết luận sập”,
 đọc bằng ghép-cặp cho “+0.0148, 33/36, p<1e-4”. Khoảng cách giữa hai cách đọc lớn hơn khoảng cách
 giữa có hiệu ứng và không.
+
+---
+
+## §25.10 — Cache endpoint hỏng vì HAI tiến trình ghi chung một file tạm (09/09 05:35)
+
+`fleet_status.sh` báo **"ntat2: không giải được địa chỉ | trạng thái instance = không-đọc-được"**
+trong khi máy **đang chạy bình thường** (`job=1`, đang huấn luyện `lm75` fold 5). Đây là lần thứ
+hai trong ngày dấu hiệu này xuất hiện, và lần này truy được nguyên nhân.
+
+**Nguyên nhân**: `/tmp/vast_endpoints.json` hỏng — `Extra data: line 884 column 1`. Hàm
+`_vast_refresh` ghi ra `"$VAST_CACHE.tmp"` — **một đường dẫn cố định**. Watchdog chạy **mỗi 10
+phút** và phiên tương tác **cũng** gọi hàm này; hai tiến trình ghi cùng một file tạm nên nội dung
+đan xen, tạo ra JSON có hai tài liệu nối nhau. Phép kiểm JSON *trước khi thay cache* không cứu
+được vì bản thân file tạm đã bị tiến trình kia ghi thêm **sau** khi kiểm.
+
+**Vì sao nguy hiểm**: đọc thành "máy đã mất" dẫn thẳng tới quyết định **huỷ nhầm một máy đang làm
+việc**. Quy tắc *"chưa giải được địa chỉ ⇒ TUYỆT ĐỐI KHÔNG huỷ"* đã cứu cả hai lần — tôi hỏi thẳng
+API và thấy `state=running/running`, cùng IP cùng cổng.
+
+**Đã sửa hai chỗ**:
+1. File tạm **riêng cho từng tiến trình** (`$VAST_CACHE.tmp.$$`) — hết đan xen.
+2. **Kiểm cache lúc ĐỌC**, không chỉ lúc ghi: cache hỏng từ trước thì xoá và làm mới, thay vì im
+   lặng trả về rỗng (đọc y hệt "máy đã mất").
+
+**Kiểm ba chiều**: (a) cache hỏng sẵn → tự làm mới, trả đúng địa chỉ; (b) cache lành → trả địa
+chỉ, không báo gì; (c) cache hợp lệ nhưng rỗng → trả **rỗng**, không bịa ra địa chỉ.
+
+**Bài học chung**: mọi mẫu `cmd > file.tmp && mv file.tmp file` đều **không an toàn khi có hơn một
+tiến trình**, dù `mv` là nguyên tử. Cái nguyên tử là `mv`, không phải việc ghi. Đường dẫn tạm phải
+mang `$$` hoặc dùng `mktemp`. Và mọi cache phải kiểm lúc **đọc** — chỉ kiểm lúc ghi thì một lần
+hỏng là hỏng vĩnh viễn.

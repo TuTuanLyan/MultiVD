@@ -24,18 +24,30 @@ _vast_refresh() {
   if [[ -f "$VAST_CACHE" ]]; then
     age=$(( $(date +%s) - $(stat -c %Y "$VAST_CACHE" 2>/dev/null || echo 0) ))
   fi
+  # Cache co the da HONG tu lan truoc (hoac tu mot phien khac). Neu khong doc duoc thi
+  # coi nhu het han va lam moi, thay vi im lang tra ve rong = "may da mat".
+  if [[ -f "$VAST_CACHE" ]] && ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$VAST_CACHE" 2>/dev/null; then
+    echo "endpoints.sh: cache $VAST_CACHE HONG — lam moi" >&2
+    rm -f "$VAST_CACHE"; age=99999
+  fi
   if (( age > VAST_CACHE_TTL )); then
     # KIEM NOI DUNG truoc khi thay cache. Neu khong: `vastai` thoat 0 voi output rong
     # hoac rac (mang chap chon, canh bao deprecation lot vao stdout) se cai mot cache
     # HONG, va moi lan goi sau deu bao "khong giai duoc dia chi" — doc y het "may da
     # mat". Da xay ra 08/09/2026 22:15 UTC voi ntat2 trong khi may van chay GPU 86%.
     # Quyet dinh sai o day la HUY NHAM mot may dang lam viec.
-    if vastai show instances --raw > "$VAST_CACHE.tmp" 2>/dev/null \
+    # FILE TAM PHAI RIENG CHO TUNG TIEN TRINH. Bay da mac 09/09/2026 05:35: watchdog
+    # chay moi 10 phut VA phien tuong tac cung goi ham nay; hai tien trinh ghi CUNG mot
+    # "$VAST_CACHE.tmp" nen noi dung dan xen -> JSON co "Extra data: line 884" -> cache
+    # hong -> fleet_status bao "ntat2 khong giai duoc dia chi" trong khi may dang chay.
+    # Doc sai o day dan thang toi quyet dinh HUY NHAM mot may dang lam viec.
+    local tmp="$VAST_CACHE.tmp.$$"
+    if vastai show instances --raw > "$tmp" 2>/dev/null \
        && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if isinstance(d,list) and d else 1)' \
-            "$VAST_CACHE.tmp" 2>/dev/null; then
-      mv "$VAST_CACHE.tmp" "$VAST_CACHE"
+            "$tmp" 2>/dev/null; then
+      mv "$tmp" "$VAST_CACHE"
     else
-      rm -f "$VAST_CACHE.tmp"        # giu cache CU con hon dung cache hong
+      rm -f "$tmp"                   # giu cache CU con hon dung cache hong
     fi
   fi
 }
