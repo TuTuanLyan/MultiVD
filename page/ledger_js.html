@@ -1,4 +1,49 @@
 <script>
+/* ---- MS: o chon NHIEU gia tri, gon nhu mot nut ----
+   `<select>` mot lua chon khong du: nguoi dung muon so sanh 2-3 khoi/nhanh cung luc.
+   `<select multiple>` thi trinh duyet ve thanh list-box cao ngoang, hong ca thanh cong cu.
+   Nen dung mot nut mo panel checkbox: gon khi dong, day du khi mo. */
+function MS(host, id, label, values, onChange, preset){
+  const sel = new Set(preset || []);
+  const w = document.createElement('span'); w.className = 'ms'; w.style.position = 'relative';
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'msb';
+  const pan = document.createElement('div'); pan.className = 'msp'; pan.hidden = true;
+  pan.innerHTML = values.map(v =>
+    `<label><input type="checkbox" value="${String(v).replace(/"/g,'&quot;')}"> ${v}</label>`).join('')
+    + '<div class="msf"><button type="button" data-a="all">chọn hết</button>'
+    + '<button type="button" data-a="none">bỏ hết</button></div>';
+  function label_(){
+    btn.textContent = sel.size === 0 ? `${label}: tất cả`
+      : sel.size === 1 ? `${label}: ${[...sel][0]}`
+      : `${label}: ${sel.size} mục`;
+    btn.classList.toggle('on', sel.size > 0);
+  }
+  pan.addEventListener('change', e => {
+    if (e.target.type !== 'checkbox') return;
+    e.target.checked ? sel.add(e.target.value) : sel.delete(e.target.value);
+    label_(); onChange();
+  });
+  pan.addEventListener('click', e => {
+    const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+    pan.querySelectorAll('input').forEach(i => { i.checked = (a === 'all'); });
+    sel.clear(); if (a === 'all') values.forEach(v => sel.add(String(v)));
+    label_(); onChange();
+  });
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.msp').forEach(p => { if (p !== pan) p.hidden = true; });
+    pan.hidden = !pan.hidden;
+  });
+  document.addEventListener('click', () => { pan.hidden = true; });
+  pan.addEventListener('click', e => e.stopPropagation());
+  w.appendChild(btn); w.appendChild(pan); host.appendChild(w);
+  label_();
+  return { has: v => sel.size === 0 || sel.has(String(v)), size: () => sel.size,
+           clear(){ sel.clear(); pan.querySelectorAll('input').forEach(i=>i.checked=false); label_(); },
+           set(vs){ sel.clear(); pan.querySelectorAll('input').forEach(i=>{
+             i.checked = vs.includes(i.value); if(i.checked) sel.add(i.value); }); label_(); } };
+}
+
 (function(){
 const COLS = [
   {k:'khoi',     t:'Khối',      w:'auto'},
@@ -33,11 +78,16 @@ function fmtMet(m){
        + `<div class="sg">${m.pos}/${m.n}${m.p!=null?' · p='+m.p.toFixed(3):''}`
        + (sig?' <span class="pill '+(m.d>0?'p-sig':'p-neg')+'">*</span>':'') + `</div>`;
 }
-function makePane(el, id){
+// compact=true: che do 2 bang. Bay da mac 09/09 — giu nguyen 14 cot thi moi bang tran
+// ngang, nguoi doc phai keo qua keo lai nen KHONG doi chieu duoc tren mot man hinh, tuc
+// mat dung cai ma che do 2 bang sinh ra de lam. Bo cot it dung nhat va thu font.
+const COMPACT_DROP = new Set(['may','opt','lam','pham_vi','f1v']);
+function makePane(el, id, compact){
+  const COLS_P = compact ? COLS.filter(c=>!COMPACT_DROP.has(c.k)) : COLS;
   el.innerHTML = `
     <div class="bar" id="bar-${id}">
       <input type="search" id="q-${id}" placeholder="tìm…" style="width:120px">
-      ${FILT.map(f=>`<select id="f-${id}-${f}"><option value="">${LBL[f]}: tất cả</option></select>`).join('')}
+      <span id="ms-${id}"></span>
       <label class="chk"><input type="checkbox" id="n5-${id}"> n≥5</label>
       <select id="sig-${id}"><option value="">ý nghĩa: tất cả</option>
         <option value="all">cùng dấu ở MỌI fold</option>
@@ -47,17 +97,17 @@ function makePane(el, id){
       <button type="button" id="rs-${id}">Xoá lọc</button>
       <span class="count" id="c-${id}"></span>
     </div>
-    <div class="tw"><table class="dt"><thead><tr>${
-      COLS.map((c,i)=>`<th data-i="${i}" class="${c.num||c.met?'num':''}">${c.t}</th>`).join('')
+    <div class="tw"><table class="dt${compact?' cmp':''}"><thead><tr>${
+      COLS_P.map((c,i)=>`<th data-i="${i}" class="${c.num||c.met?'num':''}">${c.t}</th>`).join('')
     }</tr></thead><tbody id="b-${id}"></tbody></table></div>`;
-  FILT.forEach(f=>{
-    const s = el.querySelector(`#f-${id}-${f}`);
-    uniq(f).forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; s.appendChild(o); });
-  });
+  // DA CHON cho tung bo loc: mot lua chon thi khong so duoc 2-3 khoi/nguon cung luc.
+  const host = el.querySelector(`#ms-${id}`);
+  const MSF = {};
+  FILT.forEach(f=>{ MSF[f] = MS(host, id+f, LBL[f], uniq(f), ()=>draw()); });
   const st = {sort:'n', dir:-1};
   function rows(){
     let r = DATA.slice();
-    FILT.forEach(f=>{ const v=el.querySelector(`#f-${id}-${f}`).value; if(v) r=r.filter(x=>x[f]===v); });
+    FILT.forEach(f=>{ r = r.filter(x=>MSF[f].has(x[f])); });
     const q = el.querySelector(`#q-${id}`).value.trim().toLowerCase();
     if(q) r = r.filter(x=>FILT.some(f=>String(x[f]).toLowerCase().includes(q)) || String(x.tag).toLowerCase().includes(q));
     if(el.querySelector(`#n5-${id}`).checked)  r = r.filter(x=>x.n>=5);
@@ -79,31 +129,31 @@ function makePane(el, id){
     const r = rows();
     el.querySelector(`#c-${id}`).textContent = r.length + ' / ' + DATA.length + ' dòng';
     const MAX = 400;
-    el.querySelector(`#b-${id}`).innerHTML = r.slice(0,MAX).map(x=>'<tr>'+COLS.map(c=>{
+    el.querySelector(`#b-${id}`).innerHTML = r.slice(0,MAX).map(x=>'<tr>'+COLS_P.map(c=>{
       if(c.met) return `<td class="num">${fmtMet(x[c.k])}</td>`;
       if(c.num) return `<td class="num">${x[c.k]}</td>`;
       return `<td>${x[c.k]}</td>`;
     }).join('')+'</tr>').join('') + (r.length>MAX
-      ? `<tr><td colspan="${COLS.length}" style="text-align:center;color:var(--ink3);padding:10px">
+      ? `<tr><td colspan="${COLS_P.length}" style="text-align:center;color:var(--ink3);padding:10px">
          … còn ${r.length-MAX} dòng nữa — lọc hẹp lại để xem</td></tr>` : '');
     el.querySelectorAll('thead th').forEach((th,i)=>
-      th.classList.toggle('sorted', COLS[i].k===st.sort));
+      th.classList.toggle('sorted', COLS_P[i].k===st.sort));
   }
   el.querySelectorAll('thead th').forEach(th=>th.addEventListener('click',()=>{
-    const k = COLS[+th.dataset.i].k;
+    const k = COLS_P[+th.dataset.i].k;
     if(st.sort===k) st.dir*=-1; else { st.sort=k; st.dir=-1; }
     draw();
   }));
   el.querySelectorAll('select,input').forEach(x=>x.addEventListener('input',draw));
   el.querySelector(`#rs-${id}`).addEventListener('click',()=>{
-    FILT.forEach(f=>el.querySelector(`#f-${id}-${f}`).value='');
+    FILT.forEach(f=>MSF[f].clear());
     el.querySelector(`#q-${id}`).value='';
     ['n5','nz'].forEach(c=>el.querySelector(`#${c}-${id}`).checked=false);
     el.querySelector(`#sig-${id}`).value='';
     draw();
   });
   draw();
-  return {el, set(f,v){ const s=el.querySelector(`#f-${id}-${f}`); if(s){ s.value=v; draw(); } }};
+  return {el, set(f,vs){ if(MSF[f]){ MSF[f].set(Array.isArray(vs)?vs:[vs]); draw(); } }};
 }
 
 const A = makePane(document.getElementById('paneA'),'a');
@@ -117,10 +167,10 @@ b1.addEventListener('click',()=>{ b1.classList.add('on'); b2.classList.remove('o
 b2.addEventListener('click',()=>{
   b2.classList.add('on'); b1.classList.remove('on'); pA.hidden=true; w2.hidden=false;
   if(!B){
-    B = makePane(document.getElementById('paneB'),'b');
-    C = makePane(document.getElementById('paneC'),'c');
+    B = makePane(document.getElementById('paneB'),'b',true);
+    C = makePane(document.getElementById('paneC'),'c',true);
     // mo san mot lat cat doi chieu co nghia: hai backbone chinh
-    B.set('backbone','t5p'); C.set('backbone','codebert');
+    B.set('backbone',['t5p']); C.set('backbone',['codebert']);
     document.getElementById('paneB').insertAdjacentHTML('afterbegin',
       '<h3>Bảng trái <span class="tag">lọc độc lập</span></h3>');
     document.getElementById('paneC').insertAdjacentHTML('afterbegin',

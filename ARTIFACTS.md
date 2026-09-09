@@ -179,3 +179,16 @@ Nguồn sinh: `tools/build_table.py`; bản HTML rời ở `page/`. Chạy lại
 ```
 python3 tools/build_table.py results results_* > page/table.json
 ```
+
+## Tóm tắt kết quả (09/09/2026) — TRANG NGẮN CHO NGƯỜI HƯỚNG DẪN
+https://claude.ai/code/artifact/79a1c418-8548-40f0-8aa0-6388e6e8ce91
+
+**114 phương pháp × 5 backbone**, mỗi ô là Δ so với baseline. Cấu trúc: kết luận ngắn (5 gạch
+đầu dòng) → chú giải một dòng mỗi ký hiệu → **một bảng** tổng hợp. Bộ lọc **đa chọn** (nhánh,
+Pha 2, backbone), đổi chỉ số bằng một ô chọn, và chế độ 2 bảng lọc độc lập **vừa một màn hình**.
+Xem chi tiết từng phép so sánh thì sang sổ kết quả đầy đủ.
+
+Sinh bởi `tools/build_summary.py`. Chạy lại:
+```
+python3 tools/build_summary.py results results_* > page/summary_pivot.json
+```

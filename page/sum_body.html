@@ -1,0 +1,89 @@
+<div class="wrap">
+
+<header class="prose">
+  <div class="eyebrow">MultiVD · chuyển giao xuyên ngôn ngữ cho phát hiện lỗ hổng Python · 09/09/2026</div>
+  <h1>Tóm tắt kết quả</h1>
+  <p style="font-size:16.5px;color:var(--ink2);margin-top:.6em">Mỗi dòng là <strong>một phương
+  pháp</strong>, mỗi cột là <strong>một backbone</strong>. Ô là Δ so với <strong>baseline</strong>
+  (mô hình chỉ huấn luyện trên Python, không có Pha 1), ghép cặp theo từng fold trong cùng máy.
+  Xem chi tiết từng phép so sánh ở <a href="https://claude.ai/code/artifact/35c5f832-c306-42e4-959d-9d51adfdcef0">sổ kết quả đầy đủ</a>.</p>
+</header>
+
+<section>
+  <h2>Kết luận</h2>
+  <div class="key-box">
+    <p><strong>Cấu hình chốt hơn baseline +0.0337 ROC-AUC (14/15 fold) — nhưng toàn bộ mức tăng
+    nằm ở hai CWE hiếm.</strong> CWE-079 <span class="mono">+0.3638</span> (15/15 fold trên ntat,
+    9/9 trên máy thứ hai), CWE-022 <span class="mono">+0.2238</span> (13/15). Hai CWE thường —
+    chiếm 121 trong 150 hàng test — <strong>đúng bằng không</strong>. Con số tổng nhỏ vì lớp đa số
+    áp đảo, không phải vì hiệu ứng yếu.</p>
+  </div>
+  <ol>
+    <li><strong>Cấu hình chốt</strong>: head nút thắt 8 chiều · λ=0.05 · Pha 2 dùng <strong>AdamW +
+    ASAM ρ=2.0</strong>. Tắt ASAM thì ROC chỉ +0.0137 và PR <strong>−0.0018</strong>.</li>
+    <li><strong>Qua phép kiểm rò rỉ</strong>: trên 73% hàng sạch, CWE-022 <em>tăng</em> lên +0.2567
+    và CWE-079 giữ 87% (+0.3158, 14/15). Nhưng <em>biên độ tổng</em> có dựa vào rò rỉ một phần —
+    bài phải lấy con số trên hàng sạch làm số chính.</li>
+    <li><strong>Không phải "trộn gì cũng lợi"</strong>: trộn hai baseline khác seed cũng nâng điểm
+    (+0.0079 ROC), nên phép trộn một mình không phải bằng chứng. Ghép cặp trực tiếp thì trộn-với-
+    chuyển-giao hơn +0.0121 (42/48), và toàn bộ khoảng cách nằm ở hai CWE hiếm.</li>
+    <li><strong>Điều KHÔNG phụ thuộc backbone là phân bố theo CWE</strong>, không phải biên độ
+    tổng — trên codebert biên độ tổng triệt tiêu vì CWE-089 (54% hàng) đi âm.</li>
+    <li><strong>Đã loại</strong>: <code>latent_proto</code> (≈0 mọi khối) · nhánh <code>cwe</code>
+    (cần nhãn, âm trên codet5p) · neo RecAdam (null mọi γ, và kìm ASAM) · ASAM ρ=0.1 (đáy đường
+    cong ρ) · pha loãng nguồn dưới 25% CWE đích.</li>
+  </ol>
+  <div class="note">
+    <strong>Đọc số cho đúng.</strong> Luôn nhìn <strong>số fold cùng dấu</strong> trước khi nhìn
+    trung bình — một ô cực trị kéo được trung bình nhưng không kéo được đếm dấu. Sàn nhiễu đo được
+    trên chính dự án: <strong>0.010</strong> (chạy lại cùng loại GPU). Ở n=5 thì <strong>p=0.0625
+    là sàn</strong>, tức "5/5 cùng dấu" đã là kết quả tốt nhất có thể.
+  </div>
+</section>
+
+<section>
+  <h2>Chú giải ký hiệu</h2>
+  <div class="card">
+    <dl class="gl">
+      <dt>baseline</dt><dd>không có Pha 1 — chỉ finetune trên Python. Mọi Δ quy về nhánh này.</dd>
+      <dt>none</dt><dd>có Pha 1 nhưng không có head phụ — tách phần "được nhờ Pha 1" khỏi "được nhờ head".</dd>
+      <dt>cwe</dt><dd>head 4 lớp có nhãn CWE thật; chỉ chạy được trên nguồn <code>4cwe</code>.</dd>
+      <dt>latent_bottleneck</dt><dd>head qua nút thắt 8 chiều, không cần nhãn CWE — <strong>phương pháp chốt</strong>.</dd>
+      <dt>latent_proto</dt><dd>head kiểu SwAV — đã loại, ≈0 ở mọi khối.</dd>
+      <dt>r0 … r8p0</dt><dd>ASAM với ρ = 0 / 0.1 / 0.2 / 0.5 / 1.0 / 2.0 / 4.0 / 8.0 ở Pha 2, trên nền RecAdam.</dd>
+      <dt>aw_r2p0</dt><dd>ASAM ρ=2.0 trên nền <strong>AdamW</strong> (bỏ neo) — cấu hình chốt.</dd>
+      <dt>plain</dt><dd>AdamW, không SAM/ASAM.</dd>
+      <dt>e60</dt><dd>RecAdam λ=0.05 + ASAM ρ=2.0, chạy <strong>60 epoch</strong> ở Pha 2 (gấp đôi ngân sách).</dd>
+      <dt>c5000_t0p05</dt><dd>tham số neo RecAdam: hệ số kéo về 5000, mốc ủ 0.05.</dd>
+      <dt>4cwe · com · full</dt><dd>nguồn Pha 1: 930 dòng đúng 4 CWE đích · 3 744 dòng 94 CWE chung · 7 598 dòng 123 CWE.</dd>
+      <dt>lm<i>N</i> · pur<i>N</i></dt><dd>lưới pha loãng nguồn: <i>N</i>% dòng thuộc 4 CWE đích (<code>lm</code> ghim tỉ lệ JS ở 0.87).</dd>
+      <dt>F1@0.5 · F1@val</dt><dd>quyết định ở ngưỡng cố định · ở ngưỡng hiệu chỉnh trên val.</dd>
+      <dt>ROC · PR</dt><dd>xếp hạng, không phụ thuộc ngưỡng. PR nhạy hơn với lớp dương.</dd>
+      <dt>x/n</dt><dd>số fold cùng dấu trên tổng số fold ghép cặp — đọc trước trung bình.</dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <h2>Bảng tổng hợp theo phương pháp</h2>
+  <div class="bar">
+    <button id="m1" class="on" type="button">1 bảng</button>
+    <button id="m2" type="button">2 bảng — đối chiếu</button>
+    <span class="count" id="tot"></span>
+  </div>
+  <div id="paneA" class="pane"></div>
+  <div id="wrap2" class="split" hidden>
+    <div id="paneB" class="pane"></div>
+    <div id="paneC" class="pane"></div>
+  </div>
+</section>
+
+<footer>
+  Sinh từ <span class="mono">tools/build_summary.py</span>: 229 khối, 332 ô trùng đã khử,
+  gộp thành <span id="nm"></span> phương pháp × 5 backbone. Mỗi Δ ghép cặp theo fold trong cùng máy
+  cùng seed trước khi gộp — không lấy hiệu của hai trung bình.<br>
+  Chi tiết từng phép so sánh:
+  <a href="https://claude.ai/code/artifact/35c5f832-c306-42e4-959d-9d51adfdcef0">sổ kết quả đầy đủ</a>
+  · Số gốc ở <span class="mono">FACTS.md</span>, lập luận ở <span class="mono">RESEARCH_2026-09-08_transfer.md</span>.
+</footer>
+</div>

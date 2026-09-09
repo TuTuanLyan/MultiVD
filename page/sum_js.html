@@ -1,0 +1,150 @@
+<script>
+/* ---- MS: o chon NHIEU gia tri, gon nhu mot nut ----
+   `<select>` mot lua chon khong du: nguoi dung muon so sanh 2-3 khoi/nhanh cung luc.
+   `<select multiple>` thi trinh duyet ve thanh list-box cao ngoang, hong ca thanh cong cu.
+   Nen dung mot nut mo panel checkbox: gon khi dong, day du khi mo. */
+function MS(host, id, label, values, onChange, preset){
+  const sel = new Set(preset || []);
+  const w = document.createElement('span'); w.className = 'ms'; w.style.position = 'relative';
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'msb';
+  const pan = document.createElement('div'); pan.className = 'msp'; pan.hidden = true;
+  pan.innerHTML = values.map(v =>
+    `<label><input type="checkbox" value="${String(v).replace(/"/g,'&quot;')}"> ${v}</label>`).join('')
+    + '<div class="msf"><button type="button" data-a="all">chọn hết</button>'
+    + '<button type="button" data-a="none">bỏ hết</button></div>';
+  function label_(){
+    btn.textContent = sel.size === 0 ? `${label}: tất cả`
+      : sel.size === 1 ? `${label}: ${[...sel][0]}`
+      : `${label}: ${sel.size} mục`;
+    btn.classList.toggle('on', sel.size > 0);
+  }
+  pan.addEventListener('change', e => {
+    if (e.target.type !== 'checkbox') return;
+    e.target.checked ? sel.add(e.target.value) : sel.delete(e.target.value);
+    label_(); onChange();
+  });
+  pan.addEventListener('click', e => {
+    const a = e.target.dataset && e.target.dataset.a; if (!a) return;
+    pan.querySelectorAll('input').forEach(i => { i.checked = (a === 'all'); });
+    sel.clear(); if (a === 'all') values.forEach(v => sel.add(String(v)));
+    label_(); onChange();
+  });
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.msp').forEach(p => { if (p !== pan) p.hidden = true; });
+    pan.hidden = !pan.hidden;
+  });
+  document.addEventListener('click', () => { pan.hidden = true; });
+  pan.addEventListener('click', e => e.stopPropagation());
+  w.appendChild(btn); w.appendChild(pan); host.appendChild(w);
+  label_();
+  return { has: v => sel.size === 0 || sel.has(String(v)), size: () => sel.size,
+           clear(){ sel.clear(); pan.querySelectorAll('input').forEach(i=>i.checked=false); label_(); },
+           set(vs){ sel.clear(); pan.querySelectorAll('input').forEach(i=>{
+             i.checked = vs.includes(i.value); if(i.checked) sel.add(i.value); }); label_(); } };
+}
+
+(function(){
+const BB   = ['t5p','t5pe','codebert','unixcoder','t5'];
+const BBL  = {t5p:'codeT5+',t5pe:'codeT5+ emb',codebert:'CodeBERT',unixcoder:'UniXcoder',t5:'CodeT5'};
+const METS = [['roc','ROC-AUC'],['pr','PR-AUC'],['f1','F1@0.5'],['f1v','F1@val']];
+const NOISE = 0.010;
+
+function cell(m){
+  if(!m) return '<td class="v n">–</td>';
+  const col = m.d>0?'g':(m.d<0?'l':'n');
+  const big = Math.abs(m.d)>=NOISE ? 'font-weight:700' : '';
+  const sig = m.p!=null && m.p<0.05 ? ' *' : '';
+  return `<td class="v"><span class="${col}" style="${big}">${(m.d>0?'+':'')+m.d.toFixed(4)}${sig}</span>`
+       + `<span class="sg">${m.pos}/${m.n}</span></td>`;
+}
+function makePane(el,id,compact){
+  const bbs = compact ? BB.slice(0,3) : BB;
+  el.innerHTML = `
+    <div class="bar" id="bar-${id}">
+      <select id="mt-${id}">${METS.map(([k,t])=>`<option value="${k}">${t}</option>`).join('')}</select>
+      <span id="ms-${id}"></span>
+      <select id="nn-${id}"><option value="0">n ≥ 3</option><option value="15">n ≥ 15</option>
+        <option value="40">n ≥ 40</option></select>
+      <label class="chk"><input type="checkbox" id="sg-${id}"> chỉ p&lt;0.05</label>
+      <label class="chk"><input type="checkbox" id="nz-${id}"> |Δ| ≥ 0.010</label>
+      <button type="button" id="rs-${id}">Xoá lọc</button>
+      <span class="count" id="c-${id}"></span>
+    </div>
+    <div class="tw"><table class="sm"><thead><tr>
+      <th data-s="mo_ta">Phương pháp</th><th data-s="n">n</th>
+      ${bbs.map(b=>`<th data-s="${b}">${BBL[b]}</th>`).join('')}
+    </tr></thead><tbody id="b-${id}"></tbody></table></div>`;
+  const st={sort:'n',dir:-1};
+  // DA CHON: nguoi dung muon so 2-3 nhanh cung luc, mot lua chon thi phai bam qua bam lai.
+  const host = el.querySelector(`#ms-${id}`);
+  const fNh = MS(host, id+'nh', 'nhánh',
+    ['latent_bottleneck','none','cwe','latent_proto'], ()=>draw());
+  const fOp = MS(host, id+'op', 'Pha 2', ['adamw','recadam'], ()=>draw());
+  const fBb = MS(host, id+'bb', 'backbone', bbs.slice(), ()=>{ redrawHead(); draw(); });
+  function shownBB(){ return bbs.filter(b=>fBb.has(b)); }
+  function redrawHead(){
+    const h = el.querySelector('thead tr');
+    h.innerHTML = `<th data-s="mo_ta">Phương pháp</th><th data-s="n">n</th>`
+      + shownBB().map(b=>`<th data-s="${b}">${BBL[b]}</th>`).join('');
+    h.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
+      const k=th.dataset.s; if(st.sort===k) st.dir*=-1; else {st.sort=k; st.dir=-1;} draw();}));
+  }
+  function rows(){
+    const mt=el.querySelector(`#mt-${id}`).value;
+    let r=DATA.slice();
+    r = r.filter(x=>fNh.has(x.nhanh) && fOp.has(x.opt));
+    const vis = shownBB();
+    const nn=+el.querySelector(`#nn-${id}`).value; if(nn) r=r.filter(x=>x.n>=nn);
+    if(el.querySelector(`#sg-${id}`).checked)
+      r=r.filter(x=>vis.some(b=>x.bb[b]&&x.bb[b][mt]&&x.bb[b][mt].p!=null&&x.bb[b][mt].p<0.05));
+    if(el.querySelector(`#nz-${id}`).checked)
+      r=r.filter(x=>vis.some(b=>x.bb[b]&&x.bb[b][mt]&&Math.abs(x.bb[b][mt].d)>=NOISE));
+    r.sort((a,b)=>{
+      if(st.sort==='mo_ta') return st.dir*a.mo_ta.localeCompare(b.mo_ta,'vi');
+      if(st.sort==='n') return st.dir*(a.n-b.n);
+      const va=a.bb[st.sort]&&a.bb[st.sort][mt]?a.bb[st.sort][mt].d:-9;
+      const vb=b.bb[st.sort]&&b.bb[st.sort][mt]?b.bb[st.sort][mt].d:-9;
+      return st.dir*(va-vb);
+    });
+    return {r,mt,vis};
+  }
+  function draw(){
+    const {r,mt,vis}=rows();
+    el.querySelector(`#c-${id}`).textContent=`${r.length}/${DATA.length} phương pháp`;
+    el.querySelector(`#b-${id}`).innerHTML=r.map(x=>{
+      const chot = x.tag==='aw_r2p0' && x.nhanh==='latent_bottleneck';
+      return `<tr class="${chot?'key':''}"><td>${chot?'<strong>':''}${x.mo_ta}${chot?'</strong>':''}`
+        + `<span class="mt">${x.nhanh} · ${x.tag} · ${x.opt}${x.lam!=='0.05'?' · λ='+x.lam:''}</span></td>`
+        + `<td class="v">${x.n}</td>` + vis.map(b=>cell(x.bb[b]&&x.bb[b][mt])).join('') + '</tr>';
+    }).join('') || `<tr><td colspan="${vis.length+2}" style="text-align:center;color:var(--ink3);padding:12px">không có dòng nào khớp bộ lọc</td></tr>`;
+  }
+  redrawHead();
+  el.querySelectorAll('select,input[type=checkbox]:not(.msp input)').forEach(x=>x.addEventListener('input',draw));
+  el.querySelector(`#rs-${id}`).addEventListener('click',()=>{
+    fNh.clear(); fOp.clear(); fBb.clear();
+    el.querySelector(`#nn-${id}`).value='0';
+    ['sg','nz'].forEach(k=>el.querySelector(`#${k}-${id}`).checked=false); draw();});
+  draw();
+  return {setNhanh(vs){ fNh.set(vs); redrawHead(); draw(); }};
+}
+const A=makePane(document.getElementById('paneA'),'a',false);
+document.getElementById('tot').textContent=DATA.length+' phương pháp × 5 backbone';
+document.getElementById('nm').textContent=DATA.length;
+let B=null,C=null;
+const b1=document.getElementById('m1'),b2=document.getElementById('m2');
+const w2=document.getElementById('wrap2'),pA=document.getElementById('paneA');
+b1.addEventListener('click',()=>{b1.classList.add('on');b2.classList.remove('on');pA.hidden=false;w2.hidden=true;});
+b2.addEventListener('click',()=>{
+  b2.classList.add('on');b1.classList.remove('on');pA.hidden=true;w2.hidden=false;
+  if(!B){
+    B=makePane(document.getElementById('paneB'),'b',true);
+    C=makePane(document.getElementById('paneC'),'c',true);
+    B.setNhanh(['latent_bottleneck']); C.setNhanh(['none','cwe','latent_proto']);
+    document.getElementById('paneB').insertAdjacentHTML('afterbegin',
+      '<h3>Bảng trái <span class="tag">lọc độc lập</span></h3>');
+    document.getElementById('paneC').insertAdjacentHTML('afterbegin',
+      '<h3>Bảng phải <span class="tag">lọc độc lập</span></h3>');
+  }});
+})();
+</script>
