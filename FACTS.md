@@ -2580,3 +2580,9 @@ giữ vì chúng trả lời một câu có thật (ρ=2.0 không hợp codebert
 **"Tốt nhất" là phát biểu về số ĐÃ ĐO, không phải về khoảng trống trong lưới.** Chưa đo thì là
 *chưa biết*. Muốn thăm dò ô chưa đo thì đó là thí nghiệm riêng và phải hỏi (CLAUDE.md mục 9),
 không được gói vào khối "chạy cấu hình tốt nhất".
+
+**Mặt được của cái lỗi đó**: 8 ô `r2p0` và các ô `r0p1` của codebert nằm trong **cùng một cây,
+cùng fold, cùng nguồn, cùng baseline, cùng máy, cùng phiên**. Nên khi `r0p1` đủ 4 fold × 2 nguồn,
+sẽ có **8 cặp ghép được thật** cho câu hỏi "ρ nào hợp codebert" — mạnh hơn hẳn §32, nơi buộc phải
+lấy hiệu của hai Δ tính ở hai khối khác nhau (đúng chỗ yếu §25.9 đã cảnh báo). Đọc bằng
+`tools/rho_paired.py results/chot_codebert r2p0 r0p1`. Ở n=8 sàn phép thử dấu là p=0.0078.
