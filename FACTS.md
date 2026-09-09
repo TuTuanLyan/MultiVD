@@ -2162,3 +2162,34 @@ chỉ, không báo gì; (c) cache hợp lệ nhưng rỗng → trả **rỗng**,
 tiến trình**, dù `mv` là nguyên tử. Cái nguyên tử là `mv`, không phải việc ghi. Đường dẫn tạm phải
 mang `$$` hoặc dùng `mktemp`. Và mọi cache phải kiểm lúc **đọc** — chỉ kiểm lúc ghi thì một lần
 hỏng là hỏng vĩnh viễn.
+
+---
+
+## §27 — Nội suy TRỌNG SỐ: ô đầu tiên nói KHÔNG (09/09 06:00, n=1 — sơ bộ)
+
+`run/wblend.sh` chạy thật lần đầu. Ô đầu tiên (`4cwe`, fold 1, t5p) — **101 tensor nội suy được,
+4 tensor riêng của nhánh chuyển giao giữ nguyên**, đúng như cơ chế đã kiểm ở §25.5.
+
+| α (không gian **trọng số**) | 0.0 | 0.2 | **0.5** | 0.8 | 1.0 |
+|---|---|---|---|---|---|
+| test ROC-AUC | 0.8762 | 0.8736 | **0.8668** | 0.8821 | **0.8911** |
+| test F1@0.5 | 0.7696 | 0.7753 | **0.7456** | 0.7871 | **0.8211** |
+
+**Đường α trong không gian trọng số LÕM XUỐNG GIỮA** — ngược hẳn với không gian xác suất (§25,
+đỉnh nội tại ở α≈0.5). α=0.5 **kém cả hai đầu mút**. Và **α chọn trên VAL = 1.0** trên cả hai tiêu
+chí, tức tập val tự nói *"chỉ dùng mô hình chuyển giao, nội suy trọng số không đóng góp gì"*.
+
+Đối chiếu trên **cùng cặp**: trộn **xác suất** α=0.5 cho ROC **0.8910** — ngang với mô hình chuyển
+giao một mình (0.8911) và hơn mọi mức nội suy trọng số ở giữa.
+
+**Đọc**: hai mô hình **không nối tuyến tính** theo nghĩa WiSE-FT cần — có một *hàng rào* giữa
+chúng. Phép thử ở §25.5 (trộn 50/50 hai bản codebert vẫn ra mô hình chạy được) đã gợi ý ngược lại,
+nhưng đó là **cặp khác** (hai baseline khác fold), còn cặp thật (baseline ↔ chuyển giao qua Pha 1)
+thì có hàng rào. Bài học: *"kiểm cơ chế trên một cặp thay thế"* rẻ và đáng làm, nhưng **không thay
+được cặp thật**.
+
+**Hệ quả cho phương pháp**: phép trộn của §25 vẫn phải giữ **hai mô hình khi suy luận**. Đó là một
+giới hạn phải nêu trong bài, không phải thứ có thể lấp bằng nội suy trọng số.
+
+**n=1 — sơ bộ.** Khối chạy 3 nguồn × 3 fold = 9 ô; sẽ cập nhật khi đủ. Nhưng cơ chế (val chọn
+α=1.0, đường lõm) rõ ngay ở ô đầu.

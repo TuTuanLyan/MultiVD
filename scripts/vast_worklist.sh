@@ -24,7 +24,7 @@ PY="${PYTHON:-$( for c in /venv/main/bin/python /data/ntat/envs/vdenv/bin/python
 [ -n "$PY" ] || { echo "!! khong tim thay python co torch tren may nay"; exit 2; }
 # LOCK/JOBPAT cho phep ghi de DE KIEM DUOC: mac dinh y het truoc.
 LOCK="${LOCK:-/tmp/multivd_opt1.lock}"
-JOBPAT="${JOBPAT:-[s]rc/train_[a-z]*\.py}"
+JOBPAT="${JOBPAT:-[s]rc/train_[a-z]*\.py\|[t]ools/wblend\.py}"
 exec 8>/tmp/mvd_worklist.lock || exit 1
 flock -n 8 || { echo "DA CO worklist dang chay"; exit 3; }
 ts(){ date -u '+%F %T'; }

@@ -25,7 +25,7 @@ for L in ntat ntat2; do
   if [[ -z "${H:-}" || "${P:-None}" == "None" ]]; then say "$L | KHONG giai duoc dia chi"; continue; fi
   SSH="ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=15 -p $P"
   out=$(timeout 90 $SSH root@"$H" "cd $R 2>/dev/null || exit 1
-echo job=\$(ps -eo args --no-headers | grep -c '[s]rc/train_[a-z]*\.py')
+echo job=\$(ps -eo args --no-headers | grep -c '[s]rc/train_[a-z]*\.py\|[t]ools/wblend\.py')
 echo wl=\$(ps -eo args --no-headers | grep -c '[v]ast_worklist.sh')
 echo todo=\$(grep -vc '^\s*#\|^\s*$' log/worklist.txt 2>/dev/null)
 echo done=\$(grep -xF -f <(grep -v '^\s*#\|^\s*\$' log/worklist.txt) log/worklist.done 2>/dev/null | grep -c .)
