@@ -108,6 +108,27 @@ def main():
     show("B  (AdamW, khong SAM)    −  baseline", B)
     show("A − B   RIENG phan optimizer dong gop (ghep cap trong CUNG o)", AB)
 
+    # --- Bang TRI TUYET DOI. Delta tra loi "hon bao nhieu", khong tra loi "bao nhieu".
+    # Thay huong dan doc bang truoc het, nen phai co ca hai. Kem phase1_val cua chinh
+    # checkpoint da dung (CLAUDE.md muc 3: o nao cung phai gan val Pha 1, de nguoi doc
+    # thay ngay "Pha 1 sap" thay vi doan tu mot Delta am).
+    print("\n=== TRI TUYET DOI (trung binh qua fold) ===")
+    print(f"{'backbone':<11}{'nguon':<7}{'nhanh':<10}{'n':>3}" +
+          "".join(f"{m:>11}" for m,_ in MET) + f"{'val Pha1':>10}")
+    abs_rows = defaultdict(list)
+    for (root,bb,src,seed,fold),v in cells.items():
+        for tag,d in v.items(): abs_rows[(bb, src if tag!="baseline" else "-", tag)].append(d)
+    order = {"baseline":0, "r2p0":1, "plain":2}
+    for k in sorted(abs_rows, key=lambda k:(k[0], k[1], order.get(k[2],9))):
+        bb,src,tag = k; lst = abs_rows[k]
+        line = f"{bb:<11}{src:<7}{tag:<10}{len(lst):>3}"
+        for _,f in MET:
+            vs=[d[f] for d in lst if d.get(f) is not None]
+            line += f"{np.mean(vs):>11.4f}" if vs else f"{'-':>11}"
+        p1=[d["phase1_val_macro_f1"] for d in lst if d.get("phase1_val_macro_f1") is not None]
+        line += f"{np.mean(p1):>10.4f}" if p1 else f"{'-':>10}"
+        print(line)
+
     # per-CWE cho cau hoi chinh cua ca du an
     from sklearn.metrics import roc_auc_score
     print("\n=== A − baseline, DROC-AUC theo CWE ===")

@@ -2339,8 +2339,21 @@ chỉ thêm `_l02` khi λ=0.02:
 
 Đối chiếu `training_args` của bản s42 và bản tôi vừa train: **trùng khít mọi trường** —
 `microsoft/codebert-base` · `cls` · `latent_bottleneck` · λ 0.05 · `fixed4` · 4 lớp · 15 epoch ·
-lr 2e-5 · `sam_rho 0` · seed 42 · `num_latent 8`. Chỉ khác `best_val_macro_f1` (0.6532 vs 0.6976)
-— dao động giữa các lần chạy, và §B.2c đã cho thấy val Pha 1 **không** dự báo transfer.
+lr 2e-5 · `sam_rho 0` · seed 42 · `num_latent 8`. Khác duy nhất là `best_val_macro_f1`, dao động
+giữa các lần chạy — và §B.2c đã cho thấy val Pha 1 **không** dự báo transfer, nên nó không phải
+lý do để chọn bản nào.
+
+> **Đính chính**: bản ghi đầu của mục này nêu "0.6532 vs 0.6976". Con số 0.6976 **không truy được
+> nguồn**: bản tôi tự huấn luyện lại đã bị ghi đè bằng bản s42 và không còn dòng log nào giữ val
+> của nó. Trùng hợp là **0.697621 đúng bằng val Pha 1 của `t5p`/`4cwe`** — nhiều khả năng tôi đọc
+> nhầm dòng của backbone kia. Giá trị s42 (0.6532) thì kiểm lại được bất cứ lúc nào từ chính
+> checkpoint. Đã kiểm cả sáu checkpoint đang dùng: mỗi cái mang đúng `model_name` và `pooling` của
+> backbone nó, không có chuyện lẫn đường dẫn.
+
+| | 4cwe | com | full |
+|---|---|---|---|
+| codebert (`cls`) | 0.6532 | 0.5598 | 0.5636 |
+| t5p (`mean`) | 0.6976 | 0.5897 | 0.5648 |
 
 Đã dùng bản **s42 cho cả ba nguồn** (cùng xuất xứ, tránh confound phiên bản thư viện) và đẩy lên
 vast; log xác nhận `phase1 ... | da co, dung lai`.
