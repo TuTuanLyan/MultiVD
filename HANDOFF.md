@@ -20,6 +20,37 @@ hiểu sai.
 > Đọc mục này trước. Bên dưới (§0.1 trở đi) là bản ghi lúc 00:40 UTC, giữ lại để tra cứu
 > nhưng **đã lạc hậu**: các khối nêu ở đó đã xong. Trạng thái máy hiện tại ở `CURRENT_RUN.md`.
 
+### 0.-1 ĐANG CHẠY 09/09 chiều — khối `chot`, hai backbone × hai điều kiện, n=5
+
+Cấu hình: `latent_bottleneck` λ=0.05, seed 42, đích `sven_python_folds_norm`.
+**A** = `r2p0` (RecAdam + ASAM ρ=2.0). **B** = `plain` (AdamW, không SAM). Đối chứng `baseline`
+(không Pha 1) dùng chung cho cả hai, cùng máy cùng fold.
+
+| máy | backbone | fold | nguồn | cây kết quả | mốc |
+|---|---|---|---|---|---|
+| vast `ntat` id 50132360 (5060 Ti) | codebert | 1–5 | `4cwe`,`com` → `full` | `results/chot_codebert` | 35 ô |
+| ↳ rồi t5p | t5p | **4–5** | như trên | `results/chotv_t5p` | 14 ô |
+| 161 (A4000, dùng chung) | t5p | **1–3** | như trên | `results/chot_t5p` | 21 ô |
+
+Chia theo **fold trọn vẹn** (CLAUDE.md mục 4) vì 161 chậm ~3,3× nên vast sẽ nằm không 6,4 giờ.
+`scripts/watch_chot.sh` (cron 10 phút) tự chuyển nấc cho từng máy. Đọc bằng
+`python3 tools/chot_report.py` (mặc định gộp cả ba cây; nó khoá ô theo `(cây, backbone, seed,
+fold)` nên không bắc cầu qua máy).
+
+**Pha 1 dùng lại cả sáu**, không huấn luyện lại cái nào (`val` đọc từ chính checkpoint):
+
+| | 4cwe | com | full |
+|---|---|---|---|
+| codebert | 0.6532 | 0.5598 | 0.5636 |
+| t5p | 0.6976 | 0.5897 | 0.5648 |
+
+**Ba việc chưa làm, ghi để không mất:**
+- §30.1 — chưa từng đo head phụ có học được gì không. Sàn lớp-đa-số: `4cwe` 0.744, `com` 0.377,
+  `full` 0.529. Đo được bằng một lượt forward CPU trên checkpoint đã có.
+- §30 — `cwe_mapping` trong checkpoint `com`/`full` ghi bộ 4 CWE trong khi `num_cwes=10`. Chỉ
+  được ghi, chưa bao giờ được đọc; sửa `train_transfer.py:462` nếu muốn siêu dữ liệu đúng.
+- `run/wblend.sh` chưa chạy lại được (dọn checkpoint theo fold nên lần chạy bù không có gì để nội suy).
+
 ### 0.0 KẾT QUẢ ĐẦU BÀI — §28, cấu hình chốt ở bậc 3
 
 `latent_bottleneck` (nút thắt 8 chiều) + λ=0.05 + Pha 2 dùng **AdamW + ASAM ρ=2.0**, so với
