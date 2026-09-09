@@ -1580,3 +1580,88 @@ trước bản vá đếm hiện vật), nên không có cảnh báo nào. Máy 
 **Quy tắc rút ra:** đẩy một wrapper mà không đẩy thứ nó `exec` là một lỗi im lặng
 nữa. Trước khi xếp một script vào worklist của máy xa, phải kiểm **mọi file nó gọi
 đến** đã có trên máy đó chưa.
+
+---
+
+## §25 — TRỘN ĐỀU baseline ⊕ chuyển giao: vượt CẢ HAI đầu mút (09/09/2026, 0 GPU)
+
+**Đây là câu trả lời cho yêu cầu 09/09 của người dùng**: một phương thức *không phụ thuộc
+backbone*, *không quét siêu tham số*, chứng minh chuyển giao có lợi cho đích cùng miền nhưng
+yếu, và nâng riêng hai CWE hiếm 022/079.
+
+### Phép đo
+
+`tools/ensemble2.py`. Với mỗi ô đã có, trộn xác suất từng mẫu:
+`p(α) = (1−α)·p_baseline + α·p_chuyển_giao`, rồi chấm lại. **Không tốn GPU** — mọi ô đã lưu
+`test_probabilities`, `test_labels`, `test_cwe_classes`.
+
+Đơn vị độc lập là **KHỐI** `(cây kết quả, run, seed, fold)`, không phải ô: 536 nhánh chia nhau
+83 baseline, nên một baseline yếu kéo cả chùm nhánh của nó cùng dấu. Trung bình các nhánh
+**trong** một khối trước, rồi mới đếm dấu trên **83 khối**. Đếm trên 536 ô là thổi phồng.
+
+Lọc: `latent_bottleneck` (cấu hình đã chốt §7), Pha 1 val ≥ 0.40, bỏ các nhánh đã biết là hỏng
+(`lm12 lm25 pur12 pur25 pur50 r4p0 r8p0 e60`) — giữ chúng lại thì α=1.0 xấu đi vì lý do không
+liên quan đến chuyển giao.
+
+### Kết quả — 83 khối, hai backbone
+
+| | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| **α=0.5 vs baseline** | **+0.0311 (72/83, p<1e-4)** | **+0.0126 (65/83, p<1e-4)** | **+0.0136 (67/83, p<1e-4)** |
+| α=1.0 (chuyển giao thuần) vs baseline | +0.0163 (54/83, p=0.008) | **−0.0039** (53/83) | **−0.0098** (47/83, p=0.27) |
+| **α=0.5 vs α=1.0** (ghép cặp) | +0.0148 (50/83, **p=0.078 — KHÔNG có ý nghĩa**) | **+0.0165 (59/83, p=0.0002)** | **+0.0235 (62/83, p<1e-4)** |
+
+Bản trộn **vượt cả hai đầu mút** trên hai chỉ số xếp hạng. Trên F1@0.5 nó vượt baseline nhưng
+**không** vượt được chuyển giao thuần một cách có ý nghĩa — phải nêu, không được gộp.
+
+### Vì sao điều đó là một LẬP LUẬN, không chỉ một con số
+
+Phản biện lớn nhất của nhánh này là *"finetune hai lần thì tất nhiên hơn một lần"*. Nếu Pha 1
+chỉ là "huấn luyện thêm", hai mô hình **thừa** nhau và điểm bản trộn phải nằm **giữa** hai đầu
+mút. Nó nằm **trên cả hai** ⇒ hai mô hình sai ở **chỗ khác nhau** ⇒ Pha 1 đưa vào thông tin mà
+mô hình chỉ-đích không có. Đó là bằng chứng trực tiếp chống lại phản biện đó.
+
+### Không phụ thuộc backbone
+
+| backbone | khối | ΔF1@0.5 | ΔROC | ΔPR | ΔROC vs α=1 |
+|---|---|---|---|---|---|
+| codet5p | 68 | +0.0319 (58/68) | +0.0126 (53/68) | +0.0143 (56/68) | +0.0172 (46/68, p=0.005) |
+| codebert | 15 | +0.0275 (14/15) | +0.0129 (12/15) | +0.0106 (11/15) | +0.0132 (13/15, p=0.007) |
+
+Hai backbone cho **cùng biên độ**, sai khác dưới sàn nhiễu 0.010.
+
+### Cơ chế: bản trộn giữ phần được, bỏ phần mất (ΔROC-AUC theo CWE)
+
+| CWE | tỉ lệ test | α=1.0 (chuyển giao thuần) | **α=0.5 (trộn đều)** |
+|---|---|---|---|
+| **022** | 9% | +0.2275 (75/83) | **+0.0967 (74/82, p<1e-4)** |
+| **079** | 11% | +0.2379 (81/83) | **+0.1513 (81/83, p<1e-4)** |
+| 078 | 27% | **−0.0288 (17/83, p<1e-4 — hại có ý nghĩa)** | −0.0014 (40/81, **p=1.00 — đúng null**) |
+| 089 | 54% | −0.0213 (31/83) | **+0.0036 (56/83, p=0.0019 — lợi**) |
+
+Chuyển giao thuần **hại có ý nghĩa** trên CWE-078 và hại trên 089 — hai lớp chiếm 81% hàng test,
+nên chúng nuốt hết phần được ở hai lớp hiếm và làm ΔROC tổng thành âm. Trộn đều **xoá sạch phần
+hại** (078 về đúng null, 089 thành lợi) mà vẫn giữ 43% phần được ở CWE-022 và 64% ở CWE-079.
+Đó là lý do ΔROC tổng lật từ −0.0039 sang +0.0126.
+
+### Ba giới hạn phải nêu
+
+1. **α=0.5 là lựa chọn KHÔNG THAM SỐ khai báo trước** (hai mô hình một phiếu ngang nhau), không
+   phải giá trị dò trên test. Đường α đầy đủ chỉ để chẩn đoán hình dạng. Không ô cũ nào lưu xác
+   suất trên **val** nên không chọn α trên val được ngoài tuyến — đã vá `src/train_transfer.py`
+   và `src/train_baseline.py` ghi thêm `val_probabilities`/`val_labels` từ 09/09, mọi ô mới
+   chọn được α trên val.
+2. **F1@ngưỡng-val không tính được ngoài tuyến** vì ngưỡng của bản trộn phải hiệu chỉnh trên val.
+   Bảng trên chỉ có ba chỉ số. Bịa ngưỡng từ test là rò rỉ — không làm.
+3. **Chưa loại được phản biện "trộn hai mô hình nào cũng lợi"** (trung bình hoá phương sai).
+   Không kiểm ngoài tuyến được: 21 cặp baseline đa-seed duy nhất trong kho là của khối 47, chạy
+   trước khi lưu xác suất từng mẫu. `run/ensctl.sh` đã xếp vào worklist ntat: baseline seed 7 và
+   1234, 5 fold, ghi vào đúng cây `asamaw_t5p` đã có baseline seed 42 → trộn baseline⊕baseline
+   ghép cặp cùng máy cùng fold. **§25 chưa được trích khi chưa có đối chứng đó.**
+
+### Giá phải trả
+
+Suy luận **hai lần** (hai mô hình). `train_transfer.py:1086 sweep_source_interpolation` đã có sẵn
+phép nội suy **trọng số** θ_Pha1 ⊕ θ_Pha2 (WiSE-FT, chọn α trên val) — nhưng đó là **cặp khác**.
+Cặp ở đây là baseline ⊕ chuyển giao, hai mô hình *cùng tác vụ đích*, và nội suy trọng số của cặp
+đó chưa đo. Nếu nó chạy được thì chi phí suy luận về lại một mô hình.

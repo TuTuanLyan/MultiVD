@@ -1307,6 +1307,12 @@ def run_test(args, device):
         # o train / o test / khong co) — xem RESEARCH §9. Khong co truong nay thi diem tong
         # tron ca ba nhom lai va khong doc duoc mo hinh dua vao dau.
         # Thu tu giu nguyen thu tu hang trong test.jsonl (DataLoader shuffle=False).
+        # XAC SUAT TREN VAL. Them 09/09/2026: khong co truong nay thi moi phep TRON
+        # hai mo hinh (baseline <-> chuyen giao) chi chon duoc he so tron tren TEST,
+        # tuc ro ri. Co val thi he so chon tren val va bao tren test — hop le.
+        # Chi phi: ~150 so moi o.
+        "val_probabilities": [round(float(x), 6) for x in val["probabilities"]],
+        "val_labels": [int(x) for x in val["labels"]],
         "test_probabilities": [round(float(x), 6) for x in test["probabilities"]],
         "test_labels": [int(x) for x in test["labels"]],
         "test_cwe_classes": [int(x) for x in test["cwe_classes"]],
