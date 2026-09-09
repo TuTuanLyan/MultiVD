@@ -1838,3 +1838,46 @@ dấu ở cả ba chỉ số và vượt sàn ở F1; chuyển giao thuần thì
 Danh sách có đúng một mục cho mỗi hàng TEST. Bản đầu tôi lọc bỏ `val` → độ dài lệch → **100/100
 khối bị bỏ im lặng**, công cụ in bảng rỗng mà không báo lỗi. Đã thêm nhóm `val` thành một nhóm
 riêng và đếm số ô bị bỏ ra đầu bảng.
+
+---
+
+## §25.5 — Nội suy TRỌNG SỐ baseline ⊕ chuyển giao: cơ chế đã kiểm, khối đã xếp (09/09/2026)
+
+§25 cho một phương thức nhưng nó tốn **hai lần suy luận**. Nếu trộn được trong không gian
+**trọng số** thì chi phí về lại một mô hình — đó là khác biệt giữa một mẹo ensemble và một
+phương thức triển khai được. Câu này **chưa ai trong dự án trả lời**.
+
+**Cơ chế đã kiểm trước khi tiêu GPU** (nguyên tắc "đo cơ chế trước"):
+
+1. **Đọc `src/model.py`, 0 GPU**: `BaselineModel` và `TransferModel` chia đúng `backbone.*` +
+   `vul_head.{weight,bias}` — cùng tên, cùng shape. `latent_proj.*` và `cwe_head.*` chỉ có ở
+   bản chuyển giao và **không nằm trên đường tính `vul_logits`**.
+2. **Chạy thật `tools/wblend.py`**: **201 tensor nội suy được, đúng 4 bị bỏ** — và bốn cái đó
+   đúng là `latent_proj.{weight,bias}`, `cwe_head.{weight,bias}`. Vậy phép nội suy xác định
+   được cho **mọi** tensor có tác dụng lên dự đoán.
+
+**Kiểm công cụ hai chiều** (bắt buộc, theo bài học `bash -n` không đủ):
+
+| kiểm | kỳ vọng | kết quả |
+|---|---|---|
+| cùng MỘT checkpoint hai đầu | mọi α cho số **y hệt** | α=0/0.5/1 đều F1 0.4818, ROC 0.6431 ✓ |
+| HAI checkpoint khác nhau | các α phải **khác nhau** | ROC 0.9765 / 0.9608 / 0.6431 ✓ |
+
+**Kết quả phụ đáng giá từ kiểm 2**: trộn 50/50 hai bản fine-tune **khác nhau** (khác fold, khác
+bộ dữ liệu) vẫn ra **mô hình chạy được** — ROC 0.9608, nằm giữa hai đầu mút, không sập về ngẫu
+nhiên. Nếu hai bản nằm ở hai lòng chảo khác nhau thì α=0.5 phải sập. Vậy hai bản fine-tune từ
+cùng pretrained init của kiến trúc này **nằm trong vùng nối tuyến tính** — điều kiện mà WiSE-FT
+cần. Nội suy trọng số là khả thi, không phải bắn mò.
+
+> Con số trong hai phép kiểm trên **KHÔNG có nghĩa khoa học**: hai checkpoint khác fold, khác bộ
+> dữ liệu, và chỉ chấm trên 32 hàng (`--max_eval 32`, cờ chỉ dùng để kiểm đường ống). Chúng chỉ
+> chứng minh công cụ đúng.
+
+**Đã xếp trên ntat**, sau `ensctl`: `run/wblend.sh|4cwe com full|1 2 3` — bậc 1 (3 fold, seed 42),
+α chọn trên **VAL**, báo trên TEST, và in kèm phép trộn **xác suất** α=0.5 trên **cùng cặp** để so
+sánh trực tiếp. Khối này cũng sinh ra ô có `val_probabilities` nên gỡ luôn **giới hạn số 2 của
+§25** (α chỉ chọn được trên test).
+
+**Thay đổi kèm theo**: `run/matrix.sh` thêm cờ `KEEP_CKPT=1` để giữ checkpoint Pha 2 (mặc định
+vẫn **XOÁ** — `model/` đã 41GB và đĩa từng đầy 98% làm cụt `torch.save`, §16). `run/wblend.sh`
+dọn checkpoint **ngay sau mỗi fold** và từ chối chạy nếu đĩa dưới 12GB. Cổng đã kiểm hai chiều.

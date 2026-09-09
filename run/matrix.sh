@@ -346,7 +346,10 @@ run_fold() {
         --checkpoint_path "$CK/best.pt" \
         ${BASELINE_SOURCE_EVAL:+--source_eval_data "$BASELINE_SOURCE_EVAL"} \
         $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_baseline_fold${FOLD}.log" 2>&1
-    rm -rf "$CK"
+    # KEEP_CKPT=1: giu checkpoint Pha 2 lai. Mac dinh van XOA — model/ da 41GB va
+    # dia tung day 98% roi lam cut torch.save (§16). Chi bat cho khoi noi suy
+    # trong so, va phai don tay sau.
+    [[ "${KEEP_CKPT:-0}" == 1 ]] || rm -rf "$CK"
     if [[ ! -f "$RES/fold$FOLD.json" ]]; then
       FAILED=$((FAILED + 1))
       echo "  !! $LABEL baseline fold$FOLD THAT BAI — xem $JOBLOG/${LABEL}_baseline_fold${FOLD}.log"
@@ -394,7 +397,10 @@ run_fold() {
             ${SOURCE_EVAL_DATA:+--source_eval_data "$SOURCE_EVAL_DATA"} \
             ${SOURCE_INTERP_GRID:+--source_interp_grid "$SOURCE_INTERP_GRID"} \
             $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log" 2>&1
-        rm -rf "$CK"
+        # KEEP_CKPT=1: giu checkpoint Pha 2 lai. Mac dinh van XOA — model/ da 41GB
+        # va dia tung day 98% roi lam cut torch.save (§16). Chi bat cho khoi noi
+        # suy trong so, va phai don tay sau.
+        [[ "${KEEP_CKPT:-0}" == 1 ]] || rm -rf "$CK"
         if [[ ! -f "$RES/fold$FOLD.json" ]]; then
           FAILED=$((FAILED + 1))
           echo "  !! $LABEL/${MODE}${ARM_TAG}/$OPT fold$FOLD THAT BAI — xem $JOBLOG/${LABEL}_${ARM}_fold${FOLD}.log"
