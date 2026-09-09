@@ -1,0 +1,119 @@
+<div class="wrap">
+
+<header class="prose">
+  <div class="eyebrow">MultiVD · chuyển giao xuyên ngôn ngữ cho phát hiện lỗ hổng Python · 09/09/2026</div>
+  <h1>Sổ kết quả thực nghiệm</h1>
+  <p class="lede">Toàn bộ <strong>1 003 phép so sánh</strong> đã chạy, rút từ <strong>3 063 ô</strong>
+  kết quả trên 5 backbone và 4 máy. Mỗi Δ ghép cặp <em>theo từng fold</em> trong cùng một máy —
+  không bao giờ lấy hiệu của hai trung bình. Mọi dòng đều in <strong>đủ bốn chỉ số</strong> kèm
+  <strong>số fold cùng dấu</strong>.</p>
+</header>
+
+<section>
+  <h2>Chứng minh đã qua những gì</h2>
+  <p class="prose">Mỗi phát hiện chính đi qua các phép kiểm dưới đây. <span class="yes">✓</span> đã
+  qua · <span class="part">±</span> qua một phần · <span class="run">▸</span> đang chạy ·
+  <span class="no">—</span> chưa áp dụng.</p>
+  <div class="card proof">
+  <table class="pf">
+    <thead><tr>
+      <th>Phát hiện</th><th>Ghép cặp<br>từng fold</th><th>Đủ bốn<br>chỉ số</th>
+      <th>≥2 backbone</th><th>≥2 máy<br>độc lập</th><th>n=15<br>(bậc 3)</th>
+      <th>Kiểm<br>rò rỉ</th><th>Đối chứng<br>âm</th></tr></thead>
+    <tbody>
+      <tr><td><strong>§25</strong> Trộn đều baseline ⊕ chuyển giao vượt cả hai đầu mút</td>
+        <td class="yes">✓</td><td class="part">±</td><td class="yes">✓</td><td class="yes">✓</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="run">▸</td></tr>
+      <tr><td><strong>§23</strong> Chuyển giao cứu hai CWE hiếm 022 / 079</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+      <tr><td><strong>§24</strong> ASAM ρ=2.0 mạnh hơn khi bỏ neo RecAdam</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td>
+        <td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+      <tr><td><strong>§21</strong> Trục ρ của ASAM có đỉnh nội tại ở ρ≈1–2</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="part">±</td><td class="yes">✓</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td><strong>B.2e</strong> Pha loãng nguồn dưới ~25% CWE đích phá khái quát hoá</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
+        <td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td><strong>§22</strong> Head cải thiện <em>quyết định</em>, ASAM cải thiện <em>xếp hạng</em></td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
+        <td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+      <tr><td><strong>§20</strong> Finetune hai lần thuần — đối chứng, không phải phát hiện</td>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td>
+        <td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <strong>Hai ô chưa xanh, nêu thẳng.</strong> §25 mới <em>một phần</em> ở cột “đủ bốn chỉ số”:
+    F1@ngưỡng-val của bản trộn <strong>không</strong> tính được ngoài tuyến vì ngưỡng phải hiệu
+    chỉnh trên tập val, mà các ô cũ không lưu xác suất val — bịa ngưỡng từ test là rò rỉ. Và cột
+    “đối chứng âm” của §25 <strong>đang chạy</strong> (trộn hai baseline khác seed): nếu nó cũng
+    cho +0.013 ROC thì §25 sập. <strong>Chưa có kết quả đó thì §25 chưa được trích.</strong>
+  </div>
+</section>
+
+<section>
+  <h2>Giải thích ký hiệu</h2>
+  <p class="prose">Tên trong bảng ghép từ bốn phần: <code>khối</code> (đợt chạy) ·
+  <code>nhánh</code> (phương pháp) · <code>cấu hình</code> · <code>nguồn</code> (dữ liệu Pha 1).</p>
+
+  <div class="gl">
+    <div class="card"><h3>Nhánh — phương pháp ở Pha 2</h3><dl>
+      <dt>baseline</dt><dd><strong>Không có Pha 1.</strong> Chỉ finetune trên Python. Mọi Δ đều quy về nhánh này.</dd>
+      <dt>none</dt><dd>Có Pha 1 nhưng <strong>không có head phụ</strong> — tách riêng phần “được nhờ Pha 1” khỏi phần “được nhờ head”.</dd>
+      <dt>cwe</dt><dd>Head 4 lớp <strong>có nhãn CWE thật</strong>. Chỉ chạy được trên nguồn <code>4cwe</code> vì chỉ JS mới có nhãn.</dd>
+      <dt>latent_bottleneck</dt><dd><strong>Phương pháp đã chốt.</strong> Head qua nút thắt <code>Linear(H→8)→Linear(8→C)</code>, không cần nhãn CWE.</dd>
+      <dt>latent_proto</dt><dd>Head kiểu SwAV. <strong>Đã loại</strong> — ≈0 ở mọi khối, tự sập ở codebert×full.</dd>
+    </dl></div>
+
+    <div class="card"><h3>Nguồn Pha 1</h3><dl>
+      <dt>4cwe</dt><dd>930 dòng, đúng <strong>4 CWE</strong> của tập đích (79/78/22/89). Nguồn tinh khiết nhất.</dd>
+      <dt>com</dt><dd>3 744 dòng, 94 CWE chung giữa hai ngôn ngữ.</dd>
+      <dt>full</dt><dd>7 598 dòng, 123 CWE. <strong>Khó nhất</strong>, lệch mạnh về C/C++.</dd>
+      <dt>pur<i>N</i>_n930</dt><dd>Lưới <strong>độ tinh khiết</strong>: <i>N</i>% dòng thuộc 4 CWE đích, cỡ giữ nguyên 930.</dd>
+      <dt>lm<i>N</i>_n930</dt><dd>Lưới <strong>khớp ngôn ngữ</strong>: như trên nhưng <strong>ghim tỉ lệ JS ở 0.87</strong>, nên tách được tác dụng của CWE khỏi tác dụng của ngôn ngữ.</dd>
+    </dl></div>
+
+    <div class="card"><h3>Cấu hình ở Pha 2</h3><dl>
+      <dt>r0 … r8p0</dt><dd>ASAM với <strong>ρ = 0 / 0.1 / 0.2 / 0.5 / 1.0 / 2.0 / 4.0 / 8.0</strong> (<code>r2p0</code> = ρ 2.0), trên nền <strong>RecAdam</strong>.</dd>
+      <dt>aw_r0, aw_r2p0</dt><dd>Y hệt nhưng trên nền <strong>AdamW</strong> — bỏ neo. Tiền tố <code>aw_</code> để không trùng tên với nhánh RecAdam.</dd>
+      <dt>plain</dt><dd>AdamW, không SAM/ASAM.</dd>
+      <dt>c5000_t0p05…</dt><dd>Tham số neo <strong>RecAdam</strong>: <code>c</code> = hệ số kéo về, <code>t</code> = mốc ủ.</dd>
+      <dt>λ = 0.05 / 0.02</dt><dd>Trọng số loss phụ ở Pha 1. λ khác nhau thì <strong>không dùng lại được checkpoint Pha 1</strong>.</dd>
+      <dt>(gốc)</dt><dd>Cấu hình mặc định của khối, không có cờ thêm.</dd>
+    </dl></div>
+
+    <div class="card"><h3>Khối thí nghiệm</h3><dl>
+      <dt>s42</dt><dd>Lưới lớn seed 42 — <strong>cấu hình đã chốt 31/08</strong>, 784 ô.</dd>
+      <dt>m1, n1, r1</dt><dd>Ba lưới sớm: quét λ, quét backbone, quét nhánh.</dd>
+      <dt>opt1</dt><dd>Quét <strong>tham số neo RecAdam</strong> (12 cấu hình).</dd>
+      <dt>ret1</dt><dd>Đo <strong>giữ lại tri thức nguồn</strong> — “cái neo thật ra làm gì”.</dd>
+      <dt>spd1</dt><dd>Thay lịch thời gian của RecAdam bằng <strong>điều kiện gradient</strong> (SPD, NeurIPS 2024).</dd>
+      <dt>int1</dt><dd><strong>Nội suy θ<sub>Pha1</sub> ⊕ θ<sub>Pha2</sub></strong> — mô hình nguồn đóng góp được gì.</dd>
+      <dt>e60</dt><dd>Cho neo <strong>ngân sách gấp đôi</strong> (60 epoch thay vì 30).</dd>
+      <dt>asam1 / asamcb</dt><dd>Trục ρ của ASAM trên <strong>RecAdam</strong>; <code>asamcb</code> là bản lặp trên codebert.</dd>
+      <dt>asamaw</dt><dd><strong>ASAM ρ=2.0 trên AdamW</strong> — ô quyết định: hiệu ứng còn không khi bỏ neo.</dd>
+      <dt>pool1 / poolcb</dt><dd>Lưới <strong>nguồn</strong> (tinh khiết + khớp ngôn ngữ); <code>poolcb</code> là bản codebert.</dd>
+      <dt>n48, sw, l1, ft2</dt><dd>Kho Pha 1 dùng chung; quét ρ đêm 48; trục λ trên t5pe; đối chứng finetune hai lần.</dd>
+    </dl></div>
+
+    <div class="card"><h3>Bốn chỉ số — và cách đọc</h3><dl>
+      <dt>F1@0.5</dt><dd>Macro-F1 ở ngưỡng cố định 0.5 — <strong>quyết định</strong>.</dd>
+      <dt>F1@val</dt><dd>Macro-F1 ở ngưỡng hiệu chỉnh trên tập val — <strong>quyết định sau hiệu chỉnh</strong>.</dd>
+      <dt>ROC-AUC</dt><dd><strong>Xếp hạng</strong>, không phụ thuộc ngưỡng.</dd>
+      <dt>PR-AUC</dt><dd>Xếp hạng, nhạy hơn với lớp dương.</dd>
+      <dt>x/n</dt><dd><strong>Số fold cùng dấu</strong> trên tổng số fold ghép cặp. <em>Đọc cái này trước khi đọc trung bình</em> — một ô cực trị kéo được trung bình nhưng không kéo được đếm dấu.</dd>
+      <dt>p</dt><dd>Kiểm định dấu hai phía. Ở n=5 thì <strong>p=0.0625 là sàn</strong> (5/5 cùng dấu là tốt nhất có thể), nên nó <em>không</em> phân biệt được hiệu ứng thật với may mắn.</dd>
+      <dt>sàn nhiễu</dt><dd><strong>0.010</strong> khi chạy lại cùng loại GPU, <strong>0.028</strong> giữa các loại GPU khác nhau. Δ dưới sàn thì không phân biệt được với việc chạy lại đúng một thứ.</dd>
+    </dl></div>
+
+    <div class="card"><h3>Ba bậc — đừng trộn lẫn</h3><dl>
+      <dt>Bậc 1</dt><dd><strong>n=3 fold</strong>, seed 42. Sàng lọc. Chỉ đủ để <em>dừng</em>, không đủ để <em>kết luận</em> — n=3 đã bốn lần đổi dấu ở n=5 trong dự án này.</dd>
+      <dt>Bậc 2</dt><dd><strong>n=5 fold</strong>. Xác nhận hiệu ứng có ổn định qua đủ fold không.</dd>
+      <dt>Bậc 3</dt><dd><strong>n=15</strong> (5 fold × 3 seed, hoặc 5 fold × 3 nguồn). Chỉ chạy khi đã chốt. Con số đưa vào bài.</dd>
+      <dt>cột n</dt><dd>Trong bảng dưới, <code>n</code> là <strong>số fold đã ghép cặp</strong> của chính dòng đó — dùng nó để biết dòng đang ở bậc nào.</dd>
+    </dl></div>
+  </div>
+</section>

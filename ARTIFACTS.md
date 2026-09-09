@@ -166,3 +166,16 @@ xếp hạng (ROC +0.0165 so với chuyển giao thuần, 59/83, p=0.0002). Lặ
 cùng biên độ. Cơ chế theo CWE: giữ 43%/64% phần được ở CWE-022/079, xoá sạch phần hại ở
 CWE-078/089. Nêu rõ ba giới hạn, trong đó đối chứng "trộn hai mô hình nào cũng lợi" **chưa
 chạy xong** — chưa trích được khi chưa có nó.
+
+## Sổ kết quả thực nghiệm (09/09/2026) — TRANG CHO NGƯỜI HƯỚNG DẪN
+https://claude.ai/code/artifact/35c5f832-c306-42e4-959d-9d51adfdcef0
+
+Toàn bộ **1 158 phép so sánh** rút từ 3 063 ô (332 ô trùng đã khử), 5 backbone, 4 máy.
+Cấu trúc theo yêu cầu 09/09: (1) ma trận "chứng minh đã qua những gì" · (2) chú giải ký hiệu
+đầy đủ · (3) **bảng tương tác** có lọc + sắp xếp, hai chế độ (1 bảng tổng quan / 2 bảng đối
+chiếu lọc độc lập) · (4) nhận xét · kết luận · đề xuất.
+
+Nguồn sinh: `tools/build_table.py`; bản HTML rời ở `page/`. Chạy lại để cập nhật:
+```
+python3 tools/build_table.py results results_* > page/table.json
+```

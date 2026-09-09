@@ -1,0 +1,105 @@
+<section>
+  <h2>Bảng số liệu</h2>
+  <p class="prose">Mỗi dòng là <strong>một phép so sánh</strong>: nhánh so với đối chứng của nó,
+  ghép cặp theo từng fold trong cùng một máy, cùng seed. Bấm tiêu đề cột để sắp xếp. Chế độ
+  <strong>2 bảng</strong> mở hai bảng y hệt nhau nhưng lọc độc lập, để đối chiếu hai lát cắt cạnh nhau.</p>
+
+  <div class="bar">
+    <button id="m1" class="on" type="button">1 bảng</button>
+    <button id="m2" type="button">2 bảng — đối chiếu</button>
+    <span class="count" id="tot"></span>
+  </div>
+
+  <div id="paneA" class="pane"></div>
+  <div id="wrap2" class="split" hidden>
+    <div id="paneB" class="pane"></div>
+    <div id="paneC" class="pane"></div>
+  </div>
+</section>
+
+<section class="prose">
+  <h2>Nhận xét</h2>
+  <div class="key">
+    <p><strong>Đóng góp của Pha 1 không nằm ở điểm tổng, mà ở chỗ mô hình chỉ-đích yếu nhất.</strong>
+    Tính riêng từng CWE trên 507 ô ghép cặp: chuyển giao cho <span class="mono">+0.161</span> F1 ở
+    CWE-022 và <span class="mono">+0.165</span> ở CWE-079 (hai lớp hiếm, 20% hàng test) nhưng
+    <span class="mono">−0.022</span> / <span class="mono">−0.024</span> ở CWE-078/089 (81% hàng).
+    Vì hai lớp thường áp đảo, phần được bị nuốt và điểm tổng chỉ nhích ~0.02.</p>
+  </div>
+  <ol>
+    <li><strong>Trên CWE-022, mô hình chỉ-đích tệ hơn đoán bừa.</strong> Trên tập con cân bằng
+    33/33 nó đạt accuracy <span class="mono">0.338</span> — <em>dưới</em> ngẫu nhiên, tức
+    <em>phản dự báo</em>. Chuyển giao đưa về <span class="mono">0.501</span>: nó <strong>xoá một
+    sai lệch hệ thống</strong>, chứ không biến mô hình thành bộ phát hiện tốt. Trên CWE-079 thì
+    khác — <span class="mono">0.561 → 0.721</span>, đây mới là bộ phát hiện dùng được.</li>
+    <li><strong>Dự báo tốt nhất cho Δ là điểm nền của chính lớp đó</strong> (Pearson
+    <span class="mono">−0.886</span>), <em>không</em> phải số dòng nguồn (<span class="mono">+0.838</span>).
+    CWE-022 có <em>ít</em> dòng nguồn hơn (92) số dòng train đích (198) mà vẫn được nhiều nhất.</li>
+    <li><strong>Head và ASAM bổ trợ nhau, không thay thế nhau.</strong> Trên 213 cặp: head cải
+    thiện <em>quyết định</em> (F1@0.5 +0.0103, 32/43, p=0.002) nhưng không cải thiện
+    <em>xếp hạng</em> (ROC +0.0053, p=0.126); ASAM thì ngược lại — ROC/PR dương ở cả ba backbone
+    còn F1 phẳng.</li>
+    <li><strong>Neo RecAdam kìm ASAM.</strong> Cùng ρ=2.0: trên nền AdamW cho ROC
+    <span class="mono">+0.0200</span> (13/15) và PR <span class="mono">+0.0318</span>
+    (<strong>15/15 fold</strong>); trên nền RecAdam chỉ +0.0088 / +0.0155. Mạnh hơn ~2,3×.</li>
+    <li><strong>Nguồn: độ tinh khiết CWE quan trọng, tỉ lệ ngôn ngữ thì không.</strong> Lưới
+    <code>lm*</code> ghim JS ở 0.87 nên đây là tác dụng của <em>trùng CWE</em>. Pha loãng dưới
+    ~25% cho <span class="mono">−0.017…−0.059</span> ROC, lặp trên hai máy và hai backbone. Pha
+    loãng nhẹ thì không phân biệt được với nhiễu.</li>
+    <li><strong>Điểm val của Pha 1 KHÔNG dự báo được transfer</strong> — Spearman
+    <span class="mono">−0.191</span> trên 11 pool. Không thể chọn nguồn bằng cách nhìn Pha 1.</li>
+  </ol>
+</section>
+
+<section class="prose">
+  <h2>Kết luận</h2>
+  <ol>
+    <li><strong>Cấu hình chốt:</strong> <code>latent_bottleneck</code> (nút thắt 8 chiều), λ=0.05,
+    Pha 2 dùng <strong>AdamW</strong> + <strong>ASAM ρ=2.0</strong>. Bỏ <code>latent_proto</code>
+    (≈0 mọi khối), bỏ nhánh <code>cwe</code> (cần nhãn, âm trên codet5p), bỏ neo RecAdam (null ở
+    mọi γ và kìm ASAM), bỏ ρ=0.1 (nằm ở <em>đáy</em> đường cong ρ, là mức duy nhất âm cả bốn chỉ số).</li>
+    <li><strong>Giá trị chắc nhất của head không phải độ chính xác mà là chống sập Pha 1.</strong>
+    Ở <code>codebert × full</code>, hai lần độc lập tại hai λ, nhánh <code>none</code> sập về
+    ~0.34 còn <code>latent_bottleneck</code> giữ 0.545–0.564.</li>
+    <li><strong>Phát biểu bán được cho bài không phải “chuyển giao tốt hơn”</strong> — mà là
+    <em>chuyển giao đóng góp thông tin mà mô hình chỉ-đích không có</em>, và bằng chứng là bản
+    trộn đều <strong>vượt cả hai đầu mút</strong> (ROC +0.0165 so với chuyển giao thuần, 59/83 khối,
+    p=0.0002). Nếu Pha 1 chỉ là “huấn luyện thêm” thì hai mô hình thừa nhau và bản trộn phải nằm
+    <em>giữa</em>.</li>
+    <li><strong>Nhưng thu hẹp cho đúng:</strong> phép trộn cho một <em>sàn</em> — chưa bao giờ kém
+    hơn baseline, sửa được trường hợp chuyển giao gây hại (<code>4cwe</code>: −0.021 → +0.008), và
+    <em>trung tính</em> khi chuyển giao vốn đã tốt (<code>full</code>, p=0.73). Không phải “trộn
+    luôn tốt hơn”.</li>
+  </ol>
+</section>
+
+<section class="prose">
+  <h2>Đề xuất</h2>
+  <ol>
+    <li><strong>Chạy nốt đối chứng âm của §25</strong> (trộn hai baseline khác seed) trước khi
+    viết bất cứ dòng nào về phép trộn. Đang chạy trên cả hai máy. Đây là thứ duy nhất còn có thể
+    đánh sập kết quả mạnh nhất hiện có.</li>
+    <li><strong>Đưa hai CWE hiếm lên làm luận điểm chính, không phải điểm tổng.</strong> Ở điểm
+    vận hành thật (ngưỡng hiệu chỉnh trên val), CWE-022 recall +0.079 và CWE-079 +0.072, và
+    <em>precision cũng tăng</em> — không phải “đoán dương nhiều hơn”. Phải in kèm cảnh báo:
+    CWE-079 chỉ có ~8 hàng dương mỗi fold, nên thứ đáng tin là <strong>58/73 khối cùng dấu</strong>,
+    không phải biên độ.</li>
+    <li><strong>Thử nội suy trọng số</strong> để chi phí suy luận về lại một mô hình. Cơ chế đã
+    kiểm không tốn GPU: 201/205 tensor nội suy được, và hai bản fine-tune nằm trong vùng nối tuyến
+    tính. Khối đã xếp hàng.</li>
+    <li><strong>Nâng lưới <code>lm</code> trên codebert lên n=5.</strong> Hiện mới bậc 1 (n=3, p
+    chạm sàn 0.250) — đủ để thấy hướng lặp lại, chưa đủ để viết.</li>
+    <li><strong>Chạy tập <code>twin</code> khi phản biện rò rỉ được nêu.</strong> Bộ <code>norm</code>
+    chia theo từng dòng nên ~16% hàng test có bản gần trùng trong train; hiện đã xử lý bằng cách
+    tách nhóm rò rỉ, nhưng <code>twin</code> mới là câu trả lời trực diện.</li>
+  </ol>
+</section>
+
+<footer>
+  Sinh từ <span class="mono">tools/build_table.py</span> trên toàn bộ cây kết quả:
+  3 063 ô đã đọc, 332 ô trùng đã khử (cùng máy + cùng experiment + seed + fold),
+  185 khối, 1 003 phép so sánh. Ghép cặp theo fold trong cùng máy cùng seed.
+  Số liệu đầy đủ ở <span class="mono">FACTS.md</span>;
+  lập luận ở <span class="mono">RESEARCH_2026-09-08_transfer.md</span>.
+</footer>
+</div>

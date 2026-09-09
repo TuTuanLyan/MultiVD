@@ -1,0 +1,131 @@
+<script>
+(function(){
+const COLS = [
+  {k:'khoi',     t:'Khối',      w:'auto'},
+  {k:'may',      t:'Máy'},
+  {k:'backbone', t:'Backbone'},
+  {k:'nhanh',    t:'Nhánh'},
+  {k:'tag',      t:'Cấu hình'},
+  {k:'nguon',    t:'Nguồn'},
+  {k:'opt',      t:'Opt'},
+  {k:'lam',      t:'λ'},
+  {k:'doi_chung',t:'Đối chứng'},
+  {k:'pham_vi', t:'Phạm vi'},
+  {k:'n',        t:'n',       num:true},
+  {k:'f1',       t:'ΔF1@0.5', met:true},
+  {k:'f1v',      t:'ΔF1@val', met:true},
+  {k:'roc',      t:'ΔROC-AUC',met:true},
+  {k:'pr',       t:'ΔPR-AUC', met:true},
+];
+const FILT = ['khoi','may','backbone','nhanh','nguon','opt','doi_chung','pham_vi'];
+const LBL  = {khoi:'Khối',may:'Máy',backbone:'Backbone',nhanh:'Nhánh',nguon:'Nguồn',opt:'Opt',doi_chung:'Đối chứng',pham_vi:'Phạm vi'};
+const NOISE = 0.010;
+
+function uniq(k){ return [...new Set(DATA.map(r=>r[k]))].sort((a,b)=>String(a).localeCompare(String(b),'vi')); }
+function fmtMet(m){
+  if(!m) return '<span class="sg">–</span>';
+  const sig = m.p!=null && m.p<0.05;
+  const cls = m.d>0 ? 'gain' : (m.d<0 ? 'loss' : '');
+  const col = m.d>0 ? 'var(--gain)' : (m.d<0 ? 'var(--loss)' : 'var(--ink3)');
+  const big = Math.abs(m.d) >= NOISE;
+  const val = (m.d>0?'+':'') + m.d.toFixed(4);
+  return `<span style="color:${col};font-weight:${big?600:400}">${val}</span>`
+       + `<div class="sg">${m.pos}/${m.n}${m.p!=null?' · p='+m.p.toFixed(3):''}`
+       + (sig?' <span class="pill '+(m.d>0?'p-sig':'p-neg')+'">*</span>':'') + `</div>`;
+}
+function makePane(el, id){
+  el.innerHTML = `
+    <div class="bar" id="bar-${id}">
+      <input type="search" id="q-${id}" placeholder="tìm…" style="width:120px">
+      ${FILT.map(f=>`<select id="f-${id}-${f}"><option value="">${LBL[f]}: tất cả</option></select>`).join('')}
+      <label class="chk"><input type="checkbox" id="n5-${id}"> n≥5</label>
+      <select id="sig-${id}"><option value="">ý nghĩa: tất cả</option>
+        <option value="all">cùng dấu ở MỌI fold</option>
+        <option value="p05">p &lt; 0.05</option>
+        <option value="p0625">p ≤ 0.0625 (sàn ở n=5)</option></select>
+      <label class="chk"><input type="checkbox" id="nz-${id}"> |Δ|≥0.010 (trên sàn nhiễu)</label>
+      <button type="button" id="rs-${id}">Xoá lọc</button>
+      <span class="count" id="c-${id}"></span>
+    </div>
+    <div class="tw"><table class="dt"><thead><tr>${
+      COLS.map((c,i)=>`<th data-i="${i}" class="${c.num||c.met?'num':''}">${c.t}</th>`).join('')
+    }</tr></thead><tbody id="b-${id}"></tbody></table></div>`;
+  FILT.forEach(f=>{
+    const s = el.querySelector(`#f-${id}-${f}`);
+    uniq(f).forEach(v=>{ const o=document.createElement('option'); o.value=o.textContent=v; s.appendChild(o); });
+  });
+  const st = {sort:'n', dir:-1};
+  function rows(){
+    let r = DATA.slice();
+    FILT.forEach(f=>{ const v=el.querySelector(`#f-${id}-${f}`).value; if(v) r=r.filter(x=>x[f]===v); });
+    const q = el.querySelector(`#q-${id}`).value.trim().toLowerCase();
+    if(q) r = r.filter(x=>FILT.some(f=>String(x[f]).toLowerCase().includes(q)) || String(x.tag).toLowerCase().includes(q));
+    if(el.querySelector(`#n5-${id}`).checked)  r = r.filter(x=>x.n>=5);
+    const sg = el.querySelector(`#sig-${id}`).value;
+    if(sg==='all')   r = r.filter(x=>['f1','f1v','roc','pr'].some(k=>x[k]&&x[k].n>=3&&x[k].pos===x[k].n));
+    if(sg==='p05')   r = r.filter(x=>['f1','f1v','roc','pr'].some(k=>x[k]&&x[k].p!=null&&x[k].p<0.05));
+    if(sg==='p0625') r = r.filter(x=>['f1','f1v','roc','pr'].some(k=>x[k]&&x[k].p!=null&&x[k].p<=0.0625));
+    if(el.querySelector(`#nz-${id}`).checked)  r = r.filter(x=>['f1','f1v','roc','pr'].some(k=>x[k]&&Math.abs(x[k].d)>=NOISE));
+    const k = st.sort, col = COLS.find(c=>c.k===k);
+    r.sort((a,b)=>{
+      let va = col&&col.met ? (a[k]?a[k].d:-9) : a[k];
+      let vb = col&&col.met ? (b[k]?b[k].d:-9) : b[k];
+      if(typeof va==='string') return st.dir*String(va).localeCompare(String(vb),'vi');
+      return st.dir*((va??-9)-(vb??-9));
+    });
+    return r;
+  }
+  function draw(){
+    const r = rows();
+    el.querySelector(`#c-${id}`).textContent = r.length + ' / ' + DATA.length + ' dòng';
+    const MAX = 400;
+    el.querySelector(`#b-${id}`).innerHTML = r.slice(0,MAX).map(x=>'<tr>'+COLS.map(c=>{
+      if(c.met) return `<td class="num">${fmtMet(x[c.k])}</td>`;
+      if(c.num) return `<td class="num">${x[c.k]}</td>`;
+      return `<td>${x[c.k]}</td>`;
+    }).join('')+'</tr>').join('') + (r.length>MAX
+      ? `<tr><td colspan="${COLS.length}" style="text-align:center;color:var(--ink3);padding:10px">
+         … còn ${r.length-MAX} dòng nữa — lọc hẹp lại để xem</td></tr>` : '');
+    el.querySelectorAll('thead th').forEach((th,i)=>
+      th.classList.toggle('sorted', COLS[i].k===st.sort));
+  }
+  el.querySelectorAll('thead th').forEach(th=>th.addEventListener('click',()=>{
+    const k = COLS[+th.dataset.i].k;
+    if(st.sort===k) st.dir*=-1; else { st.sort=k; st.dir=-1; }
+    draw();
+  }));
+  el.querySelectorAll('select,input').forEach(x=>x.addEventListener('input',draw));
+  el.querySelector(`#rs-${id}`).addEventListener('click',()=>{
+    FILT.forEach(f=>el.querySelector(`#f-${id}-${f}`).value='');
+    el.querySelector(`#q-${id}`).value='';
+    ['n5','nz'].forEach(c=>el.querySelector(`#${c}-${id}`).checked=false);
+    el.querySelector(`#sig-${id}`).value='';
+    draw();
+  });
+  draw();
+  return {el, set(f,v){ const s=el.querySelector(`#f-${id}-${f}`); if(s){ s.value=v; draw(); } }};
+}
+
+const A = makePane(document.getElementById('paneA'),'a');
+document.getElementById('tot').textContent = DATA.length + ' phép so sánh';
+
+let B=null, C=null;
+const b1=document.getElementById('m1'), b2=document.getElementById('m2');
+const w2=document.getElementById('wrap2'), pA=document.getElementById('paneA');
+b1.addEventListener('click',()=>{ b1.classList.add('on'); b2.classList.remove('on');
+  pA.hidden=false; w2.hidden=true; });
+b2.addEventListener('click',()=>{
+  b2.classList.add('on'); b1.classList.remove('on'); pA.hidden=true; w2.hidden=false;
+  if(!B){
+    B = makePane(document.getElementById('paneB'),'b');
+    C = makePane(document.getElementById('paneC'),'c');
+    // mo san mot lat cat doi chieu co nghia: hai backbone chinh
+    B.set('backbone','t5p'); C.set('backbone','codebert');
+    document.getElementById('paneB').insertAdjacentHTML('afterbegin',
+      '<h3>Bảng trái <span class="tag">lọc độc lập</span></h3>');
+    document.getElementById('paneC').insertAdjacentHTML('afterbegin',
+      '<h3>Bảng phải <span class="tag">lọc độc lập</span></h3>');
+  }
+});
+})();
+</script>
