@@ -15,9 +15,55 @@ hiểu sai.
 
 ---
 
-## 0. Bổ sung 08–09/09/2026 — khối đang chạy và bốn cổng đã sửa
+## 0. Bổ sung 09/09/2026 — PHÁT HIỆN CHÍNH của đêm và việc đang chạy
 
-### 0.1 Đang chạy lúc 00:40 UTC 09/09
+> Đọc mục này trước. Bên dưới (§0.1 trở đi) là bản ghi lúc 00:40 UTC, giữ lại để tra cứu
+> nhưng **đã lạc hậu**: các khối nêu ở đó đã xong. Trạng thái máy hiện tại ở `CURRENT_RUN.md`.
+
+### 0.0 §25 — trộn đều baseline ⊕ chuyển giao (09/09, toàn bộ 0 GPU)
+
+Đây là kết quả đáng kể nhất của đêm và là **câu trả lời trực tiếp cho yêu cầu 09/09 của người
+dùng**: một phương thức *không phụ thuộc backbone*, *không quét siêu tham số*, nâng riêng hai
+CWE hiếm 022/079.
+
+Lấy trung bình xác suất của baseline và mô hình chuyển giao, mỗi bên một phiếu (α=0.5):
+
+| | ROC-AUC | PR-AUC |
+|---|---|---|
+| α=0.5 vs baseline | +0.0126 (65/83, p<1e-4) | +0.0136 (67/83, p<1e-4) |
+| chuyển giao thuần vs baseline | **−0.0039** (53/83) | **−0.0098** (47/83) |
+| **α=0.5 vs chuyển giao thuần** | **+0.0165 (59/83, p=0.0002)** | **+0.0235 (62/83, p<1e-4)** |
+
+Vượt **cả hai** đầu mút ⇒ hai mô hình sai ở chỗ khác nhau ⇒ Pha 1 mang vào thông tin mô hình
+chỉ-đích không có. Đó là lập luận chống phản biện *"hai pha tất nhiên hơn một pha"*.
+Trên F1@0.5 thì **không** vượt được chuyển giao thuần (p=0.078) — phải nêu.
+
+Đơn vị độc lập là **KHỐI** `(cây, run, seed, fold)`, không phải ô: 536 nhánh chia nhau 83
+baseline. Công cụ: `tools/ensemble2.py`.
+
+| mục | nội dung |
+|---|---|
+| §25.1 | đối chứng âm: trộn với nguồn **pha loãng** cho ROC −0.0036 — không lợi bừa (`tools/ens_dilute.py`) |
+| §25.3 | điểm vận hành: CWE-022 recall +0.073, CWE-079 +0.146, precision **cũng tăng**; hai CWE thường không bị đụng (`tools/percwe_op.py`) |
+| §25.4 | **sống sót phép kiểm rò rỉ**; hiệu trộn−chuyển giao: `none` +0.0182, `test` +0.0190, **`train` −0.0147** (`tools/ens_leak.py`) |
+| §25.5 | nội suy **trọng số**: 201/205 tensor nội suy được, công cụ đã kiểm hai chiều (`tools/wblend.py`) |
+
+**CHƯA ĐƯỢC TRÍCH** khi chưa có đối chứng baseline⊕baseline khác seed (`run/ensctl.sh`, đang xếp
+trên ntat). Nếu nó cũng cho +0.013 ROC thì §25 sập.
+
+### 0.0b Ba thay đổi mã đêm nay
+
+- `src/train_{transfer,baseline}.py` ghi thêm **`val_probabilities`/`val_labels`**. Không có nó
+  thì mọi siêu tham số hậu kiểm (ngưỡng, hệ số trộn) chỉ chọn được trên TEST, tức rò rỉ. Đã xác
+  minh chạy thật trên ô ntat sinh sau bản vá.
+- `run/matrix.sh` thêm cờ **`KEEP_CKPT=1`** giữ checkpoint Pha 2 (mặc định vẫn XOÁ).
+- `scripts/vast_worklist.sh` thêm **vòng ngoài**: hết một lượt thì mở lại worklist, đối chiếu
+  `todo − done`, còn việc thì chạy lượt nữa. Trước đó nó in "xong" và để máy vast nằm không khi
+  worklist bị ghi đè lúc đang đọc (§25.2).
+
+---
+
+### 0.1 Đang chạy lúc 00:40 UTC 09/09 — ĐÃ LẠC HẬU, giữ để tra cứu
 
 | máy | mục | ghi vào |
 |---|---|---|

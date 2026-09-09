@@ -1,78 +1,64 @@
-# CURRENT_RUN — đêm 08→09/09/2026
+# CURRENT_RUN — sáng 09/09/2026
 
-> Cập nhật 09/09 03:5x giờ VN. Người dùng quay lại 9h sáng VN (02:00 UTC).
+> Cập nhật **09/09 03:45 UTC (10:45 giờ VN)**. Người dùng đã quay lại lúc 02:00 UTC.
+> File cũ (đêm 08→09) đã bị thay: nó nói về `asam4`/`pool_lm` — cả hai đã xong.
 
-## Đang chạy ở đâu
+## Đang chạy ở đâu — không máy nào nằm không
 
-| máy | mục đang chạy | còn lại trong worklist |
-|---|---|---|
-| **ntat** (vast, $0.0818/h) | `asam4.sh\|full\|1-5` — ρ=4.0 | 8 mục, kết bằng `asam_aw` |
-| **ntat2** (vast, $0.1222/h) | `pool_lm.sh\|-\|4 5` | 6 mục |
-| **161** (local, GPU dùng chung) | `pool_cb_lm.sh` — codebert × lưới `lm*`, fold 1–3 | chuỗi `night_161` đã xong 01:06 |
-| **158** (local, A4000) | `e60_codebert` Phase 2 | `e60_cb`, `pool_lm 1-3`, `pool_pur 4-5`, `asam_aw` |
+| máy | mục đang chạy | xong lúc (ước) | còn lại trong worklist |
+|---|---|---|---|
+| **ntat** (vast, $0.0818/h) | `asam_aw.sh\|4cwe com full\|4 5` — fold 5 | ~03:55 UTC | `ensctl.sh` (~1h), rồi `wblend.sh` (~1,5h) |
+| **ntat2** (vast, $0.1222/h) | `pool_cb_lm.sh\|-\|1 2 3` — codebert × lưới `lm*` | ~06:40 UTC | hết — **cần cấp việc hoặc huỷ** |
+| **161** (local, GPU chung) | `pool_cb.sh` — codebert × lưới `lm*` | — | — |
+| **158** (local, A4000) | có job | — | — |
 
-Cả bốn máy đều có việc. Không máy nào nằm không.
+**Việc phải làm khi ntat2 xong (~06:40 UTC):** hoặc cấp việc đáng chạy, hoặc `vastai destroy
+instance 50223345 -y` sau khi kéo hết kết quả về và đối chiếu số file + byte.
 
-## Ba khối đang mở
+## Ba mục đã xếp trên ntat, theo thứ tự
 
-### 1. Trục ρ của ASAM ở Phase 2 — ĐÃ CÓ KẾT QUẢ (FACTS §21)
+### 1. `asam_aw.sh` fold 4–5 — ĐANG CHẠY, để lên n=15
+Kết quả hiện tại ở FACTS §24. Bất đồng hai máy **đã giải**: ntat n=10 cho ROC +0.0244 (9/10,
+p=0.021) và PR +0.0352 (10/10, p=0.002); ntat2 n=9 độc lập cho ROC +0.0135 (7/9), PR +0.0216
+(7/9). Cộng số fold: ROC 16/19, PR 17/19. **Hiệu ứng ở XẾP HẠNG, không ở F1** — ntat2 cho F1 chỉ
+4/9. Chưa chốt cấu hình cuối khi ntat chưa xong fold 4–5.
 
-Bậc 2, n=15/mức (5 fold × 3 nguồn), đối chứng ρ=0 cùng máy, ghép cặp từng fold.
-**Đỉnh nội tại ở ρ = 1.0–2.0**; ρ=2.0 cho PR-AUC +0.0155 (13/15, p=0.007) và là
-mức đầu tiên F1 cũng dương (+0.0124). ρ=4.0 đổ (−0.118 ROC, n=8). **ρ=0.1 mà dự
-án dùng từ 31/08 nằm ở đáy đường cong.**
+### 2. `ensctl.sh` — ĐỐI CHỨNG BẮT BUỘC cho §25
+Chỉ baseline, seed 7 và 1234, 5 fold, ghi vào **đúng cây `asamaw_t5p`** đã có baseline seed 42
+→ trộn baseline⊕baseline ghép cặp cùng máy cùng fold. Trả lời: *"trộn hai mô hình nào cũng lợi"*
+hay *"lợi đến từ Pha 1"*. **Nếu nó cũng cho +0.013 ROC thì §25 sập.** ~10 ô, ~1h.
 
-Còn chạy: ρ=4.0 nguồn `full` (đang chạy), ρ=8.0 (`asam5.sh`, đã sửa lỗi nháy lệch
-và thêm `r0` để chạy bù đối chứng fold 3/5).
+### 3. `wblend.sh` — NỘI SUY TRỌNG SỐ (FACTS §25.5)
+`4cwe com full`, fold 1–3, bậc 1, seed 42. α chọn trên **VAL**, báo trên TEST, in kèm trộn xác
+suất α=0.5 trên **cùng cặp**. Cơ chế đã kiểm 0 GPU: 201/205 tensor nội suy được. Cần
+`KEEP_CKPT=1` (đã vá `run/matrix.sh`, mặc định vẫn XOÁ) và tự dọn checkpoint sau mỗi fold.
+Khối này cũng sinh ô có `val_probabilities` → gỡ giới hạn "α chỉ chọn được trên test" của §25.
 
-### 2. Lưới nguồn — tách độ tinh khiết khỏi ngôn ngữ (RESEARCH phụ lục B)
+## Kết quả đêm nay — xem FACTS §25 → §25.5
 
-Đo thành phần thật thì lưới `pur*` **không cô lập biến nào**: pha loãng độ tinh
-khiết kéo tỉ lệ js sập 0.873 → 0.192. Lưới `lm*` ghim js ở 0.87: **16/16 ô đều
-âm, đơn điệu**, −0.020…−0.035 ROC-AUC (n=4). Trùng CWE nguồn–đích là biến thật.
+Tất cả **0 GPU**, tính lại trên xác suất từng mẫu đã lưu sẵn:
 
-Còn chạy: `lm` fold 5 (ntat2), `lm` fold 1-3 trên máy thứ hai (158 và ntat),
-`poolcb_codebert` (12/60 ô).
+| mục | nội dung một dòng |
+|---|---|
+| §25 | trộn đều baseline ⊕ chuyển giao (α=0.5) **vượt cả hai đầu mút**: ROC +0.0165 so với chuyển giao thuần (59/83 khối, p=0.0002). Lặp trên hai backbone cùng biên độ. |
+| §25.1 | đối chứng âm: trộn với nguồn **pha loãng** cho ROC −0.0036 — không lợi bừa. Hiệu ghép cặp nguyên−loãng +0.0145 (12/13, p=0.0034). |
+| §25.3 | ở điểm vận hành: CWE-022 recall +0.073, CWE-079 **+0.146**, precision cũng tăng; hai CWE thường **không bị đụng**. Cảnh báo: 079 chỉ ~8 hàng dương/fold. |
+| §25.4 | **sống sót phép kiểm rò rỉ**. Trên hàng sạch (`none`, 73%) trộn dương cả ba chỉ số còn chuyển giao thuần **âm** ở cả hai AUC. Hiệu trộn−chuyển giao: `none` +0.0182, `test` +0.0190, **`train` −0.0147**. |
+| §25.5 | cơ chế nội suy trọng số đã kiểm; khối đã xếp. |
 
-### 3. `asam_aw` — Ô QUYẾT ĐỊNH, mới xếp hàng đêm nay
+Trang tổng hợp: https://claude.ai/code/artifact/d18d51d3-ac51-491d-b8b6-90685506a8a6
 
-Trục ρ ở khối 1 đo **trên nền RecAdam**, mà RecAdam đã null ở mọi γ. Phương pháp
-chốt sẽ dùng AdamW. **Chưa ai đo ASAM ρ=2.0 trên nền AdamW.**
+## Hai điều §25 CHƯA trả lời được
 
-- CÓ tác dụng ⇒ cấu hình chốt là AdamW + head + ASAM ρ=2.0, ASAM là đóng góp độc lập.
-- KHÔNG ⇒ lợi ích của ρ=2.0 là tương tác với neo RecAdam, phải phát biểu khác hẳn.
+1. **Đối chứng baseline⊕baseline khác seed** — `ensctl` đang xếp. Chưa có thì chưa trích §25.
+2. **F1@ngưỡng-val của bản trộn** — ô cũ không lưu xác suất val. Đã vá
+   `src/train_{transfer,baseline}.py` ghi thêm `val_probabilities`/`val_labels`, **đã xác minh
+   chạy thật** trên ô ntat sinh sau bản vá. Mọi ô từ 09/09 đọc được chỉ số thứ tư.
 
-Bậc 1 (n=3 fold, seed 42), 3 nguồn, hai nhánh `aw_r0` / `aw_r2p0`, cùng máy cùng
-phiên. Xếp trên **158** (3 mục phía trước) và **ntat** (cuối hàng, làm bản lặp).
+## Hai lỗi vận hành đêm nay, đã vá
 
-## Lỗi đã bắt và sửa đêm nay
-
-1. **`run/asam5.sh` dấu nháy lệch** nuốt cả vòng `for`; `bash -n` vẫn báo OK; chạy
-   thật cho **0 ô** nhưng worklist vẫn ghi "xong". Bắt được trước khi tới lượt.
-   Từ nay kiểm runner bằng stub `echo` + **đếm số lần gọi**, cả hai chiều.
-2. **Hai cây kết quả song song** (phẳng + lồng) sau hai kiểu `rsync` khác nhau —
-   đối chiếu từng byte thấy trùng khít rồi mới xoá bản phẳng, để chỉ còn một
-   đường đọc. Nếu không, lần kéo sau sẽ chỉ cập nhật một bên và tôi đọc bản cũ.
-3. **`tools/report2.py` im lặng trả 0 cặp** với tên nhánh không có `_l0p05_`
-   (toàn bộ khối pool). Đã sửa trong chính công cụ, kiểm hai chiều.
-4. Tôi **giết nhầm** một ô của chuỗi `night_161.sh` khi chẩn đoán sai một tiến
-   trình là của mình; chuỗi tự phóng lại, mất ~30 giây. Phải truy `ppid` lên tận
-   gốc **trước** khi giết, không chỉ khớp dòng lệnh.
-
-
----
-
-## Bổ sung 09/09 01:16 UTC — `pool_cb_lm` trên 161
-
-Chuỗi `night_161.sh` xong lúc 01:06 (lưới `lm` đủ 5 fold × 5 pool). 161 rảnh thật:
-chỉ còn `ollama` của user khác giữ 684 MiB, còn 15,7 GB, `NEED=9000` của
-`pool_cb.sh` dư sức, lock trống.
-
-Phóng `run/pool_cb_lm.sh` (fold 1–3, seed 42) — **lưới ngôn ngữ trên codebert**.
-Đây là chỗ hở duy nhất còn lại của phát biểu vừa chốt ở RESEARCH §B.2e: hiệu ứng
-"pha loãng ≤25% dòng đúng CWE làm hỏng khái quát hoá" mới đo trên **t5p**. Khối này
-đang xếp trên ntat2 nhưng nằm sau `asam_aw` nên hàng giờ nữa mới tới lượt.
-
-Đây **không phải việc bịa ra để lấp chỗ**: script đã commit, câu hỏi đã nêu trong
-§B.2e là "còn thiếu gì trước khi viết được", và máy rảnh thật. Dừng dễ:
-`flock -n /tmp/mvd_poolcb.lock -c true` để kiểm, rồi giết theo PID của `run/pool_cb.sh`.
+- `vast_worklist.sh` in "xong" khi worklist bị **ghi đè** lúc đang đọc → bỏ sót mục, ntat2 nằm
+  không ~2 phút. Đã thêm **vòng ngoài**: hết một lượt thì mở lại file, đối chiếu `todo − done`,
+  còn việc thì chạy lượt nữa. Kiểm ba chiều. FACTS §25.2.
+- `run/pool1.sh` chưa từng được đẩy lên ntat trong khi worklist gọi wrapper của nó → driver chết.
+  Quy tắc: xếp script vào máy xa thì kiểm **mọi file nó gọi tới**.
