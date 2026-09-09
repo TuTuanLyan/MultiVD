@@ -2004,56 +2004,56 @@ trục trặc thoáng qua. Nếu lúc đó tin vào chuỗi rỗng thì đã hu�
 
 ---
 
-## §25.8 — ĐỐI CHỨNG ÂM chạy được: trộn hai baseline khác seed. §25 phải PHÁT BIỂU LẠI (09/09, n=8, đang chạy tiếp)
+## §25.8 — ĐỐI CHỨNG ÂM: trộn hai baseline khác seed. §25 phải PHÁT BIỂU LẠI (09/09, n=32)
 
-Đây là phép kiểm tôi nêu là *"chưa có thì chưa trích §25"*. `run/ensctl.sh` sinh baseline seed 7
-và 1234 vào **đúng cây `asamaw_t5p`** đã có baseline seed 42, nên trộn baseline⊕baseline ghép cặp
-được cùng máy cùng fold. **Số dưới đây ở n=8 cặp, khối vẫn đang chạy** — ghi lại vì nó đổi cách
-phát biểu, sẽ cập nhật khi đủ.
+Đây là phép kiểm tôi đã ghi là *"chưa có thì chưa trích §25"*. `run/ensctl.sh` sinh baseline seed
+7 và 1234 vào **đúng cây `asamaw_t5p`** đã có baseline seed 42 — cùng model, cùng pooling, cùng lr,
+cùng epochs (đã đối chiếu `hyperparameters`) — nên trộn baseline⊕baseline ghép cặp được cùng máy
+cùng fold. **n=32 cặp trên hai máy.** Số ổn định từ n=8 lên n=32.
 
-### Kết quả tổng: đối chứng KHÔNG null — §25 mất phần lớn biên độ tổng
+### Tổng thể: đối chứng KHÔNG null — §25 mất phần lớn biên độ tổng
 
 | trộn α=0.5 | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **baseline ⊕ baseline′** (đối chứng, n=8) | +0.0149 (5/8) | **+0.0083 (6/8)** | **+0.0092 (8/8, p=0.008)** |
+| **baseline ⊕ baseline′** (đối chứng, n=32) | +0.0124 (21/32, p=0.07) | **+0.0084 (25/32, p=0.0021)** | **+0.0092 (29/32, p<1e-4)** |
 | baseline ⊕ chuyển giao (§25, 87 khối) | +0.0317 (76/87) | +0.0129 (69/87) | +0.0136 (71/87) |
-| **phần dôi ra của chuyển giao** | +0.0168 | **≈ +0.0046** | **≈ +0.0044** |
+| **phần dôi ra của chuyển giao** | +0.0193 | **≈ +0.0045** | **≈ +0.0044** |
 
-Trộn **hai mô hình ngang tài chỉ khác seed** đã cho +0.0083 ROC — tức **~2/3 mức tăng tổng của
-§25 là trung bình hoá phương sai**, không phải chuyển giao. Phần dôi ra (~+0.0045) **dưới sàn
-nhiễu 0.010**. Phát biểu *"trộn baseline⊕chuyển giao hơn baseline"* vì thế **không còn là bằng
-chứng cho chuyển giao**.
+Trộn **hai mô hình ngang tài chỉ khác seed** đã lấy **65% / 68%** mức tăng tổng của §25. Phần dôi
+ra nằm **dưới sàn nhiễu 0.010**. Phát biểu *"trộn baseline⊕chuyển giao hơn baseline"* vì thế
+**không còn là bằng chứng cho chuyển giao** — nó đúng, nhưng phần lớn là trung bình hoá phương sai.
 
-### Nhưng theo CWE thì đối chứng PHẲNG, còn §25 thì không — đây mới là chỗ phân biệt
+### Theo CWE thì đối chứng PHẲNG hoặc ÂM — đây mới là chỗ phân biệt
 
 ΔROC-AUC theo CWE, α=0.5:
 
-| CWE | **đối chứng** baseline⊕baseline′ (n=8) | §25 baseline⊕chuyển giao (86 khối) |
-|---|---|---|
-| **022** | **−0.0056 (3/8)** | **+0.0967 (74/82, p<1e-4)** |
-| 078 | +0.0059 (5/8) | −0.0014 (40/81, p=1.00) |
-| **079** | **+0.0153 (5/8)** | **+0.1513 (81/83, p<1e-4)** |
-| 089 | +0.0025 (5/8) | +0.0036 (56/83, p=0.0019) |
+| CWE | **đối chứng** baseline⊕baseline′ (n=32) | §25 baseline⊕chuyển giao (86 khối) | tỉ lệ |
+|---|---|---|---|
+| **022** | **−0.0242 (9/32)** — *âm* | **+0.0967 (74/82, p<1e-4)** | **ngược dấu** |
+| 078 | +0.0048 (17/32) — tung đồng xu | −0.0014 (40/81, p=1.00) | — |
+| **079** | **+0.0283 (20/32, p=0.215)** — không có ý nghĩa | **+0.1513 (81/83, p<1e-4)** | **5,3×** |
+| 089 | +0.0037 (16/32) — tung đồng xu | +0.0036 (56/83, p=0.0019) | — |
 
-Đối chứng cho **bốn lớp đều xấp xỉ 5/8 hoặc 3/8 — tung đồng xu**, biên độ nhỏ, CWE-022 còn **âm**.
-Trộn với mô hình chuyển giao cho **+0.097 / +0.151** ở đúng hai lớp hiếm với **74/82 và 81/83 fold
-cùng dấu**. Chênh nhau **một bậc độ lớn**, và mẫu hình cùng dấu gần như tuyệt đối thì trung bình
-hoá phương sai không tạo ra được.
+Đối chứng: bốn lớp đều **16–20/32, tức tung đồng xu**, và CWE-022 **âm** (ở α=0.25 còn là
+−0.0233 với 5/32, p=0.007 — âm **có ý nghĩa**). Trộn với mô hình chuyển giao thì CWE-022 **dương
++0.097 với 74/82 fold** và CWE-079 **+0.151 với 81/83 fold**. Ngược dấu ở một lớp, gấp 5,3 lần ở
+lớp kia, và mẫu hình cùng dấu gần tuyệt đối — trung bình hoá phương sai **không** tạo ra được.
 
-### Phát biểu lại §25 — hẹp hơn nhưng đứng vững hơn
+### Phát biểu lại §25 — hẹp hơn, đứng vững hơn
 
-> ~~Trộn đều baseline ⊕ chuyển giao vượt cả hai đầu mút~~ **← không dùng nữa cho luận điểm tổng.**
+> ~~Trộn đều baseline ⊕ chuyển giao vượt cả hai đầu mút~~ **← không dùng nữa làm luận điểm tổng.**
 >
-> **Giá trị của Pha 1 không nằm ở điểm tổng — điểm tổng là cách đo sai.** Trên tổng thể, phần mà
-> chuyển giao đóng góp thêm so với việc chỉ trộn hai bản chạy lại (≈+0.0045 ROC) nằm **dưới sàn
-> nhiễu**. Nhưng tính riêng từng CWE thì đối chứng **phẳng và ngẫu nhiên** ở cả bốn lớp, còn chuyển
-> giao dồn **+0.097 / +0.151** vào đúng hai lớp hiếm mà mô hình chỉ-đích yếu nhất, với 74/82 và
-> 81/83 fold cùng dấu. **Đó** là bằng chứng chuyển giao mang vào thông tin mới.
+> **Giá trị của Pha 1 không nằm ở điểm tổng — điểm tổng là cách đo sai.** Phần mà chuyển giao đóng
+> góp thêm so với chỉ trộn hai bản chạy lại (≈+0.0045 ROC) nằm **dưới sàn nhiễu**. Nhưng tính riêng
+> từng CWE thì đối chứng **phẳng hoặc âm** ở cả bốn lớp, còn chuyển giao dồn **+0.097 / +0.151**
+> vào đúng hai lớp hiếm mà mô hình chỉ-đích yếu nhất, với 74/82 và 81/83 fold cùng dấu.
+> **Đó** là bằng chứng chuyển giao mang vào thông tin mới, và nó nằm ở **phân bố**, không ở trung bình.
 
-Ba mục vẫn đứng vì chúng **không** phải phát biểu về biên độ tổng: §25.1 (nguồn pha loãng cho
-−0.0036 còn nguyên chất +0.0109 — trung bình hoá phương sai không phân biệt được nguồn),
-§25.3 (recall **và** precision cùng tăng ở hai CWE hiếm), §25.4 (hiệu trộn−chuyển giao dồn vào
-hàng **sạch**, `train` thì âm).
+Ba mục vẫn đứng vì **không** phải phát biểu về biên độ tổng: §25.1 (nguồn pha loãng cho −0.0036
+còn nguyên chất +0.0109 — trung bình hoá phương sai không phân biệt được nguồn), §25.3 (recall
+**và** precision cùng tăng ở hai CWE hiếm), §25.4 (hiệu trộn−chuyển giao dồn vào hàng **sạch**,
+nhóm `train` thì âm).
 
-**Còn thiếu**: n=8 là cặp baseline trên một cây; `ensctl` đang chạy nốt trên cả hai máy (ntat 5
-fold × 2 seed, ntat2 3 fold × 2 seed). Cập nhật khi đủ.
+**Bài học chung**: đối chứng này đáng giá đúng bằng cả khối §25 — nếu bỏ qua nó thì đã viết vào bài
+một phát biểu mà 2/3 biên độ đến từ việc chạy lại cùng một mô hình. Mọi phát biểu dạng *"gộp hai
+thứ thì tốt hơn"* phải có đối chứng *"gộp hai bản của cùng một thứ"*.
