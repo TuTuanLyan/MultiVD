@@ -40,7 +40,7 @@ def load(roots):
                     if f"_{s}_" in arm: src = s; break
                 tag = "baseline" if arm=="baseline" else ("r2p0" if "r2p0" in arm else
                       ("plain" if "plain" in arm else arm))
-                cells[(bb,src,seed,fold)][tag] = d
+                cells[(root,bb,src,seed,fold)][tag] = d
     return cells
 
 def stat(v):
@@ -85,13 +85,25 @@ def main():
     for v in cells.values():
         for t in v: have_tags[t]+=1
     print(f"# theo nhanh: {dict(have_tags)}")
+    # Baseline nam o arm "baseline" nen src cua no la "-", trong khi hai nhanh mang
+    # src that (4cwe/com/full). Neu khoa o gom ca src thi baseline KHONG BAO GIO gap
+    # nhanh nao ca — bang A va B ra rong, va rong mot cach im lang. Baseline la CHUNG
+    # cho moi nguon trong cung (cay, backbone, seed, fold), nen tra theo dung khoa do.
+    # Giu `root` trong khoa de khong bao gio ghep cap bac cau qua may (CLAUDE.md muc 4).
+    base_of = {}
+    for (root,bb,src,seed,fold),v in cells.items():
+        if "baseline" in v: base_of[(root,bb,seed,fold)] = v["baseline"]
     A=defaultdict(list); B=defaultdict(list); AB=defaultdict(list)
-    for (bb,src,seed,fold),v in cells.items():
-        b=v.get("baseline")
+    for (root,bb,src,seed,fold),v in cells.items():
+        if src == "-": continue                      # o baseline khong tu ghep voi chinh no
+        b = base_of.get((root,bb,seed,fold))
         if b is not None:
             if "r2p0"  in v: A[(bb,src)].append((v["r2p0"], b))
             if "plain" in v: B[(bb,src)].append((v["plain"], b))
         if "r2p0" in v and "plain" in v: AB[(bb,src)].append((v["r2p0"], v["plain"]))
+    thieu = sum(1 for (root,bb,src,seed,fold),v in cells.items()
+                if src != "-" and base_of.get((root,bb,seed,fold)) is None)
+    if thieu: print(f"# CANH BAO: {thieu} o co nhanh nhung KHONG co baseline cung fold — da bo")
     show("A  (RecAdam + ASAM 2.0)  −  baseline", A)
     show("B  (AdamW, khong SAM)    −  baseline", B)
     show("A − B   RIENG phan optimizer dong gop (ghep cap trong CUNG o)", AB)
