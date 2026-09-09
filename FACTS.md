@@ -2272,3 +2272,47 @@ phần**; con số per-CWE thì không.
 **Phải viết vào bài**: nêu con số **trên hàng sạch** (CWE-022 +0.2567, CWE-079 +0.3158) làm số
 chính, và nêu rõ số tổng có phần dựa vào rò rỉ của bộ `norm`. Bộ `twin` (chia theo cụm gần trùng)
 là câu trả lời trực diện nếu reviewer hỏi — chưa chạy, người dùng đã nêu là để sau.
+
+---
+
+## §27.2 — Bản lặp §27 trên CODEBERT (n=6) và một lỗi THIẾT KẾ của `run/wblend.sh` (09/09)
+
+### Kết quả, n=6 (3 fold × 2 nguồn — thiếu `full`, lý do ở dưới)
+
+Δ so với baseline cùng ô:
+
+| | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| chuyển giao thuần | **+0.0365 (6/6, p=0.031)** | +0.0039 (3/6) | +0.0106 (4/6) |
+| nội suy trọng số, α trên val | +0.0154 (4/6) | **+0.0150 (6/6, p=0.031)** | +0.0218 (5/6) |
+| **trộn xác suất, α=0.5** | **+0.0427 (6/6, p=0.031)** | **+0.0147 (6/6, p=0.031)** | **+0.0263 (6/6, p=0.031)** |
+
+Ghép cặp trực tiếp: trọng số@val − chuyển giao thuần = F1 **−0.0211 (0/6)**, ROC +0.0111 (5/6);
+trọng số@val − xác suất@0.5 = F1 **−0.0273 (1/6)**, ROC +0.0003, PR −0.0046.
+
+**Không lặp lại hoàn toàn.** Trên t5p (n=15) nội suy trọng số **không phân biệt được** với trộn
+xác suất trên cả ba chỉ số. Trên codebert nó **thua đều ở F1** — 0/6 so với chuyển giao thuần và
+1/6 so với trộn xác suất, hướng nhất quán dù n nhỏ. Còn **trộn xác suất thì 6/6 trên cả ba chỉ số**.
+
+**Phát biểu phải thu hẹp**: *trộn xác suất α=0.5* là lựa chọn an toàn trên **cả hai** backbone;
+*nội suy trọng số* mới chỉ chứng minh được trên t5p, và trên codebert nó mất F1. Muốn nêu "một mô
+hình là đủ" thì phải chạy thêm.
+
+### Lỗi thiết kế: khối KHÔNG chạy lại được từng phần
+
+Nguồn `full` **đã sinh đủ 3 ô Pha 2**, nhưng bước nội suy bị bỏ:
+
+```
+!! thieu checkpoint baseline model/wbcb_codebert/baseline/seed_42/fold3/best.pt — bo fold 3
+```
+
+`run/wblend.sh` dọn checkpoint **ngay sau mỗi fold** (đúng, vì mỗi cái ~450MB). Nhưng khi chạy lại
+cho một nguồn khác, `matrix.sh` thấy **file kết quả JSON đã có** nên **không huấn luyện lại**
+baseline — mà checkpoint thì đã bị xoá. Kết quả: có ô Pha 2 nhưng không có cặp để nội suy.
+
+**Sửa cho lần sau**: hoặc (a) giữ checkpoint baseline đến hết khối rồi mới dọn, hoặc (b) khi chạy
+bù một nguồn, xoá luôn **file kết quả JSON** của baseline để `matrix.sh` huấn luyện lại. Đây là
+biến thể của bẫy "mã thoát 0 không có nghĩa là việc đã thành": khối in `xong ... (+3 o)` và cổng
+đếm hiện vật **không bắt được**, vì nó đếm `fold*.json` — mà 3 ô Pha 2 đúng là đã sinh ra.
+Cổng đếm hiện vật nên đếm **thứ mà khối sinh ra để dùng** (ở đây là file nội suy), không phải thứ
+dễ đếm nhất.
