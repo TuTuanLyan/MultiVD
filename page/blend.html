@@ -1,0 +1,580 @@
+<title>Trộn đều hai mô hình</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#f4f3f0; --card:#fffefc; --ink:#141a1d; --ink-2:#3d484d; --ink-3:#6d7a80;
+  --rule:#ddd9d2; --rule-2:#eae6df;
+  --accent:#0d6a6a; --accent-soft:#e2efee;
+  --gain:#1c6e46; --gain-soft:#e0efe7;
+  --loss:#9c2f24; --loss-soft:#f6e4e1;
+  --warn:#8a5a09; --warn-soft:#f8eed8;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0e1215; --card:#161c20; --ink:#eef1f1; --ink-2:#b3bec2; --ink-3:#7f8d93;
+  --rule:#283238; --rule-2:#1e262b;
+  --accent:#4fc3bd; --accent-soft:#12302f;
+  --gain:#54c98c; --gain-soft:#123425;
+  --loss:#e8877a; --loss-soft:#341917;
+  --warn:#d9a441; --warn-soft:#2e2410;
+}}
+:root[data-theme="dark"]{
+  --paper:#0e1215; --card:#161c20; --ink:#eef1f1; --ink-2:#b3bec2; --ink-3:#7f8d93;
+  --rule:#283238; --rule-2:#1e262b;
+  --accent:#4fc3bd; --accent-soft:#12302f;
+  --gain:#54c98c; --gain-soft:#123425;
+  --loss:#e8877a; --loss-soft:#341917;
+  --warn:#d9a441; --warn-soft:#2e2410;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);
+  font:400 16px/1.6 "IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:38px 22px 80px;display:flex;flex-direction:column;gap:34px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(30px,5.2vw,44px);line-height:1.08;font-weight:700;letter-spacing:-.022em;
+  margin:.28em 0 0;text-wrap:balance}
+.lede{font-size:18px;line-height:1.55;color:var(--ink-2);max-width:64ch;margin:.7em 0 0}
+h2{font-size:20px;font-weight:600;letter-spacing:-.012em;margin:0 0 4px;
+  padding-bottom:9px;border-bottom:1.5px solid var(--rule)}
+h3{font-size:15px;font-weight:600;margin:0 0 8px}
+p{margin:0 0 12px;max-width:70ch}
+section{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:5px;padding:19px 21px}
+
+/* ---- bang ---- */
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+th,td{padding:9px 11px;text-align:right;border-bottom:1px solid var(--rule-2);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:600;border-bottom:1.5px solid var(--rule)}
+tbody tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:13.5px}
+.g{color:var(--gain);font-weight:600}
+.l{color:var(--loss);font-weight:600}
+.n{color:var(--ink-3)}
+tr.hi td{background:var(--accent-soft)}
+.sig{font-size:11.5px;color:var(--ink-3);font-family:"IBM Plex Mono",monospace}
+
+/* ---- ket luan ---- */
+.claim{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+.claim > div{background:var(--card);padding:17px 18px}
+.claim .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.claim .v{font-family:"IBM Plex Mono",monospace;font-size:26px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.05}
+.claim .s{font-size:12.5px;color:var(--ink-3);margin-top:5px;font-family:"IBM Plex Mono",monospace}
+
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);
+  padding:15px 17px;border-radius:0 4px 4px 0;font-size:14.5px}
+.note strong{color:var(--warn)}
+.note ol{margin:9px 0 0;padding-left:19px}
+.note li{margin-bottom:8px}
+.note li:last-child{margin-bottom:0}
+.arg{border-left:3px solid var(--accent);background:var(--accent-soft);
+  padding:15px 17px;border-radius:0 4px 4px 0}
+.arg p{margin:0;font-size:15px}
+code{font-family:"IBM Plex Mono",monospace;font-size:.89em;background:var(--rule-2);
+  padding:1.5px 5px;border-radius:3px}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:15px;height:2.5px;border-radius:2px;display:inline-block}
+footer{border-top:1px solid var(--rule);padding-top:16px;font-size:12.5px;color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace;line-height:1.7}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">MultiVD · 09/09/2026 · 87 khối độc lập · đối chứng âm n=32</div>
+  <h1>Chuyển giao đóng góp ở đâu</h1>
+  <p class="lede"><strong>Điểm tổng là cách đo sai.</strong> Trộn đều xác suất của baseline
+  (chỉ huấn luyện trên Python) với mô hình chuyển giao có nâng điểm tổng — nhưng đối chứng cho
+  thấy <strong>2/3 mức nâng đó chỉ là trung bình hoá phương sai</strong>: trộn hai baseline
+  <em>khác seed</em> cũng cho gần bằng thế.</p>
+  <p class="lede" style="font-size:16px">Chỗ chuyển giao thật sự đóng góp nằm ở <strong>phân bố
+  theo CWE</strong>, không ở trung bình: đối chứng <em>phẳng hoặc âm</em> ở cả bốn lớp, còn chuyển
+  giao dồn <strong>+0.097</strong> và <strong>+0.151</strong> ROC vào đúng hai lớp hiếm mà mô hình
+  chỉ-đích yếu nhất, với 74/82 và 81/83 fold cùng dấu.</p>
+</header>
+
+<section>
+  <div class="claim">
+    <div><div class="k">ĐỐI CHỨNG · trộn hai baseline khác seed</div>
+      <div class="v" style="color:var(--warn)">+0.0084</div>
+      <div class="s">ROC-AUC · 25/32 · p=0.0021</div></div>
+    <div><div class="k">trộn baseline ⊕ chuyển giao</div>
+      <div class="v g">+0.0126</div>
+      <div class="s">ROC-AUC · 65/83 · phần dôi ra ≈ +0.0045</div></div>
+    <div><div class="k">CWE-022 · đối chứng vs chuyển giao</div>
+      <div class="v"><span class="l">−0.024</span> <span class="n">→</span> <span class="g">+0.097</span></div>
+      <div class="s">ROC-AUC · 9/32 → 74/82 · ngược dấu</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Đối chứng âm — và vì sao nó đổi cả kết luận</h2>
+  <p>Phản biện: <em>“trộn hai mô hình nào cũng lợi, đó là trung bình hoá phương sai.”</em> Phép
+  kiểm: trộn <strong>hai baseline chỉ khác seed</strong> — hai mô hình ngang tài, cùng kiến trúc,
+  cùng dữ liệu, không có Pha 1. Chạy vào <em>đúng cây</em> đã có baseline seed 42 nên ghép cặp
+  được cùng máy cùng fold. <strong>n=32 cặp trên hai máy.</strong></p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>trộn α=0.5</th><th>F1@0.5</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>ĐỐI CHỨNG</strong> baseline ⊕ baseline′ (n=32)</td>
+        <td class="num">+0.0124<div class="sig">21/32 · p=0.07</div></td>
+        <td class="num" style="color:var(--warn);font-weight:600">+0.0084<div class="sig">25/32 · p=0.0021</div></td>
+        <td class="num" style="color:var(--warn);font-weight:600">+0.0092<div class="sig">29/32 · p&lt;1e-4</div></td></tr>
+      <tr><td>baseline ⊕ chuyển giao (87 khối)</td>
+        <td class="num g">+0.0317<div class="sig">76/87</div></td>
+        <td class="num g">+0.0129<div class="sig">69/87</div></td>
+        <td class="num g">+0.0136<div class="sig">71/87</div></td></tr>
+      <tr><td><strong>phần dôi ra của chuyển giao</strong></td>
+        <td class="num">+0.0193</td>
+        <td class="num n">≈ +0.0045<div class="sig">dưới sàn nhiễu 0.010</div></td>
+        <td class="num n">≈ +0.0044<div class="sig">dưới sàn nhiễu 0.010</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note">
+    <strong>Đối chứng KHÔNG null.</strong> Trộn hai bản chạy lại của <em>cùng một mô hình</em> đã
+    lấy <strong>65–68%</strong> mức tăng tổng. Phần chuyển giao đóng góp thêm nằm <strong>dưới sàn
+    nhiễu</strong>. Vì thế câu “trộn baseline ⊕ chuyển giao hơn baseline” <strong>không còn là bằng
+    chứng cho chuyển giao</strong> — nó đúng, nhưng phần lớn là trung bình hoá phương sai. Đã rút
+    khỏi luận điểm.
+  </div>
+  <p>Nhưng tách theo CWE thì hai phép trộn <strong>không giống nhau chút nào</strong>:</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>ΔROC-AUC theo CWE, α=0.5</th><th>ĐỐI CHỨNG<br>baseline ⊕ baseline′</th>
+      <th>baseline ⊕ chuyển giao</th><th>chênh</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>CWE-022</strong> path traversal</td>
+        <td class="num l">−0.0242<div class="sig">9/32 — âm</div></td>
+        <td class="num g">+0.0967<div class="sig">74/82 · p&lt;1e-4</div></td>
+        <td class="num"><strong>ngược dấu</strong></td></tr>
+      <tr class="hi"><td><strong>CWE-079</strong> XSS</td>
+        <td class="num n">+0.0283<div class="sig">20/32 · p=0.22 — không ý nghĩa</div></td>
+        <td class="num g">+0.1513<div class="sig">81/83 · p&lt;1e-4</div></td>
+        <td class="num"><strong>5,3×</strong></td></tr>
+      <tr><td>CWE-078</td>
+        <td class="num n">+0.0048<div class="sig">17/32 — tung đồng xu</div></td>
+        <td class="num n">−0.0014<div class="sig">40/81 · p=1.00</div></td><td class="num n">—</td></tr>
+      <tr><td>CWE-089</td>
+        <td class="num n">+0.0037<div class="sig">16/32 — tung đồng xu</div></td>
+        <td class="num n">+0.0036<div class="sig">56/83</div></td><td class="num n">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Đây mới là bằng chứng.</strong> Đối chứng cho cả bốn lớp <strong>16–20/32, tức tung
+    đồng xu</strong>, và CWE-022 còn <em>âm</em>. Chuyển giao dồn <span class="mono g">+0.097</span>
+    và <span class="mono g">+0.151</span> vào đúng hai lớp hiếm với <strong>74/82</strong> và
+    <strong>81/83</strong> fold cùng dấu. Ngược dấu ở một lớp, gấp 5,3 lần ở lớp kia, và mẫu hình
+    cùng dấu gần tuyệt đối — <strong>trung bình hoá phương sai không tạo ra được điều đó</strong>.
+    Giá trị của Pha 1 nằm ở <em>phân bố</em>, không ở <em>trung bình</em>.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Đường α — đỉnh nằm hẳn bên trong</h2>
+  <p>Δ so với baseline, ghép cặp theo khối <code>(cây, run, seed, fold)</code>. Hai đầu mút là
+  α=0 (baseline) và α=1 (chuyển giao thuần). Nếu Pha 1 chỉ là “huấn luyện thêm” thì đường này
+  phải đơn điệu; nó có đỉnh nội tại ở α≈0.5–0.6.</p>
+  <div class="card">
+    <div class="scroll">
+    <svg viewBox="0 0 720 320" width="100%" style="min-width:600px;display:block" role="img"
+         aria-label="Δ so với baseline theo hệ số trộn α: ba đường F1@0.5, ROC-AUC, PR-AUC, tất cả có đỉnh quanh α=0.5">
+      <defs><style>
+        .ax{stroke:var(--rule);stroke-width:1}
+        .zero{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:3 3}
+        .lb{fill:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:11px}
+        .lb2{fill:var(--ink-2);font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600}
+        .ln{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+      </style></defs>
+      <!-- vung ve: x 62..680, y 28..258 ; Delta -0.012 .. +0.034 -->
+      <line class="ax" x1="62" y1="258" x2="680" y2="258"/>
+      <line class="ax" x1="62" y1="28"  x2="62"  y2="258"/>
+      <!-- luoi y -->
+      <line class="zero" x1="62" y1="198" x2="680" y2="198"/>
+      <text class="lb" x="56" y="202" text-anchor="end">0</text>
+      <line class="ax" x1="62" y1="148" x2="680" y2="148" opacity=".45"/>
+      <text class="lb" x="56" y="152" text-anchor="end">+.010</text>
+      <line class="ax" x1="62" y1="98" x2="680" y2="98" opacity=".45"/>
+      <text class="lb" x="56" y="102" text-anchor="end">+.020</text>
+      <line class="ax" x1="62" y1="48" x2="680" y2="48" opacity=".45"/>
+      <text class="lb" x="56" y="52" text-anchor="end">+.030</text>
+      <line class="ax" x1="62" y1="248" x2="680" y2="248" opacity=".45"/>
+      <text class="lb" x="56" y="252" text-anchor="end">−.010</text>
+      <!-- truc x -->
+      <text class="lb" x="62"  y="276" text-anchor="middle">0</text>
+      <text class="lb" x="185" y="276" text-anchor="middle">0.2</text>
+      <text class="lb" x="309" y="276" text-anchor="middle">0.4</text>
+      <text class="lb" x="371" y="276" text-anchor="middle">0.5</text>
+      <text class="lb" x="433" y="276" text-anchor="middle">0.6</text>
+      <text class="lb" x="556" y="276" text-anchor="middle">0.8</text>
+      <text class="lb" x="680" y="276" text-anchor="middle">1.0</text>
+      <text class="lb2" x="371" y="300" text-anchor="middle">hệ số trộn α  (0 = baseline · 1 = chuyển giao thuần)</text>
+      <!-- moc alpha=0.5 -->
+      <line x1="371" y1="28" x2="371" y2="258" stroke="var(--accent)" stroke-width="1.5"
+            stroke-dasharray="4 4" opacity=".65"/>
+      <text class="lb2" x="377" y="42" fill="var(--accent)">α = 0.5 (khai báo trước)</text>
+      <!-- F1@0.5: 0,.0034,.0059,.0102,.0146,.0311,.0287,.0272,.0230,.0194,.0163 -->
+      <path class="ln" stroke="var(--accent)" d="M62,198 L124,181 L185,168.5 L247,147 L309,125 L371,42.5 L433,54.5 L495,62 L556,83 L618,101 L680,116.5"/>
+      <!-- ROC: 0,.0071,.0084,.0100,.0112,.0126,.0126,.0118,.0103,.0061,-.0039 -->
+      <path class="ln" stroke="var(--gain)" d="M62,198 L124,162.5 L185,156 L247,148 L309,142 L371,135 L433,135 L495,139 L556,146.5 L618,167.5 L680,217.5"/>
+      <!-- PR: 0,.0088,.0101,.0115,.0125,.0136,.0134,.0126,.0112,.0072,-.0098 -->
+      <path class="ln" stroke="var(--loss)" d="M62,198 L124,154 L185,147.5 L247,140.5 L309,135.5 L371,130 L433,131 L495,135 L556,142 L618,162 L680,247"/>
+      <!-- diem alpha=0.5 -->
+      <circle cx="371" cy="42.5" r="4" fill="var(--accent)"/>
+      <circle cx="371" cy="135"  r="4" fill="var(--gain)"/>
+      <circle cx="371" cy="130"  r="4" fill="var(--loss)"/>
+      <!-- diem alpha=1 -->
+      <circle cx="680" cy="217.5" r="3.5" fill="var(--gain)" opacity=".85"/>
+      <circle cx="680" cy="247"   r="3.5" fill="var(--loss)" opacity=".85"/>
+    </svg>
+    </div>
+    <div class="legend" style="margin-top:12px">
+      <span><i class="sw" style="background:var(--accent)"></i>F1@0.5</span>
+      <span><i class="sw" style="background:var(--gain)"></i>ROC-AUC</span>
+      <span><i class="sw" style="background:var(--loss)"></i>PR-AUC</span>
+      <span>trục dọc: Δ so với baseline</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Ba chỉ số, ghép cặp trên 83 khối</h2>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>so sánh</th><th>F1@0.5</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>α=0.5 vs baseline</strong></td>
+        <td class="num g">+0.0311<div class="sig">72/83 · p&lt;1e-4</div></td>
+        <td class="num g">+0.0126<div class="sig">65/83 · p&lt;1e-4</div></td>
+        <td class="num g">+0.0136<div class="sig">67/83 · p&lt;1e-4</div></td></tr>
+      <tr><td>α=1.0 (chuyển giao) vs baseline</td>
+        <td class="num g">+0.0163<div class="sig">54/83 · p=0.008</div></td>
+        <td class="num l">−0.0039<div class="sig">53/83</div></td>
+        <td class="num l">−0.0098<div class="sig">47/83 · p=0.27</div></td></tr>
+      <tr class="hi"><td><strong>α=0.5 vs α=1.0</strong></td>
+        <td class="num n">+0.0148<div class="sig">50/83 · p=0.078 — không có ý nghĩa</div></td>
+        <td class="num g">+0.0165<div class="sig">59/83 · p=0.0002</div></td>
+        <td class="num g">+0.0235<div class="sig">62/83 · p&lt;1e-4</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Vì sao dòng thứ ba là một lập luận, không chỉ một con số.</strong> Phản biện lớn
+    nhất của nhánh này là <em>“finetune hai lần thì tất nhiên hơn một lần”</em>. Nếu đúng vậy,
+    hai mô hình <em>thừa</em> nhau và bản trộn phải nằm <em>giữa</em> hai đầu mút. Nó nằm
+    <em>trên cả hai</em> — trên hai chỉ số xếp hạng — nên hai mô hình sai ở chỗ khác nhau. Trên
+    F1@0.5 thì không: phải nêu cả hai.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Không phụ thuộc backbone</h2>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>backbone</th><th>khối</th><th>ΔF1@0.5</th><th>ΔROC</th><th>ΔPR</th><th>ΔROC vs α=1</th></tr></thead>
+    <tbody>
+      <tr><td>codet5p</td><td class="num">68</td>
+        <td class="num g">+0.0319<div class="sig">58/68</div></td>
+        <td class="num g">+0.0126<div class="sig">53/68</div></td>
+        <td class="num g">+0.0143<div class="sig">56/68</div></td>
+        <td class="num g">+0.0172<div class="sig">46/68 · p=0.005</div></td></tr>
+      <tr><td>codebert</td><td class="num">15</td>
+        <td class="num g">+0.0275<div class="sig">14/15</div></td>
+        <td class="num g">+0.0129<div class="sig">12/15</div></td>
+        <td class="num g">+0.0106<div class="sig">11/15</div></td>
+        <td class="num g">+0.0132<div class="sig">13/15 · p=0.007</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Hai backbone cho <strong>cùng biên độ</strong> trên ROC-AUC — sai khác 0.0003, tức nhỏ hơn
+  sàn nhiễu cùng-loại-GPU (0.010) khoảng 33 lần.</p>
+</section>
+
+<section>
+  <h2>Cơ chế: giữ phần được, bỏ phần mất</h2>
+  <p>ΔROC-AUC tính riêng từng CWE. Chuyển giao thuần <em>hại có ý nghĩa</em> trên hai lớp
+  thường — chiếm 81% hàng test — nên chúng nuốt hết phần được ở hai lớp hiếm. Trộn đều xoá
+  sạch phần hại mà vẫn giữ phần lớn phần được.</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>CWE</th><th>% hàng test</th><th>α=1.0 chuyển giao thuần</th><th>α=0.5 trộn đều</th><th>giữ lại</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>CWE-022</strong> path traversal</td><td class="num">9%</td>
+        <td class="num g">+0.2275<div class="sig">75/83</div></td>
+        <td class="num g">+0.0967<div class="sig">74/82 · p&lt;1e-4</div></td>
+        <td class="num">43%</td></tr>
+      <tr class="hi"><td><strong>CWE-079</strong> XSS</td><td class="num">11%</td>
+        <td class="num g">+0.2379<div class="sig">81/83</div></td>
+        <td class="num g">+0.1513<div class="sig">81/83 · p&lt;1e-4</div></td>
+        <td class="num">64%</td></tr>
+      <tr><td>CWE-078 OS command inj.</td><td class="num">27%</td>
+        <td class="num l">−0.0288<div class="sig">17/83 · p&lt;1e-4 — hại</div></td>
+        <td class="num n">−0.0014<div class="sig">40/81 · p=1.00 — đúng null</div></td>
+        <td class="num n">hại biến mất</td></tr>
+      <tr><td>CWE-089 SQL injection</td><td class="num">54%</td>
+        <td class="num l">−0.0213<div class="sig">31/83 · p=0.028</div></td>
+        <td class="num g">+0.0036<div class="sig">56/83 · p=0.0019 — lợi</div></td>
+        <td class="num n">lật dấu</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Đó là lý do ΔROC tổng lật từ <span class="l mono">−0.0039</span> sang
+  <span class="g mono">+0.0126</span>: không phải vì bản trộn giỏi hơn ở đâu cả, mà vì nó
+  không còn phá hai lớp chiếm đa số.</p>
+</section>
+
+<section>
+  <h2>Bắt thêm được bao nhiêu lỗ hổng</h2>
+  <p>ROC-AUC không trả lời được câu đó. Đây là <strong>recall</strong> và
+  <strong>precision</strong> tại hai điểm vận hành — 86 khối, α=0.5. Ngưỡng “val-baseline” là
+  ngưỡng hiệu chỉnh trên val của <em>chính baseline</em>, dùng chung cho cả ba mô hình: giữ
+  nguyên điểm vận hành đang triển khai, chỉ đổi mô hình.</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>CWE</th><th>hàng dương / fold</th><th>recall baseline</th><th>recall trộn</th>
+      <th>Δ recall @0.5</th><th>Δ prec @0.5</th><th>Δ recall @val-base</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>CWE-022</strong></td><td class="num">6.7</td>
+        <td class="num">0.359</td><td class="num g">0.432</td>
+        <td class="num g">+0.073<div class="sig">54/63 · p&lt;1e-3</div></td>
+        <td class="num g">+0.107<div class="sig">68/77</div></td>
+        <td class="num g">+0.079<div class="sig">53/72 · p&lt;1e-3</div></td></tr>
+      <tr class="hi"><td><strong>CWE-079</strong></td><td class="num">8.2</td>
+        <td class="num">0.519</td><td class="num g">0.665</td>
+        <td class="num g">+0.146<div class="sig">58/73 · p&lt;1e-3</div></td>
+        <td class="num g">+0.170<div class="sig">83/85</div></td>
+        <td class="num g">+0.072<div class="sig">49/64 · p&lt;1e-3</div></td></tr>
+      <tr><td>CWE-078</td><td class="num">20.8</td>
+        <td class="num">0.779</td><td class="num">0.789</td>
+        <td class="num n">+0.010<div class="sig">42/73 · p=0.24</div></td>
+        <td class="num n">−0.001<div class="sig">36/86</div></td>
+        <td class="num n">+0.011<div class="sig">38/70 · p=0.55</div></td></tr>
+      <tr><td>CWE-089</td><td class="num">40.6</td>
+        <td class="num">0.931</td><td class="num">0.934</td>
+        <td class="num n">+0.003<div class="sig">36/70 · p=0.91</div></td>
+        <td class="num n">+0.016<div class="sig">52/84</div></td>
+        <td class="num n">+0.001<div class="sig">42/69 · p=0.09</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Recall và precision cùng tăng</strong> trên cả hai CWE hiếm, ở cả hai ngưỡng. Nếu
+    bản trộn chỉ “đoán dương nhiều hơn” thì recall tăng còn precision phải giảm — nó không giảm.
+    Và hai CWE thường <strong>không bị đụng tới</strong>: Δ recall +0.010 / +0.003, đếm dấu là
+    tung đồng xu. Bản trộn không đánh đổi lớp thường lấy lớp hiếm.</p>
+  </div>
+  <div class="note">
+    <strong>Phải in kèm mọi lần trích con số này.</strong> CWE-079 chỉ có <strong>~8 hàng dương
+    mỗi fold</strong>, CWE-022 <strong>~6.7</strong>. “+0.146 recall” nghĩa là bắt thêm khoảng
+    <strong>1,2 lỗ hổng mỗi fold</strong> — nhỏ về tuyệt đối. Thứ làm nó đáng tin không phải biên
+    độ mà là <strong>58/73 khối cùng dấu</strong> (và 83/85 ở precision). Và khi phát biểu phải
+    lấy con số ở ngưỡng val (+0.072), vì đó mới là điểm vận hành thật.
+  </div>
+</section>
+
+<section>
+  <h2>Đối chứng âm: trộn <em>không</em> lợi bừa</h2>
+  <p>Các cây pool chứa <strong>cả hai loại nhánh trong cùng một khối</strong>, so với cùng một
+  baseline: nguồn nguyên chất (<code>pur100</code>, <code>lm100</code>) và nguồn pha loãng
+  (<code>pur12/25</code>, <code>lm12/25</code> — đã đo được là âm). Cả hai đều là “một mô hình
+  thứ hai” đã finetune trên cùng dữ liệu đích, nên giả thuyết trung bình-hoá phương sai dự đoán
+  <strong>cùng một mức lợi</strong>. 13 khối, ghép cặp trong khối:</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>nguồn Pha 1</th><th>ΔF1@0.5</th><th>ΔROC-AUC</th><th>ΔPR-AUC</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>nguyên chất</strong> · trộn α=0.5</td>
+        <td class="num g">+0.0240<div class="sig">12/13</div></td>
+        <td class="num g">+0.0109<div class="sig">9/13</div></td>
+        <td class="num g">+0.0154<div class="sig">10/13</div></td></tr>
+      <tr><td>nguyên chất · thuần α=1.0</td>
+        <td class="num g">+0.0315<div class="sig">12/13</div></td>
+        <td class="num n">+0.0054<div class="sig">7/13</div></td>
+        <td class="num n">+0.0003<div class="sig">6/13</div></td></tr>
+      <tr class="hi"><td><strong>pha loãng</strong> · trộn α=0.5</td>
+        <td class="num n">+0.0062<div class="sig">6/13</div></td>
+        <td class="num l">−0.0036<div class="sig">4/13</div></td>
+        <td class="num n">−0.0004<div class="sig">4/13</div></td></tr>
+      <tr><td>pha loãng · thuần α=1.0</td>
+        <td class="num l">−0.0060<div class="sig">3/13</div></td>
+        <td class="num l">−0.0162<div class="sig">2/13 · p=0.023</div></td>
+        <td class="num l">−0.0140<div class="sig">2/13 · p=0.023</div></td></tr>
+      <tr><td><strong>hiệu ghép cặp</strong> nguyên − loãng, khi trộn</td>
+        <td class="num g">+0.0177<div class="sig">12/13 · p=0.0034</div></td>
+        <td class="num g">+0.0145<div class="sig">12/13 · p=0.0034</div></td>
+        <td class="num g">+0.0157<div class="sig">11/13 · p=0.023</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Trộn với mô hình chuyển giao từ nguồn pha loãng cho −0.0036 ROC</strong> — tức
+    không lợi gì so với chính baseline. Ở <em>cả hai</em> nhóm, trộn tốt hơn chuyển giao thuần;
+    đó chỉ là nội suy về phía baseline. Điều phân biệt hai giả thuyết là: trộn tốt hơn
+    <em>baseline</em> chỉ xảy ra ở nhóm nguyên chất. Để ý cột PR-AUC nhóm nguyên chất — chuyển
+    giao thuần <span class="mono">+0.0003</span> (đúng bằng không) nhưng bản trộn
+    <span class="mono g">+0.0154</span>: mô hình chuyển giao <em>một mình không hơn gì</em> vẫn
+    đóng góp được khi trộn. Đó là định nghĩa của bổ trợ, không phải của trung bình hoá.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Rò rỉ: lợi ích nằm đúng ở hàng sạch</h2>
+  <p>Bộ đích chia <strong>theo từng dòng</strong>, nên ~16% hàng test có bản gần trùng nằm trong
+  TRAIN. Phép kiểm này đã từng đánh sập một kết luận của chính dự án. Δ so với baseline,
+  tính riêng trên từng nhóm hàng, 86 khối:</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>nhóm (hàng/fold)</th><th>mô hình</th><th>ΔF1@0.5</th><th>ΔROC-AUC</th><th>ΔPR-AUC</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td rowspan="2"><strong>none</strong> — không có bản gần trùng<br>
+        <span class="sig">~111 hàng, 73% dữ liệu</span></td><td>trộn</td>
+        <td class="num g">+0.0264<div class="sig">74/86 · p&lt;1e-4</div></td>
+        <td class="num g">+0.0080<div class="sig">58/86 · p=0.0016</div></td>
+        <td class="num g">+0.0070<div class="sig">62/86 · p=0.0001</div></td></tr>
+      <tr class="hi"><td>chuyển giao thuần</td>
+        <td class="num n">+0.0089<div class="sig">59/86</div></td>
+        <td class="num l">−0.0102<div class="sig">46/86 · p=0.59</div></td>
+        <td class="num l">−0.0159<div class="sig">42/86</div></td></tr>
+      <tr class="hi"><td rowspan="2"><strong>test</strong> — bản gần trùng nằm trong chính TEST<br>
+        <span class="sig">~9 hàng · bài toán của <code>twin</code> thu nhỏ</span></td><td>trộn</td>
+        <td class="num g">+0.0742<div class="sig">35/52 · p&lt;1e-4</div></td>
+        <td class="num g">+0.0432<div class="sig">37/52 · p=0.0002</div></td>
+        <td class="num g">+0.0333<div class="sig">37/52 · p=0.0002</div></td></tr>
+      <tr class="hi"><td>chuyển giao thuần</td>
+        <td class="num n">+0.0429<div class="sig">26/52 · p=0.29</div></td>
+        <td class="num n">+0.0242<div class="sig">31/52 · p=0.21</div></td>
+        <td class="num n">+0.0208<div class="sig">31/52 · p=0.21</div></td></tr>
+      <tr><td rowspan="2">train — bản gần trùng trong TRAIN<br>
+        <span class="sig">~23 hàng · nhóm học vẹt được</span></td><td>trộn</td>
+        <td class="num">+0.0569<div class="sig">58/86</div></td>
+        <td class="num">+0.0289<div class="sig">57/86</div></td>
+        <td class="num">+0.0287<div class="sig">52/86</div></td></tr>
+      <tr><td>chuyển giao thuần</td>
+        <td class="num g">+0.0692<div class="sig">67/86</div></td>
+        <td class="num g">+0.0436<div class="sig">53/86</div></td>
+        <td class="num g">+0.0339<div class="sig">53/86</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Hiệu <em>trộn − chuyển giao thuần</em> trên ROC-AUC, theo nhóm:</strong>
+    <span class="mono g">none +0.0182</span> · <span class="mono g">test +0.0190</span> ·
+    <span class="mono g">val +0.0220</span> · <span class="mono l">train −0.0147</span>.
+    Phép trộn <em>hơn</em> chuyển giao thuần ở ba nhóm phải khái quát hoá, và <em>kém hơn</em> ở
+    đúng nhóm học vẹt được. Cái mà chuyển giao thuần được nhiều nhất lại là nhóm dễ học vẹt nhất;
+    cái mà phép trộn thêm vào nằm ở hàng sạch. Trên nhóm <code>test</code> — hàng chưa từng thấy
+    cặp nào tương tự — trộn cho +0.0432 ROC có ý nghĩa, còn chuyển giao thuần thì không.</p>
+  </div>
+  <div class="note">
+    <strong>Biên độ ở nhóm <code>none</code> nằm dưới sàn nhiễu.</strong> ROC +0.0080 và PR
+    +0.0070 đều dưới sàn 0.010 (cùng loại GPU); chỉ <em>đếm dấu</em> mới có ý nghĩa (58/86,
+    62/86). Riêng F1@0.5 (+0.0264) thì trên sàn rõ ràng. Phát biểu đúng: trên hàng sạch, phép
+    trộn dương ổn định về dấu ở cả ba chỉ số và vượt sàn ở F1, còn chuyển giao thuần thì âm ở cả
+    hai chỉ số AUC.
+  </div>
+</section>
+
+<section>
+  <h2>Có phải chỉ đang cứu bản chuyển giao yếu?</h2>
+  <p>Nếu lợi của phép trộn chỉ là kéo một mô hình kém về phía baseline thì nó là <em>chính quy
+  hoá</em>, không phải <em>bổ trợ</em>. Cách kiểm tầm thường — chia khối theo Δ của chính nhánh
+  chuyển giao — <strong>bị lệch</strong>: chọn nhóm theo x rồi đo trên cùng dữ liệu test là hồi
+  quy về trung bình. Phải chia theo đại lượng <strong>độc lập với tập test đích</strong>.</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>chia theo Pha 1 val (trung vị 0.5897)</th><th>khối</th>
+      <th>chuyển giao thuần</th><th>trộn</th><th>trộn − thuần</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><strong>Pha 1 val TRÊN trung vị</strong> — chuyển giao mạnh</td>
+        <td class="num">87</td>
+        <td class="num l">−0.0027<div class="sig">57/87</div></td>
+        <td class="num g">+0.0128<div class="sig">69/87 · p&lt;1e-4</div></td>
+        <td class="num g">+0.0154<div class="sig">58/87 · p=0.0025</div></td></tr>
+      <tr><td><strong>Pha 1 val DƯỚI trung vị</strong> — chuyển giao yếu</td>
+        <td class="num">57</td>
+        <td class="num g">+0.0129<div class="sig">37/57 · p=0.033</div></td>
+        <td class="num g">+0.0180<div class="sig">44/57 · p&lt;1e-4</div></td>
+        <td class="num n">+0.0051<div class="sig">30/57 · p=0.79 — không ý nghĩa</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Ngược hẳn giả thuyết “chỉ cứu bản yếu”</strong>: phần phép trộn <em>thêm</em> vào có ý
+  nghĩa ở nhóm Pha 1 <em>mạnh</em> và không có ý nghĩa ở nhóm yếu. Nếu là chính quy hoá thuần thì
+  phải ngược lại. (Khớp với một kết quả cũ: <code>phase1_val</code> không dự báo được chất lượng
+  chuyển giao, Spearman −0.191 — nên phép chia này thật sự trực giao với kết quả test.)</p>
+  <div class="card scroll">
+  <table>
+    <thead><tr><th>chia theo nguồn</th><th>khối</th><th>chuyển giao thuần (ROC)</th>
+      <th>trộn (ROC)</th><th>trộn − thuần</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><code>4cwe</code> — chuyển giao thuần <em>gây hại</em></td><td class="num">62</td>
+        <td class="num l">−0.0209<div class="sig">40/62</div></td>
+        <td class="num g">+0.0078<div class="sig">48/62</div></td>
+        <td class="num g">+0.0287<div class="sig">35/62 · p=0.37</div></td></tr>
+      <tr><td><code>com</code></td><td class="num">61</td>
+        <td class="num g">+0.0102<div class="sig">46/61</div></td>
+        <td class="num g">+0.0198<div class="sig">53/61</div></td>
+        <td class="num n">+0.0096<div class="sig">37/61 · p=0.12</div></td></tr>
+      <tr><td><code>full</code> — chuyển giao thuần <em>vốn đã tốt</em></td><td class="num">33</td>
+        <td class="num g">+0.0256<div class="sig">26/33</div></td>
+        <td class="num g">+0.0272<div class="sig">29/33</div></td>
+        <td class="num n">+0.0016<div class="sig">15/33 · p=0.73 — null</div></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="arg">
+    <p><strong>Ghép hai trục lại: phép trộn cho một SÀN.</strong> Nó dương so với baseline ở
+    <em>cả ba</em> nguồn và <em>cả hai</em> nhóm Pha 1 — chưa bao giờ kém hơn baseline. Nó
+    <em>sửa</em> trường hợp chuyển giao thuần gây hại (<code>4cwe</code>: −0.0209 → +0.0078) và
+    <em>trung tính</em> khi chuyển giao đã tốt (<code>full</code>). Câu đáng viết vào bài là:
+    <em>không cần biết trước nguồn có chuyển giao tốt hay không — bản trộn đều không bao giờ kém
+    hơn mô hình chỉ-đích, và lấy lại phần lớn thiệt hại khi nguồn kém.</em></p>
+  </div>
+</section>
+
+<section>
+  <h2>Chưa được trích — ba giới hạn</h2>
+  <div class="note">
+    <strong>§25 chưa dùng được cho bài khi chưa có đối chứng ở mục 1.</strong>
+    <ol>
+      <li><strong>Đối chứng đã chạy — và đã buộc phải thu hẹp phát biểu.</strong> Xem mục
+      “Đối chứng âm” ở trên: phát biểu về <em>biên độ tổng</em> đã bị rút; phát biểu còn lại nằm
+      ở <em>phân bố theo CWE</em>. Đây là thứ đáng giá đúng bằng cả khối: nếu bỏ qua đối chứng
+      này thì đã viết vào bài một con số mà 2/3 đến từ việc chạy lại cùng một mô hình.</li>
+      <li><strong>α=0.5 là lựa chọn không tham số khai báo trước</strong> (hai mô hình một phiếu
+      ngang nhau), không phải giá trị dò trên test — nhưng hình dạng đường cong thì có nhìn trên
+      test. Không ô cũ nào lưu xác suất trên <em>val</em> nên không chọn α trên val được ngoài
+      tuyến. Đã vá <code>train_transfer.py</code> và <code>train_baseline.py</code> ghi thêm
+      <code>val_probabilities</code>; mọi ô từ 09/09 chọn được α trên val.</li>
+      <li><strong>Chỉ có ba chỉ số.</strong> F1@ngưỡng-val không tính được ngoài tuyến vì ngưỡng
+      của bản trộn phải hiệu chỉnh trên val. Bịa ngưỡng từ test là rò rỉ — không làm.</li>
+    </ol>
+  </div>
+  <p>Giá phải trả: suy luận <strong>hai lần</strong>. Nội suy <em>trọng số</em> của đúng cặp này
+  (baseline ⊕ chuyển giao) sẽ đưa chi phí về lại một mô hình — chưa đo.
+  <code>train_transfer.py:1086</code> đã có nội suy WiSE-FT nhưng cho <em>cặp khác</em>
+  (θ<sub>Pha1</sub> ⊕ θ<sub>Pha2</sub>).</p>
+</section>
+
+<footer>
+  Nguồn: <span class="mono">tools/ensemble2.py</span> trên toàn bộ ô đã lưu
+  <span class="mono">test_probabilities</span>. 536 nhánh / 83 khối độc lập
+  <span class="mono">(cây, run, seed, fold)</span>; trung bình các nhánh trong khối trước rồi mới
+  đếm dấu, vì 536 ô chia nhau 83 baseline.<br>
+  Lọc: <span class="mono">latent_bottleneck</span>, Pha 1 val ≥ 0.40, bỏ
+  <span class="mono">lm12 lm25 pur12 pur25 pur50 r4p0 r8p0 e60</span> (đã biết là hỏng).
+  Kiểm định dấu hai phía. Đối chứng âm: <span class="mono">tools/ens_dilute.py</span>. Điểm vận hành: <span class="mono">tools/percwe_op.py</span>. Rò rỉ: <span class="mono">tools/ens_leak.py</span>. Phân tầng: <span class="mono">tools/ens_strat.py</span>. Ghi đầy đủ ở <span class="mono">FACTS.md §25</span> và <span class="mono">§25.1</span>, <span class="mono">§25.3</span>, <span class="mono">§25.4</span>, <span class="mono">§25.6</span>.
+</footer>
+
+</div>

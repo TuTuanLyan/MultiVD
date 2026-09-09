@@ -125,9 +125,10 @@ footer{border-top:1px solid var(--rule);padding-top:14px;font-size:12px;color:va
       <th>≥2 backbone</th><th>≥2 máy<br>độc lập</th><th>n=15<br>(bậc 3)</th>
       <th>Kiểm<br>rò rỉ</th><th>Đối chứng<br>âm</th></tr></thead>
     <tbody>
-      <tr><td><strong>§25</strong> Trộn đều baseline ⊕ chuyển giao vượt cả hai đầu mút</td>
+      <tr><td><strong>§25</strong> Chuyển giao đóng góp ở <em>phân bố theo CWE</em>, không ở điểm tổng
+        <div class="sg" style="font-size:11px;color:var(--ink3)">phát biểu về biên độ tổng ĐÃ RÚT sau đối chứng</div></td>
         <td class="yes">✓</td><td class="part">±</td><td class="yes">✓</td><td class="yes">✓</td>
-        <td class="yes">✓</td><td class="yes">✓</td><td class="run">▸</td></tr>
+        <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
       <tr><td><strong>§23</strong> Chuyển giao cứu hai CWE hiếm 022 / 079</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td>
         <td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
@@ -150,11 +151,16 @@ footer{border-top:1px solid var(--rule);padding-top:14px;font-size:12px;color:va
   </table>
   </div>
   <div class="note">
-    <strong>Hai ô chưa xanh, nêu thẳng.</strong> §25 mới <em>một phần</em> ở cột “đủ bốn chỉ số”:
-    F1@ngưỡng-val của bản trộn <strong>không</strong> tính được ngoài tuyến vì ngưỡng phải hiệu
-    chỉnh trên tập val, mà các ô cũ không lưu xác suất val — bịa ngưỡng từ test là rò rỉ. Và cột
-    “đối chứng âm” của §25 <strong>đang chạy</strong> (trộn hai baseline khác seed): nếu nó cũng
-    cho +0.013 ROC thì §25 sập. <strong>Chưa có kết quả đó thì §25 chưa được trích.</strong>
+    <strong>Đối chứng âm của §25 đã chạy — và đã buộc thu hẹp phát biểu.</strong> Trộn hai baseline
+    <em>chỉ khác seed</em> (n=32) cho ROC +0.0084 và PR +0.0092, tức <strong>65–68% mức tăng tổng
+    của §25 là trung bình hoá phương sai</strong>, không phải chuyển giao; phần dôi ra (~+0.0045)
+    nằm dưới sàn nhiễu. Phát biểu về <em>biên độ tổng</em> đã bị rút. Cái còn lại — và đứng vững —
+    là <em>phân bố theo CWE</em>: đối chứng phẳng hoặc âm ở cả bốn lớp (16–20/32, CWE-022 <em>âm</em>),
+    còn chuyển giao dồn <strong>+0.097 / +0.151</strong> vào hai lớp hiếm với 74/82 và 81/83 fold
+    cùng dấu.<br><br>
+    <strong>Ô vẫn chưa xanh:</strong> §25 mới <em>một phần</em> ở cột “đủ bốn chỉ số” —
+    F1@ngưỡng-val của bản trộn không tính được ngoài tuyến vì ngưỡng phải hiệu chỉnh trên val, mà
+    các ô cũ không lưu xác suất val; bịa ngưỡng từ test là rò rỉ.
   </div>
 </section>
 
@@ -285,24 +291,23 @@ footer{border-top:1px solid var(--rule);padding-top:14px;font-size:12px;color:va
     <li><strong>Giá trị chắc nhất của head không phải độ chính xác mà là chống sập Pha 1.</strong>
     Ở <code>codebert × full</code>, hai lần độc lập tại hai λ, nhánh <code>none</code> sập về
     ~0.34 còn <code>latent_bottleneck</code> giữ 0.545–0.564.</li>
-    <li><strong>Phát biểu bán được cho bài không phải “chuyển giao tốt hơn”</strong> — mà là
-    <em>chuyển giao đóng góp thông tin mà mô hình chỉ-đích không có</em>, và bằng chứng là bản
-    trộn đều <strong>vượt cả hai đầu mút</strong> (ROC +0.0165 so với chuyển giao thuần, 59/83 khối,
-    p=0.0002). Nếu Pha 1 chỉ là “huấn luyện thêm” thì hai mô hình thừa nhau và bản trộn phải nằm
-    <em>giữa</em>.</li>
-    <li><strong>Nhưng thu hẹp cho đúng:</strong> phép trộn cho một <em>sàn</em> — chưa bao giờ kém
-    hơn baseline, sửa được trường hợp chuyển giao gây hại (<code>4cwe</code>: −0.021 → +0.008), và
-    <em>trung tính</em> khi chuyển giao vốn đã tốt (<code>full</code>, p=0.73). Không phải “trộn
-    luôn tốt hơn”.</li>
+    <li><strong>Điểm tổng là cách đo sai — và đối chứng đã chứng minh điều đó.</strong> Trộn
+    hai baseline <em>chỉ khác seed</em> (n=32) cho ROC +0.0084 / PR +0.0092, tức 65–68% mức tăng
+    tổng của phép trộn là trung bình hoá phương sai. Phát biểu về biên độ tổng đã bị rút.</li>
+    <li><strong>Cái đứng vững là phân bố theo CWE.</strong> Đối chứng phẳng hoặc âm ở cả bốn lớp
+    (16–20/32 fold, CWE-022 <em>âm</em> −0.024), còn chuyển giao dồn <strong>+0.097</strong> và
+    <strong>+0.151</strong> ROC vào đúng hai lớp hiếm với <strong>74/82</strong> và
+    <strong>81/83</strong> fold cùng dấu. Ngược dấu ở một lớp, gấp 5,3× ở lớp kia — trung bình hoá
+    phương sai không tạo ra được. <em>Giá trị của Pha 1 nằm ở phân bố, không ở trung bình.</em></li>
   </ol>
 </section>
 
 <section class="prose">
   <h2>Đề xuất</h2>
   <ol>
-    <li><strong>Chạy nốt đối chứng âm của §25</strong> (trộn hai baseline khác seed) trước khi
-    viết bất cứ dòng nào về phép trộn. Đang chạy trên cả hai máy. Đây là thứ duy nhất còn có thể
-    đánh sập kết quả mạnh nhất hiện có.</li>
+    <li><strong>Viết luận điểm theo phân bố CWE, không theo điểm tổng.</strong> Đối chứng âm
+    đã chạy xong và đã cắt 2/3 biên độ tổng. Mọi phát biểu dạng “gộp hai thứ thì tốt hơn” từ nay
+    phải kèm đối chứng “gộp hai bản của cùng một thứ” — bài học đắt nhất của đợt này.</li>
     <li><strong>Đưa hai CWE hiếm lên làm luận điểm chính, không phải điểm tổng.</strong> Ở điểm
     vận hành thật (ngưỡng hiệu chỉnh trên val), CWE-022 recall +0.079 và CWE-079 +0.072, và
     <em>precision cũng tăng</em> — không phải “đoán dương nhiều hơn”. Phải in kèm cảnh báo:
