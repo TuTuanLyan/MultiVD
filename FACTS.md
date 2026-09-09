@@ -2205,3 +2205,46 @@ như trọn phần được ở ROC/PR. Đó là một lựa chọn thật, khô
 
 **n=6, bậc 1.** Khối chạy 9 ô; cập nhật khi đủ. Nhưng mẫu hình "α nội tại, trọng số ≈ xác suất ở
 AUC, thua ở F1" đã thấy nhất quán qua cả ba nguồn.
+
+---
+
+## §25.11 — Bản lặp §25.9 trên CODEBERT: per-CWE lặp lại, biên độ TỔNG thì KHÔNG (09/09, n=50)
+
+`run/ensctl_cb.sh` sinh baseline seed 7/1234 vào cây `poolcb_codebert` (đã có baseline seed 42
+5 fold + 10 nhánh chuyển giao). Ghép cặp trực tiếp y hệt §25.9:
+`A = trộn(base42, chuyển giao)` · `B = trộn(base42, base khác seed)`, **50 cặp**.
+
+| A − B | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| **codebert (n=50)** | **+0.0139 (36/50, p=0.0026)** | +0.0052 (28/50, **p=0.48**) | +0.0042 (25/50, **p=1.00**) |
+| t5p (n=48) | +0.0200 (37/48, p=0.0002) | **+0.0121 (42/48, p<1e-4)** | **+0.0116 (43/48, p<1e-4)** |
+
+**Biên độ TỔNG không lặp lại.** Trên codebert, lợi thế của *trộn-với-chuyển-giao* so với
+*trộn-với-một-bản-chạy-lại* chỉ còn ở F1; ROC và PR **không có ý nghĩa** và dưới sàn nhiễu.
+
+### Nhưng per-CWE thì lặp lại, và mạnh hơn cả t5p ở đếm dấu
+
+| CWE | codebert (n=50) | t5p (n=48) |
+|---|---|---|
+| **022** | **+0.0858 (38/50, p=0.0003)** | +0.1076 (40/48, p<1e-4) |
+| **079** | **+0.1127 (45/50, p<1e-4)** | +0.1312 (42/48, p<1e-4) |
+| 078 | +0.0178 (34/50, p=0.015) | +0.0042 (24/48, p=1.00) |
+| **089** | **−0.0047 (13/50, p=0.0009)** — *âm CÓ Ý NGHĨA* | +0.0021 (26/48, p=0.46) |
+
+**Và đây chính là cơ chế, nhìn thấy trực tiếp**: trên codebert, CWE-089 — lớp chiếm **54% hàng
+test** — đi **âm có ý nghĩa** (13/50 fold). Phần được ở hai lớp hiếm bị lớp đa số kéo ngược, nên
+**biên độ tổng triệt tiêu**. Trên t5p, CWE-089 trung tính nên biên độ tổng sống sót.
+
+### Phát biểu phải sửa cho đúng phạm vi
+
+> Phát biểu **không phụ thuộc backbone** là phát biểu **per-CWE**: mô hình chuyển giao mang vào
+> thứ mà một bản chạy lại của baseline không có, và thứ đó nằm ở **CWE-022 và CWE-079** —
+> lặp lại trên **cả hai backbone** với 38/50 · 45/50 (codebert) và 40/48 · 42/48 (t5p).
+>
+> Phát biểu về **biên độ tổng** (+0.0121 ROC) là **đặc tính của t5p**, không được viết như một
+> tính chất chung. Nó tồn tại hay không tuỳ vào lớp đa số CWE-089 trung tính hay âm trên backbone
+> đó.
+
+Đây là lần thứ ba trong ngày một phát biểu ở mức **tổng** không sống sót phép kiểm, còn phát biểu
+ở mức **phân bố** thì sống. Với bộ đích lệch mạnh như thế này (81/150 hàng là một lớp), trung bình
+là đại lượng bị lớp đa số quyết định — không phải đại lượng đo được điều ta muốn hỏi.
