@@ -571,3 +571,122 @@ ccpp) vẫn chạy được. **Đây là bậc 1, p ≥ 0.125 ở mọi ô — c
 2. `lm*` trên **máy thứ hai** (`pool_lm.sh|-|1 2 3` đã xếp trên ntat). Lưới `pur*`
    cho thấy vì sao bắt buộc: pur25 lệch 0.064 giữa hai máy.
 3. `poolcb_codebert` để biết hiệu ứng có phụ thuộc backbone không (12/60 ô).
+
+---
+
+# Phụ lục C — PHÉP TRỘN ĐỀU: từ "chuyển giao có lợi không" sang "chuyển giao đóng góp gì"
+
+> Viết 09/09/2026. Số ở `FACTS.md` §25 → §25.6. Toàn bộ **0 GPU** — tính lại trên xác suất
+> từng mẫu đã lưu sẵn trong mọi ô từ 07/09.
+
+## C.1 — Vấn đề mà cả nhánh này chưa giải được
+
+Phản biện nặng nhất với phương pháp hai pha không phải "nó không hiệu quả" mà là **"tất nhiên
+nó hiệu quả"**: mô hình đã được finetune sang miền code, giờ finetune thêm một lần nữa với head
+nhị phân thì biểu diễn tốt lên cho tác vụ đích là chuyện đương nhiên. Nếu đúng vậy thì không có
+gì để publish — đóng góp chỉ là "chạy thêm một pha".
+
+Mọi con số đến trước 09/09 đều **không** trả lời được phản biện này, kể cả những con số dương:
+chúng đo *chuyển giao có tốt hơn baseline không*, mà đó chính là câu mà phản biện đã thừa nhận.
+
+## C.2 — Đổi câu hỏi: không phải "hơn không" mà là "bổ trợ hay thừa"
+
+Câu hỏi phân biệt được hai giả thuyết là: **mô hình chuyển giao có biết thứ gì mà mô hình
+chỉ-đích không biết không?**
+
+Có một phép kiểm trực tiếp cho câu đó, và nó không cần huấn luyện gì thêm. Đặt
+
+  p(α) = (1−α)·p_baseline + α·p_chuyển_giao
+
+- Nếu Pha 1 chỉ là **huấn luyện thêm**, hai mô hình **thừa** nhau: chúng sai ở cùng những chỗ,
+  và điểm của p(α) phải nằm **giữa** hai đầu mút. Đường α đơn điệu.
+- Nếu Pha 1 đưa vào **thông tin khác**, hai mô hình sai ở **chỗ khác nhau**: trung bình hoá triệt
+  tiêu một phần sai số độc lập, và p(α) **vượt cả hai** đầu mút. Đường α có đỉnh nội tại.
+
+Đây là lập luận cổ điển của lý thuyết ensemble, nhưng ở đây nó được dùng làm **phép chẩn đoán**
+chứ không phải để lấy thêm điểm: hình dạng của đường α trả lời một câu về **bản chất** của Pha 1.
+
+## C.3 — Kết quả: đường α có đỉnh nội tại
+
+83 khối độc lập `(cây, run, seed, fold)`, hai backbone, cấu hình đã chốt (`latent_bottleneck`,
+λ=0.05). Δ so với baseline:
+
+| α | 0 | 0.25 | **0.5** | 0.75 | 1.0 |
+|---|---|---|---|---|---|
+| ROC-AUC | 0 | +0.0092 | **+0.0126** | +0.0111 | **−0.0039** |
+| PR-AUC | 0 | +0.0108 | **+0.0136** | +0.0120 | **−0.0098** |
+
+Ghép cặp trực tiếp, **α=0.5 vượt α=1.0**: ROC +0.0165 (59/83, p=0.0002), PR +0.0235 (62/83,
+p<1e-4). Trên F1@0.5 thì **không** (p=0.078) — phải nêu.
+
+Lặp trên hai backbone với **cùng biên độ**: codet5p +0.0126 (68 khối), codebert +0.0129 (15 khối),
+lệch 0.0003 tức nhỏ hơn sàn nhiễu 33 lần. Đây là điều kiện người dùng nêu 09/09: *không phụ thuộc
+backbone*.
+
+## C.4 — Cơ chế: Pha 1 biết gì mà baseline không biết
+
+Tách Δ theo CWE cho câu trả lời rất gọn. Chuyển giao thuần:
+
+- **hại có ý nghĩa** trên CWE-078 (−0.0288, 17/83, p<1e-4) và hại trên CWE-089 (−0.0213) —
+  hai lớp chiếm **81%** hàng test;
+- **lợi rất lớn** trên CWE-022 (+0.2275) và CWE-079 (+0.2379) — hai lớp chiếm 20%.
+
+Vì hai lớp thường áp đảo về số hàng, phần lợi ở hai lớp hiếm bị nuốt và ΔROC tổng thành **âm**.
+Phép trộn xoá phần hại (078 về đúng null, p=1.00; 089 lật thành +0.0036, p=0.0019) mà vẫn giữ
+43%/64% phần lợi. Đó là toàn bộ lý do ΔROC tổng lật dấu.
+
+Nói cách khác: **thông tin Pha 1 mang vào là thông tin về hai lớp hiếm**, và ở dạng thô nó đi kèm
+một cái giá phải trả trên hai lớp thường. Phép trộn là cách trả cái giá đó về không.
+
+Ở **điểm vận hành** (ngưỡng val của chính baseline, dùng chung cho cả ba mô hình): CWE-022 recall
++0.079, CWE-079 +0.072, và **precision cũng tăng** (+0.079/+0.083) — không phải "đoán dương nhiều
+hơn". Hai CWE thường không bị đụng tới.
+
+## C.5 — Ba phép loại trừ
+
+**(a) Không phải rò rỉ.** Bộ đích chia theo từng dòng nên ~16% hàng test có bản gần trùng trong
+train. Trên nhóm `none` (73% hàng, không có bản đối nghịch nào) phép trộn dương cả ba chỉ số còn
+chuyển giao thuần **âm** ở cả hai AUC. Hiệu *trộn − thuần* theo nhóm: `none` +0.0182, `test`
++0.0190, `val` +0.0220, **`train` −0.0147**. Nghĩa là cái mà chuyển giao thuần được nhiều nhất
+nằm ở nhóm **học vẹt được**, còn cái phép trộn thêm vào nằm ở hàng **sạch**. Ngược hẳn với §21.1,
+nơi lợi của ASAM hoá ra là lợi do rò rỉ.
+
+**(b) Không phải "trộn gì cũng lợi".** Trong cùng một khối, so với cùng một baseline: trộn với mô
+hình chuyển giao từ nguồn **nguyên chất** cho ROC +0.0109, từ nguồn **pha loãng** cho **−0.0036**.
+Hiệu ghép cặp +0.0145 (12/13 khối, p=0.0034). Đáng chú ý nhất: ở nhóm nguyên chất, chuyển giao
+thuần cho PR **+0.0003** (đúng bằng không) nhưng bản trộn **+0.0154** — một mô hình *một mình
+không hơn gì* vẫn **đóng góp** được khi trộn. Đó đúng là định nghĩa của bổ trợ.
+
+**(c) Không phải chỉ cứu bản yếu.** Chia theo `phase1_val` (độc lập với tập test đích): phần trộn
+**thêm** vào có ý nghĩa ở nhóm Pha 1 **mạnh** (+0.0154, p=0.0025) và **không** có ý nghĩa ở nhóm
+yếu (+0.0051, p=0.79). Nếu là chính quy hoá thuần thì phải ngược lại.
+
+## C.6 — Phát biểu cuối, đã thu hẹp cho đúng
+
+Tách theo **nguồn** cho một sắc thái phải nêu: phần trộn thêm vào lớn nhất ở `4cwe` (nơi chuyển
+giao thuần **gây hại**, −0.0209 → +0.0078) và **null** ở `full` (nơi chuyển giao thuần vốn đã tốt,
++0.0256 → +0.0272, p=0.73).
+
+Vậy phát biểu đúng **không** phải *"trộn luôn tốt hơn"* mà là:
+
+> **Phép trộn đều cho một sàn.** Nó dương so với baseline ở cả ba nguồn và cả hai nhóm Pha 1 —
+> chưa bao giờ kém hơn mô hình chỉ-đích. Nó **sửa** trường hợp chuyển giao gây hại và **trung
+> tính** khi chuyển giao đã tốt. Người dùng không cần biết trước nguồn của mình có chuyển giao
+> tốt hay không.
+
+Và, độc lập với giá trị thực dụng đó, **hình dạng đường α là bằng chứng** rằng Pha 1 không thừa
+so với finetune trên đích — đó là câu trả lời cho phản biện ở C.1.
+
+## C.7 — Còn thiếu gì trước khi viết được
+
+1. **Đối chứng baseline ⊕ baseline khác seed.** Hai mô hình *ngang tài* thì trộn có cho +0.013
+   không? Không kiểm ngoài tuyến được (21 cặp baseline đa-seed duy nhất trong kho là của khối 47,
+   chạy trước khi lưu xác suất từng mẫu). `run/ensctl.sh` đang xếp trên **cả ntat và ntat2** —
+   §B.2e đã từng cho hai máy lệch dấu nên đối chứng này cần hai máy. **Chưa có thì chưa trích C.**
+2. **α chọn trên val.** α=0.5 là lựa chọn không tham số khai báo trước, nhưng hình dạng đường cong
+   thì có nhìn trên test. Đã vá `src/train_{transfer,baseline}.py` ghi thêm `val_probabilities`;
+   mọi ô từ 09/09 chọn được α trên val.
+3. **Chi phí suy luận.** Hiện tốn hai mô hình. `run/wblend.sh` (đang xếp trên ntat) thử nội suy
+   **trọng số** — cơ chế đã kiểm: 201/205 tensor nội suy được, và hai bản fine-tune nằm trong
+   vùng nối tuyến tính. Nếu chạy được thì chi phí về lại một mô hình.
+4. **F1@ngưỡng-val của bản trộn** — cần ô mới có xác suất val (mục 2 gỡ luôn cái này).
