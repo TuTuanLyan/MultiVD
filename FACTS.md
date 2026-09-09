@@ -1751,3 +1751,44 @@ còn và dừng.
 Bài học chung: **ghi đè một file mà tiến trình khác đang đọc thì phải coi như tiến trình đó sẽ
 đọc ra rác** — nối thêm (`>>`) thì an toàn, ghi đè thì không. Và mọi driver giữ máy tính tiền
 phải kết thúc bằng một phép **đối chiếu trạng thái**, không bằng "đã tới EOF".
+
+---
+
+## §25.3 — Hai CWE hiếm được gì ở ĐIỂM VẬN HÀNH, không chỉ ở AUC (09/09/2026, 0 GPU)
+
+§23/§25 phát biểu bằng ROC-AUC. Câu người đọc bài thật sự muốn là *"bắt thêm được bao nhiêu lỗ
+hổng"* — tức **recall tại một ngưỡng cụ thể**. `tools/percwe_op.py`, 86 khối, α=0.5, cùng bộ lọc
+như §25.
+
+**Ngưỡng 0.5** (không hiệu chỉnh gì, không thể rò rỉ):
+
+| CWE | hàng dương/fold | recall baseline | recall trộn | **Δ recall** | Δ precision |
+|---|---|---|---|---|---|
+| **022** | 6.7 | 0.359 | 0.432 | **+0.073 (54/63, p<1e-3)** | **+0.107 (68/77)** |
+| **079** | 8.2 | 0.519 | 0.665 | **+0.146 (58/73, p<1e-3)** | **+0.170 (83/85)** |
+| 078 | 20.8 | 0.779 | 0.789 | +0.010 (42/73, p=0.24) | −0.001 (36/86) |
+| 089 | 40.6 | 0.931 | 0.934 | +0.003 (36/70, p=0.91) | +0.016 (52/84) |
+
+**Ngưỡng hiệu chỉnh trên VAL của chính baseline**, dùng chung cho cả ba mô hình — tức *"giữ
+nguyên điểm vận hành đang triển khai, chỉ đổi mô hình"*:
+
+| CWE | Δ recall | Δ precision |
+|---|---|---|
+| **022** | **+0.079 (53/72, p<1e-3)** | +0.079 (49/81) |
+| **079** | **+0.072 (49/64, p<1e-3)** | +0.083 (61/72) |
+| 078 | +0.011 (38/70, p=0.55) | −0.015 (31/85) |
+| 089 | +0.001 (42/69, p=0.09) | −0.002 (32/81) |
+
+**Ba điều đọc được:**
+
+1. **Recall VÀ precision cùng tăng** trên cả hai CWE hiếm, ở cả hai ngưỡng. Nếu bản trộn chỉ
+   "đoán dương nhiều hơn" thì recall tăng còn precision phải giảm. Nó không giảm.
+2. **Hai CWE thường không bị đụng tới** — Δ recall +0.010/+0.003, đếm dấu là tung đồng xu. Đúng
+   với §25: bản trộn không đánh đổi lớp thường lấy lớp hiếm, nó chỉ thêm vào lớp hiếm.
+3. Ngưỡng val cho biên độ **nhỏ hơn** ngưỡng 0.5 ở CWE-079 (+0.072 so với +0.146). Phải nêu con
+   số nhỏ hơn khi phát biểu, vì ngưỡng val mới là điểm vận hành thật.
+
+**Cảnh báo phải in kèm mọi lần trích:** CWE-079 chỉ có **~8 hàng dương mỗi fold**, CWE-022 **~6.7**.
+`+0.146 recall` nghĩa là **bắt thêm khoảng 1,2 lỗ hổng mỗi fold** — nhỏ về tuyệt đối. Thứ làm nó
+đáng tin **không phải biên độ** mà là **58/73 khối cùng dấu** (và 83/85 ở precision). Trích biên độ
+mà không trích số khối cùng dấu là đọc sai theo đúng kiểu CLAUDE.md mục 2b đã cấm.
