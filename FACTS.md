@@ -1881,3 +1881,52 @@ sánh trực tiếp. Khối này cũng sinh ra ô có `val_probabilities` nên g
 **Thay đổi kèm theo**: `run/matrix.sh` thêm cờ `KEEP_CKPT=1` để giữ checkpoint Pha 2 (mặc định
 vẫn **XOÁ** — `model/` đã 41GB và đĩa từng đầy 98% làm cụt `torch.save`, §16). `run/wblend.sh`
 dọn checkpoint **ngay sau mỗi fold** và từ chối chạy nếu đĩa dưới 12GB. Cổng đã kiểm hai chiều.
+
+---
+
+## §25.6 — Phép trộn có chỉ CỨU bản chuyển giao yếu không? Chia theo tiêu chí ĐỘC LẬP (09/09/2026)
+
+Nếu lợi của phép trộn chỉ là kéo một mô hình kém về phía baseline thì nó là **chính quy hoá**,
+không phải **bổ trợ**. Cách kiểm tầm thường — chia khối theo Δ của chính nhánh chuyển giao — **bị
+lệch**: chọn nhóm theo x rồi đo y trên **cùng** dữ liệu test là hồi quy về trung bình, nhóm x<0
+sẽ tự động cho y>0. Phải chia theo đại lượng **độc lập với tập test đích**.
+
+### Chia theo `phase1_val_macro_f1` (đo trên tập val của chính Pha 1), trung vị 0.5897
+
+| nhóm | | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| **Pha 1 val TRÊN trung vị** (87 khối) | trộn vs baseline | +0.0128 (69/87, p<1e-4) | +0.0130 (72/87) |
+| | chuyển giao thuần vs baseline | −0.0027 (57/87) | −0.0094 (52/87) |
+| | **trộn − thuần** | **+0.0154 (58/87, p=0.0025)** | **+0.0224 (62/87, p=0.0001)** |
+| **Pha 1 val DƯỚI trung vị** (57 khối) | trộn vs baseline | +0.0180 (44/57, p<1e-4) | +0.0201 (50/57) |
+| | chuyển giao thuần vs baseline | +0.0129 (37/57, p=0.033) | +0.0102 (41/57) |
+| | **trộn − thuần** | **+0.0051 (30/57, p=0.79 — KHÔNG có ý nghĩa)** | +0.0099 (35/57, p=0.11) |
+
+**Ngược hẳn với giả thuyết "chỉ cứu bản yếu".** Phần phép trộn **thêm** vào có ý nghĩa ở nhóm Pha 1
+**mạnh** và **không** có ý nghĩa ở nhóm yếu. Nếu là chính quy hoá thuần thì phải ngược lại.
+
+(Chú ý phụ, khớp §B.2c: ở nhóm Pha 1 **yếu**, chuyển giao thuần lại **dương** (+0.0129) còn ở nhóm
+Pha 1 **mạnh** thì **âm** (−0.0027). `phase1_val` không dự báo được chất lượng chuyển giao —
+Spearman −0.191 — nên phép chia này thật sự trực giao với kết quả test.)
+
+### Chia theo NGUỒN (cũng độc lập với kết quả test)
+
+| nguồn | khối | chuyển giao thuần (ROC) | trộn (ROC) | trộn − thuần (ROC) |
+|---|---|---|---|---|
+| `4cwe` | 62 | **−0.0209** (40/62) | **+0.0078** (48/62) | +0.0287 (35/62, p=0.37) |
+| `com` | 61 | +0.0102 (46/61) | +0.0198 (53/61) | +0.0096 (37/61, p=0.12) |
+| `full` | 33 | +0.0256 (26/33) | +0.0272 (29/33) | +0.0016 (15/33, p=0.73 — **null**) |
+
+Trên trục **nguồn** thì mẫu hình lại đúng là "thêm được nhiều nhất ở chỗ chuyển giao thuần tệ
+nhất" và **biến mất** ở `full` — nơi chuyển giao thuần vốn đã tốt. **Phải nêu cả hai trục, chúng
+nói hai điều khác nhau.**
+
+### Phát biểu đúng sau khi ghép hai trục
+
+**Phép trộn cho một SÀN.** Nó dương so với baseline ở **cả ba nguồn** (+0.0078, +0.0198, +0.0272)
+và ở **cả hai** nhóm Pha 1 — tức chưa bao giờ tệ hơn baseline. Nó **sửa** trường hợp chuyển giao
+thuần gây hại (`4cwe`: −0.0209 → +0.0078) và **trung tính** khi chuyển giao đã tốt (`full`).
+
+Đó mới là câu đáng viết vào bài: *không cần biết trước nguồn có chuyển giao tốt hay không — bản
+trộn đều không bao giờ kém hơn mô hình chỉ-đích, và lấy lại phần lớn thiệt hại khi nguồn kém.*
+Nó **không** phải là "trộn luôn tốt hơn": ở `full` nó không thêm được gì.
