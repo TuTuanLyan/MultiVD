@@ -77,7 +77,7 @@ def show(title, pairs):
             print(line)
 
 def main():
-    roots = sys.argv[1:] or ["results/chot_t5p","results/chot_codebert"]
+    roots = sys.argv[1:] or ["results/chot_t5p","results/chotv_t5p","results/chot_codebert"]
     cells = load(roots)
     have = sum(len(v) for v in cells.values())
     print(f"# {have} o trong {len(cells)} khoi (backbone, nguon, seed, fold) | cay: {', '.join(roots)}")

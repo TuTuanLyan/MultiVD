@@ -10,10 +10,28 @@ ASAM ρ=2.0**; tốt nhất hiện có là `r0p1` (+0.0125 ROC, 10/10) và `plai
 
 **Chia theo backbone** (CLAUDE.md mục 4: một backbone trọn một máy — Δ nội bộ sạch):
 
-| máy | backbone | trạng thái |
-|---|---|---|
-| **vast `ntat`** RTX **5060 Ti** 16 GB, id 50132360 | **codebert** — ưu tiên xong trước | chạy từ 09:42 UTC |
-| **161** (A4000 16 GB, dùng chung) | **t5p** | chạy từ 09:44 UTC |
+| máy | backbone | fold | cây kết quả | trạng thái |
+|---|---|---|---|---|
+| **vast `ntat`** RTX **5060 Ti** 16 GB, id 50132360 | **codebert** — ưu tiên xong trước | 1–5 | `results/chot_codebert` | chạy từ 09:42 UTC |
+| ↳ rồi **t5p** | | **4–5** | `results/chotv_t5p` | nhận sau khi codebert xong |
+| **161** (A4000 16 GB, dùng chung) | **t5p** | **1–3** | `results/chot_t5p` | chạy từ 09:44 UTC |
+
+### Chia fold sang vast (09/09 17:25 VN)
+
+Người dùng: *"Tận 4 task chạy cho 2 backbone × 2 setting hơn nữa còn 2 source và 5 folds thì cứ
+chia bớt mà chạy đừng phí vast là được."*
+
+Đo thật (phút/fold): vast+codebert **19,1** (GD1) và **16,2** (GD2); 161+t5p **61,9** và **52,8**.
+161 là nút cổ chai — ôm cả 5 fold t5p thì chạy đến **02:18 VN** trong khi vast rảnh từ **19:55 VN**,
+tức **6,4 giờ vast nằm không**. Chia fold 4–5 sang vast thì cả hai cùng xong **~22:00–22:30 VN**.
+
+**Chỉ dùng một cách chia** mà CLAUDE.md mục 4 cho phép: **theo FOLD TRỌN VẸN**. Baseline và cả hai
+nhánh của một fold nằm cùng một máy, nên Δ ghép cặp trong fold đó vẫn sạch; không bao giờ lấy hiệu
+giữa hai máy. Cây kết quả của vast đặt tên **khác** (`chotv_t5p`) và `tools/chot_report.py` khoá ô
+theo `(cây, backbone, seed, fold)` nên không thể bắc cầu qua máy.
+
+**Phải ghi vào báo cáo**: fold 1–3 của t5p chạy trên A4000, fold 4–5 trên 5060 Ti. Δ từng fold
+sạch, nhưng độ tản **giữa các fold** có thêm phần của phần cứng.
 
 Máy vast là máy đồng nghiệp bàn giao (đã backup, đổi nhãn thành `ntat`). Môi trường sẵn
 `torch 2.11.0+cu128`, 23 GB trống, **GPU đã nằm không ~1 tiếng** trước khi tôi nhận (lần chạy cuối
