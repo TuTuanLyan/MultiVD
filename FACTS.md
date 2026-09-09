@@ -2746,3 +2746,55 @@ số ô hoà** (`~k`) thay vì giấu. Tìm thấy hoà ở cả F1 nữa (F1 c�
 **Quy tắc chung**: mọi phép so hai mô hình bằng thống kê **thứ hạng hoặc bậc thang** trên tập nhỏ
 đều phải có ngưỡng hoà tường minh. `x != 0` không phải phép kiểm hoà — nó là phép kiểm "có khác
 nhau ở bit cuối cùng không".
+
+---
+
+## §30.2 — ĐÃ ĐO: head phụ gần như không học được gì, ở **mọi nguồn và cả hai backbone** (10/09)
+
+Trả lời câu hỏi mở §30.1 bằng `tools/aux_head_probe.py` — chỉ đọc, một lượt forward, không
+huấn luyện. Tập val được chia lại **bằng chính `split_source_records` của `train_transfer.py`
+với đúng seed của checkpoint**, nên nó trùng tập đã dùng để chọn checkpoint.
+
+| checkpoint | độ chính xác head | sàn lớp đa số | macro-F1 head | sàn | **số lớp head thực dùng** |
+|---|---|---|---|---|---|
+| codebert/`4cwe` | 0.6667 | **0.6667** | 0.2000 | **0.2000** | **1** / 4 |
+| t5p/`4cwe` | 0.6667 | **0.6667** | 0.2000 | **0.2000** | **1** / 4 |
+| codebert/`com` | 0.4891 | 0.3804 | 0.1864 | 0.0787 | 3 / 10 |
+| t5p/`com` | 0.4891 | 0.3804 | 0.1629 | 0.0787 | 2 / 10 |
+| codebert/`full` | 0.5740 | 0.4793 | 0.1900 | 0.0810 | 3 / 10 |
+| t5p/`full` | 0.5740 | 0.4793 | 0.1644 | 0.0810 | 2 / 10 |
+
+**Trên `4cwe`, head SẬP HOÀN TOÀN ở cả hai backbone** — bằng sàn đến từng chữ số, và dự đoán
+**một lớp duy nhất** cho mọi hàng val. Đúng như §30.1 đã cảnh báo: CWE-79 chiếm 692/930 nên
+"đoán CWE-79" đã đúng 74%, và λ·loss_phụ gần như là hằng số ngay từ đầu.
+
+Trên `com`/`full` head **có vượt sàn** (macro-F1 gấp ~2,2×) nhưng chỉ đúng ở **hai lớp lớn nhất**
+— lớp 2 (pillar CWE-664, kiểm soát tài nguyên) và lớp 8 (pillar CWE-707, neutralization). Mọi lớp
+còn lại **0% đúng**, kể cả lớp 7 (CWE-703) có tới **84 hàng** trong `full`:
+
+```
+full   lop  n    codebert dung   t5p dung
+        0   30        0             0
+        2  324      306           303
+        3   40        0             0
+        4   24        0             0
+        5   24        3             0
+        7   84        0             0     <- 84 hang, khong dung mot hang nao
+        8  148       79            85
+        9    2        0             0
+```
+
+Head phụ thực chất là **một bộ phân biệt hai pillar lớn nhất**, không phải bộ phân loại CWE.
+
+**Hệ quả cho cách viết bài.** Không được nói "head phụ dạy encoder cấu trúc CWE" — nó không học
+được cấu trúc đó. Lợi ích transfer (§34) phải đến từ chỗ khác: huấn luyện nhị phân lỗ hổng ở Pha 1
+(tức domain-adaptive pretraining), và/hoặc chính cái phân biệt hai-pillar thô mà head có học,
+và/hoặc tác dụng chính quy hoá của một số hạng loss thêm vào.
+
+**Một quan sát, chưa phải kết luận**: hai CWE ăn đậm ở Pha 2 là CWE-022 và CWE-079, ánh xạ về
+đúng hai pillar mà head học được (664 và 707). Nhưng CWE-078 và CWE-089 cũng thuộc pillar 707 mà
+lại null — nên mối liên hệ này **chưa giải thích được** và không được viết như một cơ chế.
+
+**Đã kiểm dấu hiệu "giống nhau ở chỗ lẽ ra phải khác"** (bài học §30): codebert và t5p cho độ
+chính xác **trùng khít** trên `com` (0.4891) và `full` (0.5740). Không phải lỗi — số đúng từng lớp
+khác nhau, chỉ trùng **tổng** (180=180, 388=388); macro-F1 cũng khác nhau.
