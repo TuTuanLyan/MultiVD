@@ -3082,3 +3082,59 @@ một backbone, không kiểm định. Chi tiết ở `RESEARCH_2026-09-10_dactr
 **CHƯA ĐƯỢC KẾT LUẬN**: `lp3` mới có trên **một** backbone. Luật leo bậc đêm nay là dương cả bốn
 chỉ số **và lặp trên cả hai backbone** ở n=3 mới được lên n=5. `lpft3` trên t5p đang xếp hàng sau
 `feat3`. Nếu t5p lặp lại thì mới chạy fold 4–5.
+
+## §38.2 — MẪU HÌNH: **mọi nhánh thắng ở backbone này đều thua ở backbone kia**, và §36 dự báo đúng chiều (11/09, n=3)
+
+Đủ 9 nhánh × 2 backbone × 3 fold, đối chứng `plain` cùng máy cùng fold. Đánh dấu ✓ khi **dương
+cả bốn** chỉ số:
+
+| nhánh | can thiệp thuộc loại | codebert | t5p |
+|---|---|---|---|
+| `lp3` | **giữ/khai thác** đặc trưng sẵn có (fit head trên backbone đóng băng) | **✓** +0.0283 / +0.0204 ROC | ✗ (F1 −0.0058) |
+| `fd1` | **giữ** (neo đặc trưng nhẹ) | **✓** +0.0110 / +0.0066 ROC | ✗ (ROC −0.0351 0/3) |
+| `rp50` | **thêm** thông tin mới (replay dữ liệu nguồn) | ✗ (F1 −0.0019) | **✓** +0.0217 / +0.0122 ROC |
+| `rhlp3` | **thay** (khởi tạo lại head rồi probe) | ✗ (F1 −0.0127, F1@val 0/3) | **✓** +0.0021 / **+0.0147 ROC 3/3** |
+| `rh` | thay (chỉ khởi tạo lại head) | ✗ | ✗ (2/4 dương) |
+| `cwe05` | thêm (head CWE học nhãn đích) | ✗ (AUC âm) | ✗ (AUC âm) |
+| `rpc` | thêm (cả hai) | ✗ (0/3 hai AUC) | ✗ (0/3 hai AUC) |
+| `fd10` | giữ **chặt** (β=10) | ✗ | ✗✗ (−0.0659 ROC) |
+| `fd10rh` | giữ chặt + thay | ✗ | ✗✗ (−0.0920 ROC) |
+
+**KHÔNG nhánh nào ✓ ở cả hai backbone ⇒ theo luật leo bậc đêm nay, KHÔNG nhánh nào được lên n=5.**
+
+### Nhưng cái ✗/✓ đó không ngẫu nhiên — nó tách đúng theo LOẠI can thiệp
+
+- **codebert** — đặc trưng Pha 1 **chuyển giao mạnh** (§36: +0.1125 ROC, **5/5 fold**). Hai nhánh
+  thắng đều thuộc loại **giữ/khai thác cái đã có** (`lp3`, `fd1`). Ba nhánh loại **thay/thêm** đều
+  thua.
+- **t5p** — đặc trưng Pha 1 **gần như không chuyển giao** (§36: +0.0202, 3/5, hai fold âm). Đảo
+  ngược hoàn toàn: hai nhánh thắng đều thuộc loại **thêm thông tin mới hoặc thay** (`rp50`,
+  `rhlp3`); hai nhánh **giữ** thua nặng nhất trong cả bảng.
+- **Neo quá chặt thì hại ở CẢ HAI** (`fd10`, `fd10rh`) — không phụ thuộc đặc trưng có tốt hay không.
+
+**Giả thuyết đọc được:** phép đo probe của §36 nói cho ta biết nên **giữ** hay nên **thay**. Đặc
+trưng nguồn tốt ⇒ giữ nó, đừng để head làm méo. Đặc trưng nguồn không tốt ⇒ giữ nó là tự trói,
+phải bơm thêm thông tin hoặc bỏ phần hỏng đi.
+
+**Vì sao đáng chú ý:** §36 đo **trước** khi bốn khối này chạy, và dấu của nó dự báo đúng chiều ở
+**4/4 nhánh có kết luận rõ trên cả hai backbone**. Tài liệu có ghi nhận cơ chế (BSS NeurIPS 2019
+thấy neo hại ở đích nhỏ **trừ** khi nguồn gần đích; Plested et al. ICONIP 2021 dùng đúng margin
+probe-đóng-băng để quyết định có neo hay không) nhưng **chưa ai biến thành quy tắc** — bản ICONIP
+chỉ có n=4 dataset, một backbone, không kiểm định.
+
+### CẢNH BÁO — đây là GIẢ THUYẾT, không phải phát hiện
+
+- **n=3, seed 42, một nguồn (`4cwe`).** Dự án này đã **bốn lần** thấy n=3 đổi dấu ở n=5.
+- Bảng ✓/✗ được đọc **sau khi** nhìn số. Phép kiểm sạch phải là: **khai báo trước** rằng probe dự
+  báo loại can thiệp nào thắng, rồi chạy trên backbone/nguồn thứ ba.
+- `rhlp3` trên t5p có ROC 3/3 và PR 3/3 nhưng F1@0.5 chỉ +0.0021 — biên độ dưới sàn nhiễu.
+
+### Ba đề xuất (CHƯA CHẠY, chờ người dùng duyệt)
+
+1. **Phép kiểm khai báo trước**: chạy probe §36 trên `com`/`full` (0 GPU, ~45 phút CPU mỗi ô),
+   **ghi dự đoán ra file trước**, rồi mới chạy `lp3` vs `rp50` trên nguồn đó. Đây là cách duy nhất
+   biến §38.2 từ giả thuyết thành phát hiện.
+2. `lp3` lên n=5 **chỉ trên codebert**, nêu rõ là phát biểu **theo backbone**, không phải phát biểu
+   chung. Cần thêm `plain` + `baseline` fold 4–5 làm đối chứng ghép cặp.
+3. Probe theo **từng tầng** — LDIFS (TMLR 2024) đo được neo chỉ-tầng-cuối kém hơn neo nhiều tầng,
+   mà `fd*` hiện chỉ neo tầng cuối. 0 GPU.
