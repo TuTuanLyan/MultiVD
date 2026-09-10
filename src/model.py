@@ -234,7 +234,12 @@ class TransferModel(nn.Module):
             parameters.append(self.prototypes)
         return parameters
 
-    def forward(self, input_ids, attention_mask, return_cwe=False):
+    def forward(self, input_ids, attention_mask, return_cwe=False, return_features=False):
+        """`return_features=True` them khoa `pooled` (dac trung TRUOC dropout) vao dict tra ve.
+
+        Dung cho phep neo trong KHONG GIAN DAC TRUNG (FACTS §36): da do duoc dac trung cua
+        Pha 1 tach tuyen tinh tot hon han pretrained (+0.1125 ROC, 5/5 fold tren codebert)
+        trong khi ham quyet dinh cua no gan nhu ngau nhien. Mac dinh False => dict cu y nguyen."""
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
         pooled = pool_hidden_states(outputs.last_hidden_state, attention_mask, self.pooling)
         cls_output = self.dropout(pooled)
@@ -259,11 +264,14 @@ class TransferModel(nn.Module):
                 # here: Sinkhorn needs the unscaled scores or exp() overflows.
                 cwe_logits = latent @ prototypes.t()
 
-        return {
+        result = {
             "vul_logits": vul_logits,
             "cwe_logits": cwe_logits,
             "latent": latent,
         }
+        if return_features:
+            result["pooled"] = pooled
+        return result
 
 
 class BaselineModel(nn.Module):
@@ -278,7 +286,12 @@ class BaselineModel(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
         self.vul_head = nn.Linear(backbone.config.hidden_size, num_classes)
 
-    def forward(self, input_ids, attention_mask, return_cwe=False):
+    def forward(self, input_ids, attention_mask, return_cwe=False, return_features=False):
+        """`return_features=True` them khoa `pooled` (dac trung TRUOC dropout) vao dict tra ve.
+
+        Dung cho phep neo trong KHONG GIAN DAC TRUNG (FACTS §36): da do duoc dac trung cua
+        Pha 1 tach tuyen tinh tot hon han pretrained (+0.1125 ROC, 5/5 fold tren codebert)
+        trong khi ham quyet dinh cua no gan nhu ngau nhien. Mac dinh False => dict cu y nguyen."""
         outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
         pooled = pool_hidden_states(outputs.last_hidden_state, attention_mask, self.pooling)
         cls_output = self.dropout(pooled)

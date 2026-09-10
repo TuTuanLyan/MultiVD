@@ -134,26 +134,45 @@ def assert_recadam_setup(current_params, pretrain_params, model, aux_trainable=F
         ), "auxiliary head not frozen"
 
 
-def _phase2_target_loss(model, batch, device, lambda_cwe):
-    """Mục tiêu trên một batch ĐÍCH. `lambda_cwe=0` ⇒ `return_cwe=False`, đúng đường cũ từng byte.
+def _phase2_target_loss(model, batch, device, lambda_cwe, teacher=None, beta=0.0, mode="cos"):
+    """Mục tiêu trên một batch ĐÍCH. `lambda_cwe=0`, `teacher=None` ⇒ đúng đường cũ từng byte.
 
     `lambda_cwe>0` ⇒ cộng λ·L_cwe trên `cwe_class` của đích (4 lớp, cùng bảng CWE_MAPPING
-    với nguồn 4cwe) — head phụ Pha 1 học tiếp trên đích, là nửa "đích" của cầu CWE."""
+    với nguồn 4cwe) — head phụ Pha 1 học tiếp trên đích, là nửa "đích" của cầu CWE.
+
+    `teacher` (FACTS §36) ⇒ cộng β·d(f_θ(x), f_θ*(x)): NEO TRONG KHÔNG GIAN ĐẶC TRƯNG về
+    chính mô hình Pha 1, trên input ĐÍCH. Khác neo trọng số (RecAdam/L2-SP/SPD — bốn khối
+    đã bác) ở chỗ ràng buộc này biết dữ liệu đích, và nó neo đúng đại lượng đã ĐO ĐƯỢC là
+    chuyển giao: đặc trưng Pha 1 cho linear probe +0.1125 ROC (5/5 fold, codebert) trong khi
+    `vul_head` của nó chỉ ~0.54 F1 zero-shot. `teacher` là bộ đệm đặc trưng ĐÃ TÍNH SẴN
+    (mô hình tại thời điểm khởi tạo Pha 2), tra theo `batch["index"]` — 0 VRAM thêm, 0 giây
+    thêm mỗi bước. `mode`: cos = 1 − cosine (chỉ giữ HƯỚNG, bất biến thang đo — đúng thứ
+    linear probe dùng); mse = L2 bình phương trung bình (giữ cả độ dài)."""
     input_ids = batch["input_ids"].to(device)
     attention_mask = batch["attention_mask"].to(device)
     labels = batch["labels"].to(device)
+    want_feat = teacher is not None and beta > 0
     if lambda_cwe > 0:
-        outputs = model(input_ids, attention_mask, return_cwe=True)
+        outputs = model(input_ids, attention_mask, return_cwe=True, return_features=want_feat)
         vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
         cwes = batch["cwe_class"].to(device)
         aux_loss, _ = auxiliary_loss(outputs, cwes, model.aux_mode,
                                      temperature=getattr(model, "latent_temperature", 0.1))
         loss = vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
     else:
-        outputs = model(input_ids, attention_mask, return_cwe=False)
+        outputs = model(input_ids, attention_mask, return_cwe=False, return_features=want_feat)
         vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
         aux_loss, loss = None, vul_loss
-    return loss, vul_loss, aux_loss, outputs, labels
+    feat_loss = None
+    if want_feat:
+        ref = teacher[batch["index"].to(teacher.device)].to(outputs["pooled"].dtype)
+        cur = outputs["pooled"]
+        if mode == "mse":
+            feat_loss = F.mse_loss(cur, ref)
+        else:
+            feat_loss = (1.0 - F.cosine_similarity(cur, ref, dim=-1)).mean()
+        loss = loss + beta * feat_loss
+    return loss, vul_loss, aux_loss, outputs, labels, feat_loss
 
 
 def _phase2_replay_loss(model, batch, device, mu, lambda_cwe):
@@ -176,6 +195,7 @@ def _phase2_replay_loss(model, batch, device, mu, lambda_cwe):
 def train_one_epoch_phase2(
     model, dataloader, optimizer, device, max_grad_norm, pretrain_params,
     check_first_step=False, sam=None, replay=None, lambda_cwe_target=0.0, epoch=1,
+    teacher_feats=None, feat_beta=0.0, feat_mode="cos",
 ):
     """`sam=None`, `replay=None`, `lambda_cwe_target=0` giữ nguyên đường chạy cũ từng byte.
 
@@ -193,14 +213,15 @@ def train_one_epoch_phase2(
     total_vul = 0.0
     total_cwe = 0.0
     total_replay = 0.0
+    total_feat = 0.0
     examples = 0
     labels_seen, probabilities = [], []
     source_versions = [parameter._version for parameter in pretrain_params]
     checked = False
     for batch in dataloader:
         optimizer.zero_grad(set_to_none=True)
-        loss, vul_loss, aux_loss, outputs, labels = _phase2_target_loss(
-            model, batch, device, lambda_cwe_target
+        loss, vul_loss, aux_loss, outputs, labels, feat_loss = _phase2_target_loss(
+            model, batch, device, lambda_cwe_target, teacher_feats, feat_beta, feat_mode
         )
         loss.backward()
         replay_batch, replay_loss = None, None
@@ -214,7 +235,9 @@ def train_one_epoch_phase2(
             trainable = [p for p in model.parameters() if p.requires_grad]
             if sam.ascend(trainable):
                 optimizer.zero_grad(set_to_none=True)
-                loss2, _, _, _, _ = _phase2_target_loss(model, batch, device, lambda_cwe_target)
+                loss2, _, _, _, _, _ = _phase2_target_loss(
+                    model, batch, device, lambda_cwe_target, teacher_feats, feat_beta, feat_mode
+                )
                 loss2.backward()
                 if replay_batch is not None:
                     scaled2, _, _ = _phase2_replay_loss(model, replay_batch, device, mu, lam_s)
@@ -263,6 +286,7 @@ def train_one_epoch_phase2(
         total_vul += vul_loss.item() * size
         total_cwe += (0.0 if aux_loss is None else aux_loss.item()) * size
         total_replay += (0.0 if replay_loss is None else replay_loss.item()) * size
+        total_feat += (0.0 if feat_loss is None else feat_loss.item()) * size
         labels_seen.extend(labels.detach().cpu().tolist())
         probabilities.extend(torch.softmax(outputs["vul_logits"].detach(), dim=-1)[:, 1].cpu().tolist())
     result = {"loss": total_loss / examples, "vul": total_vul / examples}
@@ -272,6 +296,9 @@ def train_one_epoch_phase2(
         # L_nguồn CHƯA nhân μ (để đọc được độ khó của nguồn qua các epoch) và μ(e) đã dùng.
         result["replay"] = total_replay / examples
         result["replay_mu"] = mu
+    if teacher_feats is not None and feat_beta > 0:
+        # Khoảng cách đặc trưng CHƯA nhân β: đọc được mô hình đã rời khỏi đặc trưng Pha 1 bao xa.
+        result["feat"] = total_feat / examples
     result.update(classification_metrics(labels_seen, probabilities, 0.5))
     result.update(labels=labels_seen, probabilities=probabilities)
     return result
@@ -361,6 +388,7 @@ def train_loop(
     pretrain_params=None,
     aux_weighter=None,
     replay=None,
+    teacher_feats=None,
 ):
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
@@ -432,7 +460,14 @@ def train_loop(
                 replay=replay,
                 lambda_cwe_target=float(getattr(args, "phase2_lambda_cwe", 0.0) or 0.0),
                 epoch=epoch,
+                teacher_feats=teacher_feats,
+                feat_beta=float(getattr(args, "feat_distill_beta", 0.0) or 0.0),
+                feat_mode=getattr(args, "feat_distill_mode", "cos"),
             )
+            if "feat" in train:
+                logger.info("Neo dac trung | epoch %d | beta %.3f | d(f,f*) %.4f | L_dich %.4f",
+                            epoch, float(getattr(args, "feat_distill_beta", 0.0) or 0.0),
+                            train["feat"], train["vul"])
             if replay is not None:
                 logger.info(
                     "Replay nguon | epoch %d | mu %.3f | L_nguon %.4f | L_dich %.4f%s",
@@ -487,12 +522,13 @@ def train_loop(
             "lr": optimizer.param_groups[0].get("lr"),
             "new_best": bool(new_best or tied_best),
         })
-        if phase == "phase2" and (replay is not None or "cwe" in train):
+        if phase == "phase2" and (replay is not None or "cwe" in train or "feat" in train):
             # Chỉ thêm khoá khi cầu CWE bật, để JSON của đường cũ không đổi một byte.
             _val_history[-1].update({
                 "replay_mu": train.get("replay_mu"),
                 "train_replay_loss": None if "replay" not in train else round(float(train["replay"]), 6),
                 "train_cwe_loss": None if "cwe" not in train else round(float(train["cwe"]), 6),
+                "train_feat_dist": None if "feat" not in train else round(float(train["feat"]), 6),
             })
         _rt_epoch.append(epoch_seconds)
         _rt_train.append(train_seconds)

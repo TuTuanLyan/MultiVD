@@ -829,6 +829,55 @@ def build_recadam_groups(named_trainable, pretrain_params, args):
     ]
 
 
+def reinit_vul_head(model):
+    """Khoi tao lai `vul_head` truoc Pha 2, giu nguyen backbone.
+
+    Vi sao (FACTS §36): da DO duoc `vul_head` cua Pha 1 gan nhu ngau nhien tren Python
+    (codebert 0.537 F1 / 0.645 ROC, t5p 0.503 / 0.545) trong khi DAC TRUNG cua chinh
+    checkpoint do lai tot hon han pretrained (+0.1125 ROC, 5/5 fold). Duong chay mac dinh
+    nap `vul_head` do nguyen xi (strict=True) va Pha 2 phai go mot ham quyet dinh SAI mot
+    cach TU TIN. Co nay hoi: bo no di co hon khong. Khong doi mot dong nao khac."""
+    n = 0
+    for module in model.vul_head.modules():
+        if isinstance(module, torch.nn.Linear):
+            module.reset_parameters()
+            n += 1
+    logger.info("vul_head KHOI TAO LAI | %d lop Linear | backbone giu nguyen tu Pha 1", n)
+    return n
+
+
+@torch.no_grad()
+def build_feature_cache(model, records, tokenizer, args, device):
+    """Dac trung pooled cua mo hinh TAI THOI DIEM KHOI TAO Pha 2, cho toan bo tap train dich.
+
+    Thay cho mot mo hinh thay dong bang chay song song: thay DUNG BANG mo hinh luc nay (chua
+    optimizer nao dung toi), va input dich la co dinh (tokenise tat dinh, khong tang cuong),
+    nen dac trung thay KHONG BAO GIO doi. Tinh mot lan roi tra theo `batch["index"]`:
+    0 VRAM them khi huan luyen, 0 giay them moi buoc, va ket qua trung khit voi cach chay
+    hai mo hinh song song. 456 x hidden x 4 byte ~ 1.4 MB.
+
+    KHONG dung shuffle: `CodeDataset.__getitem__` tra `index` la chi so hang trong dataset,
+    nen bo dem duoc dia chi hoa dung bang chi so do du sau nay loader co xao tron."""
+    was_training = model.training
+    model.eval()
+    loader = build_dataloader(records, tokenizer, args.max_length, args.eval_batch_size, False,
+                              args.seed, args.num_workers, args.truncation_strategy)
+    cache = None
+    for batch in loader:
+        am = batch["attention_mask"].to(device)
+        out = model(batch["input_ids"].to(device), am, return_cwe=False, return_features=True)
+        pooled = out["pooled"].detach().float()
+        if cache is None:
+            cache = torch.zeros(len(records), pooled.shape[-1], device=device, dtype=torch.float32)
+        cache[batch["index"].to(device)] = pooled
+    if was_training:
+        model.train()
+    logger.info("Bo dem dac trung THAY | %s | chuan L2 trung binh %.3f | %.2f MB",
+                tuple(cache.shape), float(cache.norm(dim=-1).mean()),
+                cache.numel() * 4 / 1e6)
+    return cache
+
+
 def run_phase2(args, device):
     train_path, val_path, _ = python_paths(args)
     logger.info("Loading Python training data: %s", train_path)
@@ -854,6 +903,11 @@ def run_phase2(args, device):
         source_checkpoint["best_epoch"],
         source_checkpoint["best_val_macro_f1"],
     )
+    if args.phase2_reinit_head:
+        # PHAI goi truoc `build_recadam_anchor`: neo se lay ban SAU khi khoi tao lai. Moi nhanh
+        # dung co nay deu chay AdamW (khong neo) nen khong anh huong; ghi ra day de lan sau doc.
+        args.phase2_reinit_head_layers = reinit_vul_head(model)
+
     # Cầu CWE (src/replay.py): head phụ HỌC TIẾP ở Pha 2 khi có λ trên đích hoặc trên nguồn.
     # Mặc định cả hai = 0 ⇒ đóng băng như cũ.
     aux_trainable = (float(getattr(args, "phase2_lambda_cwe", 0.0) or 0.0) > 0
@@ -918,6 +972,15 @@ def run_phase2(args, device):
         args.lambda_cwe_phase2_cli = args.lambda_cwe
         args.lambda_cwe = args.source_lambda_cwe
 
+    # Neo khong gian dac trung (FACTS §36). Bo dem phai dung TRUOC buoc cap nhat dau tien va
+    # SAU khi da nap checkpoint (va sau reinit head — reinit khong dung toi backbone nen dac
+    # trung khong doi, nhung thu tu nay la thu tu dung ve mat y nghia: thay = mo hinh khoi tao).
+    teacher_feats = None
+    if args.feat_distill_beta > 0:
+        teacher_feats = build_feature_cache(model, train_records, tokenizer, args, device)
+        args.feat_distill_rows = int(teacher_feats.shape[0])
+        args.feat_distill_dim = int(teacher_feats.shape[1])
+
     # Replay nguồn (Đ5, RESEARCH_2026-09-06 §11.4). Không có --replay_data ⇒ replay=None ⇒
     # train_loop chạy đường cũ. Chia nguồn bằng ĐÚNG hàm và seed Pha 1 đã dùng, chỉ replay
     # phần train: tập val Pha 1 vẫn là held-out cho `source_retention`.
@@ -967,7 +1030,7 @@ def run_phase2(args, device):
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
-            save_checkpoint, pretrain_params, replay=replay,
+            save_checkpoint, pretrain_params, replay=replay, teacher_feats=teacher_feats,
         )
         return
 
@@ -989,7 +1052,7 @@ def run_phase2(args, device):
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
-            save_checkpoint, pretrain_params, replay=replay,
+            save_checkpoint, pretrain_params, replay=replay, teacher_feats=teacher_feats,
         )
         # Ti le kich hoat PHAI ghi lai: SPD chi phat khi gradient quay dau ma momentum van
         # day tiep. Neu ti le = 0 thi no DUNG BANG AdamW, va ket qua phai doc nhu AdamW chu
@@ -1082,6 +1145,7 @@ def run_phase2(args, device):
         save_checkpoint,
         pretrain_params,
         replay=replay,
+        teacher_feats=teacher_feats,
     )
 
 
@@ -1570,6 +1634,18 @@ def parse_args():
                         help="lambda cua L_cwe tren batch DICH (head phu 4 lop hoc tiep tren nhan CWE "
                              "cua Python). Can checkpoint 4cwe (num_cwes=4). 0 = tat, head dong bang")
 
+    feat = parser.add_argument_group("phase-2 feature-space anchoring (FACTS §36)")
+    feat.add_argument("--feat_distill_beta", type=float, default=0.0,
+                      help="he so beta cua neo dac trung: cong beta*d(f_theta(x), f_theta*(x)) tren "
+                           "input DICH, voi f_theta* la dac trung cua chinh mo hinh Pha 1 (tinh san "
+                           "mot lan, 0 VRAM them). 0 = tat, duong chay cu tung byte")
+    feat.add_argument("--feat_distill_mode", choices=("cos", "mse"), default="cos",
+                      help="cos = 1 - cosine, chi giu HUONG (bat bien thang do, dung thu linear probe "
+                           "dung); mse = L2 binh phuong, giu ca do dai")
+    feat.add_argument("--phase2_reinit_head", action="store_true",
+                      help="khoi tao lai vul_head truoc Pha 2, giu backbone Pha 1. Hoi: mang mot ham "
+                           "quyet dinh SAI mot cach tu tin (0.54 F1 zero-shot) sang dich co hai khong")
+
     smoke = parser.add_argument_group("smoke-test limits")
     smoke.add_argument("--max_train_samples", type=int, help="cap training records")
     smoke.add_argument("--max_eval_samples", type=int, help="cap validation/test records")
@@ -1586,6 +1662,10 @@ def parse_args():
         parser.error("--replay_lambda_cwe > 0 can --replay_mu > 0")
     if args.replay_mu < 0 or args.replay_lambda_cwe < 0 or args.phase2_lambda_cwe < 0:
         parser.error("cac he so replay/lambda khong duoc am")
+    if args.feat_distill_beta < 0:
+        parser.error("--feat_distill_beta khong duoc am")
+    if args.phase == "phase1" and (args.feat_distill_beta > 0 or args.phase2_reinit_head):
+        parser.error("--feat_distill_beta / --phase2_reinit_head chi co nghia o phase2")
     if args.phase == "phase2" and args.replay_data and not Path(args.replay_data).is_file():
         parser.error(f"--replay_data khong ton tai: {args.replay_data}")
 
