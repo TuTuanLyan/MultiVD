@@ -20,6 +20,36 @@ hiểu sai.
 > Đọc mục này trước. Bên dưới (§0.1 trở đi) là bản ghi lúc 00:40 UTC, giữ lại để tra cứu
 > nhưng **đã lạc hậu**: các khối nêu ở đó đã xong. Trạng thái máy hiện tại ở `CURRENT_RUN.md`.
 
+### 0.-3 KHỐI n=15 XONG 10/09 17:10 VN — 210 ô, và MỘT KẾT LUẬN BỊ RÚT LẠI
+
+3 seed (42, 7, 1234) × 2 backbone × 3 nguồn × 5 fold. Đọc bằng
+`python3 tools/chot_report.py results/chot_t5p results/chotv_t5p results/chot_codebert
+results/chot161_codebert results/chot158_t5p`. Trang:
+<https://claude.ai/code/artifact/1ced3c61-bf8a-48b1-ab17-6ad575a0123b>
+
+| | ΔF1@0.5 (45 ô) | ΔROC-AUC |
+|---|---|---|
+| codebert A (ρ0.1) | +0.0450 42/45 | +0.0138 29/45 |
+| codebert B (AdamW) | +0.0441 44/45 | +0.0105 26/45 |
+| t5p A (ρ2.0) | **−0.0088 32/45** | **−0.0274 31/45** |
+| t5p B (AdamW) | +0.0214 33/45 | +0.0047 27/45 |
+
+**RÚT LẠI §28**: ΔROC +0.0337 của ASAM ρ=2.0 trên t5p chỉ đúng ở seed 42. Theo seed:
++0.0111 → **−0.0607** → **−0.0326**. A−B ghép cặp cho **−0.0321 ROC**. **ASAM ra khỏi cấu
+hình chốt**; cấu hình nên là `latent_bottleneck` + λ=0.05 + **AdamW trần**.
+
+**Per-CWE giữ vững ở cả bốn phép đo**: CWE-022 và CWE-079 dương **41–45/45 fold**; CWE-078 và
+CWE-089 null. Số hàng test đúng (trung bình qua fold, min–max): 022 **13 (8–19)**, 078 41,
+079 **16 (13–20)**, 089 82.
+
+**Ba việc tiếp theo được đề xuất** (chưa duyệt, xem §35.1):
+- Đối chứng âm: Pha 1 với **nhãn CWE xáo trộn**. Nếu lợi ích vẫn còn ⇒ nó đến từ
+  domain-adaptive pretraining chứ không từ nhãn. §30.2 đang gợi ý đúng vậy. ~2 giờ GPU.
+- Kiểm **rò rỉ near-dup riêng cho CWE-022 và CWE-079** — hai lớp nhỏ nhất, và `norm` chia
+  theo dòng nên ~40% hàng test có bản gần giống trong train.
+- Đo chồng lấn phân phối nguồn/đích theo CWE. Giả thuyết "nguồn nhiều mẫu cùng CWE" **đã bị
+  bác** (§35.1): CWE-022 chỉ chiếm 9,9% nguồn, ít hơn CWE-078 (10,8%) vốn null.
+
 ### 0.-2 KHỐI `chot` ĐÃ XONG 09/09 16:00 UTC — 70/70 ô (FACTS §34)
 
 2 backbone × 2 điều kiện × 3 nguồn × 5 fold. **A** = RecAdam + ASAM ở ρ tốt nhất của chính

@@ -1,4 +1,9 @@
-# CURRENT_RUN — 10/09/2026, 00:20 VN
+# CURRENT_RUN — ĐÃ XONG 10/09/2026 17:10 VN (10:10 UTC)
+
+> **Khối n=15 hoàn tất: 210 ô.** Không còn gì đang chạy. Cron watchdog đã gỡ.
+> Kết quả ở FACTS §35.2; trang: <https://claude.ai/code/artifact/1ced3c61-bf8a-48b1-ab17-6ad575a0123b>
+
+---
 
 ## ĐANG CHẠY — bổ sung n=15 cho khối `chot` (seed 7 + 1234)
 
