@@ -2848,3 +2848,27 @@ A − B ghép cặp, gộp ba seed: codebert **−0.0005 F1** (18/41), t5p **−
 Lần thứ **bảy** dự án này thấy: **phát biểu ở mức TỔNG HỢP yếu đi hoặc đổi dấu khi thêm dữ liệu;
 phát biểu ở mức PHÂN PHỐI (per-CWE) thì giữ.** Kết quả đầu bài phải là bảng per-CWE, không phải Δ
 tổng thể. Và **ASAM phải rút khỏi cấu hình chốt** — nó không sống sót đa seed trên t5p.
+
+### §35.1 — Giả thuyết "thắng vì nguồn nhiều dữ liệu cùng CWE" BỊ BÁC (10/09)
+
+Kiểm giả thuyết đơn giản nhất cho §35: CWE-022 và CWE-079 thắng vì nguồn Pha 1 có nhiều mẫu
+thuộc đúng hai CWE đó. **Sai.**
+
+| CWE | trong nguồn `4cwe` | hàng test (fold 1) | kết quả |
+|---|---|---|---|
+| CWE-079 | **692 (74,4%)** | 14 | **+0.35 thắng** |
+| CWE-078 | 100 (10,8%) | 39 | null |
+| **CWE-022** | **92 (9,9%)** | 19 | **+0.36 thắng** |
+| CWE-089 | 46 (4,9%) | 80 | null |
+
+CWE-022 chiếm **ít hơn** CWE-078 trong nguồn (9,9% vs 10,8%) mà vẫn thắng, còn CWE-078 thì null.
+Lượng dữ liệu nguồn không giải thích được.
+
+**Một cách giải thích cạnh tranh, phải loại trừ trước khi viết cơ chế**: hai CWE thắng là hai
+CWE **ít hàng test nhất** (14 và 19 trên 152); hai CWE null là hai nhiều nhất (39 và 80). Đây có
+thể là hiện tượng về **kích thước nhóm** chứ không phải về nội dung — ROC trên 14–19 hàng biến
+động mạnh hơn nhiều, nên chênh lệch dễ lớn hơn về biên độ. Cái chống lại cách giải thích này là
+**đếm dấu 42/42 qua fold**, nhưng cần kiểm thẳng.
+
+**Đính chính**: các mục trước ghi "CWE-022 chỉ 8 hàng test" — con số đó lấy từ `test_cwe_classes`
+gộp, không phải một fold thật. Số đúng ở fold 1: **CWE-022 19, CWE-078 39, CWE-079 14, CWE-089 80**.
