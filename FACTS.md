@@ -3138,3 +3138,36 @@ chỉ có n=4 dataset, một backbone, không kiểm định.
    chung. Cần thêm `plain` + `baseline` fold 4–5 làm đối chứng ghép cặp.
 3. Probe theo **từng tầng** — LDIFS (TMLR 2024) đo được neo chỉ-tầng-cuối kém hơn neo nhiều tầng,
    mà `fd*` hiện chỉ neo tầng cuối. 0 GPU.
+
+## §36.1 — CONTROL TASK: probe KHÔNG tự học được tác vụ, nên §36 đứng vững (11/09, 0 GPU)
+
+Phản biện chuẩn với mọi phép probe (Hewitt & Liang, EMNLP 2019): *"probe của anh đủ mạnh để tự
+học tác vụ từ bất kỳ đặc trưng nào, nên con số đó không nói gì về đặc trưng."* Cách chặn: chạy
+**đúng probe đó** trên **nhãn xáo trộn cố định theo hàng** (cùng phân phối), rồi báo **độ chọn
+lọc** = thật − ngẫu nhiên.
+
+| | ROC thật | ROC nhãn ngẫu nhiên | **độ chọn lọc** |
+|---|---|---|---|
+| codebert pretrained | 0.6575 | **0.5107** | 0.1468 |
+| **codebert Pha 1** | 0.7700 | **0.5047** | **0.2652** |
+| t5p pretrained | 0.6222 | **0.5240** | 0.0981 |
+| **t5p Pha 1** | 0.6423 | **0.5120** | 0.1303 |
+
+**Ba điều đọc được:**
+
+1. **Sàn ngẫu nhiên nằm ở 0.505–0.524 trên cả bốn ô** — probe tuyến tính trên 456 dòng train
+   **không** thuộc lòng được nhãn ngẫu nhiên. Vậy điểm thật là do cấu trúc trong đặc trưng, không
+   phải do sức chứa của probe. Phản biện được trả lời bằng số.
+2. **Δ độ chọn lọc ≈ Δ ROC thô**: codebert +0.1184 (so với +0.1125 thô), t5p +0.0322 (so với
+   +0.0202). Sàn ngẫu nhiên gần như không nhúc nhích giữa hai mô hình, nên **con số đầu bài của
+   §36 không đổi** sau khi trừ sàn.
+3. Khoảng cách codebert/t5p **rộng ra** khi tính bằng độ chọn lọc (0.2652 so với 0.1303, gấp hơn
+   hai lần), củng cố §38.2.
+
+Số đầy đủ: `results/probe/{codebert,t5p}_4cwe_ctl.json`. Đặc trưng đã đệm ở
+`results/probe/cache/*.npz` nên các phép probe sau **không phải trích lại** (45 phút CPU/backbone).
+
+> **Bẫy đã mắc lại đêm nay:** tôi báo "probe đang chạy" bốn lần trong khi nó **đã xong từ 02:25**,
+> vì `pgrep -f "tools/feature_probe.py"` khớp **chính dòng lệnh của tôi**. Đây đúng là mục memory
+> `pkill-kills-own-ssh-session` đã ghi. Cách kiểm đúng: lọc theo `comm` (`ps -o comm=` bằng
+> `python`), hoặc đếm hiện vật (file kết quả), không đếm tiến trình theo dòng lệnh.
