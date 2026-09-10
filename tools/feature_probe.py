@@ -74,10 +74,17 @@ def metrics(y, p):
     return out
 
 
-def probe_fold(F, idx, rows, member, k):
+def probe_fold(F, idx, rows, member, k, control_seed=None):
+    """`control_seed` != None => CONTROL TASK cua Hewitt & Liang (EMNLP 2019): thay nhan that
+    bang nhan NGAU NHIEN co dinh theo hang (cung phan phoi). Probe nao cung fit duoc phan nao
+    nhan ngau nhien; hieu (that - ngau nhien) moi la DO CHON LOC, va do moi la thu duoc phep
+    goi la 'dac trung mang thong tin'. Khong co phep nay thi phan bien 'probe cua anh tu hoc
+    tac vu chu khong do dac trung' khong tra loi duoc."""
     keys = list(rows)
     pos = {key: i for i, key in enumerate(keys)}
     y = np.array([rows[key]["label"] for key in keys])
+    if control_seed is not None:
+        y = np.random.default_rng(control_seed).permutation(y)
     c = np.array([rows[key]["cwe_class"] for key in keys])
     tr = np.array([pos[x] for x in member[k]["train"]]); va = np.array([pos[x] for x in member[k]["val"]])
     te = np.array([pos[x] for x in member[k]["test"]])
@@ -111,6 +118,11 @@ def main():
     ap.add_argument("--max_length", type=int, default=512)
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--cache", default=None,
+                    help="file .npz de LUU/DUNG LAI dac trung da trich. Trich lai het 45 phut CPU "
+                         "moi backbone, ma dac trung cua mo hinh DONG BANG thi khong bao gio doi")
+    ap.add_argument("--control", action="store_true",
+                    help="chay THEM control task (nhan xao tron co dinh) va in DO CHON LOC")
     a = ap.parse_args()
     torch.set_num_threads(a.threads)
 
@@ -126,24 +138,44 @@ def main():
                             num_cwes=ck.get("num_cwes"), pooling=ck.get("pooling") or a.pooling,
                             latent_temperature=ta.get("latent_temperature", 0.1), lora_rank=0,
                             freeze_backbone_layers=0, phase="probe")
-    print(f"# (a) PRETRAINED {a.model_name}")
-    m_pre = T.make_model(a.model_name, a.device, ns)
-    F_pre, _ = extract(m_pre, records, tok, a.max_length, a.batch, a.device)
-    del m_pre
-    print(f"# (b) PHA 1 {a.ckpt} | val {ck.get('best_val_macro_f1'):.4f} ep {ck.get('best_epoch')} | lambda {ta.get('lambda_cwe')}")
-    m_p1 = T.make_model(a.model_name, a.device, ns)
-    missing, unexpected = m_p1.load_state_dict(ck["model_state_dict"], strict=False)
-    if missing or unexpected:
-        print(f"# CANH BAO nap trong so: thieu {len(missing)}, thua {len(unexpected)}")
-    F_p1, L_p1 = extract(m_p1, records, tok, a.max_length, a.batch, a.device)
-    del m_p1
+    cached = None
+    if a.cache and os.path.exists(a.cache):
+        z = np.load(a.cache)
+        if int(z["n"]) == len(records):
+            cached = z
+            print(f"# DUNG LAI dac trung tu {a.cache} ({len(records)} hang) — khong trich lai")
+        else:
+            print(f"# bo dem {a.cache} co {int(z['n'])} hang, can {len(records)} — trich lai")
+    if cached is not None:
+        F_pre, F_p1, L_p1 = cached["F_pre"], cached["F_p1"], cached["L_p1"]
+    else:
+        print(f"# (a) PRETRAINED {a.model_name}")
+        m_pre = T.make_model(a.model_name, a.device, ns)
+        F_pre, _ = extract(m_pre, records, tok, a.max_length, a.batch, a.device)
+        del m_pre
+        print(f"# (b) PHA 1 {a.ckpt} | val {ck.get('best_val_macro_f1'):.4f} ep {ck.get('best_epoch')} | lambda {ta.get('lambda_cwe')}")
+        m_p1 = T.make_model(a.model_name, a.device, ns)
+        missing, unexpected = m_p1.load_state_dict(ck["model_state_dict"], strict=False)
+        if missing or unexpected:
+            print(f"# CANH BAO nap trong so: thieu {len(missing)}, thua {len(unexpected)}")
+        F_p1, L_p1 = extract(m_p1, records, tok, a.max_length, a.batch, a.device)
+        del m_p1
+        if a.cache:
+            os.makedirs(os.path.dirname(a.cache) or ".", exist_ok=True)
+            np.savez_compressed(a.cache, F_pre=F_pre, F_p1=F_p1, L_p1=L_p1, n=len(records))
+            print(f"# da luu dac trung -> {a.cache}")
 
     out = {"model_name": a.model_name, "ckpt": a.ckpt, "n_rows": len(records), "folds": {}}
     print(f"\n{'fold':<5}{'':<12}{'F1@0.5':>8}{'ROC':>8}{'PR':>8}   per-CWE ROC (022/078/079/089)")
     d_all = {"f1": [], "roc": [], "pr": []}; d_cwe = {}
+    ctl = {"pre": [], "p1": []}
     for k in a.folds:
         r_pre, _ = probe_fold(F_pre, None, rows, member, k)
         r_p1, (te, yte, cte) = probe_fold(F_p1, None, rows, member, k)
+        if a.control:
+            c_pre, _ = probe_fold(F_pre, None, rows, member, k, control_seed=1000 + k)
+            c_p1, _ = probe_fold(F_p1, None, rows, member, k, control_seed=1000 + k)
+            ctl["pre"].append(c_pre["test"]); ctl["p1"].append(c_p1["test"])
         # zero-shot cua chinh vul_head Pha 1 (khong fit gi)
         pz = torch.softmax(torch.tensor(L_p1[te]), -1)[:, 1].numpy()
         r_zs = {"test": metrics(yte, pz)}
@@ -166,6 +198,17 @@ def main():
     print(f"\n=== Δ (Pha 1 LP − pretrained LP), ghep cap theo fold ===")
     print(f"F1@0.5 {s(d_all['f1'])} | ROC-AUC {s(d_all['roc'])} | PR-AUC {s(d_all['pr'])}")
     print("per-CWE: " + " | ".join(f"{cw} ROC {s(v['roc'])} F1 {s(v['f1'])}" for cw, v in sorted(d_cwe.items())))
+    if a.control:
+        def m(lst, key):
+            v = np.asarray([x[key] for x in lst], float); v = v[~np.isnan(v)]
+            return float(v.mean())
+        print("\n=== CONTROL TASK (nhan xao tron) va DO CHON LOC ===")
+        print(f"{'':16}{'that':>10}{'ngau nhien':>13}{'chon loc':>11}")
+        for name, rr, cc in (("pretrained", [v['pretrained_LP']['test'] for v in out['folds'].values()], ctl["pre"]),
+                             ("Pha 1", [v['phase1_LP']['test'] for v in out['folds'].values()], ctl["p1"])):
+            for met in ("f1", "roc"):
+                print(f"{name+' '+met:16}{m(rr,met):>10.4f}{m(cc,met):>13.4f}{m(rr,met)-m(cc,met):>11.4f}")
+        out["control"] = {"pretrained": ctl["pre"], "phase1": ctl["p1"]}
     out["delta"] = {"all": {m: [float(x) for x in v] for m, v in d_all.items()},
                     "per_cwe": {cw: {m: [float(x) for x in vv] for m, vv in v.items()} for cw, v in d_cwe.items()}}
     os.makedirs(os.path.dirname(a.out), exist_ok=True)

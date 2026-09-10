@@ -928,6 +928,14 @@ def run_phase2(args, device):
         freeze_aux_head(model)
 
     if args.lp_epochs > 0:
+        if aux_trainable:
+            # `run_linear_probe` ket thuc bang `freeze_aux_head`, nen no se AM THAM huy bo
+            # cau CWE va lam vo assert o `assert_recadam_setup`. Dung han thay vi chay ra
+            # mot cau hinh khong phai cai nguoi goi yeu cau.
+            raise ValueError(
+                "--lp_epochs khong dung chung duoc voi --phase2_lambda_cwe/--replay_lambda_cwe: "
+                "run_linear_probe dong bang lai head phu o cuoi"
+            )
         run_linear_probe(args, model, train_records, val_records, tokenizer, device)
 
     # Take names alongside the tensors: the anchor may need to swap individual
