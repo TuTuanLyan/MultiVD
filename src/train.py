@@ -118,52 +118,123 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
     return result
 
 
-def assert_recadam_setup(current_params, pretrain_params, model):
+def assert_recadam_setup(current_params, pretrain_params, model, aux_trainable=False):
     assert len(current_params) == len(pretrain_params), "RecAdam parameter counts differ"
     for index, (current, source) in enumerate(zip(current_params, pretrain_params)):
         assert current.shape == source.shape, f"RecAdam parameter shape differs at index {index}"
         assert not source.requires_grad, f"source parameter {index} unexpectedly requires gradients"
-    assert all(
-        not parameter.requires_grad for parameter in model.aux_parameters()
-    ), "auxiliary head not frozen"
+    if aux_trainable:
+        # Cầu CWE (--phase2_lambda_cwe / --replay_lambda_cwe): head phụ HỌC TIẾP ở Pha 2.
+        assert all(
+            parameter.requires_grad for parameter in model.aux_parameters()
+        ), "auxiliary head should be trainable but some parameter is frozen"
+    else:
+        assert all(
+            not parameter.requires_grad for parameter in model.aux_parameters()
+        ), "auxiliary head not frozen"
+
+
+def _phase2_target_loss(model, batch, device, lambda_cwe):
+    """Mục tiêu trên một batch ĐÍCH. `lambda_cwe=0` ⇒ `return_cwe=False`, đúng đường cũ từng byte.
+
+    `lambda_cwe>0` ⇒ cộng λ·L_cwe trên `cwe_class` của đích (4 lớp, cùng bảng CWE_MAPPING
+    với nguồn 4cwe) — head phụ Pha 1 học tiếp trên đích, là nửa "đích" của cầu CWE."""
+    input_ids = batch["input_ids"].to(device)
+    attention_mask = batch["attention_mask"].to(device)
+    labels = batch["labels"].to(device)
+    if lambda_cwe > 0:
+        outputs = model(input_ids, attention_mask, return_cwe=True)
+        vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
+        cwes = batch["cwe_class"].to(device)
+        aux_loss, _ = auxiliary_loss(outputs, cwes, model.aux_mode,
+                                     temperature=getattr(model, "latent_temperature", 0.1))
+        loss = vul_loss if aux_loss is None else vul_loss + lambda_cwe * aux_loss
+    else:
+        outputs = model(input_ids, attention_mask, return_cwe=False)
+        vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
+        aux_loss, loss = None, vul_loss
+    return loss, vul_loss, aux_loss, outputs, labels
+
+
+def _phase2_replay_loss(model, batch, device, mu, lambda_cwe):
+    """μ·(L_vul_nguồn + λ·L_cwe_nguồn) trên MỘT batch nguồn (src/replay.py). Trả (đã nhân μ, chưa nhân, aux)."""
+    input_ids = batch["input_ids"].to(device)
+    attention_mask = batch["attention_mask"].to(device)
+    labels = batch["labels"].to(device)
+    outputs = model(input_ids, attention_mask, return_cwe=(lambda_cwe > 0))
+    loss = F.cross_entropy(outputs["vul_logits"], labels)
+    aux_loss = None
+    if lambda_cwe > 0:
+        cwes = batch["cwe_class"].to(device)
+        aux_loss, _ = auxiliary_loss(outputs, cwes, model.aux_mode,
+                                     temperature=getattr(model, "latent_temperature", 0.1))
+        if aux_loss is not None:
+            loss = loss + lambda_cwe * aux_loss
+    return mu * loss, loss, aux_loss
 
 
 def train_one_epoch_phase2(
     model, dataloader, optimizer, device, max_grad_norm, pretrain_params,
-    check_first_step=False, sam=None
+    check_first_step=False, sam=None, replay=None, lambda_cwe_target=0.0, epoch=1,
 ):
-    """`sam=None` giữ nguyên đường chạy cũ từng byte; chỉ khi truyền vào một
-    SAMStep thì mỗi bước mới thành hai lượt forward-backward."""
+    """`sam=None`, `replay=None`, `lambda_cwe_target=0` giữ nguyên đường chạy cũ từng byte.
+
+    replay (src/replay.py): mỗi bước lấy thêm MỘT batch NGUỒN và cộng μ(e)·L_nguồn vào mục
+    tiêu. Hai backward NỐI TIẾP (đích rồi nguồn) cho đúng gradient tổng như backward của
+    tổng loss (tuyến tính), nhưng chỉ giữ MỘT đồ thị trong bộ nhớ — t5p đã đo 13,4 GB cho
+    một batch, gộp hai batch vào một đồ thị là tràn A4000 16 GB.
+    Với SAM: lượt 2 tại w+ε phải tính lại ĐÚNG mục tiêu (đích + nguồn) như Phase 1 làm với
+    `_combine_phase1_loss`; chỉ tính lại L_đích là xoá phần nguồn im lặng."""
     model.train()
+    aux_trainable = any(p.requires_grad for p in model.aux_parameters())
+    mu = replay.mu(epoch) if replay is not None else 0.0
+    lam_s = replay.lambda_cwe if replay is not None else 0.0
     total_loss = 0.0
+    total_vul = 0.0
+    total_cwe = 0.0
+    total_replay = 0.0
     examples = 0
     labels_seen, probabilities = [], []
     source_versions = [parameter._version for parameter in pretrain_params]
     checked = False
     for batch in dataloader:
         optimizer.zero_grad(set_to_none=True)
-        input_ids = batch["input_ids"].to(device)
-        attention_mask = batch["attention_mask"].to(device)
-        labels = batch["labels"].to(device)
-        outputs = model(input_ids, attention_mask, return_cwe=False)
-        loss = F.cross_entropy(outputs["vul_logits"], labels)
+        loss, vul_loss, aux_loss, outputs, labels = _phase2_target_loss(
+            model, batch, device, lambda_cwe_target
+        )
         loss.backward()
+        replay_batch, replay_loss = None, None
+        if mu > 0:
+            replay_batch = replay.next_batch()
+            scaled, replay_loss, _ = _phase2_replay_loss(model, replay_batch, device, mu, lam_s)
+            scaled.backward()
 
         if sam is not None:
             # Lượt 1 chỉ để lấy HƯỚNG leo; giá trị loss báo cáo vẫn là loss tại w.
             trainable = [p for p in model.parameters() if p.requires_grad]
             if sam.ascend(trainable):
                 optimizer.zero_grad(set_to_none=True)
-                out2 = model(input_ids, attention_mask, return_cwe=False)
-                F.cross_entropy(out2["vul_logits"], labels).backward()
+                loss2, _, _, _, _ = _phase2_target_loss(model, batch, device, lambda_cwe_target)
+                loss2.backward()
+                if replay_batch is not None:
+                    scaled2, _, _ = _phase2_replay_loss(model, replay_batch, device, mu, lam_s)
+                    scaled2.backward()
                 # Về w TRƯỚC optimizer.step(): gradient lấy ở w+eps nhưng bước
                 # cập nhật phải áp cho w gốc, đúng như mã của Google.
                 sam.restore(trainable)
 
         if check_first_step and not checked:
-            assert all(parameter.grad is None for parameter in model.aux_parameters()), (
-                "auxiliary head received a gradient in Phase 2"
-            )
+            if aux_trainable:
+                # Cầu CWE: head phụ đang học, và phải THẬT SỰ nhận gradient khi có λ — nếu
+                # không thì cờ bật mà không có tác dụng, kết quả sẽ trông y hệt "plain".
+                if lambda_cwe_target > 0 or (mu > 0 and lam_s > 0):
+                    assert any(p.grad is not None for p in model.aux_parameters()), (
+                        "auxiliary head is trainable but received no gradient"
+                    )
+            else:
+                assert all(parameter.grad is None for parameter in model.aux_parameters()), (
+                    "auxiliary head received a gradient in Phase 2"
+                )
             useful = [
                 parameter
                 for name, parameter in model.named_parameters()
@@ -189,9 +260,18 @@ def train_one_epoch_phase2(
         size = labels.size(0)
         examples += size
         total_loss += loss.item() * size
+        total_vul += vul_loss.item() * size
+        total_cwe += (0.0 if aux_loss is None else aux_loss.item()) * size
+        total_replay += (0.0 if replay_loss is None else replay_loss.item()) * size
         labels_seen.extend(labels.detach().cpu().tolist())
         probabilities.extend(torch.softmax(outputs["vul_logits"].detach(), dim=-1)[:, 1].cpu().tolist())
-    result = {"loss": total_loss / examples, "vul": total_loss / examples}
+    result = {"loss": total_loss / examples, "vul": total_vul / examples}
+    if lambda_cwe_target > 0:
+        result["cwe"] = total_cwe / examples
+    if replay is not None:
+        # L_nguồn CHƯA nhân μ (để đọc được độ khó của nguồn qua các epoch) và μ(e) đã dùng.
+        result["replay"] = total_replay / examples
+        result["replay_mu"] = mu
     result.update(classification_metrics(labels_seen, probabilities, 0.5))
     result.update(labels=labels_seen, probabilities=probabilities)
     return result
@@ -280,6 +360,7 @@ def train_loop(
     save_checkpoint,
     pretrain_params=None,
     aux_weighter=None,
+    replay=None,
 ):
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
@@ -348,7 +429,16 @@ def train_loop(
                 pretrain_params,
                 check_first_step=(epoch == 1),
                 sam=sam,
+                replay=replay,
+                lambda_cwe_target=float(getattr(args, "phase2_lambda_cwe", 0.0) or 0.0),
+                epoch=epoch,
             )
+            if replay is not None:
+                logger.info(
+                    "Replay nguon | epoch %d | mu %.3f | L_nguon %.4f | L_dich %.4f%s",
+                    epoch, train.get("replay_mu", 0.0), train.get("replay", 0.0), train["vul"],
+                    "" if "cwe" not in train else " | L_cwe_dich %.4f" % train["cwe"],
+                )
         elif phase == "baseline":
             train = train_one_epoch_binary(
                 model, train_loader, optimizer, device, args.max_grad_norm
@@ -397,6 +487,13 @@ def train_loop(
             "lr": optimizer.param_groups[0].get("lr"),
             "new_best": bool(new_best or tied_best),
         })
+        if phase == "phase2" and (replay is not None or "cwe" in train):
+            # Chỉ thêm khoá khi cầu CWE bật, để JSON của đường cũ không đổi một byte.
+            _val_history[-1].update({
+                "replay_mu": train.get("replay_mu"),
+                "train_replay_loss": None if "replay" not in train else round(float(train["replay"]), 6),
+                "train_cwe_loss": None if "cwe" not in train else round(float(train["cwe"]), 6),
+            })
         _rt_epoch.append(epoch_seconds)
         _rt_train.append(train_seconds)
         _rt_val.append(validation_seconds)

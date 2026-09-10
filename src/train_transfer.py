@@ -854,7 +854,24 @@ def run_phase2(args, device):
         source_checkpoint["best_epoch"],
         source_checkpoint["best_val_macro_f1"],
     )
-    freeze_aux_head(model)
+    # Cầu CWE (src/replay.py): head phụ HỌC TIẾP ở Pha 2 khi có λ trên đích hoặc trên nguồn.
+    # Mặc định cả hai = 0 ⇒ đóng băng như cũ.
+    aux_trainable = (float(getattr(args, "phase2_lambda_cwe", 0.0) or 0.0) > 0
+                     or float(getattr(args, "replay_lambda_cwe", 0.0) or 0.0) > 0)
+    if aux_trainable:
+        if args.phase2_lambda_cwe > 0 and int(args.num_cwes) != len(CWE_MAPPING):
+            # Nhãn cwe_class của đích là bảng 4 lớp (CWE_MAPPING). Checkpoint com/full có head
+            # 10 pillar — chồng hai không gian nhãn lên nhau là học nhãn sai mà không báo lỗi.
+            raise ValueError(
+                f"--phase2_lambda_cwe can head {len(CWE_MAPPING)} lop (4cwe), checkpoint co "
+                f"num_cwes={args.num_cwes}. Dung nguon 4cwe hoac dat --phase2_lambda_cwe 0"
+            )
+        logger.info(
+            "Head phu KHONG dong bang o Pha 2 (cau CWE) | lambda dich %.3f | lambda nguon %.3f",
+            args.phase2_lambda_cwe, args.replay_lambda_cwe,
+        )
+    else:
+        freeze_aux_head(model)
 
     if args.lp_epochs > 0:
         run_linear_probe(args, model, train_records, val_records, tokenizer, device)
@@ -868,7 +885,7 @@ def run_phase2(args, device):
     current_params = [parameter for _, parameter in named_trainable]
     # This is the immutable RecAdam anchor, cloned before any Python optimizer step.
     pretrain_params = build_recadam_anchor(named_trainable, args, device)
-    assert_recadam_setup(current_params, pretrain_params, model)
+    assert_recadam_setup(current_params, pretrain_params, model, aux_trainable=aux_trainable)
 
     train_loader = build_dataloader(
         train_records, tokenizer, args.max_length, args.batch_size, True, args.seed, args.num_workers,
@@ -901,6 +918,30 @@ def run_phase2(args, device):
         args.lambda_cwe_phase2_cli = args.lambda_cwe
         args.lambda_cwe = args.source_lambda_cwe
 
+    # Replay nguồn (Đ5, RESEARCH_2026-09-06 §11.4). Không có --replay_data ⇒ replay=None ⇒
+    # train_loop chạy đường cũ. Chia nguồn bằng ĐÚNG hàm và seed Pha 1 đã dùng, chỉ replay
+    # phần train: tập val Pha 1 vẫn là held-out cho `source_retention`.
+    replay = None
+    if args.replay_data:
+        from replay import SourceReplay
+        replay_records = load_jsonl(
+            args.replay_data, trust_precomputed=(args.replay_cwe_vocab == "precomputed")
+        )
+        replay_train, _replay_val = split_source_records(replay_records, args.seed)
+        replay = SourceReplay(
+            replay_train, tokenizer, args.max_length, args.truncation_strategy,
+            args.replay_batch_size or args.batch_size, args.replay_mu, args.replay_epochs,
+            args.replay_stratify, args.seed, lambda_cwe=args.replay_lambda_cwe,
+        )
+        # Sổ sách → training_args → checkpoint → JSON kết quả (chỉ vô hướng mới đi qua).
+        args.replay_rows = int(len(replay_train))
+        args.replay_rows_heldout = int(len(_replay_val))
+        args.replay_strata = replay.describe()
+        args.replay_mu_schedule = " ".join(
+            f"{replay.mu(e):.3f}" for e in range(1, min(int(args.epochs), 12) + 1)
+        )
+        args.replay_batch_size_used = int(replay.batch_size)
+
     if args.phase2_optimizer == "adamw":
         # RecAdam scales the target gradient by lambda(t), which is calibrated to
         # total_steps. With a small target set there are too few steps for lambda
@@ -926,7 +967,7 @@ def run_phase2(args, device):
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
-            save_checkpoint, pretrain_params,
+            save_checkpoint, pretrain_params, replay=replay,
         )
         return
 
@@ -948,7 +989,7 @@ def run_phase2(args, device):
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
-            save_checkpoint, pretrain_params,
+            save_checkpoint, pretrain_params, replay=replay,
         )
         # Ti le kich hoat PHAI ghi lai: SPD chi phat khi gradient quay dau ma momentum van
         # day tiep. Neu ti le = 0 thi no DUNG BANG AdamW, va ket qua phai doc nhu AdamW chu
@@ -1040,6 +1081,7 @@ def run_phase2(args, device):
         "phase2",
         save_checkpoint,
         pretrain_params,
+        replay=replay,
     )
 
 
@@ -1504,6 +1546,30 @@ def parse_args():
                               "cua RecAdam (sigmoid k, t0) nhung KHONG neo. Doi chung tach 'warmup "
                               "ngam' cua RecAdam khoi 'neo' (src/anneal_adamw.py)")
 
+    bridge = parser.add_argument_group("phase-2 source replay / CWE bridge (src/replay.py)")
+    bridge.add_argument("--replay_data", default=None,
+                        help="file jsonl NGUON de replay trong Pha 2 (vd data/phase1_4cwe.jsonl). "
+                             "Chia bang dung ham/seed Pha 1, chi replay phan train. KHONG truyen = "
+                             "duong chay cu tung byte")
+    bridge.add_argument("--replay_cwe_vocab", choices=("fixed4", "precomputed"), default="fixed4",
+                        help="cach doc cwe_class cua file nguon: fixed4 = bang 4 lop CWE_MAPPING "
+                             "(4cwe); precomputed = tin truong co san (com/full: 10 pillar)")
+    bridge.add_argument("--replay_mu", type=float, default=0.0,
+                        help="mu0: he so cua L_nguon o epoch 1. 0 = tat")
+    bridge.add_argument("--replay_epochs", type=int, default=0,
+                        help="so epoch de mu giam tuyen tinh ve 0 (mu(e)=mu0*(1-(e-1)/E)). "
+                             "0 = mu hang suot Pha 2")
+    bridge.add_argument("--replay_batch_size", type=int, default=0,
+                        help="co batch nguon moi buoc. 0 = bang --batch_size")
+    bridge.add_argument("--replay_stratify", action="store_true",
+                        help="lay mau nguon can bang theo tang (label, cwe_class) thay vi deu theo dong "
+                             "(4cwe lech 74%% CWE-79)")
+    bridge.add_argument("--replay_lambda_cwe", type=float, default=0.0,
+                        help="lambda cua L_cwe tren batch NGUON (head phu hoc tiep tren nguon). 0 = tat")
+    bridge.add_argument("--phase2_lambda_cwe", type=float, default=0.0,
+                        help="lambda cua L_cwe tren batch DICH (head phu 4 lop hoc tiep tren nhan CWE "
+                             "cua Python). Can checkpoint 4cwe (num_cwes=4). 0 = tat, head dong bang")
+
     smoke = parser.add_argument_group("smoke-test limits")
     smoke.add_argument("--max_train_samples", type=int, help="cap training records")
     smoke.add_argument("--max_eval_samples", type=int, help="cap validation/test records")
@@ -1512,6 +1578,16 @@ def parse_args():
         parser.error("epochs, min_epochs, and patience must be positive")
     if not 0.0 <= args.anneal_t0_ratio <= 1.0:
         parser.error("--anneal_t0_ratio must be in [0, 1]")
+    if args.replay_mu > 0 and not args.replay_data:
+        parser.error("--replay_mu > 0 can --replay_data")
+    if args.replay_data and args.replay_mu <= 0:
+        parser.error("--replay_data can --replay_mu > 0 (0 = tat, khi do dung truyen file)")
+    if args.replay_lambda_cwe > 0 and args.replay_mu <= 0:
+        parser.error("--replay_lambda_cwe > 0 can --replay_mu > 0")
+    if args.replay_mu < 0 or args.replay_lambda_cwe < 0 or args.phase2_lambda_cwe < 0:
+        parser.error("cac he so replay/lambda khong duoc am")
+    if args.phase == "phase2" and args.replay_data and not Path(args.replay_data).is_file():
+        parser.error(f"--replay_data khong ton tai: {args.replay_data}")
 
     if args.output_dir is None:
         args.output_dir = f"results/{args.run_name}/{args.method_name}"

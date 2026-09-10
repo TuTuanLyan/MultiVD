@@ -1,6 +1,50 @@
-# CURRENT_RUN — ĐÃ XONG 10/09/2026 17:10 VN (10:10 UTC)
+# CURRENT_RUN — ĐANG CHẠY từ 10/09/2026 21:33 VN (14:33 UTC): khối `bridge3` — cầu CWE, bậc 1
 
-> **Khối n=15 hoàn tất: 210 ô.** Không còn gì đang chạy. Cron watchdog đã gỡ.
+> Khối trước (n=15 `chot`, 210 ô) **đã xong 10/09 17:10 VN**, FACTS §35.2. Mục cũ giữ ở dưới để tra cứu.
+
+## ĐANG CHẠY — `bridge3`: đưa dữ liệu NGUỒN vào Pha 2 qua cầu CWE (kiểm chứng, **n=3 fold**, seed 42)
+
+Người dùng 10/09 tối: *"thay vì áp dụng chuẩn theo cái đã có bạn có thể tự do sáng tạo 1 cái vì hiện chỉ
+cần chứng minh thêm 1 cái để transfer... Khi tìm ra có thể thử ngay với n=3 trước nếu rảnh. cần vast báo
+tôi hoặc hỏi lại."* — chạy trên hai máy local, **không thuê vast**.
+
+**Vì sao hướng này** (RESEARCH_2026-09-06 §11–12, FACTS §35): bốn khối OPT1/RET1/SPD1/INT1 cho thấy tri
+thức nguồn vào đích CHỈ qua điểm khởi tạo; mọi neo trọng số (RecAdam/SPD/Fisher/WiSE-FT/LP-FT/LoRA) đều
+null vì neo là ràng buộc, không phải kênh truyền. Đường còn lại: cho **gradient của dữ liệu nguồn** nặn
+trực tiếp nghiệm đích (Đ5), và dùng **CWE làm cầu**: head phụ 4 lớp của Pha 1 học tiếp trên CẢ HAI ngôn
+ngữ (đích Python và nguồn 4cwe dùng cùng bảng `CWE_MAPPING` 022/078/079/089).
+
+Thiết kế **2×2**, cùng fold, cùng máy, cùng phiên với đối chứng; `baseline` (không Pha 1) cùng fold:
+
+| tag | cờ Pha 2 (`--phase2_optimizer adamw --sam_rho 0` + …) | đo cái gì |
+|---|---|---|
+| `plain` | — | **đối chứng**: fine-tune hai lần thuần |
+| `cwe05` | `--phase2_lambda_cwe 0.05` | chỉ nửa "đích" của cầu: head CWE học tiếp trên nhãn CWE Python |
+| `rp50` | `--replay_data data/phase1_4cwe.jsonl --replay_mu 0.5 --replay_epochs 6 --replay_stratify` | chỉ replay nguồn: μ(e)=0.5→0 tuyến tính sau 6 epoch, cân tầng (label, CWE) |
+| `rpc` | cả hai + `--replay_lambda_cwe 0.05` | **cầu CWE đầy đủ**: replay + head CWE học trên nguồn VÀ đích |
+
+| máy | backbone | Pha 1 (dùng lại, không huấn luyện lại) | cây kết quả | mốc |
+|---|---|---|---|---|
+| **161** A4000 (dùng chung — `cuongtm` đang chạy 4,9 GB cùng lúc) | codebert | `model/n48/phase1/codebert__latent_bottleneck_4cwe_l0p05/seed_42` val 0.6532 | `results/bridge3_codebert` | 12 ô + 3 baseline |
+| **158** A4000 | t5p | `…/t5p__latent_bottleneck_4cwe_l0p05/seed_42` val 0.6976 | `results/bridge3_t5p` | 12 ô + 3 baseline |
+
+Runner `run/bridge3.sh` → `run/opt1.sh` → `run/matrix.sh`; log `log/bridge3_<bb>.log` trên từng máy.
+Mã mới: `src/replay.py`, cờ `--replay_*`/`--phase2_lambda_cwe` trong `train_transfer.py`, vòng Pha 2
+trong `train.py` (hai backward nối tiếp để không tràn VRAM; SAM tính lại đúng mục tiêu). Kiểm:
+`tests/test_replay.py` (4 phép, hai chiều) + smoke GPU cả 4 nhánh optimizer. Mặc định mọi cờ = tắt ⇒
+đường cũ không đổi một byte.
+
+**Đọc** (LUÔN cả bốn chỉ số, ghép cặp theo fold):
+`python3 tools/report2.py --a transfer_latent_bottleneck_4cwe_l0p05_rpc_adamw --b transfer_latent_bottleneck_4cwe_l0p05_plain_adamw results/bridge3_codebert`
+(thay `rpc` bằng `rp50`/`cwe05`; thay cây cho t5p). Bậc 1 ⇒ chỉ được **sàng lọc**, không kết luận.
+
+Giám sát: Monitor trong phiên Claude (5 phút) — không cron. ETA: 158 ~2,5 h; 161 chậm hơn vì dùng chung GPU.
+
+---
+
+## ĐÃ XONG 10/09/2026 17:10 VN (10:10 UTC) — khối n=15 `chot`
+
+> **Khối n=15 hoàn tất: 210 ô.** Cron watchdog đã gỡ.
 > Kết quả ở FACTS §35.2; trang: <https://claude.ai/code/artifact/1ced3c61-bf8a-48b1-ab17-6ad575a0123b>
 
 ---
