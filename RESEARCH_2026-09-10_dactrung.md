@@ -233,9 +233,213 @@ sai. Cộng thêm smoke GPU cả bốn đường (fd, rh, cả hai + ASAM, và �
 
 ---
 
-## 5. Tra cứu tài liệu
+## 5. Tra cứu tài liệu — 11/09
 
-*(mục này được bổ sung khi phần tra cứu chạy xong — xem cuối file)*
+> Mọi mục dưới đây đã được **fetch trực tiếp** từ arXiv / ACL Anthology / OpenReview / DOI.
+> Mục nào không xác minh được nằm ở §5.6 và **không được trích dẫn**.
+
+### 5.1 Kết luận thẳng: neo đặc trưng KHÔNG mới, chẩn đoán MỚI
+
+Phải nói thẳng để khỏi viết sai vào bài:
+
+| thành phần | tình trạng |
+|---|---|
+| **Neo đặc trưng về mô hình khởi tạo, trên input đích** | **ĐÃ CÓ.** Đúng đối tượng của DELTA (ICLR 2019) và LDIFS (TMLR 2024) |
+| **Probe đặc trưng trước/sau fine-tune** | **ĐÃ CÓ.** Chuẩn trong NLP (Merchant 2020), đã nhập vào code (Troshin & Chirkova 2022) |
+| **"Đặc trưng còn, hàm quyết định hỏng"** | **ĐÃ CÓ.** Mai et al. NeurIPS 2024 nói đúng câu này ở bối cảnh khác |
+| **Probe đích + zero-shot head nguồn thành MỘT chẩn đoán** | **KHÔNG TÌM THẤY Ở ĐÂU**, cả NLP lẫn code |
+| **Dùng chẩn đoán đó để CHỌN can thiệp** | có đúng **một** tiền lệ, n=4 dataset, không kiểm định |
+| **Chế độ 760 mẫu nhị phân** | **ngoài vùng bằng chứng của mọi bài** trong họ này |
+
+Nói gọn: đóng góp bán được là **"chuyển giao phương pháp luận + chế độ dữ liệu mới"**, không phải
+"ý tưởng mới". Cụ thể: *mượn phép probe từ interpretability của NLP, bổ sung phép đo zero-shot của
+head nguồn, rồi dùng nó để chọn regularizer cho Pha 2 ở cỡ 760 mẫu mà chưa bài nào chạm tới.*
+
+### 5.2 BA CẢNH BÁO phải xử lý trước khi viết
+
+**(a) LP-FT kê đơn NGƯỢC với nhánh `rh` của mình.** Kumar, Raghunathan, Jones, Ma, Liang —
+**ICLR 2022 Oral** (arXiv:2202.10054). Nguyên văn: *"the OOD error of fine-tuning is high when we
+initialize with a fixed or random head … the lower layers change simultaneously and distort the
+pretrained features."* Số: FT so với LP = **+2% ID / −7% OOD**; **LP-FT so với FT = +1% ID / +10%
+OOD** trên 10 bộ dịch chuyển phân phối.
+
+Tức là: LP-FT nói **head ngẫu nhiên làm MÉO đặc trưng tốt**, nên phải fit head trước rồi mới mở
+backbone. Nhánh `rh` của mình đang làm đúng cái LP-FT bảo đừng làm. **Một reviewer biết LP-FT sẽ
+hỏi ngay: sao không fit head trước?** Phải trả lời bằng SỐ, tức phải chạy LP-FT làm một nhánh.
+Cờ `--lp_epochs` **đã có sẵn** trong `train_transfer.py`, chưa dùng trong khối nào gần đây.
+
+**(b) Mai et al., NeurIPS 2024 — "Fine-Tuning is Fine, if Calibrated"** (arXiv:2409.16223) đã nêu
+đúng kết luận §36 ở bối cảnh khác. Nguyên văn: *"the fine-tuned model neither forgets … nor
+degrades the features … Instead, the fine-tuned model often produces more discriminative
+features"* và *"what really hurts the accuracy is the discrepant logit scales."*
+Cách chữa của họ là **hiệu chỉnh hậu kiểm**, không phải neo. Đáng chú ý: dự án mình **đã có sẵn**
+`val_calibrated_threshold` và cột F1@val — tức là đã có một dạng hiệu chỉnh. Nên đọc lại §37 dưới
+góc này: `cwe05` nâng F1@0.5 mà hạ AUC, còn F1@val cũng lên — rất khớp với "vấn đề là thang logit".
+
+**(c) TRÙNG TÊN: "MultiVD" đã tồn tại, và nó gần thiết kế của mình.** Curto, Giordano, Palazzo,
+Indelicato — **SECRYPT 2024**, doi:10.5220/0012719400003767: CodeBERT + head nhị phân + **head CWE
+15 lớp**, BigVul, chỉ C/C++, 126 313 hàm; multitask F1 **95.51** so với LineVul 91.79.
+**Không bottleneck, không transfer, tập đích khổng lồ.** Cần đổi tên dự án khi viết, và phải trích
+bài này như tiền lệ gần nhất của thiết kế head phụ.
+
+### 5.3 Neo trong không gian đặc trưng — ai đã làm gì
+
+**DELTA** (Li, Xiong, Wang, Rao, Liu, Chen, Huan — ICLR 2019, arXiv:1901.09229). Phạt
+`Σ_j W_j·‖FM_j(ω,x) − FM_j(ω*,x)‖²` trên feature map, **chạy trên input đích**, trọng số `W_j` là
+softmax của mức tăng loss khi bỏ filter nguồn thứ *j*. ResNet-101, L2 / L2-SP / DELTA: Indoors
+83.7/85.1/**85.5**, Dogs 83.3/88.3/**88.7**, CUB 78.4/79.5/**80.5**, Food-101 85.3/**86.4**/86.3
+(DELTA **thua**). Bỏ attention mất 0.9–4.6 điểm.
+
+> **Sửa một giả định của tôi:** tôi từng nghĩ DELTA có khảo sát theo cỡ dữ liệu. **Không có.**
+> DELTA không hề có nghiên cứu 15/30/50/100% và không hề tuyên bố lợi ích tăng khi đích nhỏ đi.
+
+**LDIFS** (Mukhoti, Gal, Torr, Dokania — **TMLR 2024**, arXiv:2308.13320) là bản hiện đại **gần
+nhất với cái tôi vừa cài**: `L_CE + λ·(1/N)Σ‖Φ_θ(x) − Φ_θ₀(x)‖²`, đặc trưng **nhiều tầng nối lại**,
+mốc là **chính điểm khởi tạo**, tính trên **tập train đích**. Chỉ dùng tầng cuối thì **kém hơn** —
+đáng chú ý vì tôi đang chỉ dùng tầng cuối. ΔLP dương ở 8/10 tác vụ (EuroSAT +1.32 so với L2-SP
+−0.85). λ phải chọn bằng cross-validation từng tác vụ.
+
+**L2-SP** (Li, Grandvalet, Davoine — ICML 2018). Nguyên văn: *"when less training data are
+available for the target problem, the improvement of L2-SP … are more important"* (Caltech-30 +2.0
+so với Caltech-60 +1.1). Chi phí **<1% FLOPs**. **Fisher không mua thêm gì cho độ chính xác đích** —
+khớp với kết quả null của khối Fisher bên mình. DELTA chính là L2-SP chuyển từ không gian trọng số
+sang không gian kích hoạt, và lấy L2-SP làm đối chứng.
+
+**LwF** (Li & Hoiem — ECCV 2016 / TPAMI 2018). Chưng cất **xác suất đầu ra của head cũ** (T=2), ghi
+từ mô hình khởi tạo, trên ảnh của tác vụ mới. **Là logit, KHÔNG phải đặc trưng.** Đây chính là
+**cái KHÔNG nên làm** ở dự án mình: head Pha 1 chỉ 0.54 zero-shot, chưng cất logit của nó là truyền
+đi một mặt phân cách mình vừa đo được là vô nghĩa. Điểm này biện hộ thẳng cho lựa chọn dùng đặc
+trưng thay vì logit.
+
+**Co-Tuning** (NeurIPS 2020) là tiền lệ sắc nhất cho phát hiện zero-shot-head: nó **dùng lại head
+nguồn** qua một ánh xạ nhãn nguồn↔đích **học được**, thay vì vứt đi hay chưng cất.
+
+### 5.4 "Neo có lợi hơn khi đặc trưng nguồn vốn đã tốt?" — có, nhưng bằng chứng mỏng
+
+Đây đúng là câu §36 gợi ra. Tài liệu trả lời **hai lần, đều mỏng**:
+
+- **BSS** (Chen et al., NeurIPS 2019) là bài **duy nhất** có quét cỡ dữ liệu (15/30/50/100%).
+  Nguyên văn: *"L2-SP penalty worsens the model's performance … especially when the amount of
+  training data is limited"* — ở 15%: CUB 45.25→45.08, Cars 36.77→36.10, Aircraft 39.57→39.27,
+  **đều tệ đi**. Nhưng trên Stanford **Dogs** (gần ImageNet nhất) thì neo vẫn trụ, và họ quy cho
+  *"the transferability of pre-trained knowledge across these datasets."* Cơ chế được nêu, **chưa
+  bao giờ thành quy tắc**.
+- **Plested, Shen, Gedeon — ICONIP 2021** (arXiv:2107.08585) biến nó thành quy tắc đúng **một
+  lần**: tín hiệu quyết định là **độ chính xác probe đặc trưng đóng băng trừ độ chính xác huấn
+  luyện từ đầu** → âm thì dùng L2-SP + reinit nhiều tầng hơn; dương thì L2 thường. Caltech −16.2
+  Có, DTD −7.8 Có, Cars +28.5 Không, Aircraft +28.9 Không. **n=4 dataset, một backbone, không hệ số
+  tương quan, không kiểm định.** Bài tổng quan 2025 của chính tác giả (arXiv:2205.09904) nhắc lại và
+  **nói rõ là cần thêm nghiên cứu**.
+- **LEEP** (ICML 2020) và **LogME** (ICML 2021) ước lượng khả năng chuyển giao nhưng chỉ dùng để
+  **chọn mô hình**, chưa ai dùng để **chọn regularizer**. Khoảng trống này là thật, và chạy LogME
+  trên đặc trưng Pha 1 là cách gần như miễn phí để hình thức hoá đúng cái probe mình đã chạy.
+
+> **Cảnh báo chế độ dữ liệu phải nêu trong bài:** không một bài nào trong họ này chạy ở **760 mẫu
+> nhị phân**. Đích nhỏ nhất xác minh được là CUB@15%, khoảng 900 ảnh trên 200 lớp.
+
+### 5.5 Khởi tạo lại head — ai đã đo gì
+
+**Zhang, Wu, Katiyar, Weinberger, Artzi — ICLR 2021** (arXiv:2006.05987). Khởi tạo lại pooler +
+L tầng trên cùng theo N(0, 0.02²), L∈{1..6}, BERT-Large, **20 seed**, chọn L trên val. Cỡ tập:
+RTE 2.5k, MRPC 3.7k, STS-B 5.8k, CoLA 8.6k. Chuẩn → Re-init (3 epoch): RTE 69.5±2.5→**72.6±1.6**,
+MRPC 90.8±1.3→**91.4±0.8**, STS-B 89.0±0.6→**89.4±0.2**, CoLA 63.0±1.5→63.9±1.9.
+**Hạ xuống 1k mẫu**: RTE 62.5→65.6, **MRPC 80.5±3.3→84.6±1.6 (hiệu ứng lớn nhất)**. Lợi ích **co
+lại khi huấn luyện lâu hơn** (CoLA còn đảo dấu). Họ ghi: *"we already see improvements when only
+the pooler layer is re-initialized"* — tức nhánh `rh` chỉ đổi head là biến thể nhẹ nhất của họ, và
+là biến thể có bằng chứng.
+
+**Về việc mang sang một head nguồn gần-ngẫu-nhiên: KHÔNG BÀI NÀO chạy thí nghiệm này.** Cái gần nhất:
+
+- **STILTs** (Phang, Févry, Bowman, arXiv:1811.01088) **vứt** head trung gian **không hề có
+  ablation**: *"we add only a single task-specific, randomly initialized output layer."*
+  **Vứt head là mặc định chưa ai kiểm trong chính bài kinh điển của transfer hai pha** — phép đo
+  zero-shot của mình chính là lời biện minh mà họ chưa từng đưa ra.
+- **Pruksachatkun et al., ACL 2020**: 110 cặp tác vụ trung gian→đích, 25 tác vụ probe. Kết quả
+  **âm** phải trích trung thực: *"we fail to observe more granular correlations between probing and
+  target task performance."*
+- **Vu et al., EMNLP 2020**: transfer có lợi nhất khi **dữ liệu đích khan hiếm** — ủng hộ chế độ
+  của mình.
+- **Mosbach et al., ICLR 2021**: bất ổn là do **tối ưu hoá**, không phải quên; họ **không** khuyến
+  nghị re-init.
+
+### 5.6 Chuyển giao xuyên NGÔN NGỮ cho phát hiện lỗ hổng — hiện trạng thật
+
+Cần biết để phát biểu tính mới cho đúng. Hiện trường chia làm ba nhánh, và **nhánh của mình gần
+như trống**:
+
+**Chuyển giao trọng số xuyên ngôn ngữ (đúng dạng của mình) — chỉ một bài xác minh được:**
+**DSHGT** (arXiv:2306.01376, **preprint, chưa xác minh venue**) đóng băng encoder HGT trên CPG, chỉ
+fine-tune MLP 3 tầng; C/C++ → **Java** và **PHP** trên SARD, CWE-78/79/89; 84% acc C→Java, 88%
+C→PHP. **Không nêu cỡ tập đích, và KHÔNG có đối chứng chỉ-đích** — mọi baseline đều đã transfer.
+Là GNN, không phải mô hình ngôn ngữ tiền huấn luyện. Ngoài ra Hanifi et al. (**ENASE 2023**,
+arXiv:2303.06177): CNN, C → Java, recall trung bình 72%, không nêu cỡ đích lẫn đối chứng.
+
+**Huấn luyện chung đa ngôn ngữ (KHÁC transfer):** **MVD** (arXiv:2412.06166) 6 ngôn ngữ, **có** đối
+chứng LineVul từng ngôn ngữ, PR-AUC +83.7–193.6%. **Yu et al., ISSTA 2025** (arXiv:2505.07376) 7
+ngôn ngữ, **CodeT5P thắng cả các LLM**, tự mô tả là *"an initial step toward cross-language
+vulnerability detection"*. **IRC-CLVul** (Electronics 12(14):3067) hợp nhất qua LLVM IR, +12% F1.
+
+**Zero-shot xuyên ngôn ngữ:** Chen et al. 2026 (arXiv:2604.27714) C/C++ Juliet → Java/Python:
+fine-tune đẩy **FPR 0.763→1.000** trong khi F1 *"deceptively stable"* 0.637–0.688 — một minh hoạ
+mạnh cho việc phải đọc nhiều hơn một chỉ số, đúng mục 2b của mình.
+
+**Chốt về tính mới:** không bài nào dùng tập đích **nhỏ hơn hàng nghìn**; trường chia đôi giữa
+zero-shot và huấn luyện chung đa ngôn ngữ; **DSHGT là chuyển giao trọng số xuyên ngôn ngữ duy nhất
+xác minh được, và nó không có đối chứng chỉ-đích.** Mình có đối chứng `baseline` ở mọi ô.
+
+**Về bộ dữ liệu, phải nêu thẳng trong bài:** **SVEN** (He & Vechev, **CCS 2023**) là phương pháp
+**làm cứng sinh mã**, không phải benchmark phát hiện; 1 606 chương trình = 803 cặp, chia
+**Python 760 / C-C++ 846**. **760 dòng của mình chính là toàn bộ nửa Python của SVEN.** Nên nói rõ
+là mình tái dụng một kho làm-cứng-sinh-mã làm tập đích phát hiện. **PrimeVul** (ICSE 2025):
+235 768 hàm, 140 CWE, **chỉ C/C++**; độ chính xác nhãn 92.0%/86.0% so với **SVEN 94.0% (người xác
+minh)** — chính con số này biện hộ cho việc chọn SVEN; trùng lặp BigVul 12.7% so với PrimeVul 0.0%;
+một mô hình 7B rơi từ **68.26% F1 trên BigVul xuống 3.09% trên PrimeVul**.
+
+### 5.7 Probe như một chẩn đoán — trong code đã có ai làm
+
+**Troshin & Chirkova, BlackboxNLP 2022, "Probing Pretrained Models of Source Codes"**
+(aclanthology 2022.blackboxnlp-1.31) là **tổ tiên phương pháp luận trực tiếp, BẮT BUỘC trích**.
+Probe tuyến tính trên biểu diễn đóng băng từng tầng; §5.5 so **chỉ-tiền-huấn-luyện vs đã-fine-tune
+(5 tác vụ, có Defect Prediction) vs huấn-luyện-từ-đầu**. Nguyên văn: *"Models finetuned for
+discriminative tasks exhibit the highest information loss … which may indicate that models trained
+on these tasks rely on some spurious features"* và *"finetuning may deteriorate the model's
+understanding of code properties, especially in classification downstream tasks … especially if
+multi-stage finetuning is used."*
+
+> **Đây vừa là tổ tiên vừa là ĐỐI TRỌNG tốt:** họ thấy fine-tune phân biệt làm **MẤT** thông tin;
+> mình đo được Pha 1 **THÊM** thông tin liên quan tới đích (+0.1125 ROC, 5/5). Hai kết quả ngược
+> nhau, và đó là chỗ để lập luận.
+
+Thêm: **Shi et al., ISSTA 2023** (arXiv:2304.05216, Telly) probe từng tầng trước/sau fine-tune —
+tầng dưới và giữa được giữ, *"the representations of the top two layers change most"*. Nền quy ước:
+**Alain & Bengio 2016**; **Hewitt & Liang, EMNLP 2019** (control task + selectivity) — **nên trích
+phòng thủ trước** phản biện *"probe của anh học chính tác vụ chứ không phải đo đặc trưng"*.
+
+Probe trong phát hiện lỗ hổng có tồn tại nhưng làm **bộ phát hiện**, không phải **chẩn đoán**:
+LPASS (arXiv:2505.24451) dùng probe để chọn điểm cắt tầng; "Probing the Prefill" (arXiv:2608.16970)
+huấn luyện probe MLP trên kích hoạt LLM đóng băng. **Không bài nào so đặc trưng đã-fine-tune với
+tiền-huấn-luyện, và không bài nào đo head nguồn.**
+
+### 5.8 Việc phải làm, suy ra từ tra cứu
+
+| # | việc | vì sao | chi phí |
+|---|---|---|---|
+| 1 | **Thêm nhánh LP-FT** (`--lp_epochs`, cờ đã có) | Cảnh báo (a): reviewer biết LP-FT sẽ hỏi ngay, và LP-FT kê đơn **ngược** với `rh`. Phải trả lời bằng số | 3 ô/backbone, n=3 |
+| 2 | Neo đặc trưng **nhiều tầng** thay vì chỉ tầng cuối | LDIFS đo được chỉ-tầng-cuối **kém hơn** — mình đang làm đúng cái kém hơn | sửa code + 3 ô/backbone |
+| 3 | Đọc lại §37 dưới góc "thang logit" của Mai et al. | `cwe05` nâng F1@0.5 lẫn F1@val mà hạ AUC — rất khớp | **0 GPU**, số đã có |
+| 4 | Chạy **LogME** trên đặc trưng Pha 1 | hình thức hoá probe bằng một đại lượng có bài trích | **0 GPU** |
+| 5 | Đổi tên dự án khi viết | trùng **MultiVD, SECRYPT 2024** | 0 |
+| 6 | Trích Hewitt & Liang, thêm **control task** cho probe | chặn trước phản biện "probe học tác vụ" | ~1 h CPU |
+
+### 5.9 KHÔNG xác minh được — đừng trích
+
+CLMDA (không có bản ghi nào); số của MSVD và VDMAF (ScienceDirect 403); con số "12%/32%" của
+AdvFusion; F1 0.91 tuyệt đối của LineVul; F1 cụ thể của VulBERTa; venue của CleanVul (dòng "JACM"
+chỉ là placeholder của acmart); chi tiết thí nghiệm của Ren et al. ICLR 2023; số cặp chính xác của
+PrimeVul. **"mAdapter" cho code KHÔNG TỒN TẠI** — bài thật là Wang et al., **ICSE 2023**, *"One
+Adapter for All Programming Languages?"* (arXiv:2303.15822), và nó **không** làm phát hiện lỗ hổng.
+**AdvFusion** (SANER 2025, arXiv:2307.07854) là **tóm tắt mã + đoán tên hàm**, **không** phát hiện
+lỗ hổng.
 
 ---
 
