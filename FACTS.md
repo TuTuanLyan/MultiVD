@@ -2798,3 +2798,53 @@ lại null — nên mối liên hệ này **chưa giải thích được** và k
 **Đã kiểm dấu hiệu "giống nhau ở chỗ lẽ ra phải khác"** (bài học §30): codebert và t5p cho độ
 chính xác **trùng khít** trên `com` (0.4891) và `full` (0.5740). Không phải lỗi — số đúng từng lớp
 khác nhau, chỉ trùng **tổng** (180=180, 388=388); macro-F1 cũng khác nhau.
+
+---
+
+## §35 — THÊM HAI SEED: hiệu ứng tổng thể của t5p ĐỔI DẤU, per-CWE giữ nguyên (10/09)
+
+Người dùng yêu cầu nâng khối `chot` lên n=15 (seed 42 + 7 + 1234). Đọc khi còn 11/140 ô chưa xong
+(seed 1234 dở dang) — **đủ để thấy một điều phải ghi ngay**.
+
+### t5p nhánh A (ASAM ρ=2.0): seed 42 dương, hai seed mới ÂM
+
+| seed | ΔF1@0.5 | ΔROC-AUC | fold + |
+|---|---|---|---|
+| **42** | **+0.0319** 13/15 | **+0.0111** 13/15 | dương |
+| **7** | **−0.0357** 9/15 | **−0.0607** 8/15 | **âm** |
+| **1234** | **−0.0253** 9/14 | **−0.0342** 10/14 | **âm** |
+| GỘP 44 | −0.0093 31/44 | **−0.0278** 31/44 | |
+
+**Đây là lần thứ tám một mẫu hình co lại khi thêm dữ liệu — và lần đầu nó ĐỔI DẤU.** §28 và §34
+đều đo trên seed 42; con số ROC +0.0337 của §28 không sống sót khi thêm hai seed.
+
+codebert nhánh A: +0.0228 (s42) → +0.0014 (s7) → +0.0241 (s1234), gộp **+0.0155, 28/42** — vẫn
+dương nhưng yếu hơn hẳn con số một-seed.
+
+### Hai thứ GIỮ VỮNG
+
+**1. F1 vẫn chắc qua cả ba seed**: codebert A **+0.0440, 39/42** (p<0.0001); codebert B **+0.0445,
+40/41**; t5p B +0.0231, 33/43. Chỉ ROC/PR của t5p A là đổi dấu.
+
+**2. Per-CWE lặp lại y nguyên** — bốn dòng độc lập (2 backbone × 2 nhánh), ~42 ô mỗi dòng:
+
+| | CWE-022 (8 hàng) | CWE-078 (42) | CWE-079 (19) | CWE-089 (83) |
+|---|---|---|---|---|
+| codebert A | **+0.3605 42/42** | +0.0259 29/42 | **+0.3452 42/42** | −0.0098 15/42 |
+| codebert B | **+0.3462 41/41** | +0.0198 22/41 | **+0.3457 41/41** | −0.0168 10/41 |
+| t5p A | **+0.2211 42/44** | −0.0416 19/44 | **+0.2267 42/44** | −0.0595 20/44 |
+| t5p B | **+0.2584 39/43** | −0.0431 6/43 | **+0.2326 43/43** | −0.0077 16/43 |
+
+**42/42, 41/41, 43/43 — không một fold nào đi ngược.** Ở n=15 với ba seed độc lập, đây là phát
+biểu mạnh nhất dự án này có.
+
+### Optimizer: null ở codebert, ÂM ở t5p
+
+A − B ghép cặp, gộp ba seed: codebert **−0.0005 F1** (18/41), t5p **−0.0329 F1** (22/43) và
+**−0.0347 ROC**. Trên t5p, bật RecAdam+ASAM ρ=2.0 giờ **hại** chứ không phải null.
+
+### Điều này nói gì về cách viết bài
+
+Lần thứ **bảy** dự án này thấy: **phát biểu ở mức TỔNG HỢP yếu đi hoặc đổi dấu khi thêm dữ liệu;
+phát biểu ở mức PHÂN PHỐI (per-CWE) thì giữ.** Kết quả đầu bài phải là bảng per-CWE, không phải Δ
+tổng thể. Và **ASAM phải rút khỏi cấu hình chốt** — nó không sống sót đa seed trên t5p.
