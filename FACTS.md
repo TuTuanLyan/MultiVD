@@ -3029,3 +3029,56 @@ biên độ không đáng tin; thứ đáng chú ý là **3/3 cùng dấu ở c�
 
 Đọc bằng `python3 tools/bridge_report.py results/bridge3_codebert` (và `_t5p`) — in cả bốn chỉ số
 và per-CWE, ghép cặp theo `(cây, seed, fold)`, ngưỡng hoà 1e-12.
+
+---
+
+## §38 — `feat3` + `lpft3` trên CODEBERT: neo đặc trưng KHÔNG ăn, nhưng **probe head Pha 1 rồi mới fine-tune** thì có (11/09, **kiểm chứng n=3, seed 42**)
+
+Sáu nhánh Pha 2, tất cả trên `adamw --sam_rho 0`, đối chứng `plain` **cùng máy cùng fold cùng
+ngày** (dùng lại của khối `bridge3`), cây `results/bridge3_codebert`. 161, A4000.
+
+| nhánh | cờ | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| **`lp3`** | `--lp_epochs 3` | **+0.0283 3/3** | +0.0223 2/3 | **+0.0204 3/3** | **+0.0307 3/3** |
+| `fd1` | `--feat_distill_beta 1` | +0.0110 3/3 | +0.0053 1/3 ~1 | +0.0066 2/3 | +0.0245 2/3 |
+| `rhlp3` | `--lp_epochs 3 --phase2_reinit_head` | −0.0127 1/3 | −0.0193 0/3 | +0.0058 2/3 | +0.0070 2/3 |
+| `rh` | `--phase2_reinit_head` | −0.0113 0/3 ~1 | −0.0108 1/3 | +0.0000 1/3 | +0.0047 1/3 |
+| `fd10` | `--feat_distill_beta 10` | −0.0112 1/3 | −0.0157 1/3 | −0.0136 1/3 | +0.0121 2/3 |
+| `fd10rh` | cả hai | −0.0115 1/3 | −0.0123 1/3 | −0.0135 1/3 | +0.0119 2/3 |
+
+### Ba điều đọc được (bậc 1 — chỉ SÀNG LỌC)
+
+1. **`lp3` là nhánh mạnh nhất từng thấy ở khối này**: dương **cả bốn** chỉ số, ba trong bốn ở
+   **3/3 fold**, biên độ ROC +0.0204 gấp đôi sàn nhiễu. Cơ chế đúng như Kumar et al. ICLR 2022
+   (LP-FT) mô tả: fit head trước với backbone đóng băng thì gradient đầu tiên của toàn mô hình
+   không còn bị một head hỗn loạn kéo đi, nên đặc trưng tốt không bị méo.
+
+2. **Nhưng biến thể THẮNG lại KHÔNG phải LP-FT sách giáo khoa.** `lp3` giữ **head của Pha 1** rồi
+   tinh chỉnh nó; `rhlp3` khởi tạo lại head rồi probe — đúng công thức gốc của Kumar et al. — và
+   nó **null/âm** (F1 −0.0127, F1@val 0/3). Nghĩa là head Pha 1, dù §36 đo được chỉ ~0.537 F1
+   zero-shot trên Python, **vẫn là điểm xuất phát tốt hơn ngẫu nhiên** cho bước probe. Đây là
+   điểm khác biệt phải nêu rõ nếu viết: bài gốc giả định head **ngẫu nhiên**.
+
+3. **Neo không gian đặc trưng KHÔNG ăn, và càng neo chặt càng tệ.** β=1 còn dương yếu, β=10 âm
+   trên ba chỉ số. Khởi tạo lại head một mình cũng âm. Xem §38.1 cho lý do cơ chế.
+
+### §38.1 — Vì sao neo đặc trưng hại trên t5p mà không hại trên codebert
+
+t5p (n=2 fold, đang chạy): `fd1` **−0.0516 ROC 0/2**, `fd10` **−0.0848 0/2**, `fd10rh`
+**−0.1189 0/2**. Ngược hẳn codebert.
+
+Điều này **khớp đúng** §36: đặc trưng Pha 1 của codebert chuyển giao mạnh (**+0.1125 ROC, 5/5**),
+còn của t5p thì gần như không (**+0.0202, 3/5**, hai fold âm). Neo mô hình vào một không gian đặc
+trưng **không tốt hơn** điểm xuất phát thì chỉ còn là ràng buộc thuần tuý — nó cấm mô hình đi tìm
+đặc trưng tốt hơn mà không đổi lại được gì.
+
+Đây **không phải giải thích nghĩ ra sau**: §36 được đo **trước** khi khối `feat3` chạy, và dấu
+của nó dự báo đúng dấu của kết quả trên cả hai backbone. Tài liệu có ghi nhận cơ chế này nhưng
+chưa ai biến thành quy tắc — BSS (NeurIPS 2019) thấy L2-SP hại ở đích nhỏ **trừ** trên Stanford
+Dogs (gần nguồn nhất), và quy cho *"the transferability of pre-trained knowledge"*; Plested et al.
+(ICONIP 2021) dùng đúng margin probe-đóng-băng để chọn có neo hay không, nhưng chỉ n=4 dataset,
+một backbone, không kiểm định. Chi tiết ở `RESEARCH_2026-09-10_dactrung.md` §5.4.
+
+**CHƯA ĐƯỢC KẾT LUẬN**: `lp3` mới có trên **một** backbone. Luật leo bậc đêm nay là dương cả bốn
+chỉ số **và lặp trên cả hai backbone** ở n=3 mới được lên n=5. `lpft3` trên t5p đang xếp hàng sau
+`feat3`. Nếu t5p lặp lại thì mới chạy fold 4–5.
