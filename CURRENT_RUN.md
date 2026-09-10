@@ -1,4 +1,47 @@
-# CURRENT_RUN — ĐANG CHẠY từ 10/09/2026 21:33 VN (14:33 UTC): khối `bridge3` — cầu CWE, bậc 1
+# CURRENT_RUN — ĐANG CHẠY đêm 10→11/09: `feat3` rồi `lpft3` (bậc 1, n=3)
+
+## ĐANG CHẠY — `feat3`: neo KHÔNG GIAN ĐẶC TRƯNG + khởi tạo lại head (từ 17:01 UTC)
+
+Suy trực tiếp từ **FACTS §36** (đặc trưng chuyển giao +0.1125 ROC 5/5 trên codebert; hàm quyết
+định thì không, 0.537 F1 zero-shot). Ghi vào **cùng cây** `results/bridge3_<bb>` để dùng lại
+`plain` + `baseline` cùng máy cùng fold cùng ngày.
+
+| nhánh | cờ Pha 2 (thêm vào `adamw --sam_rho 0`) |
+|---|---|
+| `fd1` | `--feat_distill_beta 1.0` |
+| `fd10` | `--feat_distill_beta 10.0` |
+| `rh` | `--phase2_reinit_head` |
+| `fd10rh` | cả hai |
+
+4 nhánh × 3 fold × 2 backbone = 24 ô. codebert trên 161, t5p trên 158. Log `log/feat3_<bb>.log`.
+
+## XẾP HÀNG — `lpft3`: nhánh đối chứng LP-FT (tự phóng sau `feat3`)
+
+`scripts/chain_lpft.sh` chờ driver `feat3` trên **cùng máy** thoát hẳn (trần 4 giờ) rồi phóng
+`run/lpft3.sh`. Hai nhánh: `lp3` (`--lp_epochs 3`, giữ head Pha 1) và `rhlp3` (`--lp_epochs 3
+--phase2_reinit_head`, LP-FT sách giáo khoa). 2 × 3 × 2 = 12 ô.
+
+**Vì sao bắt buộc có**: Kumar et al. ICLR 2022 kê đơn NGƯỢC với nhánh `rh` — xem
+`RESEARCH_2026-09-10_dactrung.md` §5.2a.
+
+## ĐANG CHẠY CPU (0 GPU) — control task cho probe
+
+`tools/feature_probe.py --control --cache` trên cả hai backbone: nhãn xáo trộn cố định, in **độ
+chọn lọc**. Chặn phản biện "probe tự học tác vụ". Ghi `results/probe/*_ctl.json`.
+
+## Luật vast đêm nay (người dùng xác nhận lại 11/09)
+
+Local bị chiếm mà còn việc đáng chạy ⇒ thuê **đúng một** vast, trần **$0.080/h**, tìm offer tại
+thời điểm cần (`scripts/rent_one_vast.sh`). Tối đa 3 GPU. Local bị chiếm thì **nhượng**, không
+bao giờ kill user khác. Cron tự invoke 20 phút/lần đang chạy trong phiên Claude.
+
+**Trạng thái 00:35 VN**: 161 và 158 đều đang chạy `feat3`, **không có vast nào** (0 chi phí).
+Lúc 00:16–00:26 VN GPU của 158 bị chiếm bởi `pv_plain.py` của chính chủ tài khoản; cổng
+`wait_vram` đã tự chờ và tự chạy tiếp lúc 00:25:50 — **không cần thuê vast**.
+
+---
+
+## ĐÃ XONG 10/09 16:50 UTC — khối `bridge3` (cầu CWE, bậc 1)
 
 > Khối trước (n=15 `chot`, 210 ô) **đã xong 10/09 17:10 VN**, FACTS §35.2. Mục cũ giữ ở dưới để tra cứu.
 
