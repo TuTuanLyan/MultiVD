@@ -2911,3 +2911,121 @@ t5p B: +0.2528 41/45 và +0.2207 44/45. **CWE-078 và CWE-089 null ở mọi dò
 
 **Kết luận cho cấu hình chốt: RÚT ASAM.** Cấu hình nên là `latent_bottleneck` + λ=0.05 +
 **AdamW trần**. Trang kết quả đã cập nhật (ARTIFACTS.md).
+
+---
+
+## §36 — ĐO TRỰC TIẾP: **đặc trưng CHUYỂN GIAO, hàm quyết định KHÔNG** (10/09, 0 GPU)
+
+Suốt dự án, câu "chỉ có đặc trưng là chuyển được, hàm quyết định thì không" được **suy ra** từ
+kết quả cuối (§12.2 của RESEARCH_2026-09-06), chưa lần nào **đo thẳng**. Nay đo được, và nó là
+phát biểu cơ chế mạnh nhất dự án có.
+
+### Phép đo — `tools/feature_probe.py`, chạy CPU, không tốn GPU
+
+Trích đặc trưng pooled (CLS cho codebert, mean cho t5p, **trước dropout**) của **760 dòng Python**
+từ hai mô hình **đóng băng hoàn toàn**:
+
+* **(a)** backbone pretrained nguyên bản (chưa hề thấy dữ liệu lỗ hổng nào)
+* **(b)** checkpoint Pha 1 (`latent_bottleneck`, `4cwe`, λ=0.05, seed 42)
+
+Mỗi fold: chuẩn hoá theo train, fit logistic regression trên 456 dòng train, chọn C trên val theo
+ROC-AUC, chấm test. Δ ghép cặp theo fold. Thêm một cột thứ ba: **zero-shot của chính `vul_head`
+Pha 1** trên đặc trưng (b) — không fit gì.
+
+### Kết quả
+
+| | ΔF1@0.5 | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|
+| **codebert** (Pha1 LP − pretrained LP) | **+0.0849 5/5** | **+0.1125 5/5** | **+0.1010 5/5** |
+| t5p | +0.0198 4/5 | +0.0202 3/5 | +0.0097 3/5 |
+
+**codebert: cả ba chỉ số dương ở CẢ NĂM fold, biên độ gấp 4–11 lần sàn nhiễu 0.010.** Đây là
+bằng chứng trực tiếp rằng Pha 1 làm không gian đặc trưng của Python **tách được tuyến tính hơn
+hẳn** — dù Pha 1 chưa từng thấy một dòng Python nào.
+
+**Còn hàm quyết định thì không chuyển:** `vul_head` của chính Pha 1, chấm thẳng trên Python,
+
+| | F1@0.5 (dải qua 5 fold) | ROC-AUC |
+|---|---|---|
+| codebert | **0.537** (0.488–0.591) | 0.645 |
+| t5p | **0.503** (0.474–0.542) | 0.545 |
+
+t5p ROC 0.545 ≈ ngẫu nhiên, khớp với INT1 (§12.1 RESEARCH: α=0 cho 0.5205).
+
+### Hai điều mới, không suy ra được từ số cũ
+
+1. **Hiệu ứng đặc trưng KHÔNG đều giữa hai backbone.** codebert +0.1125 ROC (5/5); t5p +0.0202
+   (3/5) — dưới sàn nhiễu. Nghĩa là "Pha 1 cải thiện đặc trưng" là phát biểu về **codebert**,
+   chưa lặp được trên t5p. Và nó đúng chiều với biên độ end-to-end (codebert +0.045 F1 vs t5p
+   +0.021, §35.2).
+2. **Theo CWE, hai backbone học hai thứ khác nhau.** ΔROC-AUC của LP:
+
+   | | 022 | 078 | 079 | 089 |
+   |---|---|---|---|---|
+   | codebert | +0.169 **5/5** | +0.199 **5/5** | +0.159 **5/5** | +0.046 4/5 |
+   | t5p | −0.023 2/5 | +0.027 2/5 | **+0.173 5/5** | −0.017 2/5 |
+
+   Trên **t5p, thứ DUY NHẤT chuyển giao trong không gian đặc trưng là CWE-079** — đúng lớp chiếm
+   **74%** nguồn `4cwe` (692/930 dòng CWE-79). Trên codebert thì cả bốn lớp đều lên.
+
+### Nghịch lý đáng ghi: 078 lên mạnh nhất ở đặc trưng nhưng NULL ở kết quả cuối
+
+codebert được **+0.199 ROC 5/5** cho CWE-078 trong không gian đặc trưng, nhưng end-to-end
+(§34/§35) CWE-078 **null ở mọi phép đo**. Nghĩa là fine-tune Pha 2 **không dùng** phần đặc trưng
+đã tốt lên đó — 456 dòng train đủ để mô hình tự tìm lời giải riêng cho lớp lớn (078 có 40 hàng
+test, 089 có 82) và chỉ giữ lợi thế nguồn ở hai lớp hiếm. Đây là giả thuyết đọc được, chưa phải
+kết luận.
+
+### Cảnh báo khi trích số
+
+Bộ `norm` chia theo dòng nên ~40% hàng test có bản gần trùng trong train; **cả hai vế của Δ đều
+chịu chung**, nên Δ ghép cặp vẫn hợp lệ, nhưng **con số tuyệt đối là lạc quan**. LP tuyệt đối
+thấp hơn fine-tune đầy đủ nhiều (codebert LP ROC 0.73–0.82 so với FT ~0.88), đúng như kỳ vọng.
+
+Số đầy đủ: `results/probe/codebert_4cwe.json`, `results/probe/t5p_4cwe.json`.
+
+---
+
+## §37 — KHỐI `bridge3`: replay nguồn và cầu CWE ở Pha 2 (10/09, **kiểm chứng n=3, seed 42**)
+
+Trả lời câu hỏi mở của §11.4 RESEARCH_2026-09-06 (Đ5, chưa ai chạy): **đưa dữ liệu nguồn vào
+chính Pha 2** thì tri thức nguồn có giúp đích không? Mã: `src/replay.py` + cờ `--replay_*` /
+`--phase2_lambda_cwe`. 4 nhánh × 3 fold × 2 backbone + baseline = 30 ô, hai máy local, 0 vast.
+
+| tag | cơ chế |
+|---|---|
+| `plain` | **đối chứng** — fine-tune hai lần thuần |
+| `cwe05` | head phụ 4 lớp học tiếp trên nhãn CWE **của Python** (λ=0.05) |
+| `rp50` | mỗi bước thêm một batch **nguồn 4cwe**, μ giảm tuyến tính 0.5→0 sau 6 epoch, cân tầng (nhãn, CWE) |
+| `rpc` | cả hai + head phụ học cả trên nguồn |
+
+### Δ so với `plain` (ghép cặp cùng fold, n=3 — **chỉ để sàng lọc**)
+
+| | | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| **codebert** | `cwe05` | +0.0196 2/3 | +0.0040 2/3 | −0.0108 1/3 | −0.0012 1/3 |
+| | `rp50` | −0.0019 1/3 | −0.0159 1/3 | +0.0029 1/3 | +0.0070 1/3 |
+| | `rpc` | +0.0023 2/3 | −0.0131 1/3 | −0.0117 **0/3** | −0.0196 **0/3** |
+| **t5p** | `cwe05` | +0.0305 1/3 | +0.0394 2/3 | −0.0104 **0/3** | −0.0372 **0/3** |
+| | **`rp50`** | **+0.0217 2/3** | **+0.0323 3/3** | **+0.0122 2/3** | **+0.0099 2/3** |
+| | `rpc` | +0.0002 1/3 | −0.0068 1/3 | −0.0168 **0/3** | −0.0327 **0/3** |
+
+### Ba điều đọc được
+
+1. **`cwe05` là hiệu ứng NGƯỠNG, không phải hiệu ứng xếp hạng.** Trên **cả hai** backbone nó nâng
+   F1@0.5 (+0.0196 / +0.0305) mà **hạ** ROC và PR (0–1/3 fold). Đúng mẫu hình đã cảnh báo ở
+   RESEARCH §2.3. Cho head phụ học nhãn CWE của đích **không** làm mô hình xếp hạng tốt hơn.
+2. **`rpc` (cầu đầy đủ) HẠI trên AUC ở cả hai backbone** — ROC 0/3 và PR 0/3 ở cả codebert lẫn
+   t5p. Ghép hai cơ chế lại thì phần `cwe05` kéo xuống nhiều hơn phần replay kéo lên.
+3. **`rp50` (replay THUẦN) là nhánh duy nhất dương cả bốn chỉ số — nhưng chỉ trên t5p.** Trên
+   codebert nó null (1/3 ba lần). **Không lặp qua backbone ⇒ giả thuyết, không phải phát hiện**
+   (CLAUDE.md mục 2b). Đáng lên n=5 để xem có sống không.
+
+### Per-CWE: replay ăn đúng CWE-022, và chỉ trên codebert
+
+So với `plain`, codebert: `rp50` cho CWE-022 **F1 +0.125 3/3, ROC +0.113 3/3**; `rpc` cho
+**+0.118 3/3 / +0.157 3/3**. t5p không lặp (022 chỉ 1/3). CWE-022 chỉ **14 hàng test/fold** nên
+biên độ không đáng tin; thứ đáng chú ý là **3/3 cùng dấu ở cả hai nhánh có replay**.
+
+Đọc bằng `python3 tools/bridge_report.py results/bridge3_codebert` (và `_t5p`) — in cả bốn chỉ số
+và per-CWE, ghép cặp theo `(cây, seed, fold)`, ngưỡng hoà 1e-12.
