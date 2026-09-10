@@ -2872,3 +2872,42 @@ thể là hiện tượng về **kích thước nhóm** chứ không phải về
 
 **Đính chính**: các mục trước ghi "CWE-022 chỉ 8 hàng test" — con số đó lấy từ `test_cwe_classes`
 gộp, không phải một fold thật. Số đúng ở fold 1: **CWE-022 19, CWE-078 39, CWE-079 14, CWE-089 80**.
+
+### §35.2 — Khối n=15 TRỌN VẸN: 210 ô, ba seed (10/09 17:10)
+
+Đủ 210 ô (3 seed × 2 backbone × 3 nguồn × 5 fold), không ô nào thiếu, không `.rejected` mới.
+Máy: seed 42 trên vast 5060 Ti + 161; seed 7 và 1234 trên 161 (codebert) và 158 (t5p).
+
+**So với baseline, gộp 45 ô mỗi dòng:**
+
+| | ΔF1@0.5 | ΔROC-AUC |
+|---|---|---|
+| codebert A (ρ0.1) | **+0.0450 42/45** | +0.0138 29/45 |
+| codebert B (AdamW) | **+0.0441 44/45** | +0.0105 26/45 |
+| t5p A (ρ2.0) | **−0.0088 32/45** | **−0.0274 31/45** |
+| t5p B (AdamW) | **+0.0214 33/45** | +0.0047 27/45 |
+
+**Bốn chỉ số nói khác nhau.** F1 chắc (p<0.00001 ở codebert); ROC/PR yếu, và t5p A **âm**.
+Phương pháp cải thiện **quyết định ở ngưỡng** rõ hơn cải thiện **thứ hạng điểm**.
+
+**ΔROC theo seed — không ổn định:**
+
+| | s42 | s7 | s1234 |
+|---|---|---|---|
+| codebert A | +0.0228 | +0.0014 | +0.0172 |
+| codebert B | +0.0264 | **−0.0049** | +0.0100 |
+| t5p A | **+0.0111** | **−0.0607** | **−0.0326** |
+| t5p B | +0.0198 | −0.0073 | +0.0015 |
+
+**A − B ghép cặp (phần optimizer):** codebert +0.0010 F1 (21/45) — null; t5p **−0.0302 F1**
+(24/45) và **−0.0321 ROC** (29/45) — **có hại**.
+
+**Per-CWE — thứ duy nhất giữ vững:** codebert A: CWE-022 **+0.3677 45/45**, CWE-079 **+0.3500
+45/45**; codebert B: +0.3569 45/45 và +0.3474 45/45; t5p A: +0.2204 43/45 và +0.2209 42/45;
+t5p B: +0.2528 41/45 và +0.2207 44/45. **CWE-078 và CWE-089 null ở mọi dòng.**
+
+**Số hàng test đúng** (trung bình qua fold, kèm min–max): CWE-022 **13 (8–19)**, CWE-078 41
+(38–44), CWE-079 **16 (13–20)**, CWE-089 82 (79–87). Tổng 152.
+
+**Kết luận cho cấu hình chốt: RÚT ASAM.** Cấu hình nên là `latent_bottleneck` + λ=0.05 +
+**AdamW trần**. Trang kết quả đã cập nhật (ARTIFACTS.md).

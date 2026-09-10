@@ -211,9 +211,12 @@ Trang kết quả **riêng cho khối `chot`**: cấu hình đã chốt (`latent
 Bố cục: giải thích ký hiệu một dòng → **ba phát hiện** kèm bảng bằng chứng → bảng đầy đủ từng
 fold (lọc được, đổi giữa Δ và trị tuyệt đối, bật/tắt 8 ô ρ=2.0 đã bỏ) → bốn giới hạn → ba đề xuất.
 
-Ba phát hiện: (1) cả hai điều kiện hơn baseline, mạnh nhất là codebert `plain` +0.0540 F1 15/15;
-(2) **optimizer đóng góp bằng không ở cả hai backbone** (A−B: −0.0061 6/15 và −0.0018 10/15);
-(3) theo CWE thì CWE-022 và CWE-079 dương 14–15/15 ở **cả bốn** phép đo, hai CWE kia null —
-nhưng đó là hai lớp nhỏ nhất (8 và 19 hàng trên 152).
+**Cập nhật 10/09 17:10 — n=15, 210 ô, ba seed độc lập.** Ba phát hiện:
+(1) hơn baseline **chắc ở F1** (codebert 42–44/45, p<0.00001) nhưng **yếu ở ROC/PR**, và t5p
+nhánh A còn âm; (2) **ASAM phải rút khỏi cấu hình chốt** — ΔROC của t5p A đổi dấu khi thêm seed
+(+0.0111 → −0.0607 → −0.0326), A−B ghép cặp cho −0.0321 ROC; (3) **per-CWE là thứ duy nhất giữ
+vững**: CWE-022 và CWE-079 dương **41–45/45 fold ở cả bốn phép đo**, hai CWE kia null.
 
-Dựng bằng `tools/chot_export.py`. Số đầy đủ ở FACTS §34; quy tắc hoà ở §34.1.
+Có thêm bảng **ổn định theo seed** và bộ lọc seed trong bảng đầy đủ.
+
+Dựng bằng `tools/chot_export.py`. Số đầy đủ ở FACTS §34, §35, §35.1, §35.2; quy tắc hoà ở §34.1.

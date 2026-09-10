@@ -16,7 +16,8 @@ CWEN = {0:"CWE-022", 1:"CWE-078", 2:"CWE-079", 3:"CWE-089"}
 KEEP = {"codebert":"r0p1", "t5p":"r2p0"}
 
 def main():
-    roots = ["results/chot_t5p","results/chotv_t5p","results/chot_codebert"]
+    roots = ["results/chot_t5p","results/chotv_t5p","results/chot_codebert",
+             "results/chot161_codebert","results/chot158_t5p"]
     cells = defaultdict(dict)
     for root in roots:
         bb = "codebert" if "codebert" in root else "t5p"
@@ -26,6 +27,7 @@ def main():
                 if not m: continue
                 p = os.path.join(dp,fn)
                 arm = os.path.basename(os.path.dirname(os.path.dirname(p)))
+                seed = os.path.basename(os.path.dirname(p)).replace("seed_","")
                 src = next((s for s in ("4cwe","com","full") if f"_{s}_" in arm), "-")
                 mr = re.search(r"_(r\d+p\d+)$", arm)
                 tag = ("baseline" if arm=="baseline"
@@ -34,17 +36,18 @@ def main():
                        else "B" if "plain" in arm else None)
                 if tag is None: continue
                 d = json.load(open(p))
-                cells[(bb,src,int(m.group(1)))][tag] = d
+                cells[(root,bb,src,seed,int(m.group(1)))][tag] = d
                 if tag == "evid": d["_rho"] = mr.group(1)
-    base = {(k[0],k[2]): v["baseline"] for k,v in cells.items() if "baseline" in v}
+    base = {(k[0],k[1],k[3],k[4]): v["baseline"] for k,v in cells.items() if "baseline" in v}
 
     rows, cwe, absv = [], [], []
-    for (bb,src,fold),v in sorted(cells.items()):
-        b = base.get((bb,fold))
+    for (root,bb,src,fold_seed_unused,fold),v in sorted(cells.items(), key=lambda kv: (kv[0][1],kv[0][2],kv[0][3],kv[0][4])):
+        seed = fold_seed_unused
+        b = base.get((root,bb,seed,fold))
         for tag in ("A","B","evid"):
             if tag not in v or b is None or src == "-": continue
             a = v[tag]
-            e = dict(bb=bb, src=src, fold=fold, arm=tag,
+            e = dict(bb=bb, src=src, fold=fold, seed=seed, arm=tag,
                      rho=a.get("_rho") or (KEEP[bb] if tag=="A" else "r0"),
                      p1val=a.get("phase1_val_macro_f1"), ep=a.get("best_epoch"))
             for k,f in MET:
@@ -58,19 +61,31 @@ def main():
             for c in sorted(set(cw.tolist())):
                 mm = cw == c
                 if len(set(y[mm].tolist())) < 2: continue
-                cwe.append(dict(bb=bb, src=src, fold=fold, arm=tag, cwe=CWEN.get(c, str(c)),
+                cwe.append(dict(bb=bb, src=src, fold=fold, seed=seed, arm=tag, cwe=CWEN.get(c, str(c)),
                                 n=int(mm.sum()),
                                 d=round(roc_auc_score(y[mm],pa[mm]) - roc_auc_score(y[mm],pb[mm]), 9)))
         if b is not None:
-            e = dict(bb=bb, src="-", fold=fold, arm="baseline", rho="-", p1val=None, ep=b.get("best_epoch"))
+            e = dict(bb=bb, src="-", fold=fold, seed=seed, arm="baseline", rho="-", p1val=None, ep=b.get("best_epoch"))
             for k,f in MET: e[k]=None; e[k+"_a"]=round(b[f],9) if b.get(f) is not None else None; e[k+"_b"]=e[k+"_a"]
             absv.append(e)
-    # so hang test moi CWE
-    any_a = next(iter(cells.values()))["A"]
-    cwn = {CWEN.get(c,str(c)): int((np.asarray(any_a["test_cwe_classes"])==c).sum())
-           for c in sorted(set(np.asarray(any_a["test_cwe_classes"]).tolist()))}
-    out = dict(rows=rows, cwe=cwe, base=absv, cwe_n=cwn,
-               ntest=len(any_a["test_labels"]),
+    # So hang test moi CWE PHU THUOC FOLD — lay tu mot o don le la sai. §35.1: ban dau ghi
+    # "CWE-022 chi 8 hang" vi doc mot o; fold 1 thuc te co 19. Tinh trung binh qua cac fold,
+    # va giu ca khoang min-max de nguoi doc thay no dao dong.
+    per_fold = defaultdict(lambda: defaultdict(int))
+    for (root,bb,src,seed,fold),v in cells.items():
+        a = v.get("A") or v.get("B") or v.get("baseline")
+        if not a or "test_cwe_classes" not in a: continue
+        cw = np.asarray(a["test_cwe_classes"])
+        for c in sorted(set(cw.tolist())):
+            per_fold[fold][CWEN.get(c,str(c))] = int((cw==c).sum())
+    cwn, cwrange = {}, {}
+    names = sorted({n for f in per_fold.values() for n in f})
+    for n in names:
+        vals = [f[n] for f in per_fold.values() if n in f]
+        cwn[n] = int(round(sum(vals)/len(vals)))
+        cwrange[n] = [min(vals), max(vals)]
+    out = dict(rows=rows, cwe=cwe, base=absv, cwe_n=cwn, cwe_range=cwrange,
+               ntest=int(round(sum(cwn.values()))),
                gen=__import__("time").strftime("%Y-%m-%d %H:%M UTC", __import__("time").gmtime()))
     sys.stderr.write(f"# {len(rows)} dong nhanh | {len(absv)} baseline | {len(cwe)} dong per-CWE\n")
     json.dump(out, sys.stdout)
