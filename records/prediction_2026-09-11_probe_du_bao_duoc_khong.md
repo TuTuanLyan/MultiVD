@@ -57,6 +57,38 @@ thiệp trong dự án này tới giờ đều tách theo backbone theo một ki
 
 ---
 
-## KẾT QUẢ
+## KẾT QUẢ (điền 11:00 UTC 11/09, sau khi đủ 6/6 ô đối chứng)
 
-(chưa điền — đối chứng mới 3/6 ô lúc viết)
+Ghép cặp **trực tiếp** `bal` với `unbal` trong **cùng fold** (không lấy hiệu của hai Δ — cả hai
+dùng chung một baseline nên hiệu hai Δ chính là hiệu trực tiếp, nhưng ghép trực tiếp mới đếm được
+số fold cùng dấu). n = 3 fold, seed 42, cùng máy cùng phiên.
+
+| backbone | probe dự báo (`p768`, đóng băng) | **đo được sau fine-tune** (ROC-AUC) | dấu |
+|---|---|---|---|
+| codebert | **+0.0127** | **+0.0040**, 2/3 fold | **khớp** |
+| t5p | **−0.0287** | **+0.0079**, 3/3 fold | **SAI DẤU** |
+
+**Dự đoán 1: BÁC.** Probe sai dấu trên t5p — và t5p chính là chỗ probe dự báo hiệu ứng **mạnh
+nhất** (−0.0287, gần gấp ba sàn nhiễu 0.010). Nếu probe chỉ sai ở chỗ hiệu ứng nhỏ thì còn có thể
+đổ cho nhiễu; sai ở chỗ nó tự tin nhất thì không.
+
+**Dự đoán 2** (biên độ t5p lớn hơn codebert): 0.0079 > 0.0040 nên đúng về chữ, nhưng dự đoán 1 đã
+sai dấu nên đây **không** phải bằng chứng ủng hộ.
+
+## Hệ quả, áp dụng nguyên văn như đã ghi trước
+
+**Probe trên đặc trưng đóng băng KHÔNG dự báo được dấu của một thay đổi Pha 1 sau fine-tune.**
+Không được dùng nó để sàng lọc thay GPU. §36 và §44 vẫn đúng **nguyên văn** vì chúng vốn phát biểu
+về **đặc trưng đóng băng** — nhưng từ nay phải viết rõ phạm vi đó trong mọi câu, và không được suy
+sang mô hình đã fine-tune.
+
+## Và điều còn quan trọng hơn: cả hai hiệu ứng đều NẰM TRONG NHIỄU
+
++0.0040 và +0.0079 đều **ở hoặc dưới sàn nhiễu cùng-GPU 0.010**. Đọc thẳng:
+
+> **Cân bằng lớp cho head phụ gần như không đổi gì sau fine-tune, trên cả hai backbone** — dù nó
+> đưa chính head đó từ chỗ đoán một lớp (macro-F1 0.2000) lên macro-F1 **0.5996** trên t5p.
+
+Cộng với §44 (nút thắt 8 chiều không hơn chiếu ngẫu nhiên), đây là mảnh cuối đóng lại mạch head
+phụ: **chất lượng của head phụ không phải một đòn bẩy**. Giá trị đo được của nó vẫn đúng như §7
+ghi từ 31/08 — **chống sập Pha 1** — và chỉ thế.

@@ -3823,3 +3823,70 @@ trong cùng fold, và **cả hai** nhánh nhận **cùng** tập con vì cùng s
 thiệp có kiểm soát**, không phải tương quan cắt ngang, nên nó không mắc bẫy trên.
 
 **n=1 fold mỗi ô, 6 ô. Giả thuyết, không phải phát hiện.** Cần n=3 mới được viết.
+
+---
+
+## §45 — Head phụ giỏi gấp ba KHÔNG đổi được gì sau fine-tune, và probe đóng băng KHÔNG dự báo được dấu (11/09, n=3 fold, đối chứng CÙNG MÁY)
+
+Khai báo trước ở `records/prediction_2026-09-11_probe_du_bao_duoc_khong.md`, viết lúc khối đối
+chứng mới xong 3/6 ô và **chưa đọc ô nào**.
+
+Khối `auxb` trên vast `50570168`: ba nhánh trong **cùng cây, cùng fold, cùng phiên, cùng GPU** —
+`baseline` (không Pha 1), `unbal` (Pha 1 thường), `bal` (Pha 1 `--aux_class_balanced`). 18 ô.
+
+### Δ so với `baseline`, ghép cặp theo fold
+
+| backbone | nhánh | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| codebert | `bal` | +0.0501 3/3 | +0.0183 2/3 | +0.0329 3/3 | +0.0507 3/3 |
+| codebert | `unbal` | +0.0592 3/3 | +0.0366 3/3 | +0.0290 3/3 | +0.0119 2/3 |
+| t5p | `bal` | −0.0073 1/3 | +0.0039 2/3 | +0.0096 2/3 | +0.0090 2/3 |
+| t5p | `unbal` | −0.0045 2/3 | −0.0101 2/3 | +0.0017 2/3 | −0.0063 2/3 |
+
+### Ghép cặp TRỰC TIẾP `bal` − `unbal` (cùng fold)
+
+| backbone | ΔF1@0.5 | ΔF1@val | **ΔROC-AUC** | ΔPR-AUC |
+|---|---|---|---|---|
+| codebert | −0.0090 1/3 | −0.0183 0/3 | **+0.0040 2/3** | +0.0389 3/3 |
+| t5p | −0.0028 2/3 | +0.0140 2/3 | **+0.0079 3/3** | +0.0154 3/3 |
+
+### Hai điều đọc được
+
+**1. Cân bằng lớp gần như KHÔNG đổi gì sau fine-tune, trên cả hai backbone.** +0.0040 và +0.0079
+trên ROC-AUC đều **ở hoặc dưới sàn nhiễu cùng-GPU 0.010**, và dấu trên F1@0.5 thì **âm** ở cả hai.
+Trong khi đó §43 đo được can thiệp này đưa chính head phụ của t5p từ macro-F1 **0.2000** (đoán một
+lớp) lên **0.5996** (gấp ba sàn, dùng cả bốn lớp). **Head giỏi gấp ba, mô hình không đổi.**
+
+**2. Probe trên đặc trưng ĐÓNG BĂNG không dự báo được DẤU sau fine-tune.** §44 đo `p768` và dự báo:
+
+| backbone | probe dự báo (`bal − unbal`) | đo được sau fine-tune | dấu |
+|---|---|---|---|
+| codebert | +0.0127 | +0.0040 2/3 | khớp |
+| t5p | **−0.0287** | **+0.0079 3/3** | **SAI** |
+
+Và nó sai ở đúng chỗ nó **tự tin nhất**: −0.0287 là gần gấp ba sàn nhiễu, không phải một con số
+biên. **Hệ quả đã khai báo trước, giữ nguyên**: không dùng probe để sàng lọc thay GPU; §36 và §44
+vẫn đúng nguyên văn nhưng chỉ phát biểu về **đặc trưng đóng băng**, không suy sang mô hình đã
+fine-tune. Từ nay mọi câu trích §36/§44 phải kèm phạm vi đó.
+
+### Mảnh cuối đóng lại mạch head phụ
+
+Ba phép đo độc lập, cùng một kết luận:
+
+| phép đo | kết quả |
+|---|---|
+| §43 — làm head phụ học được | được trên t5p (0.2000 → 0.5996), hỏng trên codebert |
+| §44 — nút thắt 8 chiều có phải biểu diễn | **không**: thua PCA ở cả bốn checkpoint, ngang chiếu ngẫu nhiên |
+| §45 — head giỏi hơn có làm mô hình tốt hơn | **không**: +0.004 / +0.008 ROC, trong nhiễu |
+
+**Chất lượng của head phụ không phải một đòn bẩy.** Giá trị đo được của nó vẫn đúng như §7 ghi từ
+31/08 — **chống sập Pha 1** (ở `codebert × full`, hai lần độc lập tại hai λ, `none` sập về ~0.34
+còn `latent_bottleneck` giữ 0.545–0.564) — và chỉ thế.
+
+### Sự cố kèm theo: vast nằm không 7 phút vì một file chưa được đẩy
+
+Wrapper nối `auxb-ctl → seed15` chết bằng `scripts/queue_seed15.sh: No such file or directory`.
+Nguyên nhân: tôi tạo file đó **sau** lần `rsync scripts/`, và phép đối chiếu byte sau đó chỉ phủ
+`src`, `run`, `tools` — **không phủ `scripts`**. Lỗi chỉ lộ ra 50 phút sau, lúc chuỗi chạy tới.
+Mất 10:46:48 → 10:54:08 ≈ **7 phút** máy tính tiền. **Bài học: đối chiếu phải phủ MỌI thư mục mà
+chuỗi sẽ chạm tới, không chỉ những thư mục mình nhớ ra.**
