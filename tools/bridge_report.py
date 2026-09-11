@@ -111,7 +111,9 @@ def main():
                   f"l_cwe_nguon={h.get('replay_lambda_cwe')} l_cwe_dich={h.get('phase2_lambda_cwe')} rows={h.get('replay_rows')} "
                   f"mu: {h.get('replay_mu_schedule')}")
     arms = a.a.split(",") if a.a else [t for t in tags if t not in (a.b, "baseline")]
-    for ctl in (a.b, "baseline"):
+    # dict.fromkeys giu THU TU va bo trung: `--b baseline` truoc day in ca bang HAI LAN,
+    # nguoi doc de tuong la hai khoi khac nhau.
+    for ctl in dict.fromkeys([a.b, "baseline"]):
         print(f"\n=== Δ so voi `{ctl}` — ghep cap theo (cay, seed, fold) ===")
         print(f"{'nhanh':<10}{'n':>3}  " + "".join(f"{m:>28}" for m, _ in MET))
         rows = list(arms) + ([a.b] if ctl == "baseline" and a.b not in arms else [])
