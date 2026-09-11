@@ -3765,3 +3765,61 @@ phải suy đoán.
 khi tập đích co lại"* khi đó **vô nghĩa ngay từ gốc**, và sẽ tốn cả khối GPU để ra một bảng toàn
 0.500. Đã sửa bằng nhóm tham số riêng (`--phase2_gate_lr`, mặc định 1e-2) và một phép kiểm **tái
 hiện đúng lỗi này** (lr 2e-5 dịch < 0.01; lr 1e-2 dịch > 10 lần).
+
+---
+
+## §41.2 — Đảo chiều, đích JS **full**: Pha 1 đặt một **SÀN** dưới đích, chứ không phải "giúp nhiều hơn khi đích yếu" (11/09, **n=1 fold — chỉ sàng lọc**)
+
+Bảng đầy đủ ba đích JS, Δ ghép cặp (chuyển giao − baseline), fold 1, seed 42, `plain` = AdamW trần:
+
+| đích JS | n | backbone | ΔF1@0.5 | ΔF1@val | **ΔROC** | ΔPR | baseline ROC |
+|---|---|---|---|---|---|---|---|
+| `4cwe` | 812 | codebert | +0.0657 | +0.0812 | +0.1609 | +0.1205 | 0.4927 |
+| | | t5p | +0.1598 | +0.1657 | +0.1739 | +0.1550 | 0.4686 |
+| `com` | 1 384 | codebert | +0.0615 | +0.0648 | +0.0925 | +0.0712 | 0.4866 |
+| | | t5p | +0.0881 | +0.1238 | +0.1617 | +0.1324 | 0.3946 |
+| `full` | 1 556 | codebert | +0.0803 | +0.0803 | +0.1154 | +0.0877 | 0.4747 |
+| | | **t5p** | **−0.0009** | +0.0038 | **−0.0138** | +0.0181 | **0.5375** |
+
+Nhánh ASAM+RecAdam ở `full`: t5p +0.0330 ROC; **codebert THIẾU — ô trống**, job OOM lúc 09:39 vì
+user `cuongtm` nở VRAM giữa chừng (GPU còn 3 MiB trống). Ghi ra đây thay vì im lặng (CLAUDE.md mục 3).
+
+### Ô duy nhất transfer THẤT BẠI cũng là ô duy nhất baseline HỌC ĐƯỢC
+
+`full`×t5p là cặp duy nhất trong sáu cặp có baseline **trên** mức ngẫu nhiên (0.5375), và nó là
+cặp duy nhất Δ ROC **âm**. Nhìn qua thì đây là bằng chứng đẹp cho §40. **Nhưng nó không phải.**
+
+### Cái bẫy đã kiểm và đã gỡ: tương quan đó là ẢO
+
+Spearman(baseline ROC, ΔROC) = **−0.771** trên sáu ô. Hấp dẫn — và **vô nghĩa**, vì
+`Δ = T − B` nên Δ chứa `−B` theo định nghĩa: tương quan âm sinh ra **từ chính phép trừ**, không
+cần hiệu ứng nào cả. Mô phỏng 20 000 lần với `T`, `B` **độc lập hoàn toàn** (cùng trung bình và
+SD như đo được, n=6):
+
+| | giá trị |
+|---|---|
+| `corr(B, T−B)` khi T ⟂ B | trung bình **−0.643**, khoảng 90% **[−0.949, −0.038]** |
+| đo được | **−0.708** |
+
+Đo được **nằm gọn trong** khoảng của giả thuyết độc lập. Tương quan này **không** là bằng chứng.
+
+### Điều đo được THẬT, và nó tốt hơn
+
+| | min | max | biên độ | SD |
+|---|---|---|---|---|
+| baseline | 0.3946 | 0.5375 | 0.1428 | 0.0466 |
+| **chuyển giao** | 0.5237 | 0.6536 | 0.1299 | 0.0499 |
+
+Spearman(baseline, **chuyển giao**) = **−0.086** — điểm tuyệt đối của nhánh chuyển giao **gần như
+không liên quan** tới việc baseline làm tốt hay tệ. Phát biểu đúng là:
+
+> **Pha 1 nguồn Python đặt một SÀN dưới đích JavaScript.** Nhánh chuyển giao rơi vào dải
+> 0.524–0.654 bất kể đích là `4cwe`, `com` hay `full`, trong khi baseline dao động 0.395–0.538.
+
+Đây là phát biểu về **phương sai**, không phải về **trung bình**, và nó không bị phép trừ làm hỏng.
+
+**Điều này KHÔNG động tới §40.** §40 đổi **cỡ tập train** trong **cùng** bộ dữ liệu, ghép cặp
+trong cùng fold, và **cả hai** nhánh nhận **cùng** tập con vì cùng seed. Đó là một phép **can
+thiệp có kiểm soát**, không phải tương quan cắt ngang, nên nó không mắc bẫy trên.
+
+**n=1 fold mỗi ô, 6 ô. Giả thuyết, không phải phát hiện.** Cần n=3 mới được viết.
