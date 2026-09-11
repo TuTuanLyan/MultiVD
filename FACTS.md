@@ -3521,3 +3521,59 @@ của nó rơi xuống ~18. Ở n=3 điều này chỉ thấy rõ trên t5p. V�
 > định (F1), không ở thứ hạng.
 
 Đang kiểm **độ bền theo seed** ở hai đầu mút (seed 7, N ∈ {456, 76}, 5 fold, hai backbone).
+
+---
+
+## §42 — Máy thuê mới: một lỗi che một lỗi, và bản ghim thư viện là thứ bị bỏ quên (11/09)
+
+Dựng vast `50570168` (nhãn `ntat`) cho khối `auxb` mất **~25 phút** vì **ba** lỗi xếp chồng,
+mỗi lỗi chỉ lộ ra sau khi sửa xong lỗi trước. Ghi lại vì cả ba đều sẽ lặp ở máy thuê tiếp theo.
+
+**Lỗi 1 — địa chỉ SSH trong API là PROXY.** `ssh_host`/`ssh_port` từ `vastai show instance --raw`
+trả về proxy và cho `kex_exchange_identification: Connection closed`. `vastai ssh-url <id>` trả
+địa chỉ **trực tiếp** và vào được ngay. Mất ~10 phút.
+
+**Lỗi 2 — HF Hub tải đứng.** Blob trọng số nằm ở `.incomplete` = **0 byte sau 3 phút**; cache chỉ
+lớn thêm 1,2 KB trong 25 s. Thêm một chỗ đi lạc: image đặt `HF_HOME=/workspace/.hf_home`, không
+phải `~/.cache/huggingface`. Cách chữa đã dùng: đẩy 1,8 GB cache từ local rồi chạy với
+`HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`.
+
+**Lỗi 3 — và đây mới là cái đắt: `pip install transformers` trần kéo về 5.17.0.**
+`requirements-pin.txt` đã ghi đúng cái bẫy này từ **29/08** (`transformers==4.57.1`), nhưng lúc
+cài gói thiếu trên image tôi gõ `pip install transformers` chứ không `pip install -r`. Ở
+transformers 5.x các lớp tokenizer **chậm** thành khúc cụt, nên `AutoTokenizer.from_pretrained`
+chết bằng:
+
+```
+AttributeError: RobertaTokenizer has no attribute build_inputs_with_special_tokens
+```
+
+**Điều đáng sợ không phải là nó chết.** Nó chết nên ta biết. Nếu nó *chạy được*, thì các
+checkpoint Pha 1 mới của khối `auxb` sẽ được huấn luyện bằng một thư viện **khác major version**
+so với mọi checkpoint trước — và Δ ghép cặp giữa chúng với các khối cũ mất nghĩa mà không có dấu
+hiệu nào. Đúng lý do `requirements-pin.txt` tồn tại.
+
+**Vì sao lỗi 3 nấp được sau lỗi 2**: khi HF Hub còn treo, job chết ở bước *tải*, chưa bao giờ
+chạm tới bước *dựng tokenizer*. Chữa xong treo thì lỗi phiên bản mới lộ. Một lỗi che một lỗi.
+
+**Cách chặn, đã kiểm CẢ HAI CHIỀU trước khi phóng lại** (`CLAUDE.md` mục 8):
+
+| phép thử | kết quả phải có | đo được |
+|---|---|---|
+| dựng tokenizer + backbone **có** cache | chạy | `RobertaTokenizerFast`, 124.6M / 223.1M tham số |
+| dựng tokenizer **không** cache (`HF_HOME` trỏ chỗ rỗng) | **phải hỏng** | `OSError` — đúng như mong đợi |
+
+Chiều thứ hai là chiều quan trọng: nếu không cache mà vẫn dựng được thì cổng offline **vô nghĩa**,
+job vẫn đang lén ra mạng.
+
+**Việc phải làm ở máy thuê tiếp theo**: cài bằng `pip install -r requirements-pin.txt`, rồi chạy
+một **phép thử khói đi đúng đường mã thật** (tokenizer + backbone + một bước huấn luyện) **trước**
+khi phóng khối. Job đầu tiên của khối là phép thử khói tồi: nó mất vài phút mới tới chỗ chết, và
+vết lỗi bị chôn giữa log.
+
+**Bẫy `pgrep -f` — lần thứ TƯ.** Dọn runner cũ bằng
+`ssh host 'for t in "bash run/matrix.sh" ...; do pgrep -f "$t" ...'` thì **chính dòng lệnh ssh
+chứa chuỗi đó**, nên `pgrep -f` khớp shell đang chạy lệnh của mình và tự giết phiên: lệnh trả về
+**không một dòng nào**. Cách chữa dùng được: đưa script qua **stdin** (`ssh host 'bash -s' <<'EOF'`)
+— nội dung khi đó không nằm trên `argv` của shell từ xa nên không thể tự khớp. Lá chắn phụ:
+bỏ qua mọi PID nằm trong cây tổ tiên của `$$`.

@@ -1,3 +1,46 @@
+# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 09:05 UTC)
+
+> **Ba máy đều đang chạy.** Không máy nào nằm không.
+
+| máy | khối | nội dung | trạng thái |
+|---|---|---|---|
+| **161** `flink-jm` A4000 | `rev1com`/`rev1full` codebert | đảo nguồn Python→JS, đích `js_com_folds` rồi `js_full_folds`, fold 1 | đang chạy, chia GPU với user `cuongtm` (NHƯỜNG, không kill) |
+| **158** `flink-tm` A4000 | `rev1com`/`rev1full` t5p | như trên | đang chạy Pha 2 `rev1com_t5p` |
+| **vast 50570168** RTX 5060 Ti | `auxb` | head phụ CÂN BẰNG LỚP — mảnh 1 của cơ chế mới | phóng lại 08:59 UTC, GPU 6641 MiB |
+
+## vast `auxb` — làm cho head phụ THẬT SỰ HỌC (mảnh 1)
+
+**Vì sao**: FACTS §30.2 đo trực tiếp là head phụ chỉ đoán **một lớp**, độ chính xác trùng khít sàn
+đoán-lớp-đa-số. Nguồn `4cwe` lệch 74% về CWE-79 (692/930), λ chỉ 0.05, nên cross-entropy tràn.
+Sửa: **trọng số nghịch tần suất, chuẩn hoá về trung bình 1** (`--aux_class_balanced`) — tổng độ
+lớn loss KHÔNG đổi nên λ vẫn so sánh được với mọi khối cũ, chỉ PHÂN BỔ lại giữa các lớp.
+
+Ba bước, `scripts/vast_auxb_run.sh`:
+
+1. Pha 1 trên `4cwe` với `--aux_class_balanced`, hai backbone → `model/auxb/phase1`
+2. **CỔNG** `tools/aux_head_probe.py`: head phải **vượt sàn 0.7441** và phải dùng **>1 lớp**
+3. Pha 2 AdamW trần, 3 fold, hai backbone, + baseline cùng máy cùng fold
+
+**Cổng bước 2 quyết định mảnh 2.** Head vẫn không vượt sàn ⇒ mảnh 2 (định tuyến quyết định qua
+nút thắt 8 chiều) **vô nghĩa và phải dừng**. Bước 3 vẫn chạy vì bản thân nó là một nhánh hợp lệ.
+
+### Ba lỗi xếp chồng lúc dựng máy — đã ghi FACTS §42
+
+1. địa chỉ SSH trong API là **proxy**, phải dùng `vastai ssh-url`
+2. HF Hub tải treo (blob `.incomplete` = 0 byte) ⇒ đẩy 1,8 GB cache từ local, chạy `HF_HUB_OFFLINE=1`
+3. **`pip install transformers` trần kéo về 5.17.0** thay vì bản ghim 4.57.1 ⇒ tokenizer chết.
+   Đã cài lại đúng bản ghim và thử **cả hai chiều** (có cache: dựng được; `HF_HOME` rỗng: `OSError`).
+
+## Đảo nguồn/đích Python → JavaScript
+
+Đã xong `rev1` (đích `js_4cwe_folds` fold 1): 3 ô mỗi backbone = baseline + `plain` + ASAM/RecAdam.
+Kết quả ở FACTS §41 — **n=1, chỉ sàng lọc**. Đang chạy tiếp hai đích lớn hơn:
+`js_com_folds` (830/276/278) và `js_full_folds` (932/310/314), cùng ba nhánh, fold 1.
+
+---
+
+<!-- ===== LỊCH SỬ ===== -->
+
 # CURRENT_RUN — ĐÃ XONG 11/09/2026 03:39 VN (20:39 UTC 10/09)
 
 > **Không còn gì đang chạy.** Đêm 10→11/09 chạy xong `bridge3` + `feat3` + `lpft3` = **66 ô GPU**
