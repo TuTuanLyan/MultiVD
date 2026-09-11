@@ -1,44 +1,44 @@
-# CURRENT_RUN — cập nhật 13:25 UTC 11/09/2026
+# CURRENT_RUN — ĐÃ XONG HẾT 11/09/2026 15:43 UTC
 
-## Vast ĐÃ HUỶ lúc 13:22 UTC
+> **Không còn gì đang chạy.** Cả ba máy đã xong; vast đã huỷ lúc 13:22.
 
-Instance `50570168` (nhãn `ntat`, RTX 5060 Ti, $0.0818/h) chạy **08:22 → 13:22 ≈ 5 giờ ≈ $0.41**.
-Huỷ vì **hết việc đáng chạy**, sau khi kéo về và đối chiếu: **58/58 file kết quả** có ở local
-đúng **từng byte**, 60 file log khớp md5, và hai checkpoint Pha 1 cân bằng lớp khớp byte
-(498 700 773 B và 438 519 789 B). Lệnh in `destroying instance 50570168.`, thoát 0, **không**
-có `Aborted`, và `vastai show instances` xác nhận nó đã biến mất.
-
-Vast đã làm xong: `auxb` 12 ô + đối chứng 6 ô (§43–§45), leo n=15 cho t5p seed 7 fold 4–5
-(16 ô), đảo chiều n=3 fold 2–3 (12 ô), và lấp ô trống `js_full` × codebert (3 ô).
-
-### Vì sao KHÔNG còn việc đáng chạy cho vast
-
-| hướng | vì sao dừng |
+| máy | trạng thái |
 |---|---|
-| leo n=15 seed 1234 | **161 và 158 đã bao trọn cả 5 fold** — chạy thêm là trùng, phí GPU |
-| đảo chiều lên n=5 | `data/js_4cwe_folds` **chỉ có 3 fold** |
-| đảo chiều `com`/`full` lên n=3 | hai bộ đó chỉ có fold 1, không có `cwe_class`, kích thước chia không khớp phép làm tròn nào ⇒ **không tái hiện được fold 1 từng byte**; dựng fold mới "gần đúng" làm ba fold không hoán đổi được và hỏng phép ghép cặp ngầm |
-| tập `twin` (chống phản biện rò rỉ) | CLAUDE.md mục 6: **phụ, chỉ chạy khi được yêu cầu**. Đây là câu hỏi đáng giá — **chờ anh quyết** |
+| **161** codebert | xong `SEED15`, **100 ô**, 0 job hỏng |
+| **158** t5p | xong `SEED15`, **98 ô**, 0 job hỏng |
+| **vast 50570168** | **ĐÃ HUỶ** 13:22 UTC sau khi đối chiếu byte; chạy ~5 giờ ~$0.41 |
 
-## Còn chạy: hai máy local, leo §40 lên n=15
+## Kết quả chính — BẬC 3 (n = 15 = 5 fold × 3 seed), 120 ô ghép cặp
 
-| máy | việc | ô |
+ROC-AUC, Δ ghép cặp trong cùng ô. **24/24 ô đủ 5 fold.**
+
+| N | codebert | t5p |
 |---|---|---|
-| **161** codebert | seed 1234, cả bốn N | 66 |
-| **158** t5p | seed 1234, cả 5 fold | 66 |
+| 456 (đầy đủ) | +0.0127 **8/15** p=1.000 | +0.0094 **8/15** p=1.000 |
+| 228 | +0.0354 15/15 | +0.0504 13/15 |
+| 152 | +0.0922 13/15 | +0.1069 12/14 |
+| 76 | **+0.1849 14/14** p=0.000 | **+0.1188 14/14** p=0.000 |
 
-Không ô nào hỏng trên cả hai máy.
+Đơn điệu chặt cả bốn mức trên cả hai backbone. Ở dữ liệu đầy đủ hiệu ứng thứ hạng **bằng không**
+(PR-AUC codebert +0.0002, 5/15) trong khi F1@0.5 là 15/15 p=0.000 — tức chỉ dời **ngưỡng**,
+không đổi **thứ hạng**. Chi tiết FACTS §40.5, bản đọc `RESEARCH_2026-09-10_dactrung.md` Phần 9.
 
-## Kết quả đêm nay — đọc ở FACTS
+3 ô bị loại đúng theo ngưỡng khai báo trước (`baseline F1@0.5 < 0.40`), đều là baseline sập ở N nhỏ.
 
-| mục | nội dung |
+## Các khối khác đã xong hôm nay
+
+| khối | kết quả |
 |---|---|
-| §40.3, §40.4 | đường cong theo cỡ tập đích ở **n=10** (2 seed × 5 fold), ROC-AUC **đơn điệu chặt** cả bốn mức, cả hai backbone; ở N=456 hiệu ứng thứ hạng là **đúng một đồng xu** (5/10 và 6/11) |
-| §41.3 | đảo chiều Python→JS ở **n=3**: **12/12 ô dương**, cả bốn chỉ số, cả hai backbone; ASAM hơn `plain` trên **cả hai** chỉ số thứ hạng — lần lặp **thứ năm** |
-| §43, §44, §45 | mạch head phụ **đóng lại**: làm head học được thì tách theo backbone, nút thắt 8 chiều **không** phải biểu diễn (thua PCA ở cả bốn checkpoint), và head giỏi gấp ba **không** đổi được gì sau fine-tune |
-| §42 | ba lỗi xếp chồng khi dựng máy thuê; lỗi đắt nhất là thư viện không theo bản ghim |
+| đảo chiều Python→JS, n=3 | **12/12 ô dương** cả bốn chỉ số cả hai backbone; ASAM hơn `plain` trên cả hai chỉ số thứ hạng (FACTS §41.3) |
+| `auxb` + đối chứng, 18 ô | mạch head phụ **ĐÓNG** (FACTS §43, §44, §45) |
 
-Bản đọc cho người: `RESEARCH_2026-09-10_dactrung.md` **Phần 8**.
+## Việc còn để ngỏ, CHỜ ANH QUYẾT
+
+| việc | vì sao chưa làm |
+|---|---|
+| tập **`twin`** (chống phản biện rò rỉ gần-trùng-lặp) | CLAUDE.md mục 6: phụ, **chỉ chạy khi được yêu cầu**. Đây là câu hỏi đáng giá nhất còn lại vì nó tấn công thẳng §40.5 |
+| đảo chiều lên **n=5** | `data/js_4cwe_folds` chỉ có 3 fold — phải dựng thêm fold 4–5 |
+| đảo chiều `com`/`full` lên n=3 | không tái hiện được fold 1 từng byte ⇒ fold mới sẽ hỏng phép ghép cặp ngầm |
 
 ---
 

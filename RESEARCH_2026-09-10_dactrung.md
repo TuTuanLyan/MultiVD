@@ -725,3 +725,68 @@ Cơ chế hỏng này khác với cơ chế "ô lẻ bị bỏ và báo rõ" ở
 **`tools/bridge_report.py` in bảng hai lần khi đối chứng là `baseline`**, người đọc dễ tưởng là
 hai khối khác nhau. Và **`tools/report2.py` không nạp `baseline`** (nó chỉ quét `transfer_*`), nên
 so chuyển giao với baseline bằng nó sẽ ra "không ghép được cặp nào".
+
+---
+
+# Phần 9 — Kết quả BẬC 3 (n=15): con số đưa vào bài
+
+Phần 8 viết lúc khối leo bậc mới chạy được một phần. Khối đã **xong trọn vẹn** lúc 15:43 UTC
+11/09: **120 ô ghép cặp**, 3 seed (42/7/1234) × 5 fold × 4 mức N × 2 backbone, **0 job hỏng**,
+24/24 ô đủ cả 5 fold. Đây là bậc 3 — số **đưa vào bài**.
+
+## 9.1. Một bảng, ba phát biểu
+
+ROC-AUC, Δ ghép cặp trong cùng ô (cùng cây, cùng seed, cùng fold; hai nhánh nhận **cùng** tập con):
+
+| N | codebert | t5p |
+|---|---|---|
+| 456 (đầy đủ) | +0.0127 **8/15** | +0.0094 **8/15** |
+| 228 | +0.0354 15/15 | +0.0504 13/15 |
+| 152 | +0.0922 13/15 | +0.1069 12/14 |
+| 76 | **+0.1849 14/14** | **+0.1188 14/14** |
+
+**Một** — đơn điệu chặt qua cả bốn mức, trên cả hai backbone, không một chỗ lùi.
+
+**Hai** — ở dữ liệu đầy đủ, hiệu ứng thứ hạng **bằng không**, không phải "nhỏ". 8/15 ô cùng dấu
+là đúng một đồng xu, và nó xảy ra **giống hệt nhau** trên hai họ backbone khác nhau. PR-AUC của
+codebert ở đó là **+0.0002 với 5/15** — bằng không tới bốn chữ số.
+
+**Ba** — nhưng F1@0.5 ở đúng mức N=456 đó lại là **+0.0442, 15/15, p=0.000**. Nghĩa là ở dữ liệu
+đầy đủ phương pháp **dời được ngưỡng quyết định mà không đổi thứ hạng**. Nếu chỉ báo F1 thì
+N=456 trông như một thắng lợi tuyệt đối — và đó sẽ là một báo cáo sai.
+
+## 9.2. Vì sao phải có ba seed
+
+ROC-AUC ở N=456, tách theo seed:
+
+| backbone | seed 7 | seed 42 | seed 1234 |
+|---|---|---|---|
+| codebert | +0.0139 2/5 | +0.0114 3/5 | +0.0129 3/5 |
+| t5p | **−0.0060 1/5** | +0.0173 4/5 | +0.0170 3/5 |
+
+Trên t5p, **seed 42 một mình cho 4/5 dương** — nhìn như một hiệu ứng thật, và ở n=5 nó là kết
+quả tốt nhất có thể đạt. Seed 7 cho **1/5 và âm**. Gộp ba seed mới ra 8/15.
+
+Ở N=76 thì ngược lại: ba seed cho 5/5, 5/5, 4/4 (codebert) và 5/5, 5/5, 4/4 (t5p), sai khác giữa
+seed 7 và 42 trên t5p là **0.0010** — mười lần nhỏ hơn sàn nhiễu.
+
+Đây là ca cụ thể nhất trong dự án cho quy tắc *"n=5 một seed chỉ để DỪNG, không để KẾT LUẬN"*.
+
+## 9.3. Ba ô bị loại, đúng theo ngưỡng đã khai báo trước
+
+`baseline F1@0.5 < 0.40`, khai báo ở `records/prediction_2026-09-11_duong_cong_co_dich.md` trước
+khi chạy: `t5p N=152 seed 1234 fold 4`, `codebert N=76 seed 1234 fold 4`, `t5p N=76 seed 1234
+fold 3`. Cả ba là baseline **sập** ở N nhỏ — đúng thứ cổng này sinh ra để bắt. Vì thế vài ô ghi
+n=14. Ngưỡng **không sửa hồi tố**.
+
+## 9.4. Tổng kết ngày 11/09 — ba khối, và một hướng bị đóng
+
+| khối | kết quả |
+|---|---|
+| leo bậc §40 lên n=15 | **đường cong xác nhận**, con số đưa vào bài (§40.5) |
+| đảo chiều Python→JS lên n=3 | **12/12 ô dương**, cả bốn chỉ số, cả hai backbone; ASAM hơn `plain` trên cả hai chỉ số thứ hạng (§41.3) |
+| cơ chế head phụ | **ĐÓNG**: §43 tách theo backbone, §44 nút thắt không phải biểu diễn, §45 head giỏi gấp ba không đổi được gì |
+
+Hướng bị đóng cũng là kết quả: nó nói rằng phần "mới" của bài **không** nằm ở head phụ. Cái đang
+đứng vững là **đặc trưng chuyển giao được còn hàm quyết định thì không** (§36), **lợi ích là
+hiện tượng dữ liệu-ít** (§40.5), và **điều đó đảo chiều vẫn thấy** (§41.3).
