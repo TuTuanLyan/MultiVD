@@ -3171,3 +3171,50 @@ Số đầy đủ: `results/probe/{codebert,t5p}_4cwe_ctl.json`. Đặc trưng �
 > vì `pgrep -f "tools/feature_probe.py"` khớp **chính dòng lệnh của tôi**. Đây đúng là mục memory
 > `pkill-kills-own-ssh-session` đã ghi. Cách kiểm đúng: lọc theo `comm` (`ps -o comm=` bằng
 > `python`), hoặc đếm hiện vật (file kết quả), không đếm tiến trình theo dòng lệnh.
+
+## §38.3 — PHÉP KIỂM KHAI BÁO TRƯỚC: probe tách theo **BACKBONE**, không tách theo **NGUỒN** — và điều đó làm §38.2 YẾU ĐI (11/09, 0 GPU)
+
+Dự đoán viết **trước khi đo** ở `records/prediction_2026-09-11_probe_chon_can_thiep.md`
+(22:40 UTC, ngưỡng 0.06 khai báo trước, không sửa sau).
+
+### Đủ 6 ô: 2 backbone × 3 nguồn, mỗi ô 5 fold
+
+| backbone | nguồn | ΔROC probe | fold+ | ΔF1 | độ chọn lọc pretrained → Pha 1 | nhóm |
+|---|---|---|---|---|---|---|
+| codebert | 4cwe | **+0.1125** | 5/5 | +0.0849 | 0.1468 → **0.2652** | GIỮ |
+| codebert | com | **+0.0849** | 5/5 | +0.0506 | 0.1468 → **0.2679** | GIỮ |
+| codebert | full | **+0.0849** | 5/5 | +0.0486 | 0.1468 → **0.2374** | GIỮ |
+| t5p | 4cwe | +0.0202 | 3/5 | +0.0198 | 0.0981 → 0.1303 | THÊM/THAY |
+| t5p | com | +0.0434 | 4/5 | +0.0519 | 0.0981 → 0.1372 | THÊM/THAY |
+| t5p | full | +0.0122 | 3/5 | **−0.0150** | 0.0981 → 0.1225 | THÊM/THAY |
+
+### Kết quả của phép kiểm — ghi trung thực cả phần SAI
+
+1. **Ngưỡng 0.06 tách SẠCH, nhưng tách theo BACKBONE.** Cả ba nguồn codebert ≥ 0.0849 (5/5 fold);
+   cả ba nguồn t5p ≤ 0.0434. Khoảng trống giữa hai nhóm là **0.0415** — rộng gấp 4 lần sàn nhiễu.
+2. **Dự đoán (2) của tôi SAI một nửa.** Tôi đoán `com`/`full` sẽ **thấp hơn** `4cwe` vì val Pha 1
+   của chúng thấp hơn nhiều (codebert 0.56 so với 0.65). Đúng trên codebert (0.1125 → 0.0849), nhưng
+   **sai trên t5p**: `com` cho **+0.0434**, cao gấp đôi `4cwe`. Val Pha 1 **không** dự báo Δ probe.
+3. **Và đây mới là điều quan trọng: §38.2 YẾU ĐI, không mạnh lên.** Nếu Δ probe chỉ thay đổi theo
+   backbone mà gần như không theo nguồn, thì phát biểu *"probe chọn can thiệp"* rút gọn thành
+   *"backbone chọn can thiệp"* — và ta chỉ có **HAI** backbone. Hai điểm dữ liệu không dựng được
+   quy tắc. Phép kiểm mà §38.2 đề xuất (chạy `lp3` vs `rp50` trên nguồn có Δ thấp) **không thực
+   hiện được như thiết kế**, vì không nguồn nào của codebert rơi xuống dưới ngưỡng.
+4. **Ô đáng chú ý nhất: `t5p`/`full`** — ΔF1 **âm** (−0.0150) và độ chọn lọc theo F1 **tụt**
+   (0.0736 → 0.0572). Đây là ô duy nhất trong sáu ô mà Pha 1 làm đặc trưng **kém tách hơn** backbone
+   gốc. Khớp với việc `full` là nguồn gây negative transfer đã biết.
+5. Per-CWE lặp lại ở **cả sáu ô**: CWE-079 lên mạnh nhất (từ +0.16 đến +0.25 ROC), **CWE-089 âm ở
+   5/6 ô** dù chiếm quá nửa hàng test. Đây là mẫu hình bền nhất của toàn bộ phép đo.
+
+### Muốn kiểm §38.2 cho đúng thì phải làm gì (CHƯA CHẠY, cần duyệt)
+
+Trục "nguồn" không tách được nhóm, nên phải tìm trục khác **trong cùng một backbone**:
+
+- **Backbone thứ ba** (`unixcoder` đã có trong dự án) — cho thêm một điểm dữ liệu ở trục duy nhất
+  thật sự biến thiên. Cần Pha 1 mới (~40 phút GPU/nguồn).
+- **Làm hỏng đặc trưng có kiểm soát**: lấy checkpoint codebert tốt rồi nội suy về pretrained ở vài
+  mức α, đo Δ probe (0 GPU, có cờ `--source_interpolation` sẵn), chọn α làm Δ probe tụt xuống dưới
+  0.06, rồi chạy `lp3` vs `rp50` ở đó. Đây là cách **duy nhất** biến Δ probe thành biến độc lập
+  điều khiển được thay vì thuộc tính cố hữu của backbone.
+
+Số đầy đủ: `results/probe/*_ctl.json`. Đặc trưng đã đệm ở `results/probe/cache/`.

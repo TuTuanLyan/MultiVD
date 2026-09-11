@@ -40,3 +40,20 @@ sẽ thắng:
 * Δ probe cao mà `rp50` thắng ⇒ cũng bị bác.
 
 Không được sửa ngưỡng 0.06 hay đổi cách phân nhóm sau khi thấy số.
+
+---
+
+## KẾT QUẢ (điền 00:55 UTC 11/09, sau khi đo xong cả 6 ô)
+
+| backbone | nguồn | ΔROC | nhóm theo ngưỡng 0.06 |
+|---|---|---|---|
+| codebert | 4cwe / com / full | +0.1125 / +0.0849 / +0.0849 | GIỮ / GIỮ / GIỮ |
+| t5p | 4cwe / com / full | +0.0202 / +0.0434 / +0.0122 | THÊM-THAY ×3 |
+
+**Dự đoán (2) SAI một nửa**: `com`/`full` thấp hơn `4cwe` đúng trên codebert, **sai trên t5p**
+(`com` +0.0434 cao gấp đôi `4cwe`). Val Pha 1 không dự báo được Δ probe.
+
+**Hệ quả cho giả thuyết**: ngưỡng tách sạch nhưng tách theo **backbone**, không theo nguồn ⇒
+phép kiểm GPU như thiết kế **không chạy được** (không nguồn codebert nào xuống dưới ngưỡng) ⇒
+§38.2 **yếu đi**. Chi tiết và hai cách kiểm thay thế ở FACTS §38.3. Ngưỡng 0.06 **giữ nguyên**,
+không sửa sau khi thấy số.
