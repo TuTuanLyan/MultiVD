@@ -229,6 +229,46 @@ def test_doi_chung_chieu_ngau_nhien():
         assert torch.equal(a, b_.detach())
 
 
+def test_nhom_lr_rieng_cho_cong():
+    """Cong o lr cua backbone thi DUNG YEN — do that 11/09, g = 0.5000 sau ca hai epoch."""
+    from src.train_transfer import split_gate_param_groups
+
+    m = make()
+    m.enable_latent_gate(mode="scalar")
+    nt = [(n, p) for n, p in m.named_parameters() if p.requires_grad]
+    groups, n_gate = split_gate_param_groups(nt, 2e-5, 1e-2, 0.01)
+    assert len(groups) == 2 and n_gate == 8 * 2 + 2 + 1, (len(groups), n_gate)
+    assert groups[0]["lr"] == 2e-5 and groups[1]["lr"] == 1e-2
+    # moi tham so xuat hien DUNG MOT lan — khong sot, khong lap
+    ids = [id(p) for g in groups for p in g["params"]]
+    assert len(ids) == len(set(ids)) == len(nt), (len(ids), len(set(ids)), len(nt))
+
+    # chieu nguoc: khong co cong thi DUNG MOT nhom, y nhu duong cu
+    m2 = make()
+    nt2 = [(n, p) for n, p in m2.named_parameters() if p.requires_grad]
+    g2, n2 = split_gate_param_groups(nt2, 2e-5, 1e-2, 0.01)
+    assert len(g2) == 1 and n2 == 0
+
+
+def test_cong_DUNG_YEN_o_lr_backbone():
+    """Tai hien dung loi da gap: cung so buoc, lr 2e-5 thi g khong nhuc nhich; lr 1e-2 thi co."""
+    b = batch(n=16)
+    moves = {}
+    for lr in (2e-5, 1e-2):
+        m = make()
+        m.enable_latent_gate(mode="scalar", init_logit=0.0)
+        opt = torch.optim.AdamW([p for p in m.parameters() if p.requires_grad], lr=lr)
+        g0 = m.gate_value()
+        for _ in range(60):
+            opt.zero_grad()
+            loss, *_ = _phase2_target_loss(m, b, torch.device("cpu"), 0.0, gate_alpha=0.3)
+            loss.backward()
+            opt.step()
+        moves[lr] = abs(m.gate_value() - g0)
+    assert moves[2e-5] < 0.01, f"lr 2e-5 dich {moves[2e-5]:.4f} — phep kiem nay khong con y nghia"
+    assert moves[1e-2] > 10 * moves[2e-5], f"lr 1e-2 dich {moves[1e-2]:.4f} vs {moves[2e-5]:.4f}"
+
+
 # ---------------------------------------------------------------- chay
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

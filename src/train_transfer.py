@@ -481,6 +481,33 @@ def adopt_checkpoint_shape(path, device):
     return int(num_cwes)
 
 
+GATE_PARAM_PREFIXES = ("lat_vul_head.", "gate_logit", "gate_proj.")
+
+
+def split_gate_param_groups(named_trainable, base_lr, gate_lr, weight_decay):
+    """Tach tham so CONG ra mot nhom rieng co learning rate LON HON HAN.
+
+    Vi sao BAT BUOC: do that 11/09 tren mot o tho — cong vo huong huan luyen o dung lr cua
+    backbone (2e-5) DUNG YEN o g = 0.5000 sau ca hai epoch. Tinh ra: AdamW moi buoc dich
+    ~lr, ca 30 epoch x 114 buoc = 3 420 buoc chi cho logit dich toi da ~0.068, tuc
+    g in [0.483, 0.517]. Phep do "g tang khi tap dich co lai" khi do VO NGHIA ngay tu goc,
+    va se ton ca khoi GPU de ra mot bang toan 0.500.
+
+    `lat_vul_head` cung can lr lon: dau vao cua no la anh 8 chieu co thang do ~1, nen trong
+    so phai vao co 0.1-1; o 2e-5 no khong bao gio toi do.
+
+    Tra ([nhom], so tham so cong). Khong co tham so cong ⇒ tra ĐÚNG một nhóm như cũ.
+    """
+    gate, rest = [], []
+    for name, prm in named_trainable:
+        (gate if name.startswith(GATE_PARAM_PREFIXES) else rest).append(prm)
+    if not gate:
+        return [{"params": rest, "lr": base_lr, "weight_decay": weight_decay}], 0
+    return ([{"params": rest, "lr": base_lr, "weight_decay": weight_decay},
+             {"params": gate, "lr": gate_lr, "weight_decay": weight_decay}],
+            sum(p.numel() for p in gate))
+
+
 def load_checkpoint(path, model, device):
     checkpoint = torch.load(path, map_location=device, weights_only=True)
     # MANH 2: checkpoint cua mot lan chay CO CONG mang them `lat_vul_head`/`gate_*`. Mo hinh
@@ -991,6 +1018,14 @@ def run_phase2(args, device):
                 "--phase2_gate can `latent_proj` DONG BANG (do la ca co che). "
                 "Bo --phase2_lambda_cwe/--replay_lambda_cwe neu muon bat cong"
             )
+        if args.phase2_optimizer != "adamw":
+            # RecAdam/SPD neo tung tham so theo chi so, khop 1-1 voi `current_params`.
+            # Tham so cong KHONG co ban doi ung trong checkpoint Pha 1, nen neo se lech
+            # chi so mot cach IM LANG. Tu choi thay vi chay ra so sai.
+            raise ValueError(
+                f"--phase2_gate chi chay voi --phase2_optimizer adamw, dang la "
+                f"{args.phase2_optimizer!r}: tham so cong khong co ban doi ung de neo"
+            )
         model.enable_latent_gate(mode=gate_mode,
                                  init_logit=float(getattr(args, "phase2_gate_init", 0.0)),
                                  proj=getattr(args, "phase2_gate_proj", "learned"),
@@ -1099,10 +1134,17 @@ def run_phase2(args, device):
             )
             print_recadam_schedule(args, total_steps, anneal_t0, len(train_loader))
         else:
-            optimizer = torch.optim.AdamW(
-                current_params, lr=args.learning_rate, weight_decay=args.weight_decay
-            )
-            logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
+            groups, n_gate = split_gate_param_groups(
+                named_trainable, args.learning_rate,
+                float(getattr(args, "phase2_gate_lr", 1e-2)), args.weight_decay)
+            optimizer = torch.optim.AdamW(groups, lr=args.learning_rate,
+                                          weight_decay=args.weight_decay)
+            if n_gate:
+                logger.info("Phase 2 optimizer: AdamW | nhom CONG rieng: %d tham so o lr %.4g "
+                            "(phan con lai %.4g)", n_gate,
+                            float(getattr(args, "phase2_gate_lr", 1e-2)), args.learning_rate)
+            else:
+                logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
@@ -1749,6 +1791,10 @@ def parse_args():
                            "bang cung kich thuoc. tools/latent_probe.py do duoc anh 8 chieu da hoc "
                            "KHONG hon chieu ngau nhien tren codebert, nen neu hai che do chay ngang "
                            "nhau thi co che la 'nhanh it tham so', khong phai 'neo vao nguon'")
+    gate.add_argument("--phase2_gate_lr", type=float, default=1e-2,
+                      help="learning rate RIENG cho cong va head 8 chieu. O lr cua backbone "
+                           "(2e-5) cong DUNG YEN: 3 420 buoc chi dich logit ~0.068, tuc "
+                           "g in [0.483, 0.517] — phep do vo nghia. Do that 11/09")
     gate.add_argument("--phase2_gate_init", type=float, default=0.0,
                       help="logit khoi tao cua cong. 0.0 => g=0.5, khong thien vi ben nao")
 
