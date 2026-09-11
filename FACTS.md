@@ -3356,3 +3356,30 @@ thêm phương pháp nào**.
 
 Đang leo lên **n=5** (fold 4, 5) cho cả bốn mức N và cả hai backbone.
 Đọc bằng `python3 tools/tsize_report.py`.
+
+## §40.1 — Cổng môi trường lại bắt được một lần gọi thiếu `PYTHON`, và lần này KHÔNG mất gì (11/09)
+
+Khi leo đường cong §40 lên n=5, tôi gọi thẳng `run/opt1.sh` cho mức N=456 fold 4–5 mà **quên
+export `PYTHON`**. Khác `tsize.sh` / `feat3.sh` / `chot2bb.sh`, `opt1.sh` **không tự dò env**, nên
+`matrix.sh` rơi về `python` của conda base không có torch.
+
+**Cổng đã làm đúng việc:**
+
+```
+!! DUNG: PYTHON='python' khong import duoc torch/numpy/sklearn.
+########## OPT1 seed 42 fold 4 xong | 0/1 o + 0/1 baseline ##########
+```
+
+Thoát 2, **không xoá một file nào**, in đường dẫn env đúng cho từng máy. So với 08/09 khi đúng
+lớp lỗi này **xoá mất hai checkpoint Pha 1 tốt** (CLAUDE.md mục 3) thì ba lớp chặn dựng sau đó đã
+trả đủ giá trị. Cổng **đếm hiện vật** (`0/1 o`) là thứ làm lỗi lộ ra ngay ở dòng log, không phải
+sau nhiều giờ.
+
+**Thiệt hại:** mức N=456 fold 4–5 ra 0 ô trên **cả hai** máy; ba mức kia đủ 12/12 vì `tsize.sh`
+có tự dò. Đã xếp chạy bù.
+
+**Sửa gốc:** `run/opt1.sh` nay **tự dò env** giống mọi runner khác. Kiểm hai chiều bằng `env -i`:
+với môi trường rỗng nó vẫn tìm ra `/home/ntat/miniconda3/envs/vdenv/bin/python`.
+
+> **Quy tắc rút ra:** một runner **không được** để người gọi tự nhớ `PYTHON`. Mọi script chạy
+> được trực tiếp phải tự dò, vì cách gọi sẽ thay đổi theo thời gian còn trí nhớ thì không.

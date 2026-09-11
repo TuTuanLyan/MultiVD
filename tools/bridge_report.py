@@ -20,7 +20,7 @@ EPS = 1e-12
 MET = [("F1@0.5", "test_macro_f1_at_0.5"), ("F1@val", "test_macro_f1_at_valcal"),
        ("ROC-AUC", "test_roc_auc"), ("PR-AUC", "test_pr_auc")]
 CWE = {0: "022", 1: "078", 2: "079", 3: "089"}
-TAG_RE = re.compile(r"^transfer_[a-z_]+?_(?P<src>4cwe|com|full)_l\d+p\d+_(?P<tag>.+?)(?:_adamw|_spd)?$")
+TAG_RE = re.compile(r"^transfer_[a-z_]+?_(?P<src>4cwe|com|full|py)_l\d+p\d+_(?P<tag>.+?)(?:_adamw|_spd)?$")
 
 
 def load(roots):

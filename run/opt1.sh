@@ -41,6 +41,16 @@
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# TU DO env nhu moi runner khac. Bay da mac 11/09 05:37: goi opt1.sh truc tiep ma quen
+# export PYTHON => matrix.sh roi ve `python` cua conda base khong co torch => cong kiem
+# import chan lai va khoi sinh ra DUNG 0 o tren CA HAI may. Cong da lam dung viec (thoat 2,
+# KHONG xoa gi), nhung runner khong nen de nguoi goi tu nho.
+PYTHON="${PYTHON:-$( for c in /venv/main/bin/python /data/ntat/envs/vdenv/bin/python \
+      /home/ntat/miniconda3/envs/vdenv/bin/python; do
+    [ -x "$c" ] && "$c" -c "import torch" 2>/dev/null && { echo "$c"; break; }; done )}"
+[ -n "$PYTHON" ] || { echo "!! opt1.sh: khong tim thay python co torch"; exit 2; }
+export PYTHON
+
 SEEDS="${SEEDS:-42}"
 SOURCES="${SOURCES:-4cwe com}"
 FOLD_LIST="${FOLD_LIST:-1 2 3 4 5}"
