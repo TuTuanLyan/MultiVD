@@ -3692,3 +3692,76 @@ ASAM+RecAdam ở ρ tốt nhất của từng backbone hơn AdamW trần về RO
 Trùng hướng với §39 và với phép đo 190 ô ở CLAUDE.md mục 2b: **ASAM cải thiện thứ hạng điểm**.
 
 **n=1 fold. Chỉ sàng lọc, không viết vào bài.** `js_full` (1 556 dòng) đang chạy trên cả hai máy.
+
+---
+
+## §44 — NÚT THẮT 8 CHIỀU **KHÔNG** là một biểu diễn: nó thua PCA ở cả bốn checkpoint, và chất lượng của nó KHÔNG liên quan tới độ chính xác của head phụ (11/09, n=5 fold, 0 GPU)
+
+Khai báo trước ở `records/prediction_2026-09-11_nut_that_8_chieu.md`, viết **trước** khi chạy.
+
+Đặc trưng **đóng băng**, 760 dòng Python, logistic regression, `C` chọn trên val, chấm test.
+Bốn bộ đặc trưng từ **cùng một checkpoint**: `p768` = pooled 768 chiều; `lat8` = `latent_proj(pooled)`;
+`rnd8` = chiếu Gauss 768→8 của **cùng** pooled (**đối chứng**); `pca8` = 8 thành phần chính đầu,
+fit **chỉ trên train** của từng fold.
+
+| checkpoint | macro-F1 head phụ (§43) | `p768` | **`lat8`** | `rnd8` | `pca8` |
+|---|---|---|---|---|---|
+| codebert **cân bằng** | 0.1917 | 0.7827 | **0.6586** | 0.6504 | 0.6845 |
+| codebert không cân bằng | 0.2000 (1 lớp) | 0.7700 | **0.6702** | 0.6603 | 0.6778 |
+| t5p **cân bằng** | **0.5996** | 0.6118 | **0.5210** | 0.5076 | 0.5540 |
+| t5p không cân bằng | 0.2000 (1 lớp) | 0.6405 | **0.5057** | 0.5164 | 0.5280 |
+
+(ROC-AUC, trung bình 5 fold)
+
+Δ **ghép cặp theo fold**, ROC-AUC:
+
+| checkpoint | `lat8 − rnd8` | `lat8 − pca8` | `lat8 − p768` |
+|---|---|---|---|
+| codebert cân bằng | +0.0083 **3/5** | **−0.0259 0/5** | −0.1241 0/5 |
+| codebert không cân bằng | +0.0099 **2/5** | −0.0076 1/5 | −0.0997 0/5 |
+| t5p cân bằng | +0.0134 **3/5** | **−0.0330 1/5** | −0.0908 1/5 |
+| t5p không cân bằng | **−0.0107** 3/5 | −0.0223 1/5 | −0.1348 0/5 |
+
+Ngưỡng khai báo trước: `lat8 − rnd8 ≥ +0.02` **và** ≥ 4/5 fold. **Không checkpoint nào đạt** —
+cao nhất là +0.0134 ở 3/5. Ngưỡng và số fold **giữ nguyên**, không sửa sau khi thấy số.
+
+### Bốn điều đọc được
+
+**1. `lat8` thua `pca8` ở CẢ BỐN checkpoint** (−0.0259 / −0.0076 / −0.0330 / −0.0223). Phép giảm
+chiều tầm thường nhất — PCA trên chính đặc trưng ấy — **luôn** tốt hơn nút thắt đã học. Không có
+ngoại lệ nào để bấu víu.
+
+**2. Làm cho head phụ HỌC ĐƯỢC không làm nút thắt hữu ích hơn.** Đây là phép đo trực tiếp nhất, và
+nó âm: trên t5p, head đi từ macro-F1 0.2000 (đoán một lớp) lên **0.5996** (gấp ba sàn), mà `lat8`
+chỉ nhích **0.5057 → 0.5210**, vẫn ở mức ngẫu nhiên. Trên codebert head **tệ đi** (0.2000 → 0.1917)
+và `lat8` cũng nhích xuống (0.6702 → 0.6586). **Không có quan hệ nào** giữa hai đại lượng.
+
+**3. Trên t5p, `lat8` ở mức NGẪU NHIÊN** (0.5210 và 0.5057). Ngưỡng "bác thẳng" khai báo trước là
+0.55 — **cả hai checkpoint t5p nằm dưới**. Nhánh quyết định thứ hai đi qua nút thắt ở t5p sẽ là
+nhiễu thuần, và một cổng học được sẽ (đúng đắn) dìm nó về 0.
+
+**4. Cân bằng lớp cho head phụ lại TÁCH THEO BACKBONE ở đặc trưng 768 chiều nữa**: codebert
+`p768` 0.7700 → 0.7827 (**+0.013, tốt lên**), t5p 0.6405 → 0.6118 (**−0.029, tệ đi**). Lần thứ sáu.
+
+### Hệ quả: MẢNH 2 DỪNG. Không phóng `run/gate3.sh`.
+
+Hệ quả đã ghi **trước khi đo**: *"mảnh 2 vẫn có thể làm điểm số đẹp lên, nhưng không được viết là
+cơ chế mới — phải viết là 'một nhánh ít tham số làm chính quy hoá'."* Kèm luật leo bậc (phải lặp
+trên **cả hai** backbone), và kèm điều 3 ở trên (t5p dưới ngưỡng bác thẳng), khối `gate3` **không
+được phóng**. Mã và bộ kiểm giữ lại (`--phase2_gate`, 12/12 phép, mặc định TẮT nên đường cũ không
+đổi một byte) để nếu sau này có checkpoint mà `lat8` thật sự vượt đối chứng thì chạy được ngay.
+
+**Phát biểu âm mang đi được**: trong hai pha, head phụ có nút thắt tiềm ẩn **không** tạo ra một
+biểu diễn dùng lại được — nó là một phép nén mà PCA làm tốt hơn, và độ chính xác của head **không
+dự báo** chất lượng nén. Giá trị đo được của head vẫn đúng như §7 đã ghi từ 31/08: **chống sập
+Pha 1**, không phải chất lượng biểu diễn. Đây là kết luận có đối chứng (Hewitt & Liang), không
+phải suy đoán.
+
+### Một lỗi thiết kế bắt được TRƯỚC khi đốt GPU
+
+Ô thô 16 mẫu trên CPU cho thấy cổng vô hướng huấn luyện ở **đúng learning rate của backbone**
+(2e-5) **đứng yên ở g = 0.5000** sau cả hai epoch. Tính ra: AdamW mỗi bước dịch ~lr, cả 30 epoch ×
+114 bước = 3 420 bước chỉ cho logit dịch tối đa ~0.068, tức `g ∈ [0.483, 0.517]`. Phép đo *"g tăng
+khi tập đích co lại"* khi đó **vô nghĩa ngay từ gốc**, và sẽ tốn cả khối GPU để ra một bảng toàn
+0.500. Đã sửa bằng nhóm tham số riêng (`--phase2_gate_lr`, mặc định 1e-2) và một phép kiểm **tái
+hiện đúng lỗi này** (lr 2e-5 dịch < 0.01; lr 1e-2 dịch > 10 lần).
