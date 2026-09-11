@@ -544,3 +544,184 @@ Xếp theo giá trị trên mỗi giờ GPU:
 
 Mọi cờ mới **mặc định tắt** ⇒ đường chạy cũ không đổi một byte (đã xác nhận bằng smoke: nhánh
 `plain` vẫn qua đúng các cổng an toàn cũ).
+
+---
+
+# Phần 8 — Ngày 11/09: cơ chế head phụ đã chạy tới cùng, và nó bị bác
+
+Phần 1–7 viết đêm 10→11/09. Phần này viết tiếp trong ngày 11/09, sau khi thuê vast
+`50570168` để chạy cho xong mạch "làm cho head phụ thật sự có ích".
+
+## 8.1. Ý tưởng, và vì sao nó đáng thử
+
+Anh nêu rõ mục tiêu: bài phải mạnh nhờ **một cái gì đó mới** đi kèm head phụ, chứ không phải chỉ
+giải thích. Mạch suy luận lúc đó:
+
+1. §30.2 đo được head phụ **chỉ đoán một lớp** — nó không học gì cả. Nếu head không học thì mọi
+   câu chuyện về "biểu diễn có cấu trúc" đều rỗng.
+2. Nguyên nhân giả định: nguồn `4cwe` lệch **74% về CWE-79** (692/930 dòng) và λ chỉ 0.05, nên
+   cross-entropy tràn về lớp đa số.
+3. Sửa bằng **trọng số nghịch tần suất, chuẩn hoá về trung bình 1** — tổng độ lớn loss không đổi
+   nên λ vẫn so được với mọi khối cũ, chỉ **phân bổ lại** giữa các lớp.
+4. Nếu head học được, thì nút thắt 8 chiều của nó trở thành một **không gian có nghĩa**, và ta
+   dựng được cơ chế mới: một đường quyết định **thứ hai** đi qua nút thắt đó, trộn với đường
+   768 chiều bằng một **cổng học được**. Cổng ấy vừa là cơ chế vừa là **con số đọc được**.
+
+Bước 3 là "mảnh 1", bước 4 là "mảnh 2". Mảnh 1 được đặt làm **cổng**: head vẫn không học thì mảnh
+2 vô nghĩa và phải dừng.
+
+## 8.2. Mảnh 1 — cân bằng lớp cứu được t5p, làm hỏng codebert
+
+Huấn luyện lại Pha 1 trên `4cwe` với `--aux_class_balanced`, cả hai backbone, rồi probe head trên
+đúng tập val đã chọn checkpoint (96 hàng):
+
+| | độ chính xác | **macro-F1** | số lớp head dùng |
+|---|---|---|---|
+| **t5p** cân bằng | 0.6458 | **0.5996** | **4/4** |
+| t5p không cân bằng | 0.6667 | 0.2000 | 1/4 |
+| **codebert** cân bằng | 0.2500 | **0.1917** | **4/4** |
+| codebert không cân bằng | 0.6667 | 0.2000 | 1/4 |
+| sàn đoán-lớp-đa-số | 0.6667 | 0.2000 | 1 |
+
+Trên **t5p** can thiệp thành công rõ: macro-F1 gấp **ba lần** sàn, dùng cả bốn lớp, và val nhị
+phân gần như không đổi (0.6976 → 0.6875) nên head học được không phải trả bằng nhiệm vụ chính.
+
+Trên **codebert** nó hỏng: 0.1917 dưới sàn, độ chính xác 0.2500 còn dưới cả mức ngẫu nhiên 0.4870.
+Không phải "không học gì" — CWE-022 đúng **8/10** — mà là đổi lớp đa số lấy lớp hiếm quá tay.
+
+Phụ lục đáng ghi: §30.2 giờ đã đo trên **cả hai** backbone chứ không phải một. Không cân bằng thì
+cả hai đều cho **đúng** 0.6667 / 0.2000 và dùng **đúng một lớp**.
+
+## 8.3. Mảnh 2 — phép kiểm quyết định, khai báo trước, và kết quả là BÁC
+
+Cổng ở 8.2 tách đôi theo backbone. Nhưng nó cũng **đo sai thứ** cho mảnh 2: mảnh 2 không dùng
+`cwe_head`, nó đóng băng `latent_proj` (768→8) rồi đặt một head nhị phân **mới** lên đó. Câu hỏi
+đúng là:
+
+> Ảnh 8 chiều `P(f)` có còn tách được lỗ hổng tuyến tính trên tập đích không, và có hơn một phép
+> chiếu 8 chiều **ngẫu nhiên** của cùng đặc trưng đó không?
+
+Vế sau là vế phải có. Nếu `latent_proj` không hơn một ma trận Gauss thì "neo vào bảng phân loại
+của nguồn" là câu chuyện rỗng — cái chạy được chỉ là "giảm chiều xuống 8", ai làm cũng được.
+Đây đúng dạng đối chứng Hewitt & Liang mà §36.1 đã dùng.
+
+Ngưỡng và dự đoán **viết ra file trước khi chạy một dòng nào**
+(`records/prediction_2026-09-11_nut_that_8_chieu.md`). Đo trên **bốn** checkpoint × **5 fold**,
+đặc trưng đóng băng, logistic regression, 0 GPU:
+
+| checkpoint | macro-F1 head | `p768` | **`lat8`** | `rnd8` (ngẫu nhiên) | `pca8` |
+|---|---|---|---|---|---|
+| codebert cân bằng | 0.1917 | 0.7827 | **0.6586** | 0.6504 | 0.6845 |
+| codebert không cân bằng | 0.2000 | 0.7700 | **0.6702** | 0.6603 | 0.6778 |
+| **t5p cân bằng** | **0.5996** | 0.6118 | **0.5210** | 0.5076 | 0.5540 |
+| t5p không cân bằng | 0.2000 | 0.6405 | **0.5057** | 0.5164 | 0.5280 |
+
+(ROC-AUC, trung bình 5 fold)
+
+**Kết: bác trên cả hai backbone.**
+
+* Ngưỡng khai báo trước là `lat8 − rnd8 ≥ +0.02` và ≥ 4/5 fold. **Không checkpoint nào đạt** —
+  cao nhất +0.0134 ở 3/5.
+* `lat8` **thua `pca8` ở cả bốn** (−0.0259 / −0.0076 / −0.0330 / −0.0223). Phép giảm chiều tầm
+  thường nhất luôn tốt hơn nút thắt đã học. Không có ngoại lệ nào để bấu víu.
+* Trên t5p, `lat8` = 0.5210 và 0.5057, **dưới ngưỡng bác thẳng 0.55**. Nhánh thứ hai ở t5p sẽ là
+  nhiễu thuần và cổng sẽ (đúng đắn) dìm nó về 0.
+* Và câu hỏi trực tiếp nhất — **làm cho head phụ học được có làm nút thắt hữu ích hơn không?** —
+  trả lời là **không**. t5p: head đi từ 0.2000 lên 0.5996 mà `lat8` chỉ 0.5057 → 0.5210. codebert:
+  head **tệ đi** và `lat8` cũng nhích xuống. Hai đại lượng **không liên quan**.
+
+Ngưỡng +0.02 và 4/5 fold **giữ nguyên**, không sửa sau khi thấy số.
+
+## 8.4. Cái mang đi được từ một kết quả âm
+
+Phát biểu này **có đối chứng**, không phải suy đoán, và nó đóng một hướng:
+
+> Trong hai pha, head phụ có nút thắt tiềm ẩn **không** tạo ra một biểu diễn dùng lại được. Nó là
+> một phép nén mà PCA làm tốt hơn, và độ chính xác của head **không dự báo** chất lượng nén.
+
+Giá trị đo được của head vẫn đúng như §7 đã ghi từ 31/08: **chống sập Pha 1**, không phải chất
+lượng biểu diễn. Ở `codebert × full`, hai lần độc lập tại hai λ, nhánh `none` sập về ~0.34 còn
+`latent_bottleneck` giữ 0.545–0.564. Đó là công dụng thật của nó.
+
+Mã của mảnh 2 giữ lại: `--phase2_gate {off,scalar,input}`, `--phase2_gate_alpha`,
+`--phase2_gate_lr`, `--phase2_gate_proj {learned,random}`, 12 phép kiểm hai chiều, **mặc định
+tắt** nên đường cũ không đổi một byte. Nếu sau này có checkpoint mà `lat8` thật sự vượt đối chứng
+thì chạy được ngay bằng `run/gate3.sh`.
+
+**Một lỗi thiết kế bắt được trước khi đốt GPU**: ô thô 16 mẫu trên CPU cho thấy cổng vô hướng
+huấn luyện ở **đúng learning rate của backbone** (2e-5) **đứng yên ở g = 0.5000**. Cả 30 epoch ×
+114 bước chỉ cho logit dịch tối đa ~0.068, tức `g ∈ [0.483, 0.517]`. Phép đo "g tăng khi tập đích
+co lại" khi đó vô nghĩa ngay từ gốc, và sẽ tốn cả khối GPU để ra một bảng toàn 0.500. Đã sửa bằng
+nhóm tham số riêng và một phép kiểm **tái hiện đúng lỗi đó**.
+
+## 8.5. Đảo nguồn/đích — Pha 1 đặt một SÀN, không phải "giúp nhiều hơn khi đích yếu"
+
+Sáu cặp: nguồn Python → đích JavaScript ở ba cỡ (`4cwe` 812, `com` 1 384, `full` 1 556), hai
+backbone, 1 fold, AdamW trần.
+
+| đích | backbone | baseline ROC | **chuyển giao ROC** | ΔROC |
+|---|---|---|---|---|
+| `com` | t5p | 0.3946 | 0.5563 | +0.1617 |
+| `4cwe` | t5p | 0.4686 | 0.6425 | +0.1739 |
+| `full` | codebert | 0.4747 | 0.5901 | +0.1154 |
+| `com` | codebert | 0.4866 | 0.5791 | +0.0925 |
+| `4cwe` | codebert | 0.4927 | 0.6536 | +0.1609 |
+| **`full`** | **t5p** | **0.5375** | 0.5237 | **−0.0138** |
+
+Cặp cuối là cặp **duy nhất** có baseline trên mức ngẫu nhiên, và cũng là cặp **duy nhất** Δ âm.
+Nhìn qua thì đây là bằng chứng đẹp cho §40.
+
+**Nhưng nó không phải, và chỗ này suýt thành một kết luận sai.** Spearman(baseline, Δ) = −0.771
+nghe rất thuyết phục, nhưng `Δ = T − B` nên Δ **chứa `−B` theo định nghĩa**: tương quan âm sinh
+ra từ chính phép trừ. Mô phỏng 20 000 lần với `T`, `B` **độc lập hoàn toàn** (cùng trung bình, SD,
+n=6) cho khoảng 90% là **[−0.949, −0.038]**. Đo được −0.708 **nằm gọn bên trong**.
+
+Điều đo được **thật** thì khác, và tốt hơn:
+
+| | min | max | biên độ |
+|---|---|---|---|
+| baseline | 0.3946 | 0.5375 | 0.1428 |
+| **chuyển giao** | 0.5237 | 0.6536 | 0.1299 |
+
+Spearman(baseline, **chuyển giao**) = **−0.086** — điểm của nhánh chuyển giao gần như **không liên
+quan** tới việc baseline làm tốt hay tệ. Phát biểu đúng là:
+
+> **Pha 1 nguồn Python đặt một SÀN dưới đích JavaScript.** Nhánh chuyển giao rơi vào dải
+> 0.52–0.65 bất kể đích là `4cwe`, `com` hay `full`, trong khi baseline dao động 0.39–0.54.
+
+Đây là phát biểu về **phương sai**, không phải **trung bình**, nên phép trừ không làm hỏng được.
+Và nó **không động tới §40**: §40 đổi **cỡ tập train** trong **cùng** bộ dữ liệu, ghép cặp trong
+cùng fold, cả hai nhánh nhận **cùng** tập con vì cùng seed — đó là **can thiệp có kiểm soát**,
+không phải tương quan cắt ngang.
+
+## 8.6. GPU đi đâu tiếp, và vì sao
+
+Luật leo bậc đòi một nhánh dương trên **cả bốn** chỉ số **và** lặp trên **cả hai** backbone.
+Tính đến 11/09, **chỉ §40 qua được**: đường cong Δ theo cỡ tập train đích, đơn điệu chặt trên cả
+hai backbone ở n=5. Và seed 7 đã **lặp lại** trên codebert (ROC +0.0139 → **+0.1777**, 5/5 fold ở
+N=76). Mọi can thiệp cơ chế khác — `lp3`, `rh`, `fd1`, `fd10`, ASAM theo nguồn, cân bằng lớp, và
+nay cổng 8 chiều — đều **tách theo backbone**.
+
+Nên GPU đổ vào **leo §40 lên n=15** (`run/seed15.sh`), không đổ vào cơ chế thứ sáu.
+
+Gộp seed 42 và seed 7 trên codebert:
+
+| N | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| 456 | +0.0463 **10/10** | +0.0126 **5/10** | **−0.0084** 3/10 |
+| 76 | +0.1346 **10/10** | +0.1859 **10/10** | +0.1821 **10/10** |
+
+Đọc được ngay: **ở dữ liệu đầy đủ phương pháp chỉ đổi ngưỡng quyết định, không đổi thứ hạng.**
+ROC là đồng xu (5/10) và PR **âm**. Ở N=76 thì cả bốn chỉ số 10/10. Nghĩa là *"dương trên cả bốn
+chỉ số"* **tự nó** cũng là hiện tượng dữ liệu-ít — đừng viết thành "thắng ở mọi cỡ dữ liệu".
+
+## 8.7. Hai lỗi công cụ đã sửa (cả hai đều im lặng)
+
+**`tools/tsize_report.py` khoá ô theo `(backbone, N, fold)` — thiếu seed.** Ba seed đè lên nhau,
+bảng vẫn in bình thường, không báo gì. Sửa xong: **40 → 50 ô ghép cặp**, đúng 10 ô đã bị nuốt.
+Cơ chế hỏng này khác với cơ chế "ô lẻ bị bỏ và báo rõ" ở CLAUDE.md mục 2b — cái đó chặn ô **thiếu
+đối chứng**, không chặn ô bị **ghi đè**.
+
+**`tools/bridge_report.py` in bảng hai lần khi đối chứng là `baseline`**, người đọc dễ tưởng là
+hai khối khác nhau. Và **`tools/report2.py` không nạp `baseline`** (nó chỉ quét `transfer_*`), nên
+so chuyển giao với baseline bằng nó sẽ ra "không ghép được cặp nào".
