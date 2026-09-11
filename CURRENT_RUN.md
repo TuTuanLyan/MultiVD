@@ -1,32 +1,46 @@
-# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 09:55 UTC)
+# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 11:05 UTC)
 
-## Đang chạy: leo §40 lên **bậc 3 (n = 5 fold × 3 seed = 15)**
+## Đang chạy trên cả ba máy: leo §40 lên **bậc 3 (n = 5 fold × 3 seed = 15)**
 
-| máy | việc | trạng thái |
+| máy | việc | tiến độ |
 |---|---|---|
-| **161** codebert | seed 7 (N=228,152) rồi seed 1234 (cả bốn N) | **ĐANG CHỜ VRAM** — `cuongtm` chiếm ~8 GB, NHƯỜNG đúng luật |
-| **158** t5p | seed 7 fold 1–3, rồi seed 1234 cả 5 fold (tự huấn luyện Pha 1) | đang chạy `sz456` fold 1 |
-| **vast 50570168** | `auxb` Pha 2 (8/24) rồi t5p seed 7 fold 4–5 | đang chạy, chuỗi nối đã đặt |
+| **161** codebert | seed 7 (N=228,152) rồi seed 1234 (cả bốn N) | 49 ô |
+| **158** t5p | seed 7 fold 1–3, rồi seed 1234 cả 5 fold (tự huấn luyện Pha 1) | 49 ô |
+| **vast 50570168** `ntat` | t5p seed 7 fold 4–5, cả bốn N | 1/16 ô |
 
 **Vì sao khối này**: luật leo bậc đòi dương trên **cả bốn** chỉ số VÀ lặp trên **cả hai** backbone.
-Tính đến 11/09, **chỉ §40 qua được**. Và seed 7 đã lặp lại trên codebert: ROC Δ +0.0139 (N=456) →
-**+0.1777 (N=76), 5/5 fold**. Mọi can thiệp cơ chế khác đều tách theo backbone.
+Tính đến 11/09, **chỉ §40 qua được**, và seed 7 đã lặp lại trên codebert (ROC Δ +0.0139 ở N=456 →
+**+0.1777 ở N=76, 5/5 fold**).
 
-**Nhuỵ phải nêu khi đọc** (thấy ở cả seed 42 lẫn seed 7): ở N=456 PR-AUC của codebert **âm**
-(−0.0087 và −0.0081). "Dương trên cả bốn chỉ số" tự nó cũng là hiện tượng dữ liệu-ít.
+Đọc bằng `python3 tools/tsize_report.py` — nó có bảng **tách theo seed**, và khoá ô đã được sửa để
+có seed (trước đây ba seed đè lên nhau, nuốt mất 10 ô).
 
-## MẢNH 2 (cổng 8 chiều) — **DỪNG**, đã bác trên cả hai backbone
+## ĐÃ XONG — khối `auxb` (18 ô), và nó ĐÓNG LẠI mạch head phụ
 
-`records/prediction_2026-09-11_nut_that_8_chieu.md` + FACTS §44. Nút thắt 8 chiều **thua PCA ở cả
-bốn checkpoint**; trên t5p nó ở mức ngẫu nhiên (0.5210, dưới ngưỡng bác thẳng 0.55). Và làm cho
-head phụ học được (t5p macro-F1 0.2000 → 0.5996) **không** làm nút thắt hữu ích hơn (0.5057 →
-0.5210). `run/gate3.sh` **không phóng**. Mã `--phase2_gate` + 12 phép kiểm giữ lại, mặc định TẮT.
+Ba nhánh cùng cây cùng fold cùng phiên: `baseline`, `unbal` (Pha 1 thường), `bal` (Pha 1 cân bằng
+lớp). Kết quả ở FACTS §43, §44, §45.
+
+| phép đo | kết quả |
+|---|---|
+| §43 — làm head phụ **học được** | được trên t5p (macro-F1 0.2000 → **0.5996**), hỏng trên codebert |
+| §44 — nút thắt 8 chiều có phải **biểu diễn** | **không**: thua PCA ở cả bốn checkpoint, ngang chiếu ngẫu nhiên |
+| §45 — head giỏi hơn có làm **mô hình** tốt hơn | **không**: ΔROC +0.0040 / +0.0079, trong sàn nhiễu 0.010 |
+
+**Chất lượng head phụ không phải một đòn bẩy.** Giá trị đo được của nó vẫn đúng như mục 7 ghi từ
+31/08 — **chống sập Pha 1** — và chỉ thế.
+
+Kèm một giới hạn phương pháp luận phải nhớ: **probe trên đặc trưng đóng băng KHÔNG dự báo được
+dấu** của một thay đổi Pha 1 sau fine-tune (§45 — t5p probe nói −0.0287, đo thật +0.0079). §36 và
+§44 chỉ phát biểu về **đặc trưng đóng băng**, không suy sang mô hình đã fine-tune.
+
+## MẢNH 2 (cổng 8 chiều) — **DỪNG**, bác trên cả hai backbone
+
+`run/gate3.sh` **không phóng**. Mã `--phase2_gate` + 12 phép kiểm giữ lại, mặc định TẮT.
 
 ## Ô TRỐNG cần lấp
 
-`results/rev1full_codebert/.../r0p1/fold1` — **OOM** lúc 09:39 vì `cuongtm` nở VRAM giữa chừng
-(GPU còn 3 MiB trống). Nhánh ASAM của đích `js_full` trên codebert vì thế còn thiếu. Không chặn gì;
-lấp khi có máy rảnh.
+`results/rev1full_codebert/.../r0p1/fold1` — OOM lúc 09:39 vì `cuongtm` nở VRAM giữa chừng.
+Nhánh ASAM của đích `js_full` trên codebert còn thiếu. Không chặn gì; lấp khi có máy rảnh.
 
 ---
 
