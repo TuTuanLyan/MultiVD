@@ -3990,3 +3990,60 @@ là đơn điệu chặt trên cả hai backbone.
 > +0.19 / +0.10 ROC-AUC với **10/10** ô cùng dấu trên cả hai họ backbone.
 
 Seed 1234 đang chạy để lên n=15. Bậc hiện tại: **n=10 ô mỗi mức, 2 seed × 5 fold**.
+
+---
+
+## §41.3 — Đảo chiều ở **n=3 fold**: dương trên CẢ BỐN chỉ số, **3/3 fold**, CẢ HAI backbone. Và ASAM cải thiện **thứ hạng** lần thứ năm (11/09)
+
+Nguồn **Python** → đích **JavaScript `js_4cwe`** (812 dòng, chia 486/162/164). Fold 1 chạy trên
+161/158 hôm trước, fold 2–3 chạy trên vast `50570168`. Seed 42. Pha 1 nguồn Python **dùng lại**,
+không huấn luyện lại (`PHASE1_TAG` tách khỏi `ARM_TAG`).
+
+### Δ so với baseline, ghép cặp theo fold
+
+| backbone | nhánh | ΔF1@0.5 | ΔF1@val | **ΔROC-AUC** | ΔPR-AUC |
+|---|---|---|---|---|---|
+| codebert | `plain` (AdamW trần) | +0.0648 **3/3** | +0.0834 **3/3** | **+0.1127 3/3** | +0.1098 **3/3** |
+| codebert | ASAM+RecAdam ρ=0.1 | +0.0813 **3/3** | +0.0933 **3/3** | **+0.1400 3/3** | +0.1436 **3/3** |
+| t5p | `plain` | +0.1338 **3/3** | +0.1220 **3/3** | **+0.1756 3/3** | +0.1536 **3/3** |
+| t5p | ASAM+RecAdam ρ=2.0 | +0.1297 **3/3** | +0.1366 **3/3** | **+0.2066 3/3** | +0.1868 **3/3** |
+
+**12/12 ô dương, cả bốn chỉ số, cả hai backbone, cả hai optimizer.** Theo luật leo bậc thì nhánh
+này **đủ điều kiện lên n=5** — nhưng `data/js_4cwe_folds` **chỉ có 3 fold**, nên muốn lên n=5
+phải dựng thêm fold 4–5 trước. Ghi ra đây để lần sau khỏi tưởng là đã bỏ sót.
+
+### Trị tuyệt đối — và vì sao vẫn phải đọc theo kiểu "SÀN"
+
+| backbone | baseline | `plain` | ASAM |
+|---|---|---|---|
+| codebert | **0.5119** | 0.6247 | 0.6520 |
+| t5p | **0.4223** | 0.5979 | 0.6288 |
+
+Baseline JS vẫn ở (codebert) hoặc **dưới** (t5p) mức ngẫu nhiên, đúng như §41.1/§41.2 đã đo ở
+n=1. Nên phát biểu vẫn là **"Pha 1 nguồn Python đặt một SÀN dưới đích JavaScript"**, không phải
+"thắng một baseline đang chạy được". Số fold cùng dấu giờ là 3/3 thay vì 1/1, nhưng bản chất phép
+đo không đổi.
+
+### ASAM so TRỰC TIẾP với `plain` trong cùng fold — lần thứ NĂM cùng một mẫu hình
+
+| backbone | ΔF1@0.5 | ΔF1@val | **ΔROC-AUC** | **ΔPR-AUC** |
+|---|---|---|---|---|
+| codebert | +0.0165 2/3 | +0.0099 2/3 | **+0.0273 2/3** | **+0.0339 2/3** |
+| t5p | **−0.0041 1/3** | +0.0146 2/3 | **+0.0310 3/3** | **+0.0332 3/3** |
+
+Đây là khối đầu tiên trong dự án mà ASAM **dương trên CẢ HAI chỉ số thứ hạng, trên CẢ HAI
+backbone, trong cùng một khối**. Và F1@0.5 thì lệch: 2/3 trên codebert, **1/3 và âm** trên t5p.
+
+Trùng khít điều CLAUDE.md mục 2b đã rút ra từ 190 ô: **ASAM cải thiện THỨ HẠNG ĐIỂM, không cải
+thiện QUYẾT ĐỊNH Ở NGƯỠNG 0.5.** Danh sách lần lặp: khối C/D (2026-08), đo lại 190 ô (08/09),
+§39 (theo nguồn), §41.1 (đảo chiều n=1, 3/4 cặp), và nay §41.3. **Năm lần, không lần nào ngược.**
+
+Đây là phát biểu **âm về F1 và dương về AUC** — phải viết cả hai vế, vì chính việc chỉ đọc F1 đã
+giữ kết luận "ASAM null" sai suốt ba tuần.
+
+### Vì sao đảo chiều đáng nằm trong bài
+
+Mọi số khác của dự án đo **một chiều** (C/C++ + JS → Python). Nếu hiệu ứng là tính chất của
+**phương pháp** thì đảo chiều vẫn phải thấy; nếu là tính chất của riêng cặp (nguồn này, đích này)
+thì đảo chiều sẽ tắt. Nó **không tắt**: 12/12 ô dương. Trước §41.3 chưa phép đo nào của dự án
+phân biệt được hai khả năng đó.
