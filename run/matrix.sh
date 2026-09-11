@@ -337,9 +337,14 @@ run_fold() {
     fi
     local CK="model/$RN/baseline/seed_$SEED/fold$FOLD"; mkdir -p "$CK"
     echo "=== $(date -u '+%F %T') | fold $FOLD | $LABEL baseline ==="
+    # BASELINE_EXTRA: co truyen them CHO RIENG nhanh doi chung, song song voi PHASE2_EXTRA.
+    # Mac dinh RONG => duong chay cu khong doi mot byte. Can cho moi khoi ma doi chung phai
+    # nhan CUNG mot can thiep voi nhanh chinh — vi du quet co tap train (--max_train_samples):
+    # neu chi nhanh chuyen giao bi cat du lieu thi phep so doi HAI bien, khong con doc duoc.
     $PYTHON -u src/train_baseline.py --phase train \
       --run_name "$RN" --method_name baseline --fold "$FOLD" \
       --epochs "$PHASE2_EPOCHS" --learning_rate "$LR" --checkpoint_path "$CK/best.pt" \
+      ${BASELINE_EXTRA:-} \
       $(shared_args "$MODEL" "$POOL") >> "$JOBLOG/${LABEL}_baseline_fold${FOLD}.log" 2>&1 \
       && $PYTHON -u src/train_baseline.py --phase infer \
         --run_name "$RN" --method_name baseline --fold "$FOLD" \
