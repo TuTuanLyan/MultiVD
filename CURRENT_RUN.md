@@ -1,40 +1,32 @@
-# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 09:35 UTC)
+# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 09:55 UTC)
 
-| máy | khối | trạng thái |
+## Đang chạy: leo §40 lên **bậc 3 (n = 5 fold × 3 seed = 15)**
+
+| máy | việc | trạng thái |
 |---|---|---|
-| **161** `flink-jm` A4000 | `rev1full` codebert (đảo nguồn Python→JS, đích `js_full`) | đang chạy baseline |
-| **158** `flink-tm` A4000 | `rev1full` t5p | đang chạy nhánh chuyển giao, 1/3 ô |
-| **vast 50570168** RTX 5060 Ti, $0.0818/h | `auxb` Pha 2 (GPU) + `latent_probe` (CPU) | cả hai đang chạy |
+| **161** codebert | seed 7 (N=228,152) rồi seed 1234 (cả bốn N) | **ĐANG CHỜ VRAM** — `cuongtm` chiếm ~8 GB, NHƯỜNG đúng luật |
+| **158** t5p | seed 7 fold 1–3, rồi seed 1234 cả 5 fold (tự huấn luyện Pha 1) | đang chạy `sz456` fold 1 |
+| **vast 50570168** | `auxb` Pha 2 (8/24) rồi t5p seed 7 fold 4–5 | đang chạy, chuỗi nối đã đặt |
 
-## Đã xong đêm nay
+**Vì sao khối này**: luật leo bậc đòi dương trên **cả bốn** chỉ số VÀ lặp trên **cả hai** backbone.
+Tính đến 11/09, **chỉ §40 qua được**. Và seed 7 đã lặp lại trên codebert: ROC Δ +0.0139 (N=456) →
+**+0.1777 (N=76), 5/5 fold**. Mọi can thiệp cơ chế khác đều tách theo backbone.
 
-**§43 — cổng mảnh 1, head phụ cân bằng lớp.** `--aux_class_balanced` làm head **học được trên
-t5p** (macro-F1 0.2000 → **0.5996**, gấp ba sàn, dùng cả 4 lớp) và **hỏng trên codebert**
-(0.1917 < sàn 0.2000). Mẫu hình "mọi can thiệp tách theo backbone" lặp **lần thứ năm**.
+**Nhuỵ phải nêu khi đọc** (thấy ở cả seed 42 lẫn seed 7): ở N=456 PR-AUC của codebert **âm**
+(−0.0087 và −0.0081). "Dương trên cả bốn chỉ số" tự nó cũng là hiện tượng dữ liệu-ít.
 
-**Nút thắt 8 chiều, codebert, đủ 5 fold — BÁC dự đoán đã khai báo trước.**
-`lat8` ROC 0.6586 có tín hiệu, nhưng **không hơn chiếu ngẫu nhiên** (+0.0083, 3/5) và **thua
-PCA-8** (−0.0259, **0/5**). Trên codebert `latent_proj` chỉ là giảm chiều, và kém hơn cách giảm
-chiều tầm thường nhất. Khai báo trước ở `records/prediction_2026-09-11_nut_that_8_chieu.md`.
-Đang chờ t5p — đó mới là backbone head thật sự học được.
+## MẢNH 2 (cổng 8 chiều) — **DỪNG**, đã bác trên cả hai backbone
 
-**§41.1 — đảo chiều, đích JS `common`.** 8/8 ô dương, ΔROC +0.09 đến +0.21. Nhưng **mọi baseline
-JS đều ở hoặc dưới mức ngẫu nhiên** (0.3946 đến 0.4927), nên Δ đo *"Pha 1 cứu được một đích không
-tự học nổi"*, không phải *"thắng một baseline đang chạy được"*.
+`records/prediction_2026-09-11_nut_that_8_chieu.md` + FACTS §44. Nút thắt 8 chiều **thua PCA ở cả
+bốn checkpoint**; trên t5p nó ở mức ngẫu nhiên (0.5210, dưới ngưỡng bác thẳng 0.55). Và làm cho
+head phụ học được (t5p macro-F1 0.2000 → 0.5996) **không** làm nút thắt hữu ích hơn (0.5057 →
+0.5210). `run/gate3.sh` **không phóng**. Mã `--phase2_gate` + 12 phép kiểm giữ lại, mặc định TẮT.
 
-**§42 — ba lỗi xếp chồng khi dựng vast**, lỗi đắt nhất là `pip install transformers` trần kéo về
-5.17.0 thay vì bản ghim 4.57.1.
+## Ô TRỐNG cần lấp
 
-## Mảnh 2 — ĐÃ VIẾT XONG MÃ, **CHƯA PHÓNG**
-
-Đường quyết định kép có cổng: `logit = (1−g)·W₇₆₈·f + g·W₈·P(f)`, `P` = `latent_proj` đóng băng.
-Cờ: `--phase2_gate {off,scalar,input}`, `--phase2_gate_alpha`, `--phase2_gate_init`,
-`--phase2_gate_proj {learned,random}`. `tests/test_latent_gate.py` 10/10, mọi phép hai chiều.
-Mặc định `off` ⇒ đường cũ từng byte; bộ kiểm cũ 5/5 file vẫn đạt.
-
-**`--phase2_gate_proj random` là đối chứng BẮT BUỘC**, không phải tuỳ chọn: nếu cổng chạy ngang
-nhau ở hai chế độ thì cơ chế là *"một nhánh ít tham số"*, không phải *"neo vào bảng phân loại của
-nguồn"* — hai phát biểu khác hẳn về độ mới.
+`results/rev1full_codebert/.../r0p1/fold1` — **OOM** lúc 09:39 vì `cuongtm` nở VRAM giữa chừng
+(GPU còn 3 MiB trống). Nhánh ASAM của đích `js_full` trên codebert vì thế còn thiếu. Không chặn gì;
+lấp khi có máy rảnh.
 
 ---
 
