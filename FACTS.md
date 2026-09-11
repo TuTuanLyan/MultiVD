@@ -3890,3 +3890,49 @@ Nguyên nhân: tôi tạo file đó **sau** lần `rsync scripts/`, và phép đ
 `src`, `run`, `tools` — **không phủ `scripts`**. Lỗi chỉ lộ ra 50 phút sau, lúc chuỗi chạy tới.
 Mất 10:46:48 → 10:54:08 ≈ **7 phút** máy tính tiền. **Bài học: đối chiếu phải phủ MỌI thư mục mà
 chuỗi sẽ chạm tới, không chỉ những thư mục mình nhớ ra.**
+
+---
+
+## §40.3 — Hai seed, hai backbone: ở dữ liệu ĐẦY ĐỦ hiệu ứng thứ hạng là **ĐÚNG MỘT ĐỒNG XU** (11/09, **n=10 ô ghép cặp mỗi đầu mút**; seed 1234 đang chạy)
+
+Seed 42 và seed 7, 5 fold mỗi seed, hai đầu mút đã **đủ** trên cả hai backbone (các mức N giữa
+còn đang chạy). Δ ghép cặp trong cùng ô:
+
+| backbone | N | F1@0.5 | F1@val | **ROC-AUC** | PR-AUC |
+|---|---|---|---|---|---|
+| codebert | 456 | +0.0463 **10/10** | +0.0458 **10/10** | +0.0126 **5/10** | **−0.0084 3/10** |
+| codebert | 76 | +0.1346 **10/10** | +0.1378 **10/10** | **+0.1859 10/10** | **+0.1821 10/10** |
+| t5p | 456 | +0.0126 7/10 | +0.0079 6/10 | +0.0056 **5/10** | +0.0091 6/10 |
+| t5p | 76 | +0.0755 9/10 | +0.0742 9/10 | **+0.1008 10/10** | **+0.0766 10/10** |
+
+### Phát biểu, và nó chặt hơn §40 cũ
+
+> **Ở dữ liệu đích đầy đủ, phương pháp đổi NGƯỠNG QUYẾT ĐỊNH chứ không đổi THỨ HẠNG.**
+> ROC-AUC ở N=456 là **5/10 trên codebert và 5/10 trên t5p** — đúng một đồng xu, ở cả hai họ
+> backbone, qua hai seed độc lập. PR-AUC của codebert còn **âm** (−0.0084, 3/10). Trong khi
+> F1@0.5 là **10/10** trên codebert.
+>
+> **Ở N=76, nó đổi tất cả**: ROC-AUC và PR-AUC đều **10/10** trên **cả hai** backbone.
+
+§40 cũ nói "lợi ích tăng đơn điệu khi đích co lại" — đúng, nhưng nói nhẹ. Với hai seed thì thấy
+được điều mạnh hơn: ở đầu mút lớn hiệu ứng thứ hạng **không nhỏ dần, mà bằng không**, và đó là
+kết luận rút từ **20 ô** (2 backbone × 2 seed × 5 fold), không phải từ một trung bình.
+
+### Vì sao một seed không đủ để thấy điều này
+
+Tách theo seed ở N=456, ROC-AUC:
+
+| backbone | seed 7 | seed 42 |
+|---|---|---|
+| codebert | +0.0139 **2/5** | +0.0114 **3/5** |
+| t5p | **−0.0060 1/5** | **+0.0173 4/5** |
+
+Trên t5p hai seed **đổi dấu nhau**: seed 42 cho 4/5 dương (nhìn như một hiệu ứng thật), seed 7 cho
+1/5 (nhìn như hiệu ứng ngược). Gộp lại mới ra 5/10. **Một seed ở n=5 không phân biệt được
+"hiệu ứng nhỏ" với "không có hiệu ứng"** — đây là ca cụ thể nhất của bài học đó trong dự án.
+
+Ở N=76 thì ngược lại, hai seed trùng khít: codebert +0.1777 (5/5) và +0.1940 (5/5); t5p +0.1013
+(5/5) và +0.1003 (5/5). Sai khác giữa hai seed ở t5p là **0.0010**, tức mười lần nhỏ hơn sàn nhiễu.
+
+**Cách viết vào bài**: đừng viết "phương pháp thắng ở mọi cỡ dữ liệu". Viết rằng lợi ích **về thứ
+hạng** là một hiện tượng **dữ liệu-ít**, và ở dữ liệu đầy đủ cái còn lại chỉ là hiệu chỉnh ngưỡng.
