@@ -4047,3 +4047,72 @@ Mọi số khác của dự án đo **một chiều** (C/C++ + JS → Python). N
 **phương pháp** thì đảo chiều vẫn phải thấy; nếu là tính chất của riêng cặp (nguồn này, đích này)
 thì đảo chiều sẽ tắt. Nó **không tắt**: 12/12 ô dương. Trước §41.3 chưa phép đo nào của dự án
 phân biệt được hai khả năng đó.
+
+---
+
+## §40.5 — **BẬC 3 (n = 15 = 5 fold × 3 seed), XONG TRỌN VẸN**: lợi ích về THỨ HẠNG là hiện tượng dữ liệu-ít, và ở dữ liệu đầy đủ nó BẰNG KHÔNG (11/09, 120 ô ghép cặp)
+
+Đây là con số **đưa vào bài**, không phải sàng lọc. Seed 42 / 7 / 1234, 5 fold mỗi seed, bốn mức
+N, hai backbone. **24/24 ô đủ cả 5 fold ghép cặp; 0 job hỏng.** Chạy trên 161 (codebert),
+158 (t5p) và vast `50570168` (t5p seed 7 fold 4–5).
+
+### codebert
+
+| N | F1@0.5 | F1@val | **ROC-AUC** | PR-AUC |
+|---|---|---|---|---|
+| 456 | +0.0442 **15/15** p=0.000 | +0.0466 **15/15** p=0.000 | +0.0127 **8/15** p=1.000 | **+0.0002 5/15** |
+| 228 | +0.0375 13/15 p=0.007 | +0.0451 14/15 p=0.001 | **+0.0354 15/15** p=0.000 | +0.0257 11/15 |
+| 152 | +0.0844 13/15 p=0.007 | +0.0783 12/15 p=0.035 | **+0.0922 13/15** p=0.007 | +0.0769 11/15 |
+| 76 | +0.1344 **14/14** p=0.000 | +0.1388 **14/14** p=0.000 | **+0.1849 14/14** p=0.000 | +0.1786 **14/14** p=0.000 |
+
+### t5p
+
+| N | F1@0.5 | F1@val | **ROC-AUC** | PR-AUC |
+|---|---|---|---|---|
+| 456 | +0.0229 12/15 p=0.035 | +0.0185 11/15 | +0.0094 **8/15** p=1.000 | +0.0101 9/15 |
+| 228 | +0.0523 14/15 p=0.001 | +0.0500 13/15 p=0.007 | **+0.0504 13/15** p=0.007 | +0.0537 11/15 |
+| 152 | +0.0710 12/14 p=0.013 | +0.0792 12/14 p=0.013 | **+0.1069 12/14** p=0.013 | +0.1135 12/14 p=0.013 |
+| 76 | +0.0884 13/14 p=0.002 | +0.0832 13/14 p=0.002 | **+0.1188 14/14** p=0.000 | +0.0955 **14/14** p=0.000 |
+
+### Ba phát biểu, cả ba giữ trên CẢ HAI backbone ở n=15
+
+**1. ROC-AUC đơn điệu chặt qua cả bốn mức, không một chỗ lùi.**
+codebert **+0.0127 → +0.0354 → +0.0922 → +0.1849**; t5p **+0.0094 → +0.0504 → +0.1069 → +0.1188**.
+
+**2. Ở dữ liệu đích ĐẦY ĐỦ, hiệu ứng thứ hạng BẰNG KHÔNG — không phải "nhỏ".**
+ROC-AUC ở N=456 là **8/15 trên cả hai backbone**, p=1.000 cả hai. PR-AUC của codebert là
+**+0.0002 với 5/15** — bằng không tới bốn chữ số. Trong khi F1@0.5 là **15/15, p=0.000**.
+Tức ở dữ liệu đầy đủ phương pháp **chỉ dời NGƯỠNG QUYẾT ĐỊNH, không đổi THỨ HẠNG**.
+
+**3. Ở N=76, nó đổi tất cả**: cả bốn chỉ số **14/14, p=0.000** trên **cả hai** backbone.
+
+### Ba seed độc lập nói cùng một chuyện (ROC-AUC, tách theo seed)
+
+| backbone | N | seed 7 | seed 42 | seed 1234 |
+|---|---|---|---|---|
+| codebert | 456 | +0.0139 **2/5** | +0.0114 **3/5** | +0.0129 **3/5** |
+| codebert | 76 | +0.1777 5/5 | +0.1940 5/5 | +0.1824 4/4 |
+| t5p | 456 | **−0.0060 1/5** | +0.0173 4/5 | +0.0170 3/5 |
+| t5p | 76 | +0.1013 5/5 | +0.1003 5/5 | +0.1638 4/4 |
+
+Ở N=456 ba seed cho 2/5, 3/5, 3/5 (codebert) và 1/5, 4/5, 3/5 (t5p) — **đồng xu**, và trên t5p
+seed 7 còn **đổi dấu**. Ở N=76 thì cả ba seed 5/5 hoặc 4/4 trên cả hai backbone. **Một seed ở
+n=5 không phân biệt được "hiệu ứng nhỏ" với "không có hiệu ứng"**; ba seed thì phân biệt được.
+
+### Ba ô bị LOẠI, theo đúng ngưỡng khai báo trước
+
+`baseline F1@0.5 < 0.40` (khai báo ở `records/prediction_2026-09-11_duong_cong_co_dich.md`):
+`t5p N=152 seed 1234 fold 4`, `codebert N=76 seed 1234 fold 4`, `t5p N=76 seed 1234 fold 3`.
+Cả ba đều là baseline **sập** ở N nhỏ — đúng trường hợp cổng này sinh ra để bắt. Vì thế vài ô
+ghi n=14 thay vì 15. **Không sửa ngưỡng hồi tố.**
+
+### Cách viết vào bài — và cái KHÔNG được viết
+
+> Lợi ích của chuyển giao đa ngôn ngữ **về mặt thứ hạng** là một hiện tượng **dữ liệu-ít**. Ở dữ
+> liệu đích đầy đủ nó **bằng không** (ROC-AUC 8/15 ô cùng dấu trên cả hai backbone, PR-AUC
+> +0.0002); cái còn lại chỉ là hiệu chỉnh **ngưỡng quyết định** (F1@0.5 15/15). Khi tập đích co
+> xuống 1/6, nó thành **+0.185 / +0.119 ROC-AUC** với **14/14** ô cùng dấu trên cả hai họ backbone.
+
+**KHÔNG được viết** "phương pháp thắng ở mọi cỡ dữ liệu" — số nói ngược. Và **không được** chỉ
+báo F1: chính việc chỉ đọc F1 sẽ khiến N=456 nhìn như một thắng lợi 15/15 p=0.000, trong khi
+thứ hạng không đổi chút nào.
