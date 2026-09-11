@@ -127,7 +127,44 @@ của bài.
 
 Ngưỡng **+0.02** và **4/5 fold** **không sửa** sau khi thấy số.
 
-### Còn chờ: t5p
+## KẾT QUẢ ĐẦY ĐỦ — bốn checkpoint (điền 09:45 UTC 11/09)
+
+ROC-AUC, trung bình 5 fold. Cột "macro-F1 head" lấy từ §43.
+
+| checkpoint | macro-F1 head | `p768` | **`lat8`** | `rnd8` | `pca8` |
+|---|---|---|---|---|---|
+| codebert cân bằng | 0.1917 | 0.7827 | **0.6586** | 0.6504 | 0.6845 |
+| codebert không cân bằng | 0.2000 (1 lớp) | 0.7700 | **0.6702** | 0.6603 | 0.6778 |
+| **t5p cân bằng** | **0.5996** | 0.6118 | **0.5210** | 0.5076 | 0.5540 |
+| t5p không cân bằng | 0.2000 (1 lớp) | 0.6405 | **0.5057** | 0.5164 | 0.5280 |
+
+Δ ghép cặp theo fold, ROC-AUC:
+
+| checkpoint | `lat8 − rnd8` | `lat8 − pca8` |
+|---|---|---|
+| codebert cân bằng | +0.0083 **3/5** | **−0.0259 0/5** |
+| codebert không cân bằng | +0.0099 **2/5** | −0.0076 1/5 |
+| t5p cân bằng | +0.0134 **3/5** | **−0.0330 1/5** |
+| t5p không cân bằng | **−0.0107** 3/5 | −0.0223 1/5 |
+
+### KẾT: BÁC trên CẢ HAI backbone. Mảnh 2 DỪNG.
+
+* **Không checkpoint nào** đạt ngưỡng `lat8 − rnd8 ≥ +0.02` và ≥ 4/5 fold. Cao nhất +0.0134 ở 3/5.
+* **`lat8` thua `pca8` ở cả bốn.** PCA trên chính đặc trưng ấy luôn nén tốt hơn nút thắt đã học.
+* **Trên t5p, `lat8` = 0.5210 và 0.5057, DƯỚI ngưỡng bác thẳng 0.55.** Nhánh quyết định thứ hai
+  ở t5p sẽ là nhiễu thuần.
+* **Câu hỏi trực tiếp nhất — "làm cho head phụ học có làm nút thắt hữu ích hơn không?" — trả lời
+  là KHÔNG.** t5p: head 0.2000 → **0.5996** (gấp ba sàn) mà `lat8` chỉ 0.5057 → 0.5210. codebert:
+  head **tệ đi** 0.2000 → 0.1917 và `lat8` cũng nhích xuống 0.6702 → 0.6586. Hai đại lượng **không
+  liên quan**.
+
+Hệ quả đã ghi **trước khi đo** được áp dụng nguyên văn: cơ chế **không được viết là "neo vào bảng
+phân loại của nguồn"**. Kèm ngưỡng bác thẳng ở t5p và luật leo bậc, khối `run/gate3.sh` **không
+được phóng**. Mã và 12 phép kiểm giữ lại, mặc định TẮT.
+
+GPU chuyển sang §40 (`run/seed15.sh`) — thứ **duy nhất** qua được cổng leo bậc.
+
+### (phần cũ) Còn chờ: t5p
 
 Trên codebert head phụ **không học được** (macro-F1 0.1917 < sàn 0.2000, §43), nên việc
 `latent_proj` của nó vô dụng là điều **dễ đoán** và chưa phân định được gì. Trên **t5p** head phụ
