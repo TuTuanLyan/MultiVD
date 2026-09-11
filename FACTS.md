@@ -3577,3 +3577,63 @@ chứa chuỗi đó**, nên `pgrep -f` khớp shell đang chạy lệnh của m�
 **không một dòng nào**. Cách chữa dùng được: đưa script qua **stdin** (`ssh host 'bash -s' <<'EOF'`)
 — nội dung khi đó không nằm trên `argv` của shell từ xa nên không thể tự khớp. Lá chắn phụ:
 bỏ qua mọi PID nằm trong cây tổ tiên của `$$`.
+
+---
+
+## §43 — Head phụ CÂN BẰNG LỚP: cứu được trên t5p, **hỏng thêm** trên codebert (11/09, val 96 hàng, seed 42)
+
+§30.2 đo được head phụ chỉ đoán **một lớp**. Nguyên nhân giả định: cross-entropy tràn trên nguồn
+`4cwe` lệch 74% về CWE-79 (692/930 dòng), λ chỉ 0.05. Can thiệp: **trọng số nghịch tần suất,
+chuẩn hoá về trung bình 1** (`--aux_class_balanced`) — tổng độ lớn loss **không đổi** nên λ vẫn so
+sánh được với mọi khối cũ, chỉ **phân bổ lại** giữa các lớp. Pha 1 huấn luyện lại từ đầu cho cả
+hai backbone trên vast `50570168`.
+
+| checkpoint | độ chính xác | **macro-F1** | số lớp head dùng | val nhị phân |
+|---|---|---|---|---|
+| **codebert** cân bằng | 0.2500 | **0.1917** | **4/4** | 0.6870 (ep 8) |
+| codebert không cân bằng | 0.6667 | 0.2000 | 1/4 | 0.6532 (ep 6) |
+| **t5p** cân bằng | 0.6458 | **0.5996** | **4/4** | 0.6875 (ep 7) |
+| t5p không cân bằng | 0.6667 | 0.2000 | 1/4 | 0.6976 (ep 6) |
+| sàn đoán-lớp-đa-số | 0.6667 | 0.2000 | 1 | |
+| sàn đoán ngẫu nhiên | 0.4870 | — | | |
+
+**Đọc được ba điều, và điều thứ ba là điều quan trọng.**
+
+**1. §30.2 giờ đã đo trên CẢ HAI backbone, không phải một.** Không cân bằng thì cả codebert lẫn
+t5p đều cho **đúng** 0.6667 / 0.2000 và dùng **đúng một lớp** — trùng khít sàn đoán-lớp-đa-số tới
+từng chữ số. Đây không còn là quan sát trên một backbone nữa.
+
+**2. Trên t5p, can thiệp THÀNH CÔNG rõ ràng.** macro-F1 từ 0.2000 lên **0.5996** — gấp **ba lần**
+sàn — trong khi độ chính xác chỉ tụt 0.0209 dưới sàn. Đó đúng là đánh đổi mà cân bằng lớp phải
+tạo ra: bỏ một ít độ chính xác trên lớp đa số để lấy lại recall của lớp hiếm. Và val **nhị phân**
+gần như không đổi (0.6976 → 0.6875), nên head học được không phải trả bằng nhiệm vụ chính.
+
+**3. Trên codebert, can thiệp HỎNG, và hỏng theo một kiểu đáng ghi.** macro-F1 **0.1917 < 0.2000**
+và độ chính xác **0.2500 < 0.4870**, tức **dưới cả sàn ngẫu nhiên**. Nhưng nó không phải là "không
+học gì": tách theo lớp thì CWE-022 đúng **8/10 = 80%** (ngẫu nhiên là 25%), CWE-089 đúng 33%, còn
+lớp đa số CWE-079 chỉ 21.88% và CWE-078 **0/16**. Head đổi lớp đa số lấy lớp hiếm — quá tay. Điều
+trớ trêu: val **nhị phân** lại TĂNG (0.6532 → 0.6870), nên nhìn từ nhiệm vụ chính thì can thiệp
+này có vẻ tốt lên.
+
+### Mẫu hình §38.2 lặp lại LẦN THỨ NĂM
+
+Danh sách các can thiệp thắng ở một backbone và thua ở backbone kia giờ là: `lp3`, `rh`, `fd1`,
+`fd10`, ASAM theo nguồn (§39), và nay `--aux_class_balanced`. **Không có một can thiệp nào** trong
+toàn dự án dương trên cả hai họ backbone ở cùng một cấu hình. Đây đã là phát biểu mạnh nhất mà
+dữ liệu hiện có cho phép, và nó là một phát biểu **âm**.
+
+### Cổng mảnh 1: KẾT QUẢ TÁCH ĐÔI
+
+Cổng khai báo trước (`scripts/vast_auxb_run.sh`): *"head phải VƯỢT sàn đoán-lớp-đa-số và dùng >1
+lớp"*. **t5p ĐẠT** (macro-F1 gấp 3 sàn, 4 lớp). **codebert TRƯỢT** (dưới sàn ở cả hai chỉ số).
+
+Theo luật leo bậc (một nhánh chỉ lên bậc khi lặp trên **cả hai** backbone), cổng này **không mở
+đường** cho mảnh 2 ở dạng "định tuyến qua `cwe_head`".
+
+**Nhưng cổng đó đo sai thứ cho mảnh 2 như đã cài đặt.** Mảnh 2 không dùng `cwe_head`: nó đóng
+băng `latent_proj` (768→8) rồi đặt một head nhị phân **MỚI** lên đầu ra 8 chiều, huấn luyện trên
+nhãn lỗ hổng của **đích**. Câu hỏi quyết định vì thế là *"ảnh 8 chiều còn tách được lỗ hổng tuyến
+tính không, và có hơn một phép chiếu 8 chiều NGẪU NHIÊN không"* — khác hẳn. Phép đo đó đã được
+**khai báo trước** ở `records/prediction_2026-09-11_nut_that_8_chieu.md` và chạy bằng
+`tools/latent_probe.py` (0 GPU). Ghi rõ ở đây rằng cổng cũ đã trượt trên codebert **trước** khi
+đo cái mới, để không ai đọc thành dời cột gôn.
