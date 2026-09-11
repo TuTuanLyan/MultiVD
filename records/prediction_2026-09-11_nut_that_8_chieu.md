@@ -82,6 +82,55 @@ xuống 8 chiều mà vẫn bằng 768 chiều thì bài toán này quá dễ v�
 
 ---
 
-## KẾT QUẢ
+## KẾT QUẢ — codebert, đủ 5 fold (điền 09:35 UTC 11/09)
 
-(chưa điền)
+Checkpoint: `model/auxb/phase1/codebert__latent_bottleneck_4cwe_l0p05_bal` (bản CÂN BẰNG LỚP).
+Đặc trưng đóng băng, 760 dòng Python, logistic regression, `C` chọn trên val.
+
+| bộ đặc trưng | F1@0.5 | **ROC-AUC** | PR-AUC |
+|---|---|---|---|
+| `p768` | 0.7198 | **0.7827** | 0.7766 |
+| `lat8` | 0.6103 | **0.6586** | 0.6748 |
+| `rnd8` | 0.5992 | **0.6504** | 0.6884 |
+| `pca8` | 0.6272 | **0.6845** | 0.6852 |
+
+Δ **ghép cặp theo fold**:
+
+| phép so | ΔF1 | +/n | **ΔROC** | +/n | ΔPR | +/n |
+|---|---|---|---|---|---|---|
+| `lat8 − rnd8` | +0.0111 | 3/5 | **+0.0083** | **3/5** | −0.0136 | 0/5 |
+| `lat8 − pca8` | −0.0170 | 2/5 | **−0.0259** | **0/5** | −0.0104 | 2/5 |
+| `lat8 − p768` | −0.1095 | 0/5 | −0.1241 | 0/5 | −0.1018 | 0/5 |
+| `rnd8 − p768` | −0.1206 | 0/5 | −0.1324 | 0/5 | −0.0883 | 0/5 |
+
+### Đối chiếu với từng dự đoán
+
+| dự đoán | ngưỡng khai báo trước | đo được | kết |
+|---|---|---|---|
+| **A** `lat8` ROC ≥ 0.60 | 0.60 | 0.6586 | **ĐÚNG** |
+| **A** `lat8` trong 0.05 của `p768` | 0.05 | cách **0.1241** | **SAI** |
+| **B** `lat8` > `rnd8`, Δ ≥ +0.02 và ≥ 4/5 fold | +0.02 / 4-5 | +0.0083 / **3/5** | **BÁC** |
+| **B** `lat8` > `pca8`, Δ ≥ +0.02 và ≥ 4/5 fold | +0.02 / 4-5 | **−0.0259** / **0/5** | **BÁC** |
+| **C** `rnd8` kém rõ rệt `p768` | — | −0.1324, 0/5 | **ĐÚNG** |
+
+### Đọc
+
+Nút thắt 8 chiều **có** giữ tín hiệu dùng được (ROC 0.659, trên hẳn ngưỡng bác thẳng 0.55), nên
+nhánh thứ hai của mảnh 2 sẽ không nằm chết. **Nhưng nó không hơn một phép chiếu ngẫu nhiên** — và
+nó **thua** PCA-8 ở **0/5 fold**. Tức là trên codebert, `latent_proj` chỉ là *giảm chiều*, và là
+một phép giảm chiều **kém hơn** cách giảm chiều tầm thường nhất.
+
+**Hệ quả đã khai báo trước, và giữ nguyên**: mảnh 2 vẫn có thể làm điểm số đẹp lên, nhưng trên
+codebert nó **không được viết là "neo vào bảng phân loại của nguồn"**. Phải viết là *"một nhánh
+ít tham số làm chính quy hoá"* — một phát biểu yếu hơn hẳn, và không đủ mới để làm điểm tựa
+của bài.
+
+Ngưỡng **+0.02** và **4/5 fold** **không sửa** sau khi thấy số.
+
+### Còn chờ: t5p
+
+Trên codebert head phụ **không học được** (macro-F1 0.1917 < sàn 0.2000, §43), nên việc
+`latent_proj` của nó vô dụng là điều **dễ đoán** và chưa phân định được gì. Trên **t5p** head phụ
+**có** học (macro-F1 0.5996 = gấp ba sàn). Nếu câu chuyện "neo vào nguồn" đúng ở đâu thì phải
+đúng ở đó. Đang chạy, kèm hai đối chứng "head KHÔNG học" (`_4cwe_l0p05` không cân bằng) trên cả
+hai backbone, để trả lời trực tiếp: **làm cho head học có làm nút thắt hữu ích hơn không?**

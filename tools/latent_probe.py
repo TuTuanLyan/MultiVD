@@ -132,7 +132,9 @@ def main():
 
     F = L = None
     if a.cache and os.path.exists(a.cache):
-        z = np.load(a.cache)
+        # allow_pickle: khoa la chuoi ma nguon nen numpy luu dang object. File nay do chinh
+        # script sinh ra trong thu muc ket qua cua du an, khong phai dau vao tu ngoai.
+        z = np.load(a.cache, allow_pickle=True)
         if len(z["keys"]) == len(keys) and list(z["keys"]) == keys:
             F, L = z["F"], z["L"]
             print(f"# dung lai bo dem {a.cache}", flush=True)
