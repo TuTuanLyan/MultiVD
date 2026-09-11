@@ -3274,3 +3274,85 @@ dưới sàn nhiễu 0.010**. Phát biểu trung thực là về **quyết đị
 **thứ hạng**. Thứ mạnh và lặp lại là **per-CWE**: CWE-022 +0.3677 (45/45) và CWE-079 +0.3500
 (45/45) trên codebert; +0.2204 (43/45) và +0.2209 (42/45) trên t5p. CWE-078 và CWE-089 null ở
 **mọi** phép đo, và chúng chiếm **121 trên 152** hàng test.
+
+---
+
+## §40 — ĐƯỜNG CONG THEO CỠ TẬP TRAIN ĐÍCH: lợi ích transfer TĂNG MẠNH khi dữ liệu đích co lại (11/09, **kiểm chứng n=3, seed 42**)
+
+Phép kiểm khai báo trước ở `records/prediction_2026-09-11_duong_cong_co_dich.md` (03:05 UTC,
+viết **trước khi chạy một ô nào**). Cắt ngẫu nhiên tập train Python xuống N = 228 / 152 / 76,
+**giữ nguyên val và test**; chạy **cả** nhánh chuyển giao **lẫn** baseline ở cùng N với cùng seed
+nên **cùng một tập con**. N = 456 lấy từ khối `bridge3`. 36 ô mới + 6 ô cũ = 42 ô ghép cặp.
+
+### Δ (chuyển giao − baseline), ghép cặp TRONG cùng ô
+
+| backbone | N | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| **codebert** | 456 | +0.0309 3/3 | +0.0344 3/3 | +0.0150 2/3 | +0.0029 2/3 |
+| | 228 | +0.0415 3/3 | +0.0460 3/3 | +0.0453 3/3 | +0.0334 2/3 |
+| | 152 | +0.0882 3/3 | +0.0875 3/3 | +0.0816 3/3 | +0.0584 2/3 |
+| | **76** | **+0.1608 3/3** | **+0.1606 3/3** | **+0.1761 3/3** | **+0.1622 3/3** |
+| **t5p** | 456 | +0.0397 3/3 | +0.0241 3/3 | +0.0183 2/3 | +0.0090 2/3 |
+| | 228 | +0.0523 3/3 | +0.0365 3/3 | +0.0347 3/3 | **−0.0146** 1/3 |
+| | 152 | **+0.0102** 2/3 | +0.0194 2/3 | +0.0307 2/3 | +0.0381 2/3 |
+| | **76** | **+0.0810 3/3** | **+0.0931 3/3** | **+0.1184 3/3** | **+0.0888 3/3** |
+
+### Kết quả của phép kiểm — ghi cả phần SAI
+
+**Dự đoán 1 (Δ tăng đơn điệu khi N giảm, trên CẢ HAI backbone): ĐÚNG MỘT NỬA.**
+- codebert: **đơn điệu chặt trên cả bốn chỉ số**, không một chỗ lùi. ROC đi từ +0.0150 lên
+  +0.1761 — **gấp 11,7 lần**, và cả bốn chỉ số đều 3/3 fold ở N=76.
+- t5p: **KHÔNG đơn điệu** — F1 tụt ở N=152 (+0.0102), PR âm ở N=228 (−0.0146).
+- Nhưng dạng **hai đầu mút** thì đúng ở cả hai: Δ tại N=76 lớn hơn hẳn Δ tại N=456 trên cả bốn
+  chỉ số, và đều **3/3 fold**.
+
+**Dự đoán 2 (CWE-078 phải đạt ΔROC ≥ +0.10 tại N=152): BỊ BÁC.**
+codebert +0.025 (2/3), t5p **−0.065 (0/3)**. Ngưỡng +0.10 khai báo trước, **không sửa**.
+
+**Dự đoán 3 (CWE-022 và 079 giữ lợi ích ở mọi N): ĐÚNG.** Dương ở cả 8 ô (2 backbone × 4 N).
+
+### ΔROC-AUC theo CWE — cột trong ngoặc là SỐ HÀNG TRAIN của lớp đó tại N
+
+| bb | N | 022 | 078 | 079 | 089 |
+|---|---|---|---|---|---|
+| codebert | 456 | +0.234 3/3 [40] | −0.002 2/3 [124] | +0.098 3/3 [47] | +0.019 2/3 [245] |
+| | 228 | +0.364 3/3 [19] | +0.044 3/3 [60] | +0.154 2/3 [23] | +0.017 3/3 [126] |
+| | 152 | +0.265 3/3 [9] | +0.025 2/3 [37] | +0.195 3/3 [15] | **+0.095 3/3** [91] |
+| | 76 | +0.160 3/3 [7] | +0.088 2/3 [18] | +0.185 3/3 [8] | **+0.174 3/3** [43] |
+| t5p | 456 | +0.141 2/3 [40] | −0.043 0/3 [124] | +0.249 3/3 [47] | +0.006 3/3 [245] |
+| | 228 | +0.129 2/3 [19] | +0.001 2/3 [60] | +0.380 3/3 [23] | +0.003 1/3 [126] |
+| | 152 | +0.045 2/3 [9] | −0.065 0/3 [37] | +0.227 3/3 [15] | +0.018 1/3 [91] |
+| | 76 | +0.158 3/3 [7] | **+0.176 3/3** [18] | +0.270 3/3 [8] | +0.063 3/3 [43] |
+
+**Ngưỡng đáp ứng KHÁC NHAU theo từng CWE, không phải một con số hàng train chung:**
+
+| CWE | đáp ứng từ khoảng | ghi chú |
+|---|---|---|
+| 022, 079 | **≥ 40 hàng** (tức ngay ở dữ liệu đầy đủ) | dương ở cả 8 ô |
+| 089 | ~**43–91 hàng** | codebert rõ (+0.095 rồi +0.174, 3/3); t5p yếu hơn |
+| **078** | **~18 hàng** — muộn nhất | t5p nhảy từ −0.065 lên **+0.176 (3/3)** giữa N=152 và N=76 |
+
+CWE-078 là lớp **khó giúp nhất ở mọi mức**, dù nó **không** phải lớp nhiều hàng train nhất — và
+đúng nó là lớp mà §36 đo được đặc trưng Pha 1 cải thiện **mạnh nhất** (+0.199 ROC, 5/5, codebert).
+Nghịch lý §36 giờ có **bốn** điểm dữ liệu thay vì một, và nó **không** giải thích được bằng số
+hàng train.
+
+### CẢNH BÁO — ngưỡng loại ô tôi đặt trước đã QUÁ LỎNG
+
+Trị tuyệt đối ở N=76: codebert baseline 0.5599 F1 / 0.6040 ROC (yếu nhưng trên ngẫu nhiên);
+**t5p baseline 0.4907 F1 / 0.4815 ROC — ĐÚNG mức ngẫu nhiên**. Ngưỡng loại khai báo trước là
+`baseline F1@0.5 < 0.40`, mà macro-F1 của một bộ phân loại ngẫu nhiên trên tập cân bằng là
+**~0.49 chứ không phải 0.33**, nên cổng không bắt được. **Không sửa ngưỡng sau khi thấy số**;
+thay vào đó ghi rõ: ô `t5p`/`N=76` phải đọc là *"chuyển giao còn chạy được, baseline thì không"*,
+không phải một phép so có thang. Lần sau cổng phải đặt trên **ROC-AUC < 0.55**, không phải F1.
+
+### Ý nghĩa
+
+Con số đầu bài của dự án (+0.05 F1, ROC quanh sàn nhiễu ở 456 hàng) là **một điểm trên một đường
+cong**, và nó nằm ở chỗ **thoải nhất** của đường cong đó. Ở 76 hàng train — vẫn là chế độ thực tế
+cho một CWE mới hoặc một ngôn ngữ mới — lợi ích là **+0.16 F1 và +0.18 ROC trên codebert, 3/3
+fold**. Đây là cách biến một phát biểu yếu thành một chế độ được đặc tả, **mà không cần phát minh
+thêm phương pháp nào**.
+
+Đang leo lên **n=5** (fold 4, 5) cho cả bốn mức N và cả hai backbone.
+Đọc bằng `python3 tools/tsize_report.py`.

@@ -64,3 +64,23 @@ lợi ở **N=76**. Cụ thể: ΔROC-AUC của CWE-078 tại N=152 phải **≥
 * Chỉ cắt **train**. Val và test giữ nguyên 152 hàng — nếu cắt test thì Δ đổi cả thước đo.
 * Cả hai nhánh dùng **cùng seed** nên nhận **cùng tập con** (`limit_records` lấy mẫu ngẫu nhiên có
   seed, không thay thế). Nếu không thì phép so đổi hai biến.
+
+---
+
+## KẾT QUẢ (điền 04:35 UTC 11/09, sau khi đủ 4 mức × 2 backbone × 3 fold)
+
+| | codebert | t5p |
+|---|---|---|
+| **Dự đoán 1** đơn điệu | **ĐÚNG**, chặt trên cả bốn chỉ số | **SAI** (F1 tụt ở N=152, PR âm ở N=228) |
+| dạng hai đầu mút (N=76 > N=456) | ĐÚNG, cả bốn, 3/3 fold | ĐÚNG, cả bốn, 3/3 fold |
+| **Dự đoán 2** (078 ≥ +0.10 tại N=152) | **BÁC** (+0.025) | **BÁC** (−0.065, 0/3) |
+| **Dự đoán 3** (022/079 giữ lợi ích) | ĐÚNG | ĐÚNG |
+
+Ngưỡng +0.10 và cách phân mức **giữ nguyên**, không sửa sau khi thấy số.
+
+**Bài học về cổng đã đặt sai**: ngưỡng loại ô `baseline F1@0.5 < 0.40` **quá lỏng** — macro-F1 của
+bộ phân loại ngẫu nhiên trên tập cân bằng là ~0.49, nên ô `t5p`/`N=76` (baseline ROC 0.4815, đúng
+mức ngẫu nhiên) **không bị bắt**. Lần sau đặt cổng trên **ROC-AUC < 0.55**. Không sửa ngưỡng cũ
+hồi tố; chỉ ghi rõ cách đọc ô đó.
+
+Chi tiết đầy đủ ở FACTS §40.
