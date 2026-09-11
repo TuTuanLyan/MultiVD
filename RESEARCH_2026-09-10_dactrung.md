@@ -179,7 +179,74 @@ test/fold** nên biên độ không đáng tin; thứ đáng chú ý là 3/3 cù
 
 ---
 
-## 4. Khối `feat3` — ĐANG CHẠY, xong khoảng 19:00–19:30 UTC (02:00–02:30 sáng VN)
+## 4. Khối `feat3` + `lpft3` — **ĐÃ XONG** (66 ô, n=3, xong 20:39 UTC)
+
+> Kết quả đầy đủ ở FACTS §38 / §38.1 / §38.2 / §38.3. Tóm tắt ở đây.
+
+### 4.0 Kết quả — KHÔNG nhánh nào đủ điều kiện leo n=5
+
+9 nhánh × 2 backbone × 3 fold. Đánh ✓ khi **dương cả bốn** chỉ số so với `plain` cùng fold:
+
+| nhánh | loại can thiệp | codebert | t5p |
+|---|---|---|---|
+| `lp3` (`--lp_epochs 3`) | **giữ** — fit head trên backbone đóng băng | **✓** +0.0283 F1 3/3, +0.0204 ROC 3/3 | ✗ |
+| `fd1` (neo đặc trưng β=1) | **giữ** | **✓** +0.0110 / +0.0066 | ✗ (−0.0351 ROC 0/3) |
+| `rp50` (replay nguồn) | **thêm** | ✗ | **✓** +0.0217 / +0.0122 |
+| `rhlp3` (reinit head + probe) | **thay** | ✗ | **✓** +0.0021 / +0.0147 ROC 3/3 |
+| `rh`, `cwe05`, `rpc`, `fd10`, `fd10rh` | — | ✗ | ✗ |
+
+**Không nhánh nào ✓ ở cả hai backbone**, nên theo luật leo bậc đêm nay không cái nào lên n=5.
+
+### 4.1 Hai điều đáng giữ
+
+1. **Biến thể thắng trên codebert KHÔNG phải LP-FT sách giáo khoa.** `lp3` giữ head Pha 1 rồi
+   tinh chỉnh; `rhlp3` khởi tạo lại head rồi probe — đúng công thức Kumar et al. ICLR 2022 — và nó
+   **null/âm** trên codebert. Head Pha 1, dù chỉ 0.537 F1 zero-shot, vẫn hơn ngẫu nhiên làm điểm
+   xuất phát cho bước probe. Đây là chỗ khác bài gốc, phải nêu rõ nếu viết.
+2. **Nhánh thắng tách theo LOẠI can thiệp, và §36 dự báo đúng chiều** (đo **trước** khi chạy):
+   codebert có đặc trưng chuyển giao mạnh ⇒ loại **giữ** thắng; t5p thì không ⇒ loại **thêm/thay**
+   thắng. Neo quá chặt (β=10) hại ở **cả hai**.
+
+### 4.2 Nhưng phép kiểm khai báo trước đã LÀM YẾU điều (2) — §38.3
+
+Đo Δ probe trên **cả 6 ô** (2 backbone × 3 nguồn), ngưỡng 0.06 **viết ra file trước khi đo**:
+
+| | 4cwe | com | full |
+|---|---|---|---|
+| codebert | +0.1125 5/5 | +0.0849 5/5 | +0.0849 5/5 |
+| t5p | +0.0202 3/5 | +0.0434 4/5 | +0.0122 3/5 |
+
+Ngưỡng tách **sạch** — nhưng tách theo **backbone**, không theo **nguồn**. Nghĩa là Δ probe gần
+như là **thuộc tính của backbone**, nên *"probe chọn can thiệp"* rút gọn thành *"backbone chọn can
+thiệp"*, mà ta chỉ có **hai** backbone. Hai điểm dữ liệu không dựng được quy tắc, và phép kiểm GPU
+mà §38.2 đề xuất **không chạy được như thiết kế**.
+
+Dự đoán của tôi cũng **sai một nửa**: `com`/`full` thấp hơn `4cwe` đúng trên codebert, sai trên t5p
+(`com` cao gấp đôi `4cwe`). **Val Pha 1 không dự báo được Δ probe.**
+
+### 4.3 Thiết kế 2×2 đã chạy — setting đầy đủ
+
+| | |
+|---|---|
+| **n** | 3 fold (1,2,3), seed 42, bậc 1 |
+| nhánh mới | `fd1` β=1 · `fd10` β=10 · `rh` · `fd10rh` · `lp3` · `rhlp3` |
+| quy mô | 6 nhánh × 3 fold × 2 backbone = 36 ô mới (+30 ô của `bridge3`) = **66 ô** |
+| đối chứng | `plain` + `baseline` dùng lại của `bridge3`, **cùng máy cùng fold cùng ngày cùng mã** |
+| máy | codebert trên 161, t5p trên 158; **0 vast suốt đêm** |
+| thời gian | 161: 17:01→19:33 · 158: 17:01→20:39 (158 mất 25 phút chờ VRAM khi bị chiếm) |
+
+### 4.4 Neo đặc trưng — cách cài (giữ lại vì mã đã có)
+
+Cộng **β·(1 − cos(f_θ(x), f_θ*(x)))** trên **input đích**, f_θ* là đặc trưng của chính mô hình
+Pha 1. Thầy đóng băng và input đích cố định ⇒ đặc trưng thầy không bao giờ đổi ⇒ tính sẵn một lần
+vào bộ đệm 456×768 (1.4 MB), tra theo chỉ số hàng: **0 VRAM thêm, 0 giây thêm mỗi bước**. Dùng
+cosine chứ không phải L2 vì cosine chỉ giữ **hướng** — đúng thứ linear probe dùng.
+
+Kiểm: `tests/test_feat_anchor.py`, 4 phép hai chiều. Phép đắt nhất là **địa chỉ hoá** bộ đệm —
+ghép sai hàng thì loss vẫn giảm, số vẫn đẹp, và phép neo âm thầm thành nhiễu. Đã kiểm bằng loader
+xáo trộn đối chiếu bảng tính thẳng: 0/37 hàng sai.
+
+## 4bis. (mục cũ, giữ để tra cứu) Khối `feat3` khi mới phóng
 
 Hai can thiệp **suy trực tiếp từ §36**, cả hai chưa từng chạy trong dự án.
 
