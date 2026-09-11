@@ -3637,3 +3637,58 @@ tính không, và có hơn một phép chiếu 8 chiều NGẪU NHIÊN không"* 
 **khai báo trước** ở `records/prediction_2026-09-11_nut_that_8_chieu.md` và chạy bằng
 `tools/latent_probe.py` (0 GPU). Ghi rõ ở đây rằng cổng cũ đã trượt trên codebert **trước** khi
 đo cái mới, để không ai đọc thành dời cột gôn.
+
+---
+
+## §41.1 — Đảo chiều, đích JS **common** (1 384 dòng): Δ dương cả 8 ô, nhưng **mọi baseline đều ở hoặc dưới mức ngẫu nhiên** (11/09, **n=1 fold — chỉ sàng lọc**)
+
+Người dùng 11/09: *"Thử với cái đảo source nhưng js có thêm full và common giúp tôi nhé"*, và
+*"so baseline là baseline của train js tương ứng nhé"* — nên đối chứng là baseline huấn luyện trên
+**đúng** tập JS đó, cùng máy cùng fold.
+
+Δ ghép cặp (chuyển giao − baseline), fold 1, seed 42:
+
+| đích | backbone | nhánh | ΔF1@0.5 | ΔF1@val | **ΔROC** | ΔPR |
+|---|---|---|---|---|---|---|
+| `js_4cwe` (812) | codebert | AdamW trần | +0.0657 | +0.0812 | **+0.1609** | +0.1205 |
+| | codebert | ASAM+RecAdam ρ=0.1 | +0.0067 | +0.0495 | +0.1438 | +0.1179 |
+| | t5p | AdamW trần | +0.1598 | +0.1657 | **+0.1739** | +0.1550 |
+| | t5p | ASAM+RecAdam ρ=2.0 | +0.1176 | +0.1611 | **+0.2137** | +0.2003 |
+| `js_com` (1 384) | codebert | AdamW trần | +0.0615 | +0.0648 | **+0.0925** | +0.0712 |
+| | codebert | ASAM+RecAdam ρ=0.1 | +0.0789 | +0.1078 | +0.1036 | +0.0636 |
+| | t5p | AdamW trần | +0.0881 | +0.1238 | **+0.1617** | +0.1324 |
+| | t5p | ASAM+RecAdam ρ=2.0 | +0.1731 | +0.1567 | **+0.1828** | +0.1482 |
+
+**8/8 ô dương trên cả bốn chỉ số.** Nhưng phải đọc kèm vế sau, nếu không là đọc sai:
+
+### Mọi baseline JS đều ở hoặc DƯỚI mức ngẫu nhiên
+
+| đích | backbone | baseline ROC | baseline F1@0.5 |
+|---|---|---|---|
+| `js_4cwe` | codebert | 0.4927 | 0.5285 |
+| `js_4cwe` | t5p | 0.4686 | 0.4553 |
+| `js_com` | codebert | 0.4866 | 0.4672 |
+| `js_com` | t5p | **0.3946** | 0.3935 |
+
+Ô cuối **dưới hẳn** mức ngẫu nhiên: mô hình phản tương quan với nhãn. Theo ngưỡng đã rút ra ở
+§40 (*"lần sau đặt cổng trên ROC-AUC < 0.55"*), **cả tám ô đều nằm dưới cổng đó**. Nghĩa là Δ ở
+đây đo **"Pha 1 cứu được một đích mà mô hình không tự học nổi"**, KHÔNG phải *"phương pháp thắng
+một baseline đang chạy được"*. Hai phát biểu đó khác nhau, và chỉ phát biểu thứ nhất có bằng chứng.
+
+### Điều đáng chú ý: ΔROC của codebert **CO LẠI** khi đích to hơn
+
+codebert: `4cwe` (812 dòng) **+0.1609** → `com` (1 384 dòng) **+0.0925**. Cùng hướng với §40
+(*lợi ích transfer tăng khi đích co lại*), và là lần đầu mẫu hình đó xuất hiện ở **chiều ngược**.
+Trên t5p thì gần như không đổi (+0.1739 → +0.1617), nên **chưa** lặp trên cả hai backbone.
+
+**Cảnh báo phải giữ**: `com` không chỉ *to hơn* `4cwe`, nó còn là một **phân phối khác** (94 CWE
+gộp thay vì 4 CWE). Đây không phải phép đo cỡ tập sạch như khối `tsize`. Ghi ra như một quan sát
+gợi ý, **không** phải bằng chứng.
+
+### ASAM: lần thứ TƯ cùng một mẫu hình
+
+ASAM+RecAdam ở ρ tốt nhất của từng backbone hơn AdamW trần về ROC ở **3/4** cặp
+(4cwe t5p +0.0398, com codebert +0.0111, com t5p +0.0211) và thua ở 1/4 (4cwe codebert −0.0171).
+Trùng hướng với §39 và với phép đo 190 ô ở CLAUDE.md mục 2b: **ASAM cải thiện thứ hạng điểm**.
+
+**n=1 fold. Chỉ sàng lọc, không viết vào bài.** `js_full` (1 556 dòng) đang chạy trên cả hai máy.
