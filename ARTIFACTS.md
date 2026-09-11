@@ -220,3 +220,24 @@ vững**: CWE-022 và CWE-079 dương **41–45/45 fold ở cả bốn phép đo
 Có thêm bảng **ổn định theo seed** và bộ lọc seed trong bảng đầy đủ.
 
 Dựng bằng `tools/chot_export.py`. Số đầy đủ ở FACTS §34, §35, §35.1, §35.2; quy tắc hoà ở §34.1.
+
+## Cái gì thật sự chuyển giao — khối đêm 10→11/09/2026
+
+<https://claude.ai/code/artifact/182de9f4-7dd6-48fe-aff7-faf94f8f6fc2>
+
+Báo cáo **đầy đủ** của khối đêm 10→11/09: phương pháp, setting, n, kết quả, kết luận.
+
+| phần | nội dung |
+|---|---|
+| §A | Phép đo cơ chế — linear probe trên đặc trưng đóng băng, 6 ô (2 backbone × 3 nguồn × 5 fold), zero-shot head, control task Hewitt & Liang, per-CWE |
+| §B | Chín can thiệp Pha 2 ở n=3 (66 ô) — mô tả từng nhánh kèm cờ dòng lệnh, bảng Δ đủ bốn chỉ số, có nút lọc backbone |
+| §C | Mẫu hình giữ/thay — **giả thuyết** |
+| §D | Phép kiểm khai báo trước — nó **làm yếu** giả thuyết ở §C, ghi cả phần dự đoán sai |
+| §E | Đối chiếu tài liệu: cái gì mới, cái gì không, ba cảnh báo (LP-FT kê đơn ngược; Mai et al. NeurIPS 2024; **trùng tên MultiVD SECRYPT 2024**) |
+| §F | Kết luận + bốn đề xuất chưa chạy |
+| §G | Cách tái lập, mã mới, phép kiểm đắt nhất |
+
+Số gốc: `FACTS.md` §36, §36.1, §37, §38, §38.1, §38.2, §38.3.
+Bản HTML lưu kèm ở `records/artifact_2026-09-11_chuyengiao.html`.
+
+---

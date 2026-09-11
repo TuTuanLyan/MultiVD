@@ -1,0 +1,685 @@
+<title>Cái gì thật sự chuyển giao</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#F5F7F9; --card:#FFFFFF; --ink:#131822; --ink-2:#2B3442; --muted:#5C6675;
+  --rule:#DBE1E8; --rule-2:#EDF0F4;
+  --accent:#1F5C7A; --accent-soft:#E8F0F4;
+  --pos:#126B62; --pos-soft:#E3F1EE;
+  --neg:#A8422C; --neg-soft:#FAEAE5;
+  --warn:#816213; --warn-soft:#F7F0DC;
+  --on-accent:#FFFFFF;
+  --shadow:0 1px 2px rgba(19,24,34,.05), 0 8px 24px -16px rgba(19,24,34,.25);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#10141B; --card:#161B24; --ink:#E9EDF2; --ink-2:#C3CBD6; --muted:#8A94A3;
+    --rule:#2A323E; --rule-2:#1E242E;
+    --accent:#7FBEDC; --accent-soft:#17242C;
+    --pos:#5FC9B8; --pos-soft:#122622;
+    --neg:#E38B72; --neg-soft:#2A1912;
+    --warn:#D9B45C; --warn-soft:#241D0E;
+    --on-accent:#10141B;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#10141B; --card:#161B24; --ink:#E9EDF2; --ink-2:#C3CBD6; --muted:#8A94A3;
+  --rule:#2A323E; --rule-2:#1E242E;
+  --accent:#7FBEDC; --accent-soft:#17242C;
+  --pos:#5FC9B8; --pos-soft:#122622;
+  --neg:#E38B72; --neg-soft:#2A1912;
+  --warn:#D9B45C; --warn-soft:#241D0E;
+  --on-accent:#10141B;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  font-size:16.5px; line-height:1.62; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:960px; margin:0 auto; padding:0 24px 96px}
+.prose{max-width:68ch}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:1px solid var(--rule);
+  background:linear-gradient(180deg,var(--card) 0%,var(--paper) 100%);
+  padding:56px 0 0;
+}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent); margin:0 0 14px;
+}
+h1{
+  font-family:"Instrument Serif",Georgia,serif; font-weight:400;
+  font-size:clamp(40px,6.4vw,66px); line-height:1.02; letter-spacing:-.012em;
+  margin:0 0 18px; text-wrap:balance; color:var(--ink);
+}
+h1 em{font-style:italic; color:var(--accent)}
+.dek{font-size:19px; color:var(--ink-2); max-width:60ch; margin:0 0 30px}
+
+.vitals{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  gap:1px; background:var(--rule); border:1px solid var(--rule);
+  border-radius:3px; overflow:hidden; margin:0 0 40px;
+}
+.vital{background:var(--card); padding:13px 15px}
+.vital dt{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 5px;
+}
+.vital dd{
+  margin:0; font-family:"IBM Plex Mono",monospace; font-weight:600;
+  font-size:19px; font-variant-numeric:tabular-nums; color:var(--ink);
+}
+.vital dd small{font-size:12px; font-weight:400; color:var(--muted); letter-spacing:0}
+
+/* ---------- status chips ---------- */
+.chip{
+  display:inline-flex; align-items:center; gap:6px; vertical-align:middle;
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase;
+  padding:3px 9px; border-radius:2px; white-space:nowrap;
+}
+.chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor}
+.chip.measured{background:var(--pos-soft); color:var(--pos)}
+.chip.hypo{background:var(--warn-soft); color:var(--warn)}
+.chip.weak{background:var(--neg-soft); color:var(--neg)}
+.chip.dead{background:var(--rule-2); color:var(--muted)}
+
+/* ---------- sections ---------- */
+section{padding-top:52px}
+h2{
+  font-family:"Instrument Serif",Georgia,serif; font-weight:400;
+  font-size:clamp(27px,3.6vw,38px); line-height:1.14; letter-spacing:-.008em;
+  margin:0 0 6px; text-wrap:balance;
+}
+h2 .num{
+  font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600;
+  color:var(--accent); letter-spacing:.1em; display:block; margin-bottom:9px;
+}
+h3{
+  font-size:15.5px; font-weight:700; letter-spacing:.005em; margin:34px 0 9px; color:var(--ink);
+}
+h4{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  margin:26px 0 9px;
+}
+p{margin:0 0 15px}
+a{color:var(--accent)}
+strong{font-weight:700}
+code,.mono{font-family:"IBM Plex Mono",monospace; font-size:.88em}
+code{background:var(--rule-2); padding:1px 5px; border-radius:2px; color:var(--ink-2)}
+.lede{font-size:18px; color:var(--ink-2)}
+
+hr.rule{border:0; border-top:1px solid var(--rule); margin:52px 0 0}
+
+/* ---------- callouts ---------- */
+.callout{
+  background:var(--card); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  border-radius:2px; padding:16px 20px; margin:22px 0; box-shadow:var(--shadow);
+}
+.callout.warn{border-left-color:var(--warn)}
+.callout.neg{border-left-color:var(--neg)}
+.callout > :last-child{margin-bottom:0}
+.callout h4{margin-top:0}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; margin:18px 0 8px; border:1px solid var(--rule); border-radius:3px; background:var(--card)}
+table{border-collapse:collapse; width:100%; font-size:14px}
+th,td{padding:8px 13px; text-align:left; border-bottom:1px solid var(--rule-2); white-space:nowrap}
+thead th{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+  background:var(--rule-2); border-bottom:1px solid var(--rule); position:sticky; top:0;
+}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.sep td{border-top:1px solid var(--rule)}
+td.n,th.n{text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+td.arm{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--ink)}
+td.arm small{display:block; font-family:"Source Sans 3",sans-serif; font-weight:400; font-size:11.5px; color:var(--muted); white-space:normal; max-width:26ch; letter-spacing:0}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.fold{font-size:11.5px; color:var(--muted); font-weight:400}
+tr.win td{background:var(--pos-soft)}
+tr.lose td{background:var(--neg-soft)}
+tr.ctl td{color:var(--muted); font-style:italic}
+caption{
+  caption-side:bottom; text-align:left; padding:9px 13px; font-size:12.5px;
+  color:var(--muted); border-top:1px solid var(--rule-2);
+}
+.tnote{font-size:13px; color:var(--muted); margin:0 0 22px}
+
+/* ---------- toggle ---------- */
+.toggle{display:flex; gap:0; margin:20px 0 4px; border:1px solid var(--rule); border-radius:3px; width:fit-content; overflow:hidden; background:var(--card)}
+.toggle button{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600;
+  letter-spacing:.06em; padding:7px 15px; border:0; background:transparent;
+  color:var(--muted); cursor:pointer; border-right:1px solid var(--rule);
+}
+.toggle button:last-child{border-right:0}
+.toggle button[aria-pressed="true"]{background:var(--accent); color:var(--on-accent)}
+.toggle button:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+
+/* ---------- method cards ---------- */
+.arms{display:grid; grid-template-columns:repeat(auto-fit,minmax(268px,1fr)); gap:14px; margin:22px 0}
+.arm-card{background:var(--card); border:1px solid var(--rule); border-radius:3px; padding:15px 17px}
+.arm-card .tag{
+  font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:14px; color:var(--accent);
+  display:block; margin-bottom:3px;
+}
+.arm-card .kind{
+  font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); display:block; margin-bottom:9px;
+}
+.arm-card p{font-size:14px; margin:0 0 8px; color:var(--ink-2)}
+.arm-card .flags{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted);
+  background:var(--rule-2); padding:6px 9px; border-radius:2px; word-break:break-all; line-height:1.5;
+}
+
+ul,ol{margin:0 0 15px; padding-left:22px}
+li{margin-bottom:7px}
+li::marker{color:var(--muted)}
+
+.kv{display:grid; grid-template-columns:auto 1fr; gap:4px 20px; font-size:14.5px; margin:14px 0 20px}
+.kv dt{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding-top:3px}
+.kv dd{margin:0}
+
+footer{border-top:1px solid var(--rule); margin-top:64px; padding-top:24px; font-size:13.5px; color:var(--muted)}
+@media (max-width:640px){
+  body{font-size:16px}
+  .wrap{padding:0 16px 64px}
+  header.top{padding-top:36px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">MultiVD · đêm 10→11/09/2026 · bậc 1 (kiểm chứng)</p>
+    <h1>Cái gì <em>thật sự</em> chuyển giao</h1>
+    <p class="dek">Pha 1 chỉ thấy C/C++ và JavaScript. Nó làm không gian đặc trưng của Python tách được tốt hơn hẳn — nhưng cái đầu ra nhị phân nó học được thì gần như vô dụng trên Python. Một đêm đo cơ chế, rồi thử chín can thiệp suy ra từ đó.</p>
+    <dl class="vitals">
+      <div class="vital"><dt>Ô GPU</dt><dd>66</dd></div>
+      <div class="vital"><dt>Ô probe</dt><dd>6 <small>0 GPU</small></dd></div>
+      <div class="vital"><dt>Nhánh Pha 2</dt><dd>9 <small>× 2 backbone</small></dd></div>
+      <div class="vital"><dt>n mỗi ô</dt><dd>3 <small>fold, seed 42</small></dd></div>
+      <div class="vital"><dt>Chi phí vast</dt><dd>$0.00</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============ TÓM TẮT ============ -->
+<section id="tomtat">
+  <h2><span class="num">§ 0</span>Ba điều rút ra</h2>
+  <div class="prose">
+
+  <h3><span class="chip measured">Đo được</span> &nbsp;Đặc trưng chuyển giao, hàm quyết định thì không</h3>
+  <p>Linear probe trên đặc trưng <strong>đóng băng</strong> của Pha 1 hơn probe trên backbone gốc <strong>+0.1125 ROC-AUC, cả năm fold</strong> (CodeBERT). Cùng checkpoint đó, dùng thẳng lớp đầu ra nhị phân của nó trên Python chỉ đạt <strong>0.537 macro-F1</strong> — xấp xỉ đoán bừa. Đây là câu trả lời trực tiếp cho phản biện <em>"chỉ là fine-tune hai lần"</em>: nếu Pha 1 chỉ là huấn luyện thêm thì cả hai thứ phải cùng chuyển giao.</p>
+
+  <h3><span class="chip hypo">Giả thuyết</span> &nbsp;Nhánh thắng tách theo <em>loại</em> can thiệp</h3>
+  <p>Chín can thiệp Pha 2, không cái nào thắng trên cả hai backbone. Nhưng dấu của chúng không ngẫu nhiên: CodeBERT (đặc trưng chuyển giao mạnh) thích can thiệp loại <strong>giữ</strong>; CodeT5+ (đặc trưng gần như không chuyển giao) thích loại <strong>thêm / thay</strong>. Phép đo cơ chế được thực hiện <strong>trước</strong> khi chạy và dự báo đúng chiều ở cả bốn nhánh có kết luận rõ.</p>
+
+  <h3><span class="chip weak">Yếu đi</span> &nbsp;Phép kiểm khai báo trước làm <em>giảm</em> sức mạnh của giả thuyết đó</h3>
+  <p>Đo probe trên đủ sáu ô (2 backbone × 3 nguồn), ngưỡng viết ra file trước khi nhìn số. Ngưỡng tách sạch — nhưng tách theo <strong>backbone</strong>, gần như không theo <strong>nguồn</strong>. Vậy <em>"probe chọn can thiệp"</em> rút gọn thành <em>"backbone chọn can thiệp"</em>, mà chỉ có hai backbone. Hai điểm dữ liệu không dựng được quy tắc.</p>
+
+  <div class="callout warn">
+    <h4>Đọc số ở bậc nào</h4>
+    <p>Toàn bộ khối này là <strong>bậc 1: n = 3 fold, seed 42</strong> — chỉ để <strong>sàng lọc</strong>, không để kết luận. Dự án này đã <strong>bốn lần</strong> thấy n=3 đổi dấu hoặc co lại ở n=5. Thứ đáng tin là <strong>số fold cùng dấu</strong>, không phải biên độ và càng không phải <span class="mono">p</span> — ở n=3 sàn của phép kiểm dấu là <span class="mono">p = 0.25</span>.</p>
+  </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHẦN A ============ -->
+<section id="probe">
+  <h2><span class="num">§ A</span>Phép đo cơ chế</h2>
+  <div class="prose">
+    <p class="lede">Suốt dự án, câu "chỉ có đặc trưng là chuyển được" được <strong>suy ra</strong> từ kết quả cuối. Chưa lần nào đo thẳng. Đây là lần đầu.</p>
+  </div>
+
+  <h3>Cách đo</h3>
+  <div class="prose">
+    <ol>
+      <li>Gộp cả năm fold của tập đích, khử trùng theo nội dung mã, còn <strong>760 dòng Python</strong> duy nhất.</li>
+      <li>Cho từng dòng chạy qua <strong>hai mô hình đóng băng hoàn toàn</strong> — backbone pretrained nguyên bản, và checkpoint Pha 1 — rồi lấy vector pooled <strong>trước dropout</strong> (CLS cho CodeBERT, mean-pool cho CodeT5+). Không cập nhật một tham số nào.</li>
+      <li>Mỗi fold: chuẩn hoá theo <strong>train</strong>, fit logistic regression trên 456 dòng train, chọn hệ số phạt trên <strong>val</strong> theo ROC-AUC (lưới 6 điểm 0.01–3.0), chấm trên 152 dòng test. Test không tham gia chọn bất cứ gì.</li>
+      <li>Δ ghép cặp theo fold. Thêm một cột riêng: <strong>zero-shot</strong> — áp thẳng lớp đầu ra của Pha 1 lên đặc trưng đó, không fit gì.</li>
+    </ol>
+  </div>
+
+  <dl class="kv">
+    <dt>n</dt><dd>5 fold, seed 42 — phép đo trên checkpoint đã có, không phải khối huấn luyện</dd>
+    <dt>Dữ liệu</dt><dd>760 dòng, chia 456 / 152 / 152 mỗi fold</dd>
+    <dt>Checkpoint</dt><dd><code>latent_bottleneck</code>, λ = 0.05, seed 42 — ba nguồn <code>4cwe</code> / <code>com</code> / <code>full</code></dd>
+    <dt>Chi phí</dt><dd>~45 phút CPU mỗi ô, <strong>0 GPU</strong></dd>
+  </dl>
+
+  <h3>Kết quả — sáu ô, 2 backbone × 3 nguồn</h3>
+  <div class="tw">
+  <table>
+    <caption>Δ = probe trên đặc trưng Pha 1 − probe trên backbone pretrained, ghép cặp theo fold. Nhóm theo ngưỡng 0.06 <strong>khai báo trước khi đo</strong>.</caption>
+    <thead><tr>
+      <th>Backbone</th><th>Nguồn</th><th class="n">ΔROC-AUC</th><th class="n">fold +</th><th class="n">ΔF1@0.5</th><th class="n">Độ chọn lọc</th><th>Nhóm</th>
+    </tr></thead>
+    <tbody>
+      <tr class="win"><td class="arm">codebert</td><td>4cwe</td><td class="n pos">+0.1125</td><td class="n">5/5</td><td class="n pos">+0.0849</td><td class="n">0.147 → 0.265</td><td>GIỮ</td></tr>
+      <tr class="win"><td class="arm">codebert</td><td>com</td><td class="n pos">+0.0849</td><td class="n">5/5</td><td class="n pos">+0.0506</td><td class="n">0.147 → 0.268</td><td>GIỮ</td></tr>
+      <tr class="win"><td class="arm">codebert</td><td>full</td><td class="n pos">+0.0849</td><td class="n">5/5</td><td class="n pos">+0.0486</td><td class="n">0.147 → 0.237</td><td>GIỮ</td></tr>
+      <tr class="sep"><td class="arm">t5p</td><td>4cwe</td><td class="n">+0.0202</td><td class="n">3/5</td><td class="n">+0.0198</td><td class="n">0.098 → 0.130</td><td>THÊM / THAY</td></tr>
+      <tr><td class="arm">t5p</td><td>com</td><td class="n">+0.0434</td><td class="n">4/5</td><td class="n">+0.0519</td><td class="n">0.098 → 0.137</td><td>THÊM / THAY</td></tr>
+      <tr><td class="arm">t5p</td><td>full</td><td class="n">+0.0122</td><td class="n">3/5</td><td class="n neg">−0.0150</td><td class="n">0.098 → 0.123</td><td>THÊM / THAY</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="tnote">Sàn nhiễu đo trên chính dự án: <strong>0.010</strong> khi chạy lại cùng cấu hình trên cùng loại GPU khác máy. Khoảng trống giữa hai nhóm là <strong>0.0415</strong> — rộng gấp bốn lần sàn đó.</p>
+
+  <h3>Và hàm quyết định thì không chuyển giao</h3>
+  <div class="tw">
+  <table>
+    <caption>Lớp đầu ra nhị phân của chính Pha 1, áp thẳng lên Python, không fit gì. Trung bình qua 5 fold, nguồn <code>4cwe</code>.</caption>
+    <thead><tr><th>Backbone</th><th class="n">F1@0.5</th><th class="n">dải qua 5 fold</th><th class="n">ROC-AUC</th></tr></thead>
+    <tbody>
+      <tr><td class="arm">codebert</td><td class="n">0.537</td><td class="n">0.488 – 0.591</td><td class="n">0.645</td></tr>
+      <tr><td class="arm">t5p</td><td class="n">0.503</td><td class="n">0.474 – 0.542</td><td class="n">0.545</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="tnote">t5p ở ROC 0.545 là xấp xỉ ngẫu nhiên, khớp với khối INT1 cũ (0.5205).</p>
+
+  <h3><span class="chip measured">Đo được</span> &nbsp;Control task: probe không tự học được tác vụ</h3>
+  <div class="prose">
+    <p>Phản biện chuẩn với mọi phép probe (Hewitt &amp; Liang, EMNLP 2019): <em>"probe của anh đủ mạnh để tự học tác vụ từ bất kỳ đặc trưng nào."</em> Cách chặn là chạy <strong>đúng probe đó</strong> trên <strong>nhãn xáo trộn cố định theo hàng</strong>, rồi báo <strong>độ chọn lọc</strong> = thật − ngẫu nhiên.</p>
+  </div>
+  <div class="tw">
+  <table>
+    <caption>Nguồn <code>4cwe</code>. Sàn ngẫu nhiên nằm ở 0.505–0.524 ở cả bốn ô: probe tuyến tính trên 456 dòng <strong>không</strong> thuộc lòng được nhãn ngẫu nhiên.</caption>
+    <thead><tr><th>Mô hình</th><th class="n">ROC thật</th><th class="n">ROC nhãn ngẫu nhiên</th><th class="n">Độ chọn lọc</th></tr></thead>
+    <tbody>
+      <tr><td class="arm">codebert pretrained</td><td class="n">0.6575</td><td class="n">0.5107</td><td class="n">0.1468</td></tr>
+      <tr class="win"><td class="arm">codebert Pha 1</td><td class="n">0.7700</td><td class="n">0.5047</td><td class="n pos"><strong>0.2652</strong></td></tr>
+      <tr class="sep"><td class="arm">t5p pretrained</td><td class="n">0.6222</td><td class="n">0.5240</td><td class="n">0.0981</td></tr>
+      <tr><td class="arm">t5p Pha 1</td><td class="n">0.6423</td><td class="n">0.5120</td><td class="n">0.1303</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="prose">
+    <p>Δ độ chọn lọc ≈ Δ ROC thô (CodeBERT +0.1184 so với +0.1125), vì sàn ngẫu nhiên gần như không nhúc nhích giữa hai mô hình. <strong>Con số đầu bài không đổi sau khi trừ sàn.</strong> Khoảng cách giữa hai backbone còn rộng ra gấp đôi khi tính bằng độ chọn lọc.</p>
+  </div>
+
+  <h3>Theo CWE: hai backbone học hai thứ khác nhau</h3>
+  <div class="tw">
+  <table>
+    <caption>ΔROC-AUC của linear probe, theo lớp CWE của hàng test. Nguồn <code>4cwe</code>, 5 fold.</caption>
+    <thead><tr><th>Backbone</th><th class="n">CWE-022</th><th class="n">CWE-078</th><th class="n">CWE-079</th><th class="n">CWE-089</th></tr></thead>
+    <tbody>
+      <tr><td class="arm">codebert</td><td class="n pos">+0.169 <span class="fold">5/5</span></td><td class="n pos">+0.199 <span class="fold">5/5</span></td><td class="n pos">+0.159 <span class="fold">5/5</span></td><td class="n">+0.046 <span class="fold">4/5</span></td></tr>
+      <tr><td class="arm">t5p</td><td class="n neg">−0.023 <span class="fold">2/5</span></td><td class="n">+0.027 <span class="fold">2/5</span></td><td class="n pos">+0.173 <span class="fold">5/5</span></td><td class="n neg">−0.017 <span class="fold">2/5</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="prose">
+    <p>Trên <strong>t5p, thứ duy nhất chuyển giao là CWE-079</strong> — đúng lớp chiếm <strong>74%</strong> nguồn <code>4cwe</code> (692 trên 930 dòng). Trên CodeBERT thì cả bốn lớp đều lên.</p>
+
+    <div class="callout">
+      <h4>Một nghịch lý chưa giải thích được</h4>
+      <p>CodeBERT được <strong>+0.199 ROC, 5/5 fold</strong> cho CWE-078 trong không gian đặc trưng. Nhưng end-to-end thì CWE-078 <strong>null ở mọi phép đo</strong>. Fine-tune Pha 2 <strong>không dùng</strong> phần đặc trưng đã tốt lên đó. Giả thuyết: 456 dòng train đủ để mô hình tự tìm lời giải riêng cho hai lớp lớn (078 có 40 hàng test, 089 có 82), nên lợi thế nguồn chỉ còn sống ở hai lớp hiếm. <strong>Chưa kiểm.</strong></p>
+    </div>
+
+    <div class="callout neg">
+      <h4>Bốn điều làm số này yếu đi — phải nêu khi viết</h4>
+      <ul>
+        <li><strong>Rò rỉ near-duplicate.</strong> Tập đích chia theo từng dòng nên ~40% hàng test có bản gần giống trong train. Cả hai vế của Δ đều chịu chung nên Δ ghép cặp vẫn hợp lệ, nhưng <strong>số tuyệt đối là lạc quan</strong>. Chưa tách nhóm rò rỉ cho phép đo này.</li>
+        <li><strong>Một seed.</strong> Mới đo seed 42.</li>
+        <li><strong>Chỉ tầng cuối.</strong> LDIFS (TMLR 2024) đo được neo chỉ-tầng-cuối kém hơn neo nhiều tầng. Chưa probe theo từng tầng.</li>
+        <li><strong>Linear probe là bộ phân loại yếu.</strong> CodeBERT: probe 0.66 → 0.77 ROC, còn fine-tune đầy đủ đạt 0.87 → 0.88. Hai con số đo hai thứ khác nhau, không mâu thuẫn. Giá trị của phép đo này <strong>không phải biên độ</strong> mà là nó chứng minh thông tin <em>nằm sẵn</em> trong đặc trưng.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHẦN B ============ -->
+<section id="canthiep">
+  <h2><span class="num">§ B</span>Chín can thiệp Pha 2</h2>
+  <div class="prose">
+    <p class="lede">Bốn khối trước đã đóng hẳn trục <strong>không gian trọng số</strong>: RecAdam ở mọi γ, SPD, Fisher, WiSE-FT, LoRA — tất cả null. Lý do cơ chế: cái neo chỉ <em>ràng buộc</em> đường đi, nó không mang thêm một bit thông tin nào từ dữ liệu nguồn. Đêm nay thử chín thứ nằm <strong>ngoài</strong> trục đó.</p>
+  </div>
+
+  <h3>Các nhánh</h3>
+  <div class="arms">
+    <div class="arm-card">
+      <span class="tag">plain</span><span class="kind">Đối chứng</span>
+      <p>Fine-tune hai lần thuần. Mọi Δ đều ghép cặp với nhánh này trong <strong>cùng fold, cùng máy, cùng phiên</strong>.</p>
+      <div class="flags">--phase2_optimizer adamw --sam_rho 0</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">cwe05</span><span class="kind">Thêm · cầu CWE nửa đích</span>
+      <p>Head phụ 4 lớp của Pha 1 <strong>học tiếp</strong> trên nhãn CWE của Python. Nguồn và đích dùng chung đúng bảng 022/078/079/089.</p>
+      <div class="flags">--phase2_lambda_cwe 0.05</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">rp50</span><span class="kind">Thêm · replay nguồn</span>
+      <p>Mỗi bước lấy thêm <strong>một batch nguồn</strong>, cộng μ(e)·L_nguồn. μ giảm tuyến tính 0.5 → 0 sau 6 epoch nên hàm quyết định cuối vẫn thuần đích. Lấy mẫu cân tầng theo (nhãn, CWE) vì nguồn lệch 74% về CWE-79.</p>
+      <div class="flags">--replay_data … --replay_mu 0.5 --replay_epochs 6 --replay_stratify</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">rpc</span><span class="kind">Thêm · cầu CWE đầy đủ</span>
+      <p>Replay nguồn <strong>và</strong> head CWE học trên cả hai ngôn ngữ.</p>
+      <div class="flags">rp50 + --replay_lambda_cwe 0.05 --phase2_lambda_cwe 0.05</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">fd1 · fd10</span><span class="kind">Giữ · neo không gian đặc trưng</span>
+      <p>Cộng <strong>β·(1 − cos(f<sub>θ</sub>(x), f<sub>θ*</sub>(x)))</strong> trên <strong>input đích</strong>, với f<sub>θ*</sub> là đặc trưng của chính mô hình Pha 1. Khác neo trọng số ở chỗ ràng buộc này <em>biết dữ liệu đích</em>, và nó giữ đúng đại lượng §A vừa đo được là có giá trị.</p>
+      <div class="flags">--feat_distill_beta 1.0 · 10.0</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">rh</span><span class="kind">Thay · khởi tạo lại head</span>
+      <p>Đường mặc định nạp nguyên xi lớp đầu ra của Pha 1 rồi bắt Pha 2 gỡ một hàm quyết định <strong>sai một cách tự tin</strong>. Bỏ nó đi có hơn không?</p>
+      <div class="flags">--phase2_reinit_head</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">lp3</span><span class="kind">Giữ · probe head sẵn có</span>
+      <p>Fit lớp đầu ra với <strong>backbone đóng băng</strong> 3 epoch, rồi mới mở toàn bộ. Giữ head của Pha 1 và tinh chỉnh nó.</p>
+      <div class="flags">--lp_epochs 3</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">rhlp3</span><span class="kind">Thay · LP-FT sách giáo khoa</span>
+      <p>Khởi tạo lại head <strong>rồi</strong> probe — đúng công thức gốc của Kumar và cộng sự (ICLR 2022), vốn giả định head ngẫu nhiên.</p>
+      <div class="flags">--lp_epochs 3 --phase2_reinit_head</div>
+    </div>
+    <div class="arm-card">
+      <span class="tag">fd10rh</span><span class="kind">Giữ chặt + thay</span>
+      <p>Neo đặc trưng mạnh cộng khởi tạo lại head.</p>
+      <div class="flags">--feat_distill_beta 10.0 --phase2_reinit_head</div>
+    </div>
+  </div>
+
+  <h4>Setting đầy đủ</h4>
+  <dl class="kv">
+    <dt>Bậc / n</dt><dd><strong>Bậc 1, n = 3 fold</strong> (1, 2, 3), seed 42 — chỉ sàng lọc</dd>
+    <dt>Quy mô</dt><dd>9 nhánh × 3 fold × 2 backbone + baseline = <strong>66 ô</strong></dd>
+    <dt>Nguồn</dt><dd><code>4cwe</code> · 930 dòng · Pha 1 <strong>dùng lại</strong>, không huấn luyện lại cái nào</dd>
+    <dt>Pha 1 val</dt><dd>codebert 0.6532 · t5p 0.6976 (đều epoch 6, λ = 0.05)</dd>
+    <dt>Tối ưu Pha 2</dt><dd>AdamW trần, <code>--sam_rho 0</code> — cấu hình chốt sau khi rút ASAM</dd>
+    <dt>Siêu tham số</dt><dd>30 epoch · batch 16 · lr 2e-5 · min_epochs 3 · patience 5 · chọn checkpoint theo macro-F1 val</dd>
+    <dt>Máy</dt><dd>CodeBERT trên A4000 #161 · CodeT5+ trên A4000 #158 — <strong>một backbone nằm trọn một máy</strong></dd>
+    <dt>Đối chứng</dt><dd><code>plain</code> và <code>baseline</code> (không Pha 1) chạy <strong>cùng máy cùng fold cùng ngày cùng mã</strong></dd>
+  </dl>
+
+  <h3>Kết quả — Δ so với <code>plain</code></h3>
+  <div class="toggle" role="group" aria-label="Chọn backbone">
+    <button type="button" data-bb="all" aria-pressed="true">Cả hai</button>
+    <button type="button" data-bb="codebert" aria-pressed="false">codebert</button>
+    <button type="button" data-bb="t5p" aria-pressed="false">t5p</button>
+  </div>
+  <div class="tw">
+  <table id="main">
+    <caption>Ghép cặp theo (cây, seed, fold). <span class="mono">~1</span> = một fold hoà trong khoảng ±1e-12, bị loại khỏi phép đếm dấu. Tô xanh = dương <strong>cả bốn</strong> chỉ số; tô đỏ = âm ở ba chỉ số trở lên.</caption>
+    <thead><tr>
+      <th>Backbone</th><th>Nhánh</th><th class="n">ΔF1@0.5</th><th class="n">ΔF1@val</th><th class="n">ΔROC-AUC</th><th class="n">ΔPR-AUC</th>
+    </tr></thead>
+    <tbody>
+      <tr data-bb="codebert" class="win"><td class="arm">codebert</td><td class="arm">lp3</td><td class="n pos">+0.0283 <span class="fold">3/3</span></td><td class="n pos">+0.0223 <span class="fold">2/3</span></td><td class="n pos">+0.0204 <span class="fold">3/3</span></td><td class="n pos">+0.0307 <span class="fold">3/3</span></td></tr>
+      <tr data-bb="codebert" class="win"><td class="arm">codebert</td><td class="arm">fd1</td><td class="n pos">+0.0110 <span class="fold">3/3</span></td><td class="n pos">+0.0053 <span class="fold">1/3 ~1</span></td><td class="n pos">+0.0066 <span class="fold">2/3</span></td><td class="n pos">+0.0245 <span class="fold">2/3</span></td></tr>
+      <tr data-bb="codebert"><td class="arm">codebert</td><td class="arm">cwe05</td><td class="n pos">+0.0196 <span class="fold">2/3</span></td><td class="n pos">+0.0040 <span class="fold">2/3</span></td><td class="n neg">−0.0108 <span class="fold">1/3</span></td><td class="n neg">−0.0012 <span class="fold">1/3</span></td></tr>
+      <tr data-bb="codebert"><td class="arm">codebert</td><td class="arm">rp50</td><td class="n neg">−0.0019 <span class="fold">1/3</span></td><td class="n neg">−0.0159 <span class="fold">1/3</span></td><td class="n pos">+0.0029 <span class="fold">1/3</span></td><td class="n pos">+0.0070 <span class="fold">1/3</span></td></tr>
+      <tr data-bb="codebert"><td class="arm">codebert</td><td class="arm">rh</td><td class="n neg">−0.0113 <span class="fold">0/3 ~1</span></td><td class="n neg">−0.0108 <span class="fold">1/3</span></td><td class="n">+0.0000 <span class="fold">1/3</span></td><td class="n pos">+0.0047 <span class="fold">1/3</span></td></tr>
+      <tr data-bb="codebert"><td class="arm">codebert</td><td class="arm">rhlp3</td><td class="n neg">−0.0127 <span class="fold">1/3</span></td><td class="n neg">−0.0193 <span class="fold">0/3</span></td><td class="n pos">+0.0058 <span class="fold">2/3</span></td><td class="n pos">+0.0070 <span class="fold">2/3</span></td></tr>
+      <tr data-bb="codebert" class="lose"><td class="arm">codebert</td><td class="arm">fd10</td><td class="n neg">−0.0112 <span class="fold">1/3</span></td><td class="n neg">−0.0157 <span class="fold">1/3</span></td><td class="n neg">−0.0136 <span class="fold">1/3</span></td><td class="n pos">+0.0121 <span class="fold">2/3</span></td></tr>
+      <tr data-bb="codebert" class="lose"><td class="arm">codebert</td><td class="arm">fd10rh</td><td class="n neg">−0.0115 <span class="fold">1/3</span></td><td class="n neg">−0.0123 <span class="fold">1/3</span></td><td class="n neg">−0.0135 <span class="fold">1/3</span></td><td class="n pos">+0.0119 <span class="fold">2/3</span></td></tr>
+      <tr data-bb="codebert" class="lose"><td class="arm">codebert</td><td class="arm">rpc</td><td class="n pos">+0.0023 <span class="fold">2/3</span></td><td class="n neg">−0.0131 <span class="fold">1/3</span></td><td class="n neg">−0.0117 <span class="fold">0/3</span></td><td class="n neg">−0.0196 <span class="fold">0/3</span></td></tr>
+
+      <tr data-bb="t5p" class="win sep"><td class="arm">t5p</td><td class="arm">rp50</td><td class="n pos">+0.0217 <span class="fold">2/3</span></td><td class="n pos">+0.0323 <span class="fold">3/3</span></td><td class="n pos">+0.0122 <span class="fold">2/3</span></td><td class="n pos">+0.0099 <span class="fold">2/3</span></td></tr>
+      <tr data-bb="t5p" class="win"><td class="arm">t5p</td><td class="arm">rhlp3</td><td class="n pos">+0.0021 <span class="fold">1/3</span></td><td class="n pos">+0.0127 <span class="fold">2/3</span></td><td class="n pos">+0.0147 <span class="fold">3/3</span></td><td class="n pos">+0.0089 <span class="fold">3/3</span></td></tr>
+      <tr data-bb="t5p"><td class="arm">t5p</td><td class="arm">lp3</td><td class="n neg">−0.0058 <span class="fold">1/3</span></td><td class="n pos">+0.0216 <span class="fold">1/3</span></td><td class="n pos">+0.0092 <span class="fold">2/3</span></td><td class="n pos">+0.0165 <span class="fold">1/3</span></td></tr>
+      <tr data-bb="t5p"><td class="arm">t5p</td><td class="arm">rh</td><td class="n neg">−0.0120 <span class="fold">1/3</span></td><td class="n neg">−0.0062 <span class="fold">1/3</span></td><td class="n pos">+0.0033 <span class="fold">2/3</span></td><td class="n pos">+0.0005 <span class="fold">2/3</span></td></tr>
+      <tr data-bb="t5p" class="lose"><td class="arm">t5p</td><td class="arm">cwe05</td><td class="n pos">+0.0305 <span class="fold">1/3</span></td><td class="n pos">+0.0394 <span class="fold">2/3</span></td><td class="n neg">−0.0104 <span class="fold">0/3</span></td><td class="n neg">−0.0372 <span class="fold">0/3</span></td></tr>
+      <tr data-bb="t5p" class="lose"><td class="arm">t5p</td><td class="arm">fd1</td><td class="n pos">+0.0198 <span class="fold">1/3</span></td><td class="n pos">+0.0375 <span class="fold">3/3</span></td><td class="n neg">−0.0351 <span class="fold">0/3</span></td><td class="n neg">−0.0344 <span class="fold">0/3</span></td></tr>
+      <tr data-bb="t5p" class="lose"><td class="arm">t5p</td><td class="arm">rpc</td><td class="n pos">+0.0002 <span class="fold">1/3</span></td><td class="n neg">−0.0068 <span class="fold">1/3</span></td><td class="n neg">−0.0168 <span class="fold">0/3</span></td><td class="n neg">−0.0327 <span class="fold">0/3</span></td></tr>
+      <tr data-bb="t5p" class="lose"><td class="arm">t5p</td><td class="arm">fd10</td><td class="n neg">−0.0332 <span class="fold">1/3</span></td><td class="n neg">−0.0269 <span class="fold">0/3</span></td><td class="n neg">−0.0659 <span class="fold">0/3</span></td><td class="n neg">−0.0522 <span class="fold">0/3</span></td></tr>
+      <tr data-bb="t5p" class="lose"><td class="arm">t5p</td><td class="arm">fd10rh</td><td class="n neg">−0.0548 <span class="fold">1/3</span></td><td class="n neg">−0.0550 <span class="fold">1/3</span></td><td class="n neg">−0.0920 <span class="fold">0/3</span></td><td class="n neg">−0.0759 <span class="fold">0/3</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Ba điều đọc được</h3>
+  <div class="prose">
+    <p><strong>1. Biến thể thắng trên CodeBERT không phải LP-FT sách giáo khoa.</strong> <code>lp3</code> giữ head của Pha 1 rồi tinh chỉnh và thắng rõ (+0.0283 F1 ở 3/3 fold, +0.0204 ROC ở 3/3). <code>rhlp3</code> khởi tạo lại head rồi probe — đúng công thức gốc, vốn giả định head ngẫu nhiên — và nó <strong>null hoặc âm</strong>. Nghĩa là head Pha 1, dù chỉ 0.537 F1 khi dùng thẳng, <strong>vẫn là điểm xuất phát tốt hơn ngẫu nhiên</strong> cho bước probe. Đây là chỗ khác bài gốc, phải nêu rõ nếu viết.</p>
+
+    <p><strong>2. Cho head CWE học nhãn của đích là hiệu ứng NGƯỠNG, không phải hiệu ứng xếp hạng.</strong> Trên <em>cả hai</em> backbone, <code>cwe05</code> nâng F1@0.5 mà <strong>hạ</strong> ROC và PR (0–1 trên 3 fold). Nó chỉ dịch ngưỡng quyết định. Nếu chỉ đọc một chỉ số thì đã kết luận ngược — đây đúng là cái bẫy mà quy tắc bốn-chỉ-số của dự án dựng lên để chặn.</p>
+
+    <p><strong>3. Neo càng chặt càng tệ, ở cả hai backbone.</strong> β = 1 còn dương yếu trên CodeBERT; β = 10 âm ở ba chỉ số. Trên t5p thì <code>fd10rh</code> tụt tới <strong>−0.0920 ROC, 0/3 fold</strong> — biên độ lớn nhất trong cả bảng, và là biên độ <em>hại</em>.</p>
+  </div>
+
+  <h3>Per-CWE: chỗ hiệu ứng thật sự nằm</h3>
+  <div class="tw">
+  <table>
+    <caption>Δ so với <code>baseline</code> (không Pha 1), theo lớp CWE. Số trong ngoặc là hàng test trung bình mỗi fold, tổng 152.</caption>
+    <thead><tr><th>Backbone · nhánh</th><th class="n">022 <span class="fold">(14)</span></th><th class="n">078 <span class="fold">(40)</span></th><th class="n">079 <span class="fold">(18)</span></th><th class="n">089 <span class="fold">(81)</span></th></tr></thead>
+    <tbody>
+      <tr><td class="arm">codebert · plain</td><td class="n pos">+0.234 <span class="fold">3/3</span></td><td class="n">−0.002 <span class="fold">2/3</span></td><td class="n pos">+0.098 <span class="fold">3/3</span></td><td class="n">+0.019 <span class="fold">2/3</span></td></tr>
+      <tr class="win"><td class="arm">codebert · lp3</td><td class="n pos">+0.170 <span class="fold">3/3</span></td><td class="n pos">+0.027 <span class="fold">3/3</span></td><td class="n pos">+0.190 <span class="fold">3/3</span></td><td class="n">+0.018 <span class="fold">3/3</span></td></tr>
+      <tr class="sep"><td class="arm">t5p · plain</td><td class="n pos">+0.141 <span class="fold">2/3</span></td><td class="n neg">−0.043 <span class="fold">0/3</span></td><td class="n pos">+0.249 <span class="fold">3/3</span></td><td class="n">+0.006 <span class="fold">3/3</span></td></tr>
+      <tr class="win"><td class="arm">t5p · rp50</td><td class="n pos">+0.188 <span class="fold">3/3</span></td><td class="n neg">−0.043 <span class="fold">0/3</span></td><td class="n pos">+0.312 <span class="fold">3/3</span></td><td class="n">+0.009 <span class="fold">2/3</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="prose">
+    <p>Mẫu hình lặp ở <strong>mọi</strong> nhánh và <strong>cả hai</strong> backbone: toàn bộ mức tăng nằm ở <strong>CWE-022 và CWE-079</strong>, hai lớp hiếm nhất. CWE-078 và CWE-089 chiếm <strong>121 trên 152</strong> hàng test và gần như đúng bằng không. Con số tổng nhỏ vì lớp đa số áp đảo, không phải vì hiệu ứng yếu.</p>
+    <p class="tnote">Cảnh báo phải in kèm mọi lần trích: CWE-022 chỉ 14 hàng test mỗi fold, CWE-079 chỉ 18. Thứ đáng tin là <strong>số fold cùng dấu</strong>, không phải biên độ.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHẦN C ============ -->
+<section id="mauhinh">
+  <h2><span class="num">§ C</span>Mẫu hình giữ / thay <span class="chip hypo">Giả thuyết</span></h2>
+  <div class="prose">
+    <p class="lede">Không nhánh nào dương cả bốn chỉ số trên <em>cả hai</em> backbone, nên theo luật leo bậc không cái nào được lên n=5. Nhưng dấu của chúng tách sạch theo <strong>loại</strong> can thiệp.</p>
+  </div>
+
+  <div class="tw">
+  <table>
+    <caption>✓ = dương cả bốn chỉ số so với <code>plain</code> cùng fold.</caption>
+    <thead><tr><th>Nhánh</th><th>Loại can thiệp</th><th>codebert</th><th>t5p</th></tr></thead>
+    <tbody>
+      <tr><td class="arm">lp3</td><td>giữ — fit head trên backbone đóng băng</td><td class="pos"><strong>✓</strong></td><td class="neg">✗</td></tr>
+      <tr><td class="arm">fd1</td><td>giữ — neo đặc trưng nhẹ</td><td class="pos"><strong>✓</strong></td><td class="neg">✗</td></tr>
+      <tr class="sep"><td class="arm">rp50</td><td>thêm — replay dữ liệu nguồn</td><td class="neg">✗</td><td class="pos"><strong>✓</strong></td></tr>
+      <tr><td class="arm">rhlp3</td><td>thay — khởi tạo lại head rồi probe</td><td class="neg">✗</td><td class="pos"><strong>✓</strong></td></tr>
+      <tr class="sep"><td class="arm">rh · cwe05 · rpc</td><td>thay / thêm</td><td class="neg">✗</td><td class="neg">✗</td></tr>
+      <tr><td class="arm">fd10 · fd10rh</td><td>giữ <strong>chặt</strong></td><td class="neg">✗</td><td class="neg">✗✗</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="prose">
+    <p><strong>CodeBERT</strong> có đặc trưng Pha 1 chuyển giao mạnh (§A: +0.1125 ROC, 5/5). Hai nhánh thắng đều thuộc loại <strong>giữ / khai thác cái đã có</strong>; ba nhánh loại <strong>thay / thêm</strong> đều thua.</p>
+    <p><strong>CodeT5+</strong> có đặc trưng gần như không chuyển giao (+0.0202, 3/5, hai fold âm). Đảo ngược hoàn toàn: hai nhánh thắng đều thuộc loại <strong>thêm / thay</strong>; hai nhánh <strong>giữ</strong> thua nặng nhất trong cả bảng.</p>
+    <p>Neo quá chặt thì hại ở <strong>cả hai</strong> — không phụ thuộc đặc trưng có tốt hay không.</p>
+
+    <div class="callout">
+      <h4>Vì sao đáng chú ý</h4>
+      <p>Phép đo §A được thực hiện <strong>trước</strong> khi bốn khối này chạy, và dấu của nó dự báo đúng chiều ở <strong>4 trên 4</strong> nhánh có kết luận rõ. Tài liệu có ghi nhận cơ chế này nhưng chưa ai biến thành quy tắc: BSS (NeurIPS 2019) thấy neo trọng số hại ở đích nhỏ <em>trừ</em> khi nguồn gần đích, và quy cho <em>"the transferability of pre-trained knowledge"</em>; Plested và cộng sự (ICONIP 2021) dùng đúng margin probe-đóng-băng để quyết định có neo hay không — nhưng chỉ n=4 dataset, một backbone, không kiểm định.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHẦN D ============ -->
+<section id="kiemtra">
+  <h2><span class="num">§ D</span>Phép kiểm khai báo trước <span class="chip weak">Làm yếu giả thuyết</span></h2>
+  <div class="prose">
+    <p class="lede">Bảng ở §C được đọc <strong>sau khi</strong> nhìn số, nên nó chưa phải bằng chứng. Để kiểm cho sạch, dự đoán được viết ra file lúc 22:40 UTC — <strong>trước khi</strong> đo probe trên <code>com</code> và <code>full</code> — kèm ngưỡng 0.06 và điều kiện gì sẽ bác giả thuyết.</p>
+
+    <h3>Kết quả của phép kiểm</h3>
+
+    <p><strong>1. Ngưỡng tách sạch, nhưng tách theo BACKBONE.</strong> Cả ba nguồn CodeBERT ≥ 0.0849 ở 5/5 fold; cả ba nguồn t5p ≤ 0.0434. Xem bảng ở §A.</p>
+
+    <p><strong>2. Dự đoán của tôi sai một nửa.</strong> Tôi đoán <code>com</code> và <code>full</code> sẽ <em>thấp hơn</em> <code>4cwe</code> vì val Pha 1 của chúng thấp hơn nhiều (0.56 so với 0.65). Đúng trên CodeBERT, nhưng <strong>sai trên t5p</strong>: <code>com</code> cho +0.0434, <strong>cao gấp đôi</strong> <code>4cwe</code>. <strong>Val Pha 1 không dự báo được Δ probe.</strong></p>
+
+    <div class="callout neg">
+      <h4>3. Và đây mới là điều quan trọng: giả thuyết YẾU ĐI, không mạnh lên</h4>
+      <p>Nếu Δ probe chỉ thay đổi theo backbone mà gần như không theo nguồn, thì phát biểu <em>"probe chọn can thiệp"</em> rút gọn thành <em>"backbone chọn can thiệp"</em> — và ta chỉ có <strong>hai</strong> backbone. Hai điểm dữ liệu không dựng được quy tắc. Phép kiểm GPU mà §C đề xuất (chạy <code>lp3</code> đối đầu <code>rp50</code> trên nguồn có Δ thấp) <strong>không thực hiện được như thiết kế</strong>, vì không nguồn nào của CodeBERT rơi xuống dưới ngưỡng.</p>
+      <p>Ngưỡng 0.06 <strong>giữ nguyên</strong>, không sửa sau khi thấy số.</p>
+    </div>
+
+    <p><strong>Ô đáng chú ý nhất: t5p trên <code>full</code></strong> — ΔF1 <strong>âm</strong> (−0.0150) và độ chọn lọc theo F1 <em>tụt</em> (0.0736 → 0.0572). Đây là ô duy nhất trong sáu ô mà Pha 1 làm đặc trưng <strong>kém tách hơn</strong> backbone gốc. Khớp với việc <code>full</code> là nguồn gây negative transfer đã biết.</p>
+
+    <h3>Muốn kiểm cho đúng thì phải làm gì</h3>
+    <p>Trục "nguồn" không tách được nhóm, nên phải tìm trục khác <strong>trong cùng một backbone</strong>:</p>
+    <ul>
+      <li><strong>Backbone thứ ba</strong> (unixcoder đã có trong dự án) — thêm một điểm ở trục duy nhất thật sự biến thiên. Cần Pha 1 mới, ~40 phút GPU mỗi nguồn.</li>
+      <li><strong>Làm hỏng đặc trưng có kiểm soát</strong> — lấy checkpoint CodeBERT tốt rồi nội suy về pretrained ở vài mức α, đo Δ probe (0 GPU, cờ đã có sẵn), chọn α làm Δ probe tụt xuống dưới ngưỡng, rồi chạy <code>lp3</code> đối đầu <code>rp50</code> ở đó. Đây là cách <strong>duy nhất</strong> biến Δ probe thành biến độc lập điều khiển được thay vì thuộc tính cố hữu của backbone.</li>
+    </ul>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHẦN E ============ -->
+<section id="tailieu">
+  <h2><span class="num">§ E</span>Đối chiếu tài liệu</h2>
+  <div class="prose">
+    <p class="lede">Phải nói thẳng phần nào mới, phần nào không, để khỏi viết sai vào bài.</p>
+  </div>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Thành phần</th><th>Tình trạng</th></tr></thead>
+    <tbody>
+      <tr><td>Neo đặc trưng về mô hình khởi tạo, trên input đích</td><td><strong>ĐÃ CÓ</strong> — đúng đối tượng của DELTA (ICLR 2019) và LDIFS (TMLR 2024)</td></tr>
+      <tr><td>Probe đặc trưng trước / sau fine-tune</td><td><strong>ĐÃ CÓ</strong> — chuẩn trong NLP (Merchant 2020), đã nhập vào code (Troshin &amp; Chirkova, BlackboxNLP 2022)</td></tr>
+      <tr><td>"Đặc trưng còn, hàm quyết định hỏng"</td><td><strong>ĐÃ CÓ</strong> — Mai và cộng sự, NeurIPS 2024, nói đúng câu này ở bối cảnh khác</td></tr>
+      <tr class="win"><td>Probe đích <strong>+ zero-shot head nguồn</strong> thành một chẩn đoán</td><td><strong>KHÔNG TÌM THẤY Ở ĐÂU</strong>, cả NLP lẫn code</td></tr>
+      <tr class="win"><td>Chế độ 760 mẫu nhị phân</td><td><strong>Ngoài vùng bằng chứng của mọi bài</strong> trong họ này — đích nhỏ nhất xác minh được là CUB@15%, ~900 ảnh trên 200 lớp</td></tr>
+      <tr><td>Dùng chẩn đoán đó để <em>chọn</em> can thiệp</td><td>Có đúng <strong>một</strong> tiền lệ (ICONIP 2021), n=4 dataset, không kiểm định</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="prose">
+    <p>Nói gọn: đóng góp bán được là <strong>"chuyển giao phương pháp luận + chế độ dữ liệu mới"</strong>, không phải "ý tưởng mới".</p>
+
+    <h3>Ba cảnh báo phải xử lý trước khi viết</h3>
+
+    <div class="callout warn">
+      <h4>a · LP-FT kê đơn ngược với nhánh <code>rh</code></h4>
+      <p>Kumar, Raghunathan, Jones, Ma, Liang — ICLR 2022 Oral. Nguyên văn: <em>"the OOD error of fine-tuning is high when we initialize with a fixed or random head … the lower layers change simultaneously and distort the pretrained features."</em> LP-FT hơn fine-tune thường <strong>+1% ID / +10% OOD</strong> trên 10 bộ dịch chuyển phân phối. Một reviewer biết bài này sẽ hỏi ngay <em>sao không fit head trước</em> — nên đêm nay đã chạy nó thành hai nhánh riêng để trả lời bằng số.</p>
+    </div>
+
+    <div class="callout warn">
+      <h4>b · Mai và cộng sự (NeurIPS 2024) đã nêu đúng kết luận §A</h4>
+      <p>Nguyên văn: <em>"the fine-tuned model neither forgets … nor degrades the features … Instead, the fine-tuned model often produces more discriminative features"</em> và <em>"what really hurts the accuracy is the discrepant logit scales."</em> Cách chữa của họ là <strong>hiệu chỉnh hậu kiểm</strong>, không phải neo. Đáng chú ý: dự án đã có sẵn cột F1 ở ngưỡng hiệu chỉnh trên val — nên nên đọc lại <code>cwe05</code> dưới góc này, vì nó nâng cả F1@0.5 lẫn F1@val mà hạ AUC, rất khớp với "vấn đề là thang logit".</p>
+    </div>
+
+    <div class="callout neg">
+      <h4>c · Trùng tên: "MultiVD" đã tồn tại, và rất gần thiết kế của mình</h4>
+      <p>Curto, Giordano, Palazzo, Indelicato — <strong>SECRYPT 2024</strong>: CodeBERT cộng head nhị phân cộng <strong>head CWE 15 lớp</strong>, trên BigVul, chỉ C/C++, 126 313 hàm; multitask F1 95.51 so với LineVul 91.79. Không bottleneck, không transfer, tập đích khổng lồ. <strong>Cần đổi tên dự án khi viết</strong>, và phải trích bài này như tiền lệ gần nhất của thiết kế head phụ.</p>
+    </div>
+
+    <h3>Hiện trạng chuyển giao xuyên ngôn ngữ cho phát hiện lỗ hổng</h3>
+    <p>Trường chia làm ba nhánh, và nhánh của mình gần như trống. <strong>Chuyển giao trọng số xuyên ngôn ngữ</strong> — đúng dạng của mình — chỉ có <strong>một</strong> bài xác minh được (DSHGT, preprint, C/C++ → Java và PHP, 84–88% accuracy) và nó <strong>không có đối chứng chỉ-đích</strong>: mọi baseline của họ đều đã transfer. Còn lại là <strong>huấn luyện chung đa ngôn ngữ</strong> (MVD, MulVuln, IRC-CLVul, Yu và cộng sự ISSTA 2025) và <strong>zero-shot</strong>. Không bài nào dùng tập đích nhỏ hơn hàng nghìn.</p>
+    <p>Về dữ liệu, phải nêu thẳng: <strong>760 dòng của mình chính là toàn bộ nửa Python của SVEN</strong> (He &amp; Vechev, CCS 2023) — vốn là một phương pháp <em>làm cứng sinh mã</em>, không phải benchmark phát hiện. Nên nói rõ là tái dụng, và trích con số của PrimeVul (ICSE 2025) rằng nhãn SVEN đạt 94.0% do người xác minh, cao hơn PrimeVul 92.0% — chính con số đó biện hộ cho lựa chọn này.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHẦN F ============ -->
+<section id="ketluan">
+  <h2><span class="num">§ F</span>Kết luận và bước tiếp</h2>
+  <div class="prose">
+    <h3>Đã đóng lại</h3>
+    <ul>
+      <li><strong>Neo không gian đặc trưng không ăn.</strong> Null trên CodeBERT, hại nặng trên t5p (tới −0.0920 ROC, 0/3 fold). Càng neo chặt càng tệ ở cả hai.</li>
+      <li><strong>Cầu CWE ghép đầy đủ (<code>rpc</code>) hại trên AUC ở cả hai backbone</strong>, 0/3 fold trên cả ROC lẫn PR.</li>
+      <li><strong>Cho head CWE học nhãn đích là hiệu ứng ngưỡng</strong>, không phải cải thiện xếp hạng.</li>
+    </ul>
+
+    <h3>Còn sống, cần thêm dữ liệu</h3>
+    <ul>
+      <li><strong><code>lp3</code> trên CodeBERT</strong> — dương cả bốn chỉ số, ba trong bốn ở 3/3 fold, ROC +0.0204 gấp đôi sàn nhiễu. Nhưng chưa lặp trên t5p.</li>
+      <li><strong><code>rp50</code> trên t5p</strong> — dương cả bốn. Nhưng null trên CodeBERT.</li>
+      <li><strong>Chẩn đoán probe + zero-shot head</strong> — phần duy nhất không tìm thấy tiền lệ. Giá trị của nó là <em>phương pháp luận</em>, không phải một con số.</li>
+    </ul>
+
+    <div class="callout">
+      <h4>Bốn việc đề xuất — chưa chạy, chờ duyệt</h4>
+      <ol>
+        <li><strong>Backbone thứ ba</strong> (unixcoder) để có điểm dữ liệu thứ ba ở trục duy nhất biến thiên. Đây là việc quan trọng nhất, vì nó là thứ duy nhất cứu được §C.</li>
+        <li><strong>Làm hỏng đặc trưng có kiểm soát</strong> bằng nội suy về pretrained, biến Δ probe thành biến điều khiển được. Cờ đã có sẵn, chi phí thấp.</li>
+        <li><strong><code>lp3</code> lên n=5 chỉ trên CodeBERT</strong>, nêu rõ là phát biểu <em>theo backbone</em>, không phải phát biểu chung. Cần thêm <code>plain</code> và <code>baseline</code> ở fold 4–5 làm đối chứng ghép cặp.</li>
+        <li><strong>Probe theo từng tầng</strong> — LDIFS đo được neo chỉ-tầng-cuối kém hơn neo nhiều tầng, mà các nhánh <code>fd</code> hiện chỉ neo tầng cuối. 0 GPU.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ PHỤ LỤC ============ -->
+<section id="phuluc">
+  <h2><span class="num">§ G</span>Tái lập</h2>
+  <div class="prose">
+    <h4>Đọc lại số</h4>
+    <p class="mono" style="background:var(--rule-2);padding:12px 14px;border-radius:2px;font-size:13px;line-height:1.7;overflow-x:auto;white-space:pre">python3 tools/bridge_report.py --b plain \
+  --a cwe05,rp50,rpc,fd1,fd10,rh,fd10rh,lp3,rhlp3 \
+  results/bridge3_codebert</p>
+    <p>In cả bốn chỉ số cùng số fold cùng dấu, cộng per-CWE tính lại từ xác suất từng mẫu. Ghép cặp theo (cây, seed, fold); hoà trong khoảng ±1e-12 bị loại khỏi phép đếm dấu và hiện là <span class="mono">~k</span>.</p>
+
+    <h4>Mã mới đêm nay</h4>
+    <dl class="kv">
+      <dt>tools/feature_probe.py</dt><dd>probe §A, chạy CPU, có control task và bộ đệm đặc trưng</dd>
+      <dt>tools/bridge_report.py</dt><dd>đọc khối, bốn chỉ số + per-CWE</dd>
+      <dt>src/replay.py</dt><dd>replay nguồn ở Pha 2, lịch μ(e), lấy mẫu cân tầng</dd>
+      <dt>src/train.py</dt><dd>vòng Pha 2 tách mục tiêu đích và nguồn; hai backward nối tiếp để không tràn VRAM; SAM lượt hai tính lại <strong>đúng</strong> mục tiêu</dd>
+      <dt>src/train_transfer.py</dt><dd>các cờ replay, neo đặc trưng, khởi tạo lại head; bộ đệm đặc trưng; chặn chồng hai không gian nhãn</dd>
+      <dt>tests/</dt><dd>8 phép kiểm hai chiều</dd>
+    </dl>
+
+    <div class="callout">
+      <h4>Phép kiểm đắt nhất, và vì sao</h4>
+      <p>Bộ đệm đặc trưng tra theo chỉ số hàng trong batch. Nếu chỉ số đó không phải chỉ số hàng thật, mỗi hàng bị ghép với đặc trưng của hàng <strong>khác</strong> — loss vẫn chạy, vẫn giảm, vẫn ra số đẹp, và phép neo âm thầm biến thành <strong>nhiễu</strong> mà không cổng nào báo. Đã kiểm bằng loader <strong>xáo trộn</strong>, đối chiếu với bảng tính thẳng từng hàng: 0 trên 37 hàng sai.</p>
+      <p>Mọi cờ mới <strong>mặc định tắt</strong>, nên đường chạy cũ không đổi một byte — đã xác nhận bằng smoke test rằng nhánh <code>plain</code> vẫn qua đúng các cổng an toàn cũ.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>MultiVD · khối <span class="mono">bridge3</span> + <span class="mono">feat3</span> + <span class="mono">lpft3</span> + probe · đêm 10→11/09/2026 · 66 ô GPU trên hai A4000 local, 6 ô probe trên CPU, không thuê máy ngoài.</p>
+  <p>Số gốc ở <span class="mono">FACTS.md</span> §36, §36.1, §37, §38, §38.1, §38.2, §38.3. Dự đoán khai báo trước ở <span class="mono">records/prediction_2026-09-11_probe_chon_can_thiep.md</span>. Bản đọc cho người ở <span class="mono">RESEARCH_2026-09-10_dactrung.md</span>.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var btns = document.querySelectorAll('.toggle button');
+  var rows = document.querySelectorAll('#main tbody tr[data-bb]');
+  btns.forEach(function(b){
+    b.addEventListener('click', function(){
+      var want = b.dataset.bb;
+      btns.forEach(function(o){ o.setAttribute('aria-pressed', String(o === b)); });
+      rows.forEach(function(r){
+        r.hidden = !(want === 'all' || r.dataset.bb === want);
+      });
+    });
+  });
+})();
+</script>
