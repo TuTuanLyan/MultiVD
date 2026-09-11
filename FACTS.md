@@ -3458,3 +3458,66 @@ thứ ba của mẫu hình đó trên một cặp nguồn–đích **hoàn toàn
 4. **Trị tuyệt đối thấp ở mọi nhánh** (ROC 0.64–0.68). Không nhánh nào thật sự "giải" được JS.
 
 Muốn dùng được thì phải lên **n=3 fold** (chia lại JS thành 3 fold) trước khi viết bất cứ câu nào.
+
+## §40.2 — Đường cong ở **n=5**: ROC-AUC ĐƠN ĐIỆU CHẶT trên **cả hai** backbone (11/09, 40 ô ghép cặp)
+
+Đủ fold 4–5 cho cả bốn mức. **Kết luận đổi so với n=3, và đổi theo hướng SẠCH HƠN.**
+
+| backbone | N | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| codebert | 456 | +0.0381 5/5 | +0.0362 5/5 | +0.0114 3/5 | **−0.0087 2/5** |
+| | 228 | +0.0261 4/5 | +0.0318 5/5 | +0.0362 5/5 | +0.0269 3/5 |
+| | 152 | +0.0845 5/5 | +0.0688 5/5 | +0.0610 5/5 | +0.0287 3/5 |
+| | **76** | **+0.1468 5/5** | **+0.1416 5/5** | **+0.1940 5/5** | **+0.1801 5/5** |
+| t5p | 456 | +0.0264 4/5 | +0.0130 4/5 | +0.0173 4/5 | +0.0198 4/5 |
+| | 228 | +0.0518 5/5 | +0.0378 5/5 | +0.0395 4/5 | +0.0219 3/5 |
+| | 152 | +0.0489 4/5 | +0.0626 4/5 | +0.0897 4/5 | +0.0834 4/5 |
+| | **76** | **+0.0696 4/5** | **+0.0747 4/5** | **+0.1003 5/5** | **+0.0682 5/5** |
+
+### Chỉ số đơn điệu là ROC-AUC, không phải F1
+
+```
+codebert ROC:  +0.0114 → +0.0362 → +0.0610 → +0.1940      ĐƠN ĐIỆU CHẶT
+t5p      ROC:  +0.0173 → +0.0395 → +0.0897 → +0.1003      ĐƠN ĐIỆU CHẶT
+```
+
+Ở N=76, **cả hai backbone đều 5/5 fold** trên ROC và PR — tức `p = 0.0625`, **sàn của phép kiểm
+dấu ở n=5**. Không thể chặt hơn với n này.
+
+F1@0.5 **gần** đơn điệu nhưng có chỗ lùi nhỏ (codebert tụt ở N=228, t5p ở N=152). Ở n=3 thì
+ngược lại — codebert đơn điệu trên cả bốn còn t5p không. **Thêm hai fold đã đổi chỉ số nào là
+chỉ số sạch.** Phát biểu đúng là về **ROC-AUC**.
+
+### Một số bị xấu đi khi lên n=5, phải ghi
+
+codebert ở **N=456** (dữ liệu đầy đủ): ΔPR-AUC **−0.0087, chỉ 2/5 fold**. Ở n=3 nó là +0.0029.
+Nghĩa là **ở dữ liệu đích đầy đủ, lợi ích của chuyển giao chỉ có trên F1 và F1@val; trên PR-AUC
+nó thực ra hơi ÂM**. Đây là phiên bản chặt hơn của cảnh báo ở §39 ("đầu bài là F1, không phải
+AUC") và phải nêu đúng như vậy.
+
+### Per-CWE ở n=5 — CWE-078 CUỐI CÙNG cũng đáp ứng, trên CẢ HAI backbone
+
+ΔROC-AUC, cột trong ngoặc là số hàng train của lớp đó tại N:
+
+| bb | N=456 | N=228 | N=152 | **N=76** |
+|---|---|---|---|---|
+| codebert · 078 | −0.016 2/5 [124] | +0.043 4/5 [60] | +0.022 4/5 [37] | **+0.198 4/5 [18]** |
+| t5p · 078 | −0.035 0/5 [124] | −0.002 3/5 [60] | −0.002 2/5 [37] | **+0.146 4/5 [18]** |
+| codebert · 089 | +0.013 3/5 [245] | +0.006 3/5 [126] | +0.059 4/5 [91] | **+0.163 5/5 [43]** |
+| codebert · 079 | +0.182 5/5 | +0.225 4/5 | +0.263 5/5 | **+0.301 5/5** |
+
+**CWE-078 chuyển từ âm sang +0.198 / +0.146 (4/5 fold) trên CẢ HAI backbone** khi số hàng train
+của nó rơi xuống ~18. Ở n=3 điều này chỉ thấy rõ trên t5p. Vậy **mọi lớp đều đáp ứng**, chỉ là
+**ngưỡng khác nhau theo lớp** — 022/079 từ ~40 hàng, 089 từ ~43, 078 phải xuống ~18.
+
+078 vẫn là lớp **khó giúp nhất**, và nó vẫn đúng là lớp mà §36 đo được đặc trưng Pha 1 cải thiện
+**mạnh nhất**. Nghịch lý đó **chưa giải thích được**, và giờ nó đứng trên 40 ô thay vì 3.
+
+### Phát biểu dùng được cho bài
+
+> Lợi ích của tiền huấn luyện xuyên ngôn ngữ **tăng đơn điệu theo ROC-AUC khi dữ liệu đích co
+> lại**, trên cả hai họ backbone: từ +0.011 / +0.017 ở 456 hàng train lên **+0.194 / +0.100 ở 76
+> hàng**, với **5/5 fold** ở đầu mút nhỏ. Ở dữ liệu đầy đủ thì lợi ích chỉ nằm ở ngưỡng quyết
+> định (F1), không ở thứ hạng.
+
+Đang kiểm **độ bền theo seed** ở hai đầu mút (seed 7, N ∈ {456, 76}, 5 fold, hai backbone).
