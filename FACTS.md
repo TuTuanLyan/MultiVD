@@ -3383,3 +3383,78 @@ với môi trường rỗng nó vẫn tìm ra `/home/ntat/miniconda3/envs/vdenv/
 
 > **Quy tắc rút ra:** một runner **không được** để người gọi tự nhớ `PYTHON`. Mọi script chạy
 > được trực tiếp phải tự dò, vì cách gọi sẽ thay đổi theo thời gian còn trí nhớ thì không.
+
+---
+
+## §41 — ĐẢO CHIỀU (Python → JavaScript): hiệu ứng **MẠNH HƠN** chiều thuận, và nó khớp §40 (11/09, **n=1 fold — chỉ sàng lọc**)
+
+Người dùng yêu cầu 11/09. Mọi số của dự án tới giờ đều đo **một chiều** (C/C++ + JS → Python).
+Nếu hiệu ứng là tính chất của **phương pháp** thì đảo chiều vẫn phải thấy; nếu là tính chất của
+riêng **cặp** (nguồn này, đích này) thì đảo chiều sẽ tắt. Chưa phép đo nào phân biệt được hai
+khả năng đó.
+
+**Thiết kế**: nguồn = 760 dòng Python (SVEN gộp, Pha 1 tự chia train/val); đích = 812 dòng JS của
+`phase1_4cwe`, chia 486/162/164 phân tầng theo (nhãn, CWE), **chia theo dòng** đúng quy ước bộ
+`norm` để biến duy nhất đổi là **chiều**. Rò rỉ cặp 227/406 (56%), cùng dạng `norm` (~40%).
+`baseline` huấn luyện trên **chính tập train JS đó**, cùng fold cùng máy cùng phiên. 1 fold, seed 42.
+
+### Trị tuyệt đối — và đây mới là con số quan trọng nhất
+
+| backbone | nhánh | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| codebert | **baseline (chỉ JS)** | 0.5285 | **0.4927** | 0.5380 |
+| codebert | plain (có Pha 1) | 0.5942 | 0.6536 | 0.6585 |
+| codebert | r0p1 (RecAdam+ASAM) | 0.5352 | 0.6365 | 0.6559 |
+| t5p | **baseline (chỉ JS)** | 0.4553 | **0.4686** | 0.5083 |
+| t5p | plain | 0.6152 | 0.6425 | 0.6632 |
+| t5p | r2p0 | 0.5729 | **0.6823** | 0.7085 |
+
+**Baseline trên JS nằm Ở HOẶC DƯỚI mức ngẫu nhiên** (ROC 0.4927 và 0.4686). Huấn luyện từ đầu
+trên 486 dòng JS **gần như không học được gì**. So sánh: baseline trên 456 dòng Python đạt
+0.7674 F1 / 0.8752 ROC. **JS là đích khó hơn hẳn Python.**
+
+### Δ so với `baseline` cùng ô
+
+| backbone | nhánh | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|---|
+| codebert | plain | +0.0657 | +0.0812 | **+0.1609** | +0.1205 |
+| codebert | r0p1 | +0.0067 | +0.0495 | +0.1438 | +0.1179 |
+| t5p | plain | +0.1598 | +0.1657 | +0.1739 | +0.1550 |
+| t5p | r2p0 | +0.1176 | +0.1611 | **+0.2137** | +0.2003 |
+
+**Hiệu ứng lớn hơn chiều thuận một bậc**: +0.16 đến +0.21 ROC, so với +0.015 (codebert) và
++0.018 (t5p) ở chiều thuận với dữ liệu đích đầy đủ.
+
+### Điều này KHÔNG phải bất đối xứng — nó là §40 nhìn từ góc khác
+
+Đừng đọc thành *"chiều ngược tốt hơn"*. §40 đo được: lợi ích transfer **tăng khi đích một mình
+không học nổi**. Ở đây baseline JS **đúng mức ngẫu nhiên**, tức đích đang ở chế độ cực đoan nhất
+của đường cong đó — nên lợi ích lớn là **điều §40 dự báo**, không phải điều mới.
+
+Nói cách khác: hai phép đo độc lập (cắt dữ liệu đích ở §40; đổi hẳn đích sang JS ở đây) cùng chỉ
+về **một** biến giải thích — **đích một mình học được bao nhiêu**. Không phải cặp ngôn ngữ, không
+phải chiều.
+
+### ASAM: LẶP LẠI LẦN THỨ BA đúng mẫu hình cũ
+
+A − B (RecAdam+ASAM trừ AdamW trần), cùng ô:
+
+| backbone | ΔF1@0.5 | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|
+| codebert | **−0.0590** | −0.0171 | −0.0026 |
+| t5p | −0.0422 | **+0.0399** | **+0.0453** |
+
+Khớp §39: ASAM **null/âm trên codebert**, còn trên t5p thì **nâng AUC mà hạ F1**. Đây là lần lặp
+thứ ba của mẫu hình đó trên một cặp nguồn–đích **hoàn toàn khác**, nên nó là tính chất của
+**backbone**, không phải của dữ liệu.
+
+### BỐN cảnh báo — con số này CHƯA kết luận được
+
+1. **n = 1 fold.** Bậc 1 tối thiểu. Dự án đã bốn lần thấy n=3 đổi dấu; n=1 còn yếu hơn nữa.
+2. **Baseline dưới ngẫu nhiên** ⇒ Δ phải đọc là *"chuyển giao chạy được, baseline thì không"*,
+   không phải một phép so có thang. Đúng bài học §40.1.
+3. **Đích JS lệch cực mạnh**: CWE-079 chiếm **134/164** hàng test (82%); CWE-022 và CWE-089 chỉ
+   **8 hàng** mỗi lớp. Per-CWE bên JS **không đọc được**, chỉ số tổng mới có nghĩa.
+4. **Trị tuyệt đối thấp ở mọi nhánh** (ROC 0.64–0.68). Không nhánh nào thật sự "giải" được JS.
+
+Muốn dùng được thì phải lên **n=3 fold** (chia lại JS thành 3 fold) trước khi viết bất cứ câu nào.
