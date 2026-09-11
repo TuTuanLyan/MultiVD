@@ -1,46 +1,44 @@
-# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 11:05 UTC)
+# CURRENT_RUN — cập nhật 13:25 UTC 11/09/2026
 
-## Đang chạy trên cả ba máy: leo §40 lên **bậc 3 (n = 5 fold × 3 seed = 15)**
+## Vast ĐÃ HUỶ lúc 13:22 UTC
 
-| máy | việc | tiến độ |
-|---|---|---|
-| **161** codebert | seed 7 (N=228,152) rồi seed 1234 (cả bốn N) | 49 ô |
-| **158** t5p | seed 7 fold 1–3, rồi seed 1234 cả 5 fold (tự huấn luyện Pha 1) | 49 ô |
-| **vast 50570168** `ntat` | t5p seed 7 fold 4–5, cả bốn N | 1/16 ô |
+Instance `50570168` (nhãn `ntat`, RTX 5060 Ti, $0.0818/h) chạy **08:22 → 13:22 ≈ 5 giờ ≈ $0.41**.
+Huỷ vì **hết việc đáng chạy**, sau khi kéo về và đối chiếu: **58/58 file kết quả** có ở local
+đúng **từng byte**, 60 file log khớp md5, và hai checkpoint Pha 1 cân bằng lớp khớp byte
+(498 700 773 B và 438 519 789 B). Lệnh in `destroying instance 50570168.`, thoát 0, **không**
+có `Aborted`, và `vastai show instances` xác nhận nó đã biến mất.
 
-**Vì sao khối này**: luật leo bậc đòi dương trên **cả bốn** chỉ số VÀ lặp trên **cả hai** backbone.
-Tính đến 11/09, **chỉ §40 qua được**, và seed 7 đã lặp lại trên codebert (ROC Δ +0.0139 ở N=456 →
-**+0.1777 ở N=76, 5/5 fold**).
+Vast đã làm xong: `auxb` 12 ô + đối chứng 6 ô (§43–§45), leo n=15 cho t5p seed 7 fold 4–5
+(16 ô), đảo chiều n=3 fold 2–3 (12 ô), và lấp ô trống `js_full` × codebert (3 ô).
 
-Đọc bằng `python3 tools/tsize_report.py` — nó có bảng **tách theo seed**, và khoá ô đã được sửa để
-có seed (trước đây ba seed đè lên nhau, nuốt mất 10 ô).
+### Vì sao KHÔNG còn việc đáng chạy cho vast
 
-## ĐÃ XONG — khối `auxb` (18 ô), và nó ĐÓNG LẠI mạch head phụ
-
-Ba nhánh cùng cây cùng fold cùng phiên: `baseline`, `unbal` (Pha 1 thường), `bal` (Pha 1 cân bằng
-lớp). Kết quả ở FACTS §43, §44, §45.
-
-| phép đo | kết quả |
+| hướng | vì sao dừng |
 |---|---|
-| §43 — làm head phụ **học được** | được trên t5p (macro-F1 0.2000 → **0.5996**), hỏng trên codebert |
-| §44 — nút thắt 8 chiều có phải **biểu diễn** | **không**: thua PCA ở cả bốn checkpoint, ngang chiếu ngẫu nhiên |
-| §45 — head giỏi hơn có làm **mô hình** tốt hơn | **không**: ΔROC +0.0040 / +0.0079, trong sàn nhiễu 0.010 |
+| leo n=15 seed 1234 | **161 và 158 đã bao trọn cả 5 fold** — chạy thêm là trùng, phí GPU |
+| đảo chiều lên n=5 | `data/js_4cwe_folds` **chỉ có 3 fold** |
+| đảo chiều `com`/`full` lên n=3 | hai bộ đó chỉ có fold 1, không có `cwe_class`, kích thước chia không khớp phép làm tròn nào ⇒ **không tái hiện được fold 1 từng byte**; dựng fold mới "gần đúng" làm ba fold không hoán đổi được và hỏng phép ghép cặp ngầm |
+| tập `twin` (chống phản biện rò rỉ) | CLAUDE.md mục 6: **phụ, chỉ chạy khi được yêu cầu**. Đây là câu hỏi đáng giá — **chờ anh quyết** |
 
-**Chất lượng head phụ không phải một đòn bẩy.** Giá trị đo được của nó vẫn đúng như mục 7 ghi từ
-31/08 — **chống sập Pha 1** — và chỉ thế.
+## Còn chạy: hai máy local, leo §40 lên n=15
 
-Kèm một giới hạn phương pháp luận phải nhớ: **probe trên đặc trưng đóng băng KHÔNG dự báo được
-dấu** của một thay đổi Pha 1 sau fine-tune (§45 — t5p probe nói −0.0287, đo thật +0.0079). §36 và
-§44 chỉ phát biểu về **đặc trưng đóng băng**, không suy sang mô hình đã fine-tune.
+| máy | việc | ô |
+|---|---|---|
+| **161** codebert | seed 1234, cả bốn N | 66 |
+| **158** t5p | seed 1234, cả 5 fold | 66 |
 
-## MẢNH 2 (cổng 8 chiều) — **DỪNG**, bác trên cả hai backbone
+Không ô nào hỏng trên cả hai máy.
 
-`run/gate3.sh` **không phóng**. Mã `--phase2_gate` + 12 phép kiểm giữ lại, mặc định TẮT.
+## Kết quả đêm nay — đọc ở FACTS
 
-## Ô TRỐNG cần lấp
+| mục | nội dung |
+|---|---|
+| §40.3, §40.4 | đường cong theo cỡ tập đích ở **n=10** (2 seed × 5 fold), ROC-AUC **đơn điệu chặt** cả bốn mức, cả hai backbone; ở N=456 hiệu ứng thứ hạng là **đúng một đồng xu** (5/10 và 6/11) |
+| §41.3 | đảo chiều Python→JS ở **n=3**: **12/12 ô dương**, cả bốn chỉ số, cả hai backbone; ASAM hơn `plain` trên **cả hai** chỉ số thứ hạng — lần lặp **thứ năm** |
+| §43, §44, §45 | mạch head phụ **đóng lại**: làm head học được thì tách theo backbone, nút thắt 8 chiều **không** phải biểu diễn (thua PCA ở cả bốn checkpoint), và head giỏi gấp ba **không** đổi được gì sau fine-tune |
+| §42 | ba lỗi xếp chồng khi dựng máy thuê; lỗi đắt nhất là thư viện không theo bản ghim |
 
-`results/rev1full_codebert/.../r0p1/fold1` — OOM lúc 09:39 vì `cuongtm` nở VRAM giữa chừng.
-Nhánh ASAM của đích `js_full` trên codebert còn thiếu. Không chặn gì; lấp khi có máy rảnh.
+Bản đọc cho người: `RESEARCH_2026-09-10_dactrung.md` **Phần 8**.
 
 ---
 
