@@ -483,6 +483,15 @@ def adopt_checkpoint_shape(path, device):
 
 def load_checkpoint(path, model, device):
     checkpoint = torch.load(path, map_location=device, weights_only=True)
+    # MANH 2: checkpoint cua mot lan chay CO CONG mang them `lat_vul_head`/`gate_*`. Mo hinh
+    # vua dung lai chua co cac module do nen `load_state_dict` se vo vi khoa thua. Dung dam
+    # `strict=False` (no se im lang bo qua CA nhung khoa thieu that su) — dung lai dung cac
+    # module theo chinh state dict, roi nap NGHIEM NGAT nhu cu.
+    keys = checkpoint["model_state_dict"].keys()
+    if any(k.startswith(("lat_vul_head.", "gate_logit", "gate_proj.")) for k in keys):
+        mode = "input" if any(k.startswith("gate_proj.") for k in keys) else "scalar"
+        model.enable_latent_gate(mode=mode)
+        model.to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     return checkpoint
 
@@ -622,9 +631,35 @@ def run_phase1(args, device):
         })
     optimizer = torch.optim.AdamW(param_groups, lr=args.learning_rate)
 
+    # --- CAN BANG LOP cho loss phu (FACTS §30.2) ---
+    # Da do truc tiep: head phu chi doan MOT lop, do chinh xac trung khit san doan-lop-da-so
+    # (4cwe 0.6667, va no dung 1/4 lop). Nguon `4cwe` lech 74% ve CWE-79, con lambda chi 0.05,
+    # nen gradient cua lop da so nuot cac lop hiem. Day chinh la cac lop ma transfer giup nhieu
+    # nhat o dich (CWE-022 va 079, FACTS §34/§35).
+    # Trong so nghich tan suat, chuan hoa ve trung binh 1 => TONG do lon loss KHONG doi, nen
+    # lambda=0.05 van so sanh duoc voi cac khoi cu. Chi PHAN BO lai giua cac lop.
+    aux_class_weight = None
+    if getattr(args, "aux_class_balanced", False) and args.aux_mode in ("cwe", "latent_bottleneck"):
+        counts = Counter(int(r["cwe_class"]) for r in train_records if int(r.get("cwe_class", -100)) >= 0)
+        K = int(args.num_cwes)
+        if counts:
+            w = torch.tensor([1.0 / max(counts.get(c, 0), 1) for c in range(K)],
+                             dtype=torch.float32, device=device)
+            present = torch.tensor([1.0 if counts.get(c, 0) > 0 else 0.0 for c in range(K)], device=device)
+            # chuan hoa tren CAC LOP CO MAT, lop vang giu trong so 0 (khong bao gio xuat hien)
+            w = w * present
+            w = w / (w.sum() / max(present.sum().item(), 1.0))
+            args.aux_class_counts = " ".join(f"{c}:{counts.get(c,0)}" for c in range(K))
+            args.aux_class_weights = " ".join(f"{x:.3f}" for x in w.tolist())
+            logger.info("Loss phu CAN BANG LOP | dem %s | trong so %s (trung binh 1, tong do lon loss khong doi)",
+                        args.aux_class_counts, args.aux_class_weights)
+            aux_class_weight = w
+        else:
+            logger.warning("aux_class_balanced BAT nhung khong hang nao co nhan phu — bo qua")
+
     train_loop(
         args, model, train_loader, val_loader, optimizer, device, "phase1", save_checkpoint,
-        aux_weighter=aux_weighter,
+        aux_weighter=aux_weighter, aux_class_weight=aux_class_weight,
     )
     if aux_weighter is not None:
         d = aux_weighter.diagnostics()
@@ -937,6 +972,37 @@ def run_phase2(args, device):
                 "run_linear_probe dong bang lai head phu o cuoi"
             )
         run_linear_probe(args, model, train_records, val_records, tokenizer, device)
+
+    # ------------------------------------------------------------------
+    # MANH 2 — bat DUONG QUYET DINH KEP CO CONG. Mac dinh tat => duong cu tung byte.
+    # Dat O DAY vi: (a) phai SAU load_state_dict cua Pha 1, khong thi thua khoa;
+    # (b) phai SAU freeze_aux_head, de `latent_proj` da dong bang dung nhu co che can;
+    # (c) phai TRUOC `named_trainable`, khong thi `lat_vul_head`/`gate` khong vao optimizer.
+    # ------------------------------------------------------------------
+    gate_mode = getattr(args, "phase2_gate", "off") or "off"
+    if gate_mode != "off":
+        if args.lp_epochs > 0:
+            raise ValueError(
+                "--phase2_gate khong dung chung duoc voi --lp_epochs: run_linear_probe chi mo "
+                "vul_head nen nhanh 8 chieu se nam im, va phep so doi hai bien"
+            )
+        if aux_trainable:
+            raise ValueError(
+                "--phase2_gate can `latent_proj` DONG BANG (do la ca co che). "
+                "Bo --phase2_lambda_cwe/--replay_lambda_cwe neu muon bat cong"
+            )
+        model.enable_latent_gate(mode=gate_mode,
+                                 init_logit=float(getattr(args, "phase2_gate_init", 0.0)))
+        model.to(device)
+        n_gate = sum(p.numel() for n, p in model.named_parameters()
+                     if p.requires_grad and ("lat_vul_head" in n or "gate" in n))
+        logger.info(
+            "CONG 8 chieu BAT | mode=%s | g khoi tao %.4f | alpha %.3f | %d tham so moi "
+            "(nhanh 768 chieu co %d)", gate_mode,
+            1.0 / (1.0 + pow(2.718281828459045, -float(getattr(args, "phase2_gate_init", 0.0)))),
+            float(getattr(args, "phase2_gate_alpha", 0.0) or 0.0), n_gate,
+            sum(p.numel() for p in model.vul_head.parameters()),
+        )
 
     # Take names alongside the tensors: the anchor may need to swap individual
     # backbone entries for their pretrained originals, which needs the name.
@@ -1430,6 +1496,11 @@ def run_test(args, device):
         "test_probabilities": [round(float(x), 6) for x in test["probabilities"]],
         "test_labels": [int(x) for x in test["labels"]],
         "test_cwe_classes": [int(x) for x in test["cwe_classes"]],
+        # MANH 2: gia tri cong o checkpoint TOT NHAT. Day la so phai doc de kiem du doan
+        # "tap dich cang nho thi g cang lon" — khong co no thi phai suy tu log, va log
+        # khong ghep cap theo o duoc.
+        "gate_value": (model.gate_value() if hasattr(model, "gate_value") else None),
+        "gate_mode": getattr(model, "gate_mode", "off"),
         "per_cwe": per_cwe_at_valcal,
         "per_cwe_at_0.5": per_cwe_at_05,
         "per_cwe_at_valcal": per_cwe_at_valcal,
@@ -1618,6 +1689,13 @@ def parse_args():
                               "cua RecAdam (sigmoid k, t0) nhung KHONG neo. Doi chung tach 'warmup "
                               "ngam' cua RecAdam khoi 'neo' (src/anneal_adamw.py)")
 
+    auxb = parser.add_argument_group("phase-1 auxiliary head (FACTS §30.2)")
+    auxb.add_argument("--aux_class_balanced", action="store_true",
+                      help="can bang lop cho loss phu bang trong so nghich tan suat (chuan hoa ve "
+                           "trung binh 1 nen TONG do lon loss khong doi, lambda van so sanh duoc). "
+                           "Sua dung cai §30.2 do duoc: head phu chi doan MOT lop vi nguon lech "
+                           "74%% ve mot CWE. KHONG truyen = duong chay cu tung byte")
+
     bridge = parser.add_argument_group("phase-2 source replay / CWE bridge (src/replay.py)")
     bridge.add_argument("--replay_data", default=None,
                         help="file jsonl NGUON de replay trong Pha 2 (vd data/phase1_4cwe.jsonl). "
@@ -1653,6 +1731,19 @@ def parse_args():
     feat.add_argument("--phase2_reinit_head", action="store_true",
                       help="khoi tao lai vul_head truoc Pha 2, giu backbone Pha 1. Hoi: mang mot ham "
                            "quyet dinh SAI mot cach tu tin (0.54 F1 zero-shot) sang dich co hai khong")
+
+    gate = parser.add_argument_group("MANH 2 — duong quyet dinh kep co cong")
+    gate.add_argument("--phase2_gate", choices=("off", "scalar", "input"), default="off",
+                      help="bat duong quyet dinh THU HAI di qua nut that 8 chieu cua Pha 1 "
+                           "(latent_proj DONG BANG), tron voi nhanh 768 chieu bang mot cong hoc "
+                           "duoc: logit = (1-g)*W768.f + g*W8.P(f). scalar = mot g cho ca tap "
+                           "(de doc nhat); input = g phu thuoc dau vao. Mac dinh off = duong cu")
+    gate.add_argument("--phase2_gate_alpha", type=float, default=0.3,
+                      help="trong so giam sat TRUC TIEP cho nhanh 8 chieu. Khong co no thi cong "
+                           "phai cham diem mot nhanh chua duoc huan luyen va se dim no ve 0 ngay "
+                           "epoch dau, lam phep do vo nghia. Chi co tac dung khi --phase2_gate khac off")
+    gate.add_argument("--phase2_gate_init", type=float, default=0.0,
+                      help="logit khoi tao cua cong. 0.0 => g=0.5, khong thien vi ben nao")
 
     smoke = parser.add_argument_group("smoke-test limits")
     smoke.add_argument("--max_train_samples", type=int, help="cap training records")

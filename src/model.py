@@ -220,6 +220,66 @@ class TransferModel(nn.Module):
             self.freeze_prototypes_steps = 0
             self.register_buffer("_step", torch.zeros((), dtype=torch.long))
 
+    # ------------------------------------------------------------------
+    # MANH 2 — DUONG QUYET DINH KEP CO CONG (bat o Pha 2, mac dinh TAT)
+    # ------------------------------------------------------------------
+    def enable_latent_gate(self, mode="scalar", init_logit=0.0, freeze_proj=True):
+        """Them mot duong quyet dinh THU HAI di qua nut that 8 chieu cua Pha 1.
+
+        Vi sao: FACTS §40/§40.2 do duoc loi ich cua transfer TANG DON DIEU khi tap dich co
+        lai (ROC-AUC Δ +0.011 -> +0.194 tren codebert, +0.017 -> +0.100 tren t5p, don dieu
+        chat o n=5 tren CA HAI backbone). Cach doc: khi dich du du lieu, mo hinh tu hoc trong
+        khong gian 768 chieu va bo qua nguon; khi dich thieu du lieu, no can nguon. Nhung hien
+        mo hinh KHONG CO cach nao bieu dat lua chon do — chi co mot duong quyet dinh.
+
+        Co che nay bieu dat no ra tuong minh:
+
+            logit = (1 - g) * W_768 · f  +  g * W_8 · P(f)
+
+        `P` la `latent_proj` cua Pha 1 (768 -> 8), DONG BANG: no mang hinh dang cua bang
+        phan loai CWE ben nguon. Nhanh thu hai chi co 8*C + C tham so nen gan nhu khong the
+        khop qua; nhanh 768 chieu thi co. `g` la cong hoc duoc — va no la mot SO DOC DUOC:
+        "phan quyet dinh di qua khong gian neo vao nguon".
+
+        Du doan kiem duoc, va co the SAI: tap dich cang nho thi `g` hoc ra cang LON.
+        Neu `g` khong doi theo co tap dich thi co che nay bi BAC, du diem so co tot len.
+
+        mode: "scalar" mot so cho ca tap (de doc nhat) | "input" cong phu thuoc dau vao.
+        init_logit=0.0 => g=0.5, khong thien vi ben nao.
+        """
+        if self.aux_mode != "latent_bottleneck":
+            raise ValueError(f"cong 8 chieu can aux_mode='latent_bottleneck', dang la {self.aux_mode!r}")
+        if mode not in ("scalar", "input"):
+            raise ValueError(f"gate mode khong hop le: {mode!r}")
+        hidden_size = self.vul_head.in_features
+        num_classes = self.vul_head.out_features
+        self.gate_mode = mode
+        self.lat_vul_head = nn.Linear(self.num_latent, num_classes)
+        nn.init.normal_(self.lat_vul_head.weight, std=0.02)
+        nn.init.zeros_(self.lat_vul_head.bias)
+        if mode == "scalar":
+            self.gate_logit = nn.Parameter(torch.tensor(float(init_logit)))
+        else:
+            # Trong so 0 + bias=init_logit => luc khoi tao NO CHINH LA cong vo huong,
+            # roi tu tach ra neu du lieu doi hoi. Khong nhay bac giua hai che do.
+            self.gate_proj = nn.Linear(hidden_size, 1)
+            nn.init.zeros_(self.gate_proj.weight)
+            nn.init.constant_(self.gate_proj.bias, float(init_logit))
+        if freeze_proj:
+            # Dong bang la CA CO CHE: `latent_proj` huan luyen duoc thi nhanh thu hai chi con
+            # la "mot lop 8 chieu nua", khong con neo vao bang phan loai cua nguon.
+            for prm in self.latent_proj.parameters():
+                prm.requires_grad_(False)
+        return self
+
+    def gate_value(self):
+        """So doc duoc: g trung binh. `None` neu chua bat cong."""
+        if getattr(self, "gate_mode", "off") == "off":
+            return None
+        if self.gate_mode == "scalar":
+            return float(torch.sigmoid(self.gate_logit).detach())
+        return None  # cong phu thuoc dau vao: doc qua `gate_mean` trong ket qua forward
+
     def aux_modules(self):
         """Parameters that serve only the auxiliary task, frozen from Phase 2 on."""
         modules = []
@@ -264,11 +324,26 @@ class TransferModel(nn.Module):
                 # here: Sinkhorn needs the unscaled scores or exp() overflows.
                 cwe_logits = latent @ prototypes.t()
 
+        gate_mean = None
+        if getattr(self, "gate_mode", "off") != "off":
+            # `latent_proj` dong bang => huong chieu giu nguyen hinh dang bang CWE cua nguon.
+            latent_gate = self.latent_proj(cls_output)
+            lat_logits = self.lat_vul_head(latent_gate)
+            if self.gate_mode == "scalar":
+                g = torch.sigmoid(self.gate_logit)
+            else:
+                g = torch.sigmoid(self.gate_proj(cls_output))
+            vul_logits = (1.0 - g) * vul_logits + g * lat_logits
+            gate_mean = g.detach().mean()
+
         result = {
             "vul_logits": vul_logits,
             "cwe_logits": cwe_logits,
             "latent": latent,
         }
+        if gate_mean is not None:
+            result["gate_mean"] = gate_mean
+            result["lat_vul_logits"] = lat_logits
         if return_features:
             result["pooled"] = pooled
         return result
@@ -321,7 +396,8 @@ def sinkhorn(scores, epsilon=0.05, n_iters=3):
     return (Q * n_samples).t()
 
 
-def auxiliary_loss(outputs, cwe_targets, aux_mode, sinkhorn_epsilon=0.05, temperature=0.1):
+def auxiliary_loss(outputs, cwe_targets, aux_mode, sinkhorn_epsilon=0.05, temperature=0.1,
+                   class_weight=None):
     """Auxiliary loss for the active mode, plus diagnostics for logging.
 
     Returns (loss, assignment) where assignment is the hard latent/CWE slot per
@@ -337,7 +413,11 @@ def auxiliary_loss(outputs, cwe_targets, aux_mode, sinkhorn_epsilon=0.05, temper
         valid = cwe_targets != -100
         if not valid.any():
             return logits.sum() * 0.0, None
-        loss = F.cross_entropy(logits[valid], cwe_targets[valid])
+        # class_weight: FACTS §30.2 do duoc head phu chi doan MOT lop — dung bang san
+        # doan-lop-da-so. Nguyen nhan la cross-entropy tran tren tap lech (4cwe: 74% CWE-79)
+        # voi lambda chi 0.05: gradient cua lop da so nuot phan con lai. Trong so nghich tan
+        # suat sua dung cho do. None = duong chay cu tung byte.
+        loss = F.cross_entropy(logits[valid], cwe_targets[valid], weight=class_weight)
         return loss, logits.argmax(dim=-1)
 
     # latent_proto: no labels are used, the target comes from the balanced

@@ -58,7 +58,7 @@ def _combine_phase1_loss(vul_loss, aux_loss, lambda_cwe, aux_weighter):
 
 
 def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max_grad_norm,
-                           aux_weighter=None, sam=None):
+                           aux_weighter=None, sam=None, aux_class_weight=None):
     """`sam=None` giu nguyen duong chay cu tung byte.
 
     Khi co SAM: nhieu loan phai lay tren DUNG ham muc tieu dang toi uu, ma o
@@ -79,7 +79,8 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
         outputs = model(input_ids, attention_mask, return_cwe=True)
         vul_loss = F.cross_entropy(outputs["vul_logits"], labels)
         aux_loss, assignment = auxiliary_loss(outputs, cwes, model.aux_mode,
-            temperature=getattr(model, "latent_temperature", 0.1))
+            temperature=getattr(model, "latent_temperature", 0.1),
+            class_weight=aux_class_weight)
         loss = _combine_phase1_loss(vul_loss, aux_loss, lambda_cwe, aux_weighter)
         loss.backward()
 
@@ -91,7 +92,8 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
                 out2 = model(input_ids, attention_mask, return_cwe=True)
                 vul2 = F.cross_entropy(out2["vul_logits"], labels)
                 aux2, _ = auxiliary_loss(out2, cwes, model.aux_mode,
-                    temperature=getattr(model, "latent_temperature", 0.1))
+                    temperature=getattr(model, "latent_temperature", 0.1),
+                    class_weight=aux_class_weight)
                 _combine_phase1_loss(vul2, aux2, lambda_cwe, aux_weighter).backward()
                 # Ve w TRUOC optimizer.step(): gradient lay o w+eps nhung buoc
                 # cap nhat phai ap cho w goc, dung nhu ma cua Google.
@@ -134,7 +136,8 @@ def assert_recadam_setup(current_params, pretrain_params, model, aux_trainable=F
         ), "auxiliary head not frozen"
 
 
-def _phase2_target_loss(model, batch, device, lambda_cwe, teacher=None, beta=0.0, mode="cos"):
+def _phase2_target_loss(model, batch, device, lambda_cwe, teacher=None, beta=0.0, mode="cos",
+                        gate_alpha=0.0):
     """Mục tiêu trên một batch ĐÍCH. `lambda_cwe=0`, `teacher=None` ⇒ đúng đường cũ từng byte.
 
     `lambda_cwe>0` ⇒ cộng λ·L_cwe trên `cwe_class` của đích (4 lớp, cùng bảng CWE_MAPPING
@@ -172,6 +175,10 @@ def _phase2_target_loss(model, batch, device, lambda_cwe, teacher=None, beta=0.0
         else:
             feat_loss = (1.0 - F.cosine_similarity(cur, ref, dim=-1)).mean()
         loss = loss + beta * feat_loss
+    # MANH 2: giam sat TRUC TIEP nhanh 8 chieu. Khong co no thi cong phai cham diem mot
+    # nhanh chua duoc huan luyen, va se dim no ve 0 ngay epoch dau — phep do thanh vo nghia.
+    if gate_alpha > 0 and "lat_vul_logits" in outputs:
+        loss = loss + gate_alpha * F.cross_entropy(outputs["lat_vul_logits"], labels)
     return loss, vul_loss, aux_loss, outputs, labels, feat_loss
 
 
@@ -195,7 +202,7 @@ def _phase2_replay_loss(model, batch, device, mu, lambda_cwe):
 def train_one_epoch_phase2(
     model, dataloader, optimizer, device, max_grad_norm, pretrain_params,
     check_first_step=False, sam=None, replay=None, lambda_cwe_target=0.0, epoch=1,
-    teacher_feats=None, feat_beta=0.0, feat_mode="cos",
+    teacher_feats=None, feat_beta=0.0, feat_mode="cos", gate_alpha=0.0,
 ):
     """`sam=None`, `replay=None`, `lambda_cwe_target=0` giữ nguyên đường chạy cũ từng byte.
 
@@ -221,7 +228,8 @@ def train_one_epoch_phase2(
     for batch in dataloader:
         optimizer.zero_grad(set_to_none=True)
         loss, vul_loss, aux_loss, outputs, labels, feat_loss = _phase2_target_loss(
-            model, batch, device, lambda_cwe_target, teacher_feats, feat_beta, feat_mode
+            model, batch, device, lambda_cwe_target, teacher_feats, feat_beta, feat_mode,
+            gate_alpha
         )
         loss.backward()
         replay_batch, replay_loss = None, None
@@ -236,7 +244,8 @@ def train_one_epoch_phase2(
             if sam.ascend(trainable):
                 optimizer.zero_grad(set_to_none=True)
                 loss2, _, _, _, _, _ = _phase2_target_loss(
-                    model, batch, device, lambda_cwe_target, teacher_feats, feat_beta, feat_mode
+                    model, batch, device, lambda_cwe_target, teacher_feats, feat_beta, feat_mode,
+                    gate_alpha
                 )
                 loss2.backward()
                 if replay_batch is not None:
@@ -389,6 +398,7 @@ def train_loop(
     aux_weighter=None,
     replay=None,
     teacher_feats=None,
+    aux_class_weight=None,
 ):
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
@@ -428,7 +438,7 @@ def train_loop(
         if phase == "phase1":
             train = train_one_epoch_phase1(
                 model, train_loader, optimizer, device, args.lambda_cwe, args.max_grad_norm,
-                aux_weighter=aux_weighter, sam=sam,
+                aux_weighter=aux_weighter, sam=sam, aux_class_weight=aux_class_weight,
             )
             if aux_weighter is not None:
                 d = aux_weighter.diagnostics()
@@ -463,7 +473,12 @@ def train_loop(
                 teacher_feats=teacher_feats,
                 feat_beta=float(getattr(args, "feat_distill_beta", 0.0) or 0.0),
                 feat_mode=getattr(args, "feat_distill_mode", "cos"),
+                gate_alpha=float(getattr(args, "phase2_gate_alpha", 0.0) or 0.0),
             )
+            gv = model.gate_value() if hasattr(model, "gate_value") else None
+            if gv is not None:
+                logger.info("CONG 8 chieu | epoch %d | g = %.4f (0 = toan bo qua 768 chieu, "
+                            "1 = toan bo qua nut that neo vao nguon)", epoch, gv)
             if "feat" in train:
                 logger.info("Neo dac trung | epoch %d | beta %.3f | d(f,f*) %.4f | L_dich %.4f",
                             epoch, float(getattr(args, "feat_distill_beta", 0.0) or 0.0),
