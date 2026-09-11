@@ -63,7 +63,12 @@ def per_cwe(d):
 
 
 def load():
-    """{(bb, N, fold): (transfer_json, baseline_json)}"""
+    """{(bb, N, seed, fold): (transfer_json, baseline_json)}
+
+    SEED PHAI nam trong khoa. Ban truoc khoa la (bb, N, fold) nen ba seed de len nhau va
+    chi mot seed song sot — bang van in ra binh thuong, khong bao gi ca. Bay "o le bi BO va
+    bao ro so o bo" cua CLAUDE.md muc 2b chi chan duoc o THIEU doi chung, khong chan duoc
+    o bi GHI DE."""
     cells = {}
     roots = [(456, r) for r in glob.glob("results/bridge3_*")]
     roots += [(int(re.search(r"sz(\d+)_", r).group(1)), r) for r in glob.glob("results/sz*_*")]
@@ -75,7 +80,7 @@ def load():
             b = os.path.join(root, "baseline", f"seed_{seed}", f"fold{fold}.json")
             if not os.path.exists(b): continue
             try:
-                cells[(bb, N, fold)] = (json.load(open(f)), json.load(open(b)))
+                cells[(bb, N, seed, fold)] = (json.load(open(f)), json.load(open(b)))
             except Exception as e:
                 print(f"# hong: {f}: {e}", file=sys.stderr)
     return cells
@@ -89,7 +94,9 @@ def main():
     Ns = sorted({k[1] for k in cells}, reverse=True)
     print(f"{len(cells)} o ghep cap | backbone: {bbs} | N: {Ns}")
 
-    bad = [(bb, N, fold) for (bb, N, fold), (t, b) in cells.items()
+    seeds = sorted({k[2] for k in cells})
+    print(f"seed co mat: {seeds}")
+    bad = [k for k, (t, b) in cells.items()
            if (b.get("test_macro_f1_at_0.5") or 0) < MIN_BASELINE_F1]
     if bad:
         print(f"\n!! {len(bad)} o BI LOAI (baseline F1@0.5 < {MIN_BASELINE_F1}, nguong khai bao truoc): {bad}")
@@ -99,7 +106,7 @@ def main():
     print(f"{'backbone':<10}{'N':>5}{'n':>3}  " + "".join(f"{m:>24}" for m, _ in MET))
     for bb in bbs:
         for N in Ns:
-            pr = [(t, b) for (b2, N2, _), (t, b) in keep.items() if b2 == bb and N2 == N]
+            pr = [(t, b) for (b2, N2, _, _), (t, b) in keep.items() if b2 == bb and N2 == N]
             if not pr: continue
             cols = [stat([(t.get(k) or np.nan) - (b.get(k) or np.nan) for t, b in pr]) for _, k in MET]
             print(f"{bb:<10}{N:>5}{len(pr):>3}  " + "".join(f"  {fmt(s)}" for s in cols))
@@ -110,7 +117,7 @@ def main():
         print(f"\n-- {bb}")
         print(f"{'N':>5}{'n':>3}   " + "".join(f"{'CWE-'+c:>22}" for c in ("022", "078", "079", "089")))
         for N in Ns:
-            pr = [(t, b) for (b2, N2, _), (t, b) in keep.items() if b2 == bb and N2 == N]
+            pr = [(t, b) for (b2, N2, _, _), (t, b) in keep.items() if b2 == bb and N2 == N]
             if not pr: continue
             dd = defaultdict(list)
             for t, b in pr:
@@ -129,7 +136,7 @@ def main():
     print(f"{'backbone':<10}{'N':>5}{'nhanh':>12}{'F1@0.5':>10}{'ROC-AUC':>10}{'PR-AUC':>10}{'best_ep':>9}")
     for bb in bbs:
         for N in Ns:
-            pr = [(t, b) for (b2, N2, _), (t, b) in keep.items() if b2 == bb and N2 == N]
+            pr = [(t, b) for (b2, N2, _, _), (t, b) in keep.items() if b2 == bb and N2 == N]
             if not pr: continue
             for name, idx in (("chuyen giao", 0), ("baseline", 1)):
                 ds = [x[idx] for x in pr]
@@ -138,6 +145,25 @@ def main():
                       f"{np.mean([d['test_roc_auc'] for d in ds]):>10.4f}"
                       f"{np.mean([d['test_pr_auc'] for d in ds]):>10.4f}"
                       f"{np.mean([d.get('best_epoch') or np.nan for d in ds]):>9.1f}")
+    print("\n=== TACH THEO SEED (ROC-AUC) — hieu ung phai giu dau o TUNG seed ===")
+    print(f"{'backbone':<10}{'N':>5}" + "".join(f"{'seed '+str(sd):>18}" for sd in seeds))
+    for bb in bbs:
+        for N in Ns:
+            row = f"{bb:<10}{N:>5}"
+            any_cell = False
+            for sd in seeds:
+                pr = [(t, b) for (b2, N2, s2, _), (t, b) in keep.items()
+                      if b2 == bb and N2 == N and s2 == sd]
+                if not pr:
+                    row += f"{'-':>18}"; continue
+                any_cell = True
+                d = [(t.get("test_roc_auc") or np.nan) - (b.get("test_roc_auc") or np.nan)
+                     for t, b in pr]
+                st = stat(d)
+                row += f"{f'{st[0]:+.4f} {st[1]}/{st[2]}':>18}"
+            if any_cell: print(row)
+        print()
+
     print("\nBac 1 (n=3 fold, seed 42): chi SANG LOC. Phan chac la SO FOLD CUNG DAU, khong phai p.")
 
 
