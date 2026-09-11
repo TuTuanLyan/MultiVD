@@ -1,41 +1,40 @@
-# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 09:05 UTC)
+# CURRENT_RUN — ĐANG CHẠY 11/09/2026 (cập nhật 09:35 UTC)
 
-> **Ba máy đều đang chạy.** Không máy nào nằm không.
+| máy | khối | trạng thái |
+|---|---|---|
+| **161** `flink-jm` A4000 | `rev1full` codebert (đảo nguồn Python→JS, đích `js_full`) | đang chạy baseline |
+| **158** `flink-tm` A4000 | `rev1full` t5p | đang chạy nhánh chuyển giao, 1/3 ô |
+| **vast 50570168** RTX 5060 Ti, $0.0818/h | `auxb` Pha 2 (GPU) + `latent_probe` (CPU) | cả hai đang chạy |
 
-| máy | khối | nội dung | trạng thái |
-|---|---|---|---|
-| **161** `flink-jm` A4000 | `rev1com`/`rev1full` codebert | đảo nguồn Python→JS, đích `js_com_folds` rồi `js_full_folds`, fold 1 | đang chạy, chia GPU với user `cuongtm` (NHƯỜNG, không kill) |
-| **158** `flink-tm` A4000 | `rev1com`/`rev1full` t5p | như trên | đang chạy Pha 2 `rev1com_t5p` |
-| **vast 50570168** RTX 5060 Ti | `auxb` | head phụ CÂN BẰNG LỚP — mảnh 1 của cơ chế mới | phóng lại 08:59 UTC, GPU 6641 MiB |
+## Đã xong đêm nay
 
-## vast `auxb` — làm cho head phụ THẬT SỰ HỌC (mảnh 1)
+**§43 — cổng mảnh 1, head phụ cân bằng lớp.** `--aux_class_balanced` làm head **học được trên
+t5p** (macro-F1 0.2000 → **0.5996**, gấp ba sàn, dùng cả 4 lớp) và **hỏng trên codebert**
+(0.1917 < sàn 0.2000). Mẫu hình "mọi can thiệp tách theo backbone" lặp **lần thứ năm**.
 
-**Vì sao**: FACTS §30.2 đo trực tiếp là head phụ chỉ đoán **một lớp**, độ chính xác trùng khít sàn
-đoán-lớp-đa-số. Nguồn `4cwe` lệch 74% về CWE-79 (692/930), λ chỉ 0.05, nên cross-entropy tràn.
-Sửa: **trọng số nghịch tần suất, chuẩn hoá về trung bình 1** (`--aux_class_balanced`) — tổng độ
-lớn loss KHÔNG đổi nên λ vẫn so sánh được với mọi khối cũ, chỉ PHÂN BỔ lại giữa các lớp.
+**Nút thắt 8 chiều, codebert, đủ 5 fold — BÁC dự đoán đã khai báo trước.**
+`lat8` ROC 0.6586 có tín hiệu, nhưng **không hơn chiếu ngẫu nhiên** (+0.0083, 3/5) và **thua
+PCA-8** (−0.0259, **0/5**). Trên codebert `latent_proj` chỉ là giảm chiều, và kém hơn cách giảm
+chiều tầm thường nhất. Khai báo trước ở `records/prediction_2026-09-11_nut_that_8_chieu.md`.
+Đang chờ t5p — đó mới là backbone head thật sự học được.
 
-Ba bước, `scripts/vast_auxb_run.sh`:
+**§41.1 — đảo chiều, đích JS `common`.** 8/8 ô dương, ΔROC +0.09 đến +0.21. Nhưng **mọi baseline
+JS đều ở hoặc dưới mức ngẫu nhiên** (0.3946 đến 0.4927), nên Δ đo *"Pha 1 cứu được một đích không
+tự học nổi"*, không phải *"thắng một baseline đang chạy được"*.
 
-1. Pha 1 trên `4cwe` với `--aux_class_balanced`, hai backbone → `model/auxb/phase1`
-2. **CỔNG** `tools/aux_head_probe.py`: head phải **vượt sàn 0.7441** và phải dùng **>1 lớp**
-3. Pha 2 AdamW trần, 3 fold, hai backbone, + baseline cùng máy cùng fold
+**§42 — ba lỗi xếp chồng khi dựng vast**, lỗi đắt nhất là `pip install transformers` trần kéo về
+5.17.0 thay vì bản ghim 4.57.1.
 
-**Cổng bước 2 quyết định mảnh 2.** Head vẫn không vượt sàn ⇒ mảnh 2 (định tuyến quyết định qua
-nút thắt 8 chiều) **vô nghĩa và phải dừng**. Bước 3 vẫn chạy vì bản thân nó là một nhánh hợp lệ.
+## Mảnh 2 — ĐÃ VIẾT XONG MÃ, **CHƯA PHÓNG**
 
-### Ba lỗi xếp chồng lúc dựng máy — đã ghi FACTS §42
+Đường quyết định kép có cổng: `logit = (1−g)·W₇₆₈·f + g·W₈·P(f)`, `P` = `latent_proj` đóng băng.
+Cờ: `--phase2_gate {off,scalar,input}`, `--phase2_gate_alpha`, `--phase2_gate_init`,
+`--phase2_gate_proj {learned,random}`. `tests/test_latent_gate.py` 10/10, mọi phép hai chiều.
+Mặc định `off` ⇒ đường cũ từng byte; bộ kiểm cũ 5/5 file vẫn đạt.
 
-1. địa chỉ SSH trong API là **proxy**, phải dùng `vastai ssh-url`
-2. HF Hub tải treo (blob `.incomplete` = 0 byte) ⇒ đẩy 1,8 GB cache từ local, chạy `HF_HUB_OFFLINE=1`
-3. **`pip install transformers` trần kéo về 5.17.0** thay vì bản ghim 4.57.1 ⇒ tokenizer chết.
-   Đã cài lại đúng bản ghim và thử **cả hai chiều** (có cache: dựng được; `HF_HOME` rỗng: `OSError`).
-
-## Đảo nguồn/đích Python → JavaScript
-
-Đã xong `rev1` (đích `js_4cwe_folds` fold 1): 3 ô mỗi backbone = baseline + `plain` + ASAM/RecAdam.
-Kết quả ở FACTS §41 — **n=1, chỉ sàng lọc**. Đang chạy tiếp hai đích lớn hơn:
-`js_com_folds` (830/276/278) và `js_full_folds` (932/310/314), cùng ba nhánh, fold 1.
+**`--phase2_gate_proj random` là đối chứng BẮT BUỘC**, không phải tuỳ chọn: nếu cổng chạy ngang
+nhau ở hai chế độ thì cơ chế là *"một nhánh ít tham số"*, không phải *"neo vào bảng phân loại của
+nguồn"* — hai phát biểu khác hẳn về độ mới.
 
 ---
 
