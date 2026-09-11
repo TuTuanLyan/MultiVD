@@ -205,6 +205,30 @@ def test_khong_phai_latent_bottleneck_thi_TU_CHOI():
         m.enable_latent_gate()
 
 
+def test_doi_chung_chieu_ngau_nhien():
+    """proj='random' phai THAY THAT ma tran chieu, va phai khac han ban da hoc."""
+    m = make()
+    hoc = [p.detach().clone() for p in m.latent_proj.parameters()]
+    m.enable_latent_gate(mode="scalar", proj="random", proj_seed=7)
+    assert m.gate_proj_kind == "random"
+    W = m.latent_proj.weight.detach()
+    assert not torch.allclose(W, hoc[0]), "proj='random' ma ma tran khong doi"
+    assert torch.allclose(m.latent_proj.bias.detach(), torch.zeros_like(m.latent_proj.bias))
+    assert all(not p.requires_grad for p in m.latent_proj.parameters())
+    # CUNG seed => CUNG ma tran; KHAC seed => KHAC. Ca hai chieu.
+    m2 = make(); m2.enable_latent_gate(mode="scalar", proj="random", proj_seed=7)
+    assert torch.allclose(W, m2.latent_proj.weight.detach())
+    m3 = make(); m3.enable_latent_gate(mode="scalar", proj="random", proj_seed=8)
+    assert not torch.allclose(W, m3.latent_proj.weight.detach())
+    # chieu nguoc: mac dinh 'learned' KHONG duoc dong vao ma tran
+    m4 = make()
+    hoc4 = [p.detach().clone() for p in m4.latent_proj.parameters()]
+    m4.enable_latent_gate(mode="scalar")
+    assert m4.gate_proj_kind == "learned"
+    for a, b_ in zip(hoc4, m4.latent_proj.parameters()):
+        assert torch.equal(a, b_.detach())
+
+
 # ---------------------------------------------------------------- chay
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

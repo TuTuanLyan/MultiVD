@@ -992,7 +992,9 @@ def run_phase2(args, device):
                 "Bo --phase2_lambda_cwe/--replay_lambda_cwe neu muon bat cong"
             )
         model.enable_latent_gate(mode=gate_mode,
-                                 init_logit=float(getattr(args, "phase2_gate_init", 0.0)))
+                                 init_logit=float(getattr(args, "phase2_gate_init", 0.0)),
+                                 proj=getattr(args, "phase2_gate_proj", "learned"),
+                                 proj_seed=int(getattr(args, "seed", 42)))
         model.to(device)
         n_gate = sum(p.numel() for n, p in model.named_parameters()
                      if p.requires_grad and ("lat_vul_head" in n or "gate" in n))
@@ -1742,6 +1744,11 @@ def parse_args():
                       help="trong so giam sat TRUC TIEP cho nhanh 8 chieu. Khong co no thi cong "
                            "phai cham diem mot nhanh chua duoc huan luyen va se dim no ve 0 ngay "
                            "epoch dau, lam phep do vo nghia. Chi co tac dung khi --phase2_gate khac off")
+    gate.add_argument("--phase2_gate_proj", choices=("learned", "random"), default="learned",
+                      help="DOI CHUNG. random = thay latent_proj da hoc bang ma tran Gauss dong "
+                           "bang cung kich thuoc. tools/latent_probe.py do duoc anh 8 chieu da hoc "
+                           "KHONG hon chieu ngau nhien tren codebert, nen neu hai che do chay ngang "
+                           "nhau thi co che la 'nhanh it tham so', khong phai 'neo vao nguon'")
     gate.add_argument("--phase2_gate_init", type=float, default=0.0,
                       help="logit khoi tao cua cong. 0.0 => g=0.5, khong thien vi ben nao")
 

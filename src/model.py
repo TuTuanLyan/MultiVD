@@ -223,7 +223,8 @@ class TransferModel(nn.Module):
     # ------------------------------------------------------------------
     # MANH 2 — DUONG QUYET DINH KEP CO CONG (bat o Pha 2, mac dinh TAT)
     # ------------------------------------------------------------------
-    def enable_latent_gate(self, mode="scalar", init_logit=0.0, freeze_proj=True):
+    def enable_latent_gate(self, mode="scalar", init_logit=0.0, freeze_proj=True,
+                           proj="learned", proj_seed=42):
         """Them mot duong quyet dinh THU HAI di qua nut that 8 chieu cua Pha 1.
 
         Vi sao: FACTS §40/§40.2 do duoc loi ich cua transfer TANG DON DIEU khi tap dich co
@@ -246,6 +247,14 @@ class TransferModel(nn.Module):
 
         mode: "scalar" mot so cho ca tap (de doc nhat) | "input" cong phu thuoc dau vao.
         init_logit=0.0 => g=0.5, khong thien vi ben nao.
+
+        proj="random": DOI CHUNG. Thay `latent_proj` da hoc bang mot ma tran Gauss dong bang
+        cung kich thuoc. Day la doi chung BAT BUOC, khong phai tuy chon: `tools/latent_probe.py`
+        do duoc tren codebert rang anh 8 chieu da hoc KHONG hon mot phep chieu ngau nhien
+        (+0.0083 ROC, 3/5 fold) va THUA PCA-8 (-0.0259, 0/5). Neu nhanh cong chay tot ngang
+        nhau o ca hai che do thi co che la "mot duong quyet dinh IT THAM SO", khong phai "neo
+        vao bang phan loai cua nguon" — hai phat bieu khac han ve do moi, va chi phat bieu
+        thu hai can `latent_proj`.
         """
         if self.aux_mode != "latent_bottleneck":
             raise ValueError(f"cong 8 chieu can aux_mode='latent_bottleneck', dang la {self.aux_mode!r}")
@@ -265,6 +274,15 @@ class TransferModel(nn.Module):
             self.gate_proj = nn.Linear(hidden_size, 1)
             nn.init.zeros_(self.gate_proj.weight)
             nn.init.constant_(self.gate_proj.bias, float(init_logit))
+        if proj == "random":
+            g_ = torch.Generator().manual_seed(int(proj_seed))
+            W = torch.randn(self.num_latent, hidden_size, generator=g_) / (hidden_size ** 0.5)
+            with torch.no_grad():
+                self.latent_proj.weight.copy_(W.to(self.latent_proj.weight.dtype))
+                self.latent_proj.bias.zero_()
+            self.gate_proj_kind = "random"
+        else:
+            self.gate_proj_kind = "learned"
         if freeze_proj:
             # Dong bang la CA CO CHE: `latent_proj` huan luyen duoc thi nhanh thu hai chi con
             # la "mot lop 8 chieu nua", khong con neo vao bang phan loai cua nguon.
