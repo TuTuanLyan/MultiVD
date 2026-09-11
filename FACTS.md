@@ -3936,3 +3936,57 @@ Trên t5p hai seed **đổi dấu nhau**: seed 42 cho 4/5 dương (nhìn như m�
 
 **Cách viết vào bài**: đừng viết "phương pháp thắng ở mọi cỡ dữ liệu". Viết rằng lợi ích **về thứ
 hạng** là một hiện tượng **dữ liệu-ít**, và ở dữ liệu đầy đủ cái còn lại chỉ là hiệu chỉnh ngưỡng.
+
+---
+
+## §40.4 — ĐƯỜNG CONG ĐẦY ĐỦ ở **n=10 ô mỗi mức** (2 seed × 5 fold), cả bốn mức N, cả hai backbone (11/09)
+
+Seed 42 và seed 7 đã **xong đủ** cả bốn mức N trên cả hai backbone. Δ ghép cặp trong cùng ô
+(cùng cây, cùng seed, cùng fold; hai nhánh nhận **cùng** tập con vì cùng seed).
+
+**codebert**
+
+| N | F1@0.5 | F1@val | **ROC-AUC** | PR-AUC |
+|---|---|---|---|---|
+| 456 | +0.0463 10/10 | +0.0458 10/10 | **+0.0126 5/10** | **−0.0084 3/10** |
+| 228 | +0.0444 9/10 | +0.0544 10/10 | **+0.0379 10/10** | +0.0257 7/10 |
+| 152 | +0.0775 10/10 | +0.0642 9/10 | **+0.0726 10/10** | +0.0576 8/10 |
+| 76 | +0.1346 10/10 | +0.1378 10/10 | **+0.1859 10/10** | +0.1821 10/10 |
+
+**t5p**
+
+| N | F1@0.5 | F1@val | **ROC-AUC** | PR-AUC |
+|---|---|---|---|---|
+| 456 | +0.0151 8/11 | +0.0126 7/11 | **+0.0064 6/11** | +0.0092 7/11 |
+| 228 | +0.0356 9/10 | +0.0303 8/10 | **+0.0347 8/10** | +0.0338 7/10 |
+| 152 | +0.0488 9/10 | +0.0650 9/10 | **+0.0809 9/10** | +0.0901 9/10 |
+| 76 | +0.0755 9/10 | +0.0742 9/10 | **+0.1008 10/10** | +0.0766 10/10 |
+
+### Ba tính chất, và cả ba đều giữ trên CẢ HAI backbone
+
+**1. ROC-AUC đơn điệu chặt qua cả bốn mức.**
+codebert **+0.0126 → +0.0379 → +0.0726 → +0.1859**; t5p **+0.0064 → +0.0347 → +0.0809 → +0.1008**.
+Không có một chỗ lùi nào, ở **n=10** chứ không phải n=5.
+
+**2. Số fold cùng dấu đi từ ĐỒNG XU sang TUYỆT ĐỐI.** ROC-AUC: codebert 5/10 → 10/10 → 10/10 →
+10/10; t5p 6/11 → 8/10 → 9/10 → 10/10. Ở N=456 đó **đúng nghĩa một đồng xu**, không phải "hiệu
+ứng nhỏ".
+
+**3. PR-AUC của codebert ÂM ở N=456** (−0.0084, 3/10) rồi dương dần: 7/10 → 8/10 → **10/10**.
+Nên phát biểu "dương trên cả bốn chỉ số" **chỉ đúng từ N=152 trở xuống trên codebert, và từ
+N=152 trên t5p** — tự nó cũng là hiện tượng dữ liệu-ít.
+
+### Điều duy nhất KHÔNG đơn điệu, và phải nêu
+
+F1@0.5 của codebert: +0.0463 → +0.0444 → +0.0775 → +0.1346. Có một chỗ **lùi nhẹ** ở N=228
+(−0.0019, nhỏ hơn sàn nhiễu 0.010 năm lần). Đừng viết "mọi chỉ số đều đơn điệu"; chỉ **ROC-AUC**
+là đơn điệu chặt trên cả hai backbone.
+
+### Cách viết vào bài
+
+> Lợi ích của chuyển giao đa ngôn ngữ **về mặt thứ hạng** là một hiện tượng **dữ liệu-ít**. Ở dữ
+> liệu đích đầy đủ nó bằng không (ROC-AUC 5/10 và 6/11 ô cùng dấu, PR-AUC âm trên codebert), và
+> cái còn lại chỉ là hiệu chỉnh **ngưỡng quyết định**. Khi tập đích co xuống 1/6, nó thành
+> +0.19 / +0.10 ROC-AUC với **10/10** ô cùng dấu trên cả hai họ backbone.
+
+Seed 1234 đang chạy để lên n=15. Bậc hiện tại: **n=10 ô mỗi mức, 2 seed × 5 fold**.
