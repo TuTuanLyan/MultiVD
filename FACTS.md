@@ -3218,3 +3218,59 @@ Trục "nguồn" không tách được nhóm, nên phải tìm trục khác **tr
   điều khiển được thay vì thuộc tính cố hữu của backbone.
 
 Số đầy đủ: `results/probe/*_ctl.json`. Đặc trưng đã đệm ở `results/probe/cache/`.
+
+## §39 — CẤU HÌNH CHỐT, đọc theo TỪNG NGUỒN: `4cwe` là nguồn DUY NHẤT dương cả bốn chỉ số trên CẢ HAI backbone (11/09, n=15)
+
+§35.2 kết luận "rút ASAM" từ con số **gộp ba nguồn**. Đọc lại theo từng nguồn thì kết luận đó
+**vẫn đúng nhưng vì lý do khác**, và một chi tiết quan trọng đã bị con số gộp làm mờ.
+
+### B = `latent_bottleneck` λ0.05 + AdamW trần, so với `baseline` cùng ô (n=15 mỗi dòng)
+
+| backbone | nguồn | ΔF1@0.5 | ΔF1@val | ΔROC-AUC | ΔPR-AUC | đủ bốn dương? |
+|---|---|---|---|---|---|---|
+| codebert | **4cwe** | **+0.0503 15/15** | **+0.0563 15/15** | +0.0148 10/15 | +0.0035 7/15 | **✓** |
+| codebert | com | +0.0326 14/15 | +0.0360 12/15 | +0.0033 7/15 | **−0.0073** 7/15 | ✗ |
+| codebert | full | +0.0493 15/15 | +0.0515 14/15 | +0.0133 9/15 | +0.0088 9/15 | ✓ |
+| t5p | **4cwe** | **+0.0261 13/15** | +0.0241 12/15 | +0.0095 9/15 | +0.0084 9/15 | **✓** |
+| t5p | com | +0.0298 13/15 | +0.0249 12/15 | +0.0124 11/15 | +0.0105 10/15 | ✓ |
+| t5p | full | +0.0083 7/15 ~1 | +0.0117 8/15 | **−0.0079** 7/15 | **−0.0175** 7/15 | ✗ |
+
+**`4cwe` là nguồn DUY NHẤT dương cả bốn chỉ số trên CẢ HAI backbone.** `com` hỏng ở codebert
+(PR âm), `full` hỏng ở t5p (ROC và PR đều âm).
+
+### Chi tiết bị con số gộp làm mờ: ASAM trên t5p là hiệu ứng THEO NGUỒN
+
+A − B (tách riêng phần optimizer đóng góp, ghép cặp trong cùng ô):
+
+| backbone | nguồn | ΔF1@0.5 | ΔROC-AUC | ΔPR-AUC |
+|---|---|---|---|---|
+| t5p | **4cwe** | +0.0087 10/15 ~1 | **+0.0166 11/15 (p=0.057)** | **+0.0253 13/15 (p=0.0074)** |
+| t5p | com | **−0.0584** 4/15 ~1 | **−0.0672** 6/15 | −0.0582 8/15 |
+| t5p | full | −0.0410 10/15 | **−0.0456 12/15 (p=0.035)** | −0.0408 10/15 |
+| t5p | **gộp** | −0.0302 | −0.0321 | −0.0245 |
+| codebert | gộp | +0.0010 21/45 ~2 | +0.0033 28/45 (p=0.066) | +0.0029 29/45 (p=0.073) |
+
+Trên **`4cwe` thì ASAM ρ=2.0 GIÚP t5p** (+0.0253 PR, 13/15, p=0.0074). Toàn bộ con số âm của
+dòng gộp đến từ `com` và `full`, nơi nó làm **sập** t5p: ROC tuyệt đối 0.8442 và 0.8454 so với
+0.9114 và 0.8911 của AdamW trần.
+
+**Nên phát biểu lại:** ASAM không phải "vô dụng"; nó là một **núm vặn mong manh phụ thuộc nguồn**.
+Bỏ nó đi mất ~0 trên codebert, mất một ít AUC trên `t5p`/`4cwe`, nhưng loại bỏ được nguy cơ sập
+0.07 ROC khi đổi nguồn. **Với một bài báo, đổi lấy sự ổn định là đúng.**
+
+### Trị tuyệt đối — cấu hình chốt so với baseline
+
+| backbone | nhánh | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| codebert | baseline (không Pha 1) | 0.7674 | 0.8752 | 0.8756 |
+| codebert | **4cwe + AdamW trần** | **0.8176** | 0.8901 | 0.8791 |
+| t5p | baseline | 0.8040 | 0.8990 | 0.8972 |
+| t5p | **4cwe + AdamW trần** | **0.8301** | 0.9085 | 0.9056 |
+
+### CẢNH BÁO khi viết: đầu bài là F1, KHÔNG phải AUC
+
+ΔROC-AUC của cấu hình chốt chỉ **+0.0148** (codebert) và **+0.0095** (t5p) — con số t5p **nằm
+dưới sàn nhiễu 0.010**. Phát biểu trung thực là về **quyết định ở ngưỡng 0.5**, không phải về
+**thứ hạng**. Thứ mạnh và lặp lại là **per-CWE**: CWE-022 +0.3677 (45/45) và CWE-079 +0.3500
+(45/45) trên codebert; +0.2204 (43/45) và +0.2209 (42/45) trên t5p. CWE-078 và CWE-089 null ở
+**mọi** phép đo, và chúng chiếm **121 trên 152** hàng test.
