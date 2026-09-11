@@ -1,6 +1,20 @@
-# CURRENT_RUN — ĐANG CHẠY đêm 10→11/09: `feat3` rồi `lpft3` (bậc 1, n=3)
+# CURRENT_RUN — ĐÃ XONG 11/09/2026 03:39 VN (20:39 UTC 10/09)
 
-## ĐANG CHẠY — `feat3`: neo KHÔNG GIAN ĐẶC TRƯNG + khởi tạo lại head (từ 17:01 UTC)
+> **Không còn gì đang chạy.** Đêm 10→11/09 chạy xong `bridge3` + `feat3` + `lpft3` = **66 ô GPU**
+> (33 mỗi cây, 9 nhánh × 2 backbone × 3 fold) và **6 ô probe** (2 backbone × 3 nguồn, 0 GPU).
+> **Không thuê vast, 0 chi phí.** Cron watchdog trong phiên Claude vẫn chạy 20 phút/lần.
+>
+> **Kết quả:** FACTS §36.1 (control task), §38 (lp3 mạnh nhất trên codebert), §38.1 (vì sao neo
+> đặc trưng hại t5p), §38.2 (mọi nhánh thắng ở backbone này đều thua ở kia), §38.3 (phép kiểm khai
+> báo trước — probe tách theo BACKBONE không theo NGUỒN, §38.2 yếu đi).
+> Bản đọc cho người: `RESEARCH_2026-09-10_dactrung.md`.
+>
+> **KHÔNG nhánh nào đủ điều kiện leo n=5** (luật: dương cả bốn chỉ số VÀ lặp trên cả hai backbone).
+> Đề xuất bước tiếp ghi ở FACTS §38.3, **chưa chạy, chờ duyệt**.
+
+---
+
+## (đã xong) `feat3`: neo KHÔNG GIAN ĐẶC TRƯNG + khởi tạo lại head (17:01 → 20:39 UTC)
 
 Suy trực tiếp từ **FACTS §36** (đặc trưng chuyển giao +0.1125 ROC 5/5 trên codebert; hàm quyết
 định thì không, 0.537 F1 zero-shot). Ghi vào **cùng cây** `results/bridge3_<bb>` để dùng lại
