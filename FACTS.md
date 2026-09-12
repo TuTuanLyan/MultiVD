@@ -4116,3 +4116,121 @@ ghi n=14 thay vì 15. **Không sửa ngưỡng hồi tố.**
 **KHÔNG được viết** "phương pháp thắng ở mọi cỡ dữ liệu" — số nói ngược. Và **không được** chỉ
 báo F1: chính việc chỉ đọc F1 sẽ khiến N=456 nhìn như một thắng lợi 15/15 p=0.000, trong khi
 thứ hạng không đổi chút nào.
+
+---
+
+## §46 — "FINETUNE HAI LẦN THUẦN" ĐÃ CHIẾM GẦN HẾT HIỆU ỨNG: head phụ thêm **+0.0005** trên 132 ô ghép cặp (12/09, **0 GPU — đọc lại dữ liệu đã có**)
+
+**Câu hỏi người dùng nêu 12/09:** nhánh `none` (Pha 1 **không head**, Pha 2 AdamW) chính là
+đối chứng *"finetune hai lần thuần"* — Pha 1 fine-tune backbone trên ccpp+js nhị phân
+vul/non-vul, Pha 2 fine-tune tiếp trên Python. `latent_bottleneck` khác nó **đúng một thứ**:
+có thêm head phụ ở Pha 1. Vậy Δ(`latent_bottleneck` − `none`) là **giá trị riêng của HEAD**,
+còn Δ(`none` − `baseline`) là giá trị của **bản thân việc fine-tune hai lần**.
+
+Đối chứng này **đã có sẵn 230 ô** (3 backbone × 3 nguồn × {adamw, recadam, recadam+ASAM},
+seed 42, 5 fold) — không cần chạy thêm gì. Đọc bằng `tools/head_vs_none.py`.
+
+### Giá trị riêng của head phụ — 137 ô ghép cặp trong cùng (cây, backbone, tag Pha 1, optimizer, ρ, seed, fold)
+
+| tập | n | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| TẤT CẢ | 137 | +0.0163 72/137 | +0.0168 77/137 | +0.0138 74/137 | +0.0095 71/137 |
+| (i) ô `none` **SẬP** (ROC < 0.55) | **5** | **+0.4326 5/5** | +0.4313 5/5 | **+0.3546 5/5** | +0.2993 5/5 |
+| (ii) ô `none` **bình thường** | **132** | **+0.0005 67/132** | +0.0011 72/132 | **+0.0009 69/132** | −0.0015 66/132 |
+
+> **Toàn bộ trung bình dương của head đến từ 5 ô.** Năm ô đó là `codebert × full × RecAdam`
+> ở `s42_codebert`, nơi Pha 1 `none` sập hẳn (F1 0.312–0.345, **ROC 0.442–0.535 — dưới mức
+> ngẫu nhiên**) còn head giữ được 0.67–0.87. Bỏ 5 ô đó ra thì head cho **+0.0005**, tức nhỏ
+> hơn sàn nhiễu cùng-GPU **0.010 khoảng hai mươi lần**, và 67/132 fold là đúng một đồng xu.
+
+Đây **đúng bẫy số 2 của mục 2b** ("một ô cực trị kéo được trung bình nhưng không kéo được
+đếm dấu") — và lần này nó kéo trung bình lên gấp **33 lần** giá trị thật.
+
+### Tách theo optimizer, chỉ tập bình thường (ii)
+
+| optimizer | n | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| **AdamW** (không SAM) | 46 | **+0.0071 32/46 p=0.01** | +0.0093 34/46 p=0.00 | +0.0036 27/46 p=0.30 | +0.0012 27/46 p=0.30 |
+| RecAdam (không SAM) | 46 | −0.0010 20/46 p=0.46 | +0.0006 23/46 | +0.0000 24/46 | −0.0013 19/46 |
+| RecAdam + ASAM ρ=0.1 | 40 | −0.0053 15/40 p=0.15 | −0.0076 15/40 | −0.0012 18/40 | −0.0047 20/40 |
+
+**Head chỉ còn ăn ở AdamW, và chỉ ăn ở NGƯỠNG chứ không ở THỨ HẠNG**: F1@0.5 +0.0071
+(32/46, p=0.01) nhưng ROC-AUC +0.0036 (27/46, p=0.30) và PR-AUC +0.0012 (27/46, p=0.30).
+Và +0.0071 vẫn **dưới sàn nhiễu 0.010**.
+
+> **Sửa §7.** Mục 7 ghi *"AdamW: head ăn về điểm — Δ vs `none` +0.0111, 33/43 fold,
+> p=0.0006"*. Con số đó (a) tính trên **macro-F1 và chỉ macro-F1**, (b) **không tách** các ô
+> `none` sập. Đo lại trên cả bốn chỉ số và tách ô sập thì còn **+0.0071, 32/46** ở F1@0.5 và
+> **null ở cả hai chỉ số thứ hạng**. Đây là lỗi **đối xứng** với lỗi "ASAM null" ở mục 2b:
+> lần đó F1 nói không còn AUC nói có; lần này F1 nói có còn AUC nói không.
+
+### Và bản thân "finetune hai lần" thì ăn bao nhiêu? — Δ vs `baseline`, chỉ trên ô có CẢ HAI nhánh
+
+| optimizer | nhánh | n | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| AdamW | **`none` = finetune 2 lần** | 46 | **+0.0253 34/46** | +0.0054 23/46 | −0.0019 27/46 |
+| AdamW | `latent_bottleneck` | 46 | **+0.0324 37/46** | +0.0089 29/46 | −0.0008 24/46 |
+| RecAdam | `none` | 46 | +0.0252 38/46 | +0.0040 23/46 | −0.0017 25/46 |
+| RecAdam | `latent_bottleneck` | 46 | +0.0242 33/46 | +0.0041 27/46 | −0.0030 23/46 |
+| RecAdam+ASAM | `none` | 40 | +0.0279 34/40 | +0.0064 27/40 | +0.0006 24/40 |
+| RecAdam+ASAM | `latent_bottleneck` | 40 | +0.0226 31/40 | +0.0052 22/40 | −0.0041 23/40 |
+
+**Ba điều đọc thẳng:**
+
+1. **Finetune hai lần thuần đã lấy ~78% hiệu ứng** ở cấu hình tốt nhất (+0.0253 / +0.0324),
+   và **lấy hơn 100%** ở hai cấu hình còn lại (head âm).
+2. **Mọi nhánh đều null ở thứ hạng**: ROC-AUC +0.0040…+0.0089 (tất cả **dưới sàn nhiễu
+   0.010**), fold cùng dấu 22–29/46 ≈ đồng xu; PR-AUC âm ở 5/6 dòng. Toàn bộ cái gọi là
+   "lợi ích transfer" ở dữ liệu đích **đầy đủ** là một phép **dời ngưỡng**. Khớp hoàn toàn
+   với §40.5 (ở N=456 hiệu ứng thứ hạng là 8/15 p=1.000 trên cả hai backbone).
+3. **Cài đặt tốt nhất ở F1@0.5 là `latent_bottleneck` + AdamW** (+0.0324, 37/46) — nhưng
+   khoảng cách của nó với `none` + AdamW là +0.0071, dưới sàn nhiễu. Nói "tốt hơn" được;
+   nói "tốt hơn có ý nghĩa" thì **không**.
+
+### Giá trị DUY NHẤT còn đứng của head phụ vẫn đúng như §7 ghi từ 31/08
+
+**Chống sập Pha 1** — và nó lớn: +0.4326 F1@0.5, 5/5 fold, ở `codebert × full` nơi `none`
+rơi xuống **dưới mức ngẫu nhiên**. Đây là phát biểu về **phương sai**, không phải về trung
+bình, và nó cùng họ với §41.2 ("Pha 1 đặt một SÀN dưới đích"). Cộng với §44 (nút thắt 8
+chiều không hơn chiếu ngẫu nhiên) và §45 (head phụ giỏi gấp ba không đổi được gì), mạch
+"head phụ là một đòn bẩy độ chính xác" **đóng hẳn**.
+
+### LỖ HỔNG: cấu hình CHỐT chưa từng có đối chứng `none` cùng máy cùng phiên
+
+Mọi ô ghép cặp ở trên nằm trong các khối **cũ** (kho Pha 1 tag `4cwe`/`com`/`full`/`_l02`,
+λ mặc định). Ở **cấu hình chốt** của mục 7 — λ=0.05, SAM tắt **cả hai** pha, tag `_l0p05`,
+cây `results/chot*` và `results/n48_*` — **không có nhánh `none` nào**. Kiểm tra:
+
+```
+$ python3 tools/head_vs_none.py results --tags
+1666 o doc duoc; 378 o cau hinh goc; 0 va cham khoa con lai (OK)
+
+  tag Pha 1 co nhanh none              : ['-', '4cwe', '4cwe_l02', 'com', 'com_l02', 'full', 'full_l02', 'sam1']
+  ... trong do tag l0p05 cua none          : KHONG CO
+```
+
+(`latent_bottleneck` ở λ=0.05 thì có, nhưng nằm dưới tên nhánh biến thể —
+`transfer_latent_bottleneck_<nguon>_l0p05_plain_adamw` và `..._r2p0` của khối `chot` —
+nên bộ lọc "cấu hình gốc" của công cụ không đếm chúng; điều đó không đổi kết luận vì
+vế `none` **trống hoàn toàn** ở λ=0.05.)
+
+`model/s42/phase1/<bb>__none_{4cwe,com,full}` **dùng lại được ở mọi λ** (mục 5: `none` trả
+`aux_loss=None` nên λ không vào loss), nên **chỉ cần chạy lại Pha 2**, không cần Pha 1 —
+trừ `codebert__none_full` vốn là file `.rejected` 0 byte và đã được dựng lại ở
+`model/ft2/phase1`. Nhưng đối chứng phải **cùng cây, cùng máy, cùng phiên** (mục 4), mà
+`ft2_codebert` (có `none`) và `chot161_codebert` (có head) là **hai cây khác nhau với hai
+baseline khác nhau** — lấy hiệu hai Δ đó là đúng thao tác bị cấm ở
+`never-difference-two-means-even-for-controls`.
+
+**Khối cần chạy khi có GPU** (đã đặc tả, **chưa chạy** — 12/09 cả 161 lẫn 158 đều đang bị
+`cuongtm`/`tranmanhcuong` chiếm, và vast không thuê được):
+
+| | |
+|---|---|
+| nhánh | `baseline`, `none`, `latent_bottleneck` — **cùng một cây** |
+| Pha 1 | dùng lại, **không huấn luyện lại**: `none` ← `model/s42/phase1` (+ `model/ft2` cho codebert×full); head ← `model/n48/phase1/*_l0p05` |
+| Pha 2 | AdamW, `--sam_rho 0`, λ=0.05 |
+| nguồn | `4cwe`, `com`, `full` (đều là ccpp+js) |
+| đích | `data/sven_python_folds_norm`, python |
+| quy mô | **bậc 1: 3 fold, seed 42** → 2 backbone × 3 nguồn × 3 fold × 2 nhánh + 6 baseline = **42 ô** |
+

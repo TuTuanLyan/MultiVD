@@ -1,3 +1,29 @@
+# CURRENT_RUN — KHÔNG CÓ GÌ ĐANG CHẠY (cập nhật 12/09/2026)
+
+> **12/09 — không phóng khối nào.** Người dùng hỏi đối chứng "finetune hai lần thuần";
+> trả lời được **hoàn toàn bằng dữ liệu đã có, 0 GPU** → **FACTS §46**, công cụ
+> `tools/head_vs_none.py`. Cả 161 lẫn 158 đều đang chạy việc của người dùng khác
+> (`cuongtm` / `tranmanhcuong`) nên **nhường**, và vast không thuê được.
+
+## XẾP HÀNG — chưa chạy, chờ GPU rảnh: đối chứng `none` ở CẤU HÌNH CHỐT
+
+Lỗ hổng FACTS §46 nêu: ở cấu hình chốt (λ=0.05, SAM tắt cả hai pha) **chưa từng có nhánh
+`none` nào** chạy cùng cây cùng phiên với head. Đặc tả đầy đủ ở cuối §46.
+
+| | |
+|---|---|
+| nhánh | `baseline`, `none`, `latent_bottleneck` — **cùng một cây** |
+| Pha 1 | **dùng lại, không huấn luyện lại** (mục 5: `none` dùng được ở mọi λ) |
+| Pha 2 | AdamW, `--sam_rho 0`, λ=0.05 |
+| nguồn | `4cwe`, `com`, `full` · đích `data/sven_python_folds_norm` |
+| quy mô | **bậc 1: 3 fold, seed 42** — 42 ô, codebert ở 161, t5p ở 158 |
+
+Chạy khi GPU rảnh **và người dùng duyệt** — mục 9: không tự thêm thí nghiệm vào hàng đợi.
+
+---
+
+<!-- ===== LỊCH SỬ ===== -->
+
 # CURRENT_RUN — ĐÃ XONG HẾT 11/09/2026 15:43 UTC
 
 > **Không còn gì đang chạy.** Cả ba máy đã xong; vast đã huỷ lúc 13:22.
