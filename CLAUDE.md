@@ -25,13 +25,11 @@ for fold in 1 2 3 4 5:          ← vòng NGOÀI
                 chạy
 ```
 
-**Vì sao**: xong fold 1 là đã có **một lát cắt so sánh được ngay** — đủ mọi phương
-pháp, mọi nguồn, trên cùng một fold. Nó chưa nói lên tất cả, nhưng đủ để thấy
-hướng và để quyết định có chạy tiếp không. Đến fold 3 thường đã đủ để **dừng**.
-
-Thứ tự ngược lại (source-major hoặc method-major) khiến phải chạy gần hết mới có
-ô nào so được với ô nào — mất khả năng dừng sớm, và nếu hỏng giữa chừng thì
-không còn gì dùng được.
+**Vì sao**: xong fold 1 là có ngay **một lát cắt so sánh được** — đủ mọi phương pháp, mọi
+nguồn, cùng một fold; đủ để thấy hướng và quyết định chạy tiếp hay không, và đến fold 3
+thường đã đủ để **dừng**. Thứ tự ngược lại (source-major / method-major) phải chạy gần hết
+mới có ô nào so được với ô nào — mất khả năng dừng sớm, và hỏng giữa chừng thì không còn
+gì dùng được.
 
 ### KIỂM CHỨNG và CHẠY KẾT QUẢ là HAI VIỆC KHÁC NHAU
 
@@ -54,14 +52,11 @@ chạy n=15 cho một cấu hình chưa sàng là đốt ~5× GPU cho một câu
   luôn đi kèm chữ "kiểm chứng, n=3" — người đọc thấy Δ mà không thấy bậc sẽ tưởng là kết quả.
 - Không trộn ô của hai bậc vào một bảng mà không ghi n riêng cho từng dòng.
 
-**Thứ tự trong một fold** (người dùng nêu 27/08, giữ nguyên trừ khi có yêu cầu mới):
-
-```
-baseline → none → cwe → latent_bottleneck → latent_proto
-```
-
-với mỗi phương pháp chạy AdamW và RecAdam **cạnh nhau**, rồi mới sang fold tiếp.
-Đặt hai optimizer cạnh nhau để hiệu giữa chúng ghép cặp được theo fold.
+**Thứ tự trong một fold** (người dùng nêu 27/08): `baseline → none → cwe →
+latent_bottleneck → latent_proto`, mỗi phương pháp chạy AdamW và RecAdam **cạnh nhau** rồi
+mới sang fold tiếp — để hiệu giữa hai optimizer ghép cặp được theo fold.
+**`cwe` và `latent_proto` đã bị loại có bằng chứng (mục 7)**, nên khối mới thực tế chỉ còn
+`baseline → none → latent_bottleneck`.
 
 ### Bẫy đã mắc
 
@@ -96,11 +91,9 @@ Hiệu ứng dưới ~0.01 không phân biệt được với việc chạy lạ
 
 ## 2b. LUÔN đọc CẢ HAI chỉ số, và đọc SỐ FOLD CÙNG DẤU trước khi đọc trung bình
 
-> **Người dùng nêu 08/09.** Một chỉ số nói "không" trong khi chỉ số kia nói "có" là chuyện
-> đã xảy ra thật, và nó đã giữ một kết luận sai suốt ba tuần.
-
-**Chuyện đã xảy ra:** kết luận "ASAM null" (`+0.0020, 70/130, p=0.43`) tính trên **macro-F1
-và chỉ macro-F1**. Đo lại trên **190 ô ghép cặp**:
+> **Người dùng nêu 08/09.** Một chỉ số nói "không" trong khi chỉ số kia nói "có" đã giữ
+> một kết luận sai suốt ba tuần: "ASAM null" (`+0.0020, 70/130, p=0.43`) tính trên
+> **macro-F1 và chỉ macro-F1**. Đo lại trên **190 ô ghép cặp**:
 
 | chỉ số | Δ | fold dương | p |
 |---|---|---|---|
@@ -153,27 +146,21 @@ nhánh đó rồi dừng. Chỉ dừng khi người dùng yêu cầu.
   **chất lượng kém** (đọc được, val thấp) → giữ và ghi kèm val, đừng dán `.rejected` vĩnh viễn;
   **môi trường hỏng** (không import nổi torch/numpy) → **KHÔNG ĐỘNG VÀO GÌ, dừng hẳn**.
 
-  Ngày 08/09/2026 gộp hai vế cuối đã **xoá mất hai checkpoint Pha 1 tốt**: chạy
-  `run/int1.sh` mà quên đặt `PYTHON`, nên `python` là conda base không có numpy;
-  `phase1_usable` chạy phép thăm dò với `2>/dev/null`, `ModuleNotFoundError` thành mã
-  thoát khác 0, cổng đọc thành "CÓ NHƯNG HỎNG" rồi `rm -f`. Khôi phục được từ 158 và md5
-  khớp cả ba — nhưng chỉ vì tình cờ còn bản sao. Đã dựng ba lớp chặn: kiểm `import torch,
-  numpy, sklearn` ngay đầu `run/matrix.sh`; mã thoát phân biệt `0/3/77`; script chạy tự
-  chọn env thay vì mặc định `python`. Bẫy bash đi kèm: `if f; then …; fi; rc=$?` trả **0**
-  khi điều kiện sai, nên phải bắt trực tiếp `f; rc=$?`.
+  08/09/2026 gộp hai vế cuối đã **xoá mất hai checkpoint Pha 1 tốt** (quên `PYTHON` ⇒
+  `python` là conda base không numpy ⇒ cổng đọc thành "CÓ NHƯNG HỎNG" rồi `rm -f`; khôi
+  phục được chỉ vì tình cờ còn bản sao ở 158). Ba lớp chặn đã dựng: kiểm `import torch,
+  numpy, sklearn` ngay đầu `run/matrix.sh`; mã thoát phân biệt `0/3/77`; script tự chọn env.
+  **Bẫy bash đi kèm**: `if f; then …; fi; rc=$?` trả **0** khi điều kiện sai — bắt trực tiếp
+  `f; rc=$?`.
 - Khi khối chạy xong, **đối chiếu số ô thực tế với số ô kỳ vọng** và nêu rõ ô nào
   thiếu, vì sao. Driver in "xong" không có nghĩa là đã đủ.
 
-**Vì sao có mục này:** ngày 30–31/08, ngưỡng cũ `val >= 0.55` từ chối
-`codebert/latent_bottleneck/com` ở **0.549872** — hụt 0.000128, tức nhỏ hơn sàn
-nhiễu 0.010 khoảng 78 lần. Nó chỉ loại `latent_bottleneck` ở đúng những nguồn
-nhánh đó yếu, nên bảng kết quả chỉ còn chỗ nó mạnh: **thiên lệch chọn lọc**. Cùng
-đợt, 46 ô khác biến mất vì đĩa đầy làm `torch.save` ghi cụt rồi bị cổng dán nhãn
-"phương pháp kém".
-
-Và ô "hỏng" lại thành bằng chứng tốt nhất: `codebert × full × none` với Phase 1
-val 0.3403 cho **Δ −0.4395, 0/5 fold** — con số đó chứng minh vì sao phải gắn val
-Phase 1 vào mọi ô, và nó chỉ có được vì đã chạy thay vì bỏ.
+**Vì sao có mục này:** 30–31/08, ngưỡng cũ `val >= 0.55` từ chối
+`codebert/latent_bottleneck/com` ở **0.549872** — hụt 0.000128, nhỏ hơn sàn nhiễu 0.010
+**78 lần**. Nó chỉ loại nhánh ở đúng những nguồn nhánh đó yếu ⇒ **thiên lệch chọn lọc**.
+Cùng đợt 46 ô khác biến mất vì đĩa đầy làm `torch.save` ghi cụt rồi bị dán nhãn "phương
+pháp kém". Ngược lại, ô "hỏng" lại thành bằng chứng tốt nhất: `codebert × full × none`
+với Phase 1 val 0.3403 cho **Δ −0.4395, 0/5 fold**.
 
 ---
 
@@ -257,27 +244,39 @@ latent_bottleneck   Linear(H→8) → Linear(8→C), num_latent=8
 
 | bỏ gì | số đo |
 |---|---|
-| ASAM ρ=0.1 (Phase 2) | **CHỈ ĐÚNG CHO macro-F1.** Khối C/D: +0.0020, 70/130, p=0.43. Nhưng đo lại 08/09 trên **190 ô ghép cặp** thì **ROC-AUC +0.0037, 119/190, p=0.0006** và PR-AUC +0.0045 (111/190, p=0.024) — cùng dấu ở **cả ba backbone**. Kết luận cũ tính trên F1 và chỉ F1. Đang xác nhận lại ở khối ASAM1 với **ROC-AUC khai báo trước** làm chỉ số chính. |
+| ASAM ρ=0.1 (Phase 2) | **CHỈ ĐÚNG CHO macro-F1** (+0.0020, 70/130, p=0.43). Trên **190 ô** đo lại: ROC-AUC **+0.0037, 119/190, p=0.0006**; PR-AUC +0.0045 (111/190) — cùng dấu **cả ba backbone**. Đã lặp **năm lần** (tới FACTS §41.3): ASAM cải thiện **thứ hạng**, không cải thiện quyết định ở ngưỡng 0.5. |
 | λ=0.02 | ghép cặp với λ=0.05: −0.0053, 60/133, p=0.30 |
 | SAM ρ=0.05 ở Phase 1 | ghim codebert ở ln2 suốt 13 epoch, F1 0.3333 |
 | `latent_proto` | head riêng ≈ 0 mọi khối; tự sập ở codebert×full (0.3432) |
 | `cwe` | độ tản giữa backbone 0.0443, **âm** trên codet5p; cần nhãn nên chỉ chạy được trên `4cwe` |
 
-Hai phát biểu chính, **phải nêu cả hai vì chúng mâu thuẫn**:
+### Head phụ đáng giá bao nhiêu so với `none` — **đo lại 12/09, FACTS §46**
 
-- **AdamW**: head ăn về điểm — Δ vs `none` +0.0111, 33/43 fold, p=0.0006. Ô duy
-  nhất trong toàn lưới vừa qua p<0.05 vừa vượt sàn nhiễu.
-- **RecAdam**: head hết ăn về điểm (+0.0036, 23/43, p=0.76) nhưng **ổn định nhất
-  giữa backbone** — +0.0186 / +0.0211 / +0.0228, độ tản 0.0042.
+`none` chính là *"finetune hai lần thuần"*, nên Δ(head − `none`) là giá trị riêng của head.
+**137 ô** ghép cặp; nhưng **5 ô** trong đó là `codebert × full × RecAdam` nơi `none` sập
+xuống **dưới mức ngẫu nhiên**, và chúng gánh gần hết trung bình. Tách ra:
 
-Giá trị chắc nhất của head **không phải độ chính xác mà là chống sập Phase 1**:
-ở `codebert × full`, hai lần độc lập tại hai λ, `none` sập về ~0.34 còn
-`latent_bottleneck` giữ 0.545–0.564. `latent_proto` không có tính chất này.
+| tập | n | F1@0.5 | ROC-AUC |
+|---|---|---|---|
+| ô `none` **sập** | 5 | **+0.4326 5/5** | +0.3546 5/5 |
+| ô `none` **bình thường** | 132 | **+0.0005 67/132** | +0.0009 69/132 |
+| ↳ riêng **AdamW** | 46 | +0.0071 32/46 p=0.01 | +0.0036 27/46 p=0.30 |
+| ↳ riêng RecAdam | 46 | −0.0010 20/46 | +0.0000 24/46 |
+| ↳ riêng RecAdam+ASAM | 40 | −0.0053 15/40 | −0.0012 18/40 |
 
-Seed 42 đã xong đủ cấu hình này ở **cả hai optimizer** (`none` 45 ô,
-`latent_bottleneck` 48 ô, mỗi optimizer, cộng 15 baseline) — chạy đa seed chỉ
-là thêm seed, không làm lại. Chi phí ~17 h/seed nếu codebert ở A4000 local, ~9 h
-nếu ở 5070Ti, ba máy song song.
+> **Con số cũ ở mục này — "+0.0111, 33/43, p=0.0006" — ĐÃ SAI** vì (a) tính trên macro-F1
+> và chỉ macro-F1, (b) không tách các ô `none` sập. Head chỉ còn ăn ở **AdamW**, và chỉ ăn
+> ở **ngưỡng** chứ không ở **thứ hạng** — lỗi đối xứng với lỗi "ASAM null" ở mục 2b.
+> RecAdam vẫn **ổn định nhất giữa backbone** (+0.0186/+0.0211/+0.0228, độ tản 0.0042).
+
+Giá trị **duy nhất còn đứng** của head là **chống sập Phase 1**: ở `codebert × full`, hai
+lần độc lập tại hai λ, `none` sập về ~0.34 còn `latent_bottleneck` giữ 0.545–0.564
+(`latent_proto` không có tính chất này). Đó là phát biểu về **phương sai**, không phải
+trung bình. Cộng với FACTS §44 và §45, mạch *"head phụ là đòn bẩy độ chính xác"* **đóng**.
+
+Seed 42 đã xong đủ cấu hình này ở **cả hai optimizer** (`none` 45 ô, `latent_bottleneck`
+48 ô mỗi optimizer, cộng 15 baseline); đa seed chỉ là thêm seed, không làm lại. Bậc 3
+(n=15) đã chạy trọn cho đường cong cỡ tập đích — **FACTS §40.5**.
 
 ---
 
@@ -297,8 +296,9 @@ nếu ở 5070Ti, ba máy song song.
 - Thử mọi cổng xác minh **cả hai chiều** trước khi tin: cho nó một trường hợp
   khớp và một trường hợp lệch. Cổng báo nhầm "chưa an toàn" cũng là lỗi — nó làm
   máy nằm không mà vẫn tính tiền.
-- Đếm tiến trình **không được tự khớp chính nó**. `pgrep -f`/`ps|grep` bắt luôn
-  dòng lệnh của mình; dùng `flock -n <lock> -c true` hoặc lọc theo `comm`.
+- Đếm tiến trình **không được tự khớp chính nó**. `pgrep -f`/`ps|grep` bắt luôn dòng lệnh
+  của mình; dùng `flock -n <lock> -c true`, lọc theo `comm`, hoặc chờ theo **PID**. Script
+  của repo đã dính đúng lỗi này — xem **mục 13**.
 
 ---
 
@@ -349,10 +349,16 @@ nằm ở thư mục nào, khối nào đã xong, cái gì chưa chạy, và ba 
 
 
 
-## 12. Lưu trữ run hiện tại:
-Khi người dùng yêu cầu đặc biệt phải lưu ra 1 file CURRENT_RUN.md để chạy cái hiện tại và nêu ra nội dung hiện tại đang làm gì và đang chạy cái gì, setting ra sao để đảm bảo không nhầm. Khi xong sẽ phải update vào ở đầu file md này là đã xong + ngày giờ để biết hiện tại không còn chạy cái này nếu run sau không có gì đặc biệt hoặc chỉ là chạy lại phần nhỏ.
+## 12. `CURRENT_RUN.md` — khối đang chạy
 
-File này có thể lưu các queue, các yêu cầu có thể ngay cả khi không đặc biệt và chỉ cần lưu yêu cầu có thể khác ở các máy khác nhau để hiểu rõ ràng có thể note thêm tên máy để phân biệt, file này không cần thiết phải backup. Ở local có thể lưu thêm cả các việc ở trên máy trên vast để biết trên đó đang run gì hoặc update trực tiếp ở vast.
+- Khối nào **đặc biệt** thì phải ghi ra `CURRENT_RUN.md`: đang làm gì, đang chạy gì,
+  **setting chi tiết** để không nhầm.
+- Xong thì **update ngay ở ĐẦU file**: đã xong + ngày giờ, để biết khối đó không còn chạy.
+  Khối sau không có gì đặc biệt, hoặc chỉ chạy lại phần nhỏ, thì không cần ghi mới.
+- File này cũng để lưu **hàng đợi** và các yêu cầu **kể cả không đặc biệt**. Việc ở máy
+  khác nhau thì **ghi kèm tên máy** cho phân biệt.
+- Ở local ghi luôn cả việc đang chạy **trên vast**, hoặc update thẳng trên vast.
+- **Không cần backup** file này.
 
 ---
 
@@ -361,69 +367,28 @@ File này có thể lưu các queue, các yêu cầu có thể ngay cả khi kh�
 Phần này chỉ chứa thứ **đúng riêng ở repo này** (tên file, cờ, script nào hỏng). Bài học
 phổ thông dùng chung nhiều dự án thì nằm ở memory, không lặp ở đây. Người dùng nêu 13/09/2026.
 
-### `scripts/chain_after.sh` HỎNG — dùng `scripts/chain_after_pid.sh`
+| thứ | sự thật của repo này |
+|---|---|
+| **`scripts/chain_after.sh`** | **HỎNG.** Chờ bằng `pgrep -f "$PAT"` mà `$PAT` nằm trong argv của chính nó ⇒ tự khớp mình, treo 5 giờ, lệnh sau không bao giờ chạy. Dùng **`chain_after_pid.sh <workdir> <pid> <log> <lệnh…>`** |
+| **LoRA** (`LoRALinear`, `inject_lora`, `--lora_rank`) | **MÃ CHẾT.** `lora_rank=0` ở toàn bộ **1452** ô có ghi hyperparameters, không script nào truyền cờ đó. Dự án luôn fine-tune cả model |
+| **`SKIP_BASELINE=1`** | Hoãn baseline, chạy method trước (người dùng 13/09; baseline luôn **trên 0.74** nên method thấp hơn là thua rồi). Mặc định `0`. Chạy bù sau với `SKIP_BASELINE=0` — ô đã có tự bị bỏ qua |
+| **SSH vào vast** | Endpoint là `public_ipaddr` + HostPort của `22/tcp`; `ssh_host:ssh_port` cho **connection refused**. Gắn khoá từng instance: `vastai attach ssh <id> "$(cat ~/.ssh/id_ed25519.pub)"` |
+| **`tools/head_vs_none.py`** | Chỉ giữ nhánh **cấu hình gốc** (tên đúng bằng `transfer_<mode>_<tag>[_<opt>]`): các khối quét (`bridge3`, `opt1`) chạy hàng chục biến thể Pha 2 trên **cùng** tag Pha 1 nên khoá ghép cặp không phân biệt tên nhánh sẽ **đè nhau im lặng**. Số va chạm khoá in ra **phải bằng 0** |
 
-`chain_after.sh` chờ driver trước bằng `pgrep -f "$PAT"`, mà chính `$PAT` lại nằm trong
-**argv của chính nó** ⇒ pgrep **tự khớp mình**, vòng lặp 5 giờ không bao giờ thoát, lệnh
-tiếp theo không bao giờ chạy. Trên vast nghĩa là GPU nằm không mà vẫn tính tiền.
-
-`chain_after_pid.sh <workdir> <pid> <log> <lệnh...>` chờ theo **PID** — PID không thể tự khớp.
-
-**Lấy PID phải khớp argv CHÍNH XÁC**, không dùng regex lỏng: `bash -c "... setsid nohup bash
-run/X.sh ..."` chứa nguyên chuỗi `bash run/X.sh` nên regex lỏng bắt phải **shell bọc ngoài**,
-mà nó có thể thoát **trước** driver ⇒ chuỗi sau phóng đè ⇒ hai chuỗi một GPU ⇒ OOM.
+**Lấy PID phải khớp argv CHÍNH XÁC.** `bash -c "… setsid nohup bash run/X.sh …"` chứa nguyên
+chuỗi `bash run/X.sh`, nên regex lỏng bắt phải **shell bọc ngoài** — mà nó có thể thoát **trước**
+driver ⇒ chuỗi sau phóng đè ⇒ hai chuỗi một GPU ⇒ OOM.
 
 ```bash
 PID=$(ps -eo pid,args --no-headers | awk '{pid=$1; $1=""; sub(/^ /,""); if ($0=="bash run/X.sh") {print pid; exit}}')
 ```
 
-### LoRA trong `src/model.py` là MÃ CHẾT
-
-`LoRALinear`, `inject_lora`, `merge_lora`, cờ `--lora_rank` — **chưa bao giờ được dùng**:
-`lora_rank=0` ở toàn bộ **1452** ô có ghi hyperparameters (214 ô cũ hơn thì chưa có field),
-và **không script nào** trong `run/` hay `scripts/` truyền `--lora_rank`. Dự án luôn
-fine-tune cả model. Đừng suy ra kết luận gì từ sự tồn tại của nó.
-
-### `SKIP_BASELINE=1` — hoãn baseline, chạy method trước
-
-Người dùng nêu 13/09: đang **thử cái mới** thì chạy method trước, baseline sau; method đã
-thấp hơn ngưỡng biết trước (**baseline luôn trên 0.74**) thì thua rồi, khỏi tốn GPU.
-Mặc định `0` ⇒ đường chạy cũ không đổi. Chạy bù baseline sau bằng chính lệnh đó với
-`SKIP_BASELINE=0`: vòng lặp tự bỏ qua ô đã có.
-
 ### Adapter / AdapterFusion (nhánh git `fusion`)
 
 - Cờ: `--adapter_dim` (0 = tắt), `--adapter_lr` (mặc định 1e-4), `--phase2_fusion {off,ft,frozen}`.
-- **Fusion từ chối chạy với `recadam`/`spd`** — neo của chúng khớp theo **chỉ số** tham số,
-  mà adapter đích không có bản đối ứng trong checkpoint Pha 1 nên sẽ lệch im lặng. Chỉ `adamw`.
-- `adapters.set_trainable()` **chỉ được đụng** backbone/adapter/fusion. Bản đầu nó mở lại cả
-  các head ⇒ huỷ `freeze_aux_head()` ⇒ Pha 2 chết ở `assert_recadam_setup: auxiliary head not
-  frozen`. Phần còn lại phải **giữ nguyên** trạng thái đã có.
-- Đọc kết quả bằng `tools/report2.py`: tên nhánh `transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw`
-  tách thành `nguồn=com`, `tag=ad48_fusft`; nhánh đối chứng tách thành `tag=adamw`. Nên lệnh là
-  `--a ad48_fusft --b adamw`.
-
-### SSH vào vast: endpoint là `public_ipaddr` + HostPort của `22/tcp`
-
-`ssh_host` và `ssh_port` mà `vastai show instance` in ra cho **connection refused**. Lấy đúng:
-
-```bash
-vastai show instance <id> --raw | python3 -c "import json,sys; d=json.load(sys.stdin); \
-  print(d['public_ipaddr'], d['ports']['22/tcp'][0]['HostPort'])"
-```
-
-Gắn khoá theo từng instance: `vastai attach ssh <id> "$(cat ~/.ssh/id_ed25519.pub)"`.
-
-### `tools/head_vs_none.py` — giá trị riêng của head phụ
-
-Chỉ giữ nhánh **cấu hình gốc** (tên đúng bằng `transfer_<mode>_<tag>[_<opt>]`) vì các khối quét
-siêu tham số (`bridge3`, `opt1`) chạy hàng chục biến thể Pha 2 trên **cùng** một tag Pha 1; khoá
-ghép cặp không phân biệt tên nhánh thì chúng **đè nhau im lặng**. Công cụ in số va chạm khoá còn
-lại và nó **phải bằng 0**.
-
-### Sửa mục 7 — con số "+0.0111, 33/43, p=0.0006" đã lạc hậu
-
-Mục 7 ghi *"AdamW: head ăn về điểm — Δ vs `none` +0.0111, 33/43 fold, p=0.0006"*. Con số đó
-(a) tính trên **macro-F1 và chỉ macro-F1**, (b) **không tách** các ô `none` sập. Đo lại
-12/09/2026 trên cả bốn chỉ số, tách ô sập: còn **+0.0071, 32/46** ở F1@0.5 và **null ở cả hai
-chỉ số thứ hạng** (ROC +0.0036 27/46 p=0.30). Chi tiết và bảng đầy đủ ở **FACTS §46**.
+- **Fusion từ chối `recadam`/`spd`**: neo của chúng khớp theo **chỉ số** tham số, mà adapter
+  đích không có bản đối ứng trong checkpoint Pha 1 ⇒ lệch im lặng. Chỉ `adamw`.
+- `adapters.set_trainable()` **chỉ được đụng** backbone/adapter/fusion. Mở lại các head là huỷ
+  `freeze_aux_head()` ⇒ Pha 2 chết ở `assert_recadam_setup: auxiliary head not frozen`.
+- Đọc bằng `tools/report2.py --a ad48_fusft --b adamw` (tên nhánh
+  `..._com_l0p05_ad48_fusft_adamw` tách thành `nguồn=com`, `tag=ad48_fusft`).
