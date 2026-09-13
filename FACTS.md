@@ -4313,3 +4313,75 @@ Nó rơi đúng họ **§38.2**: *"mọi nhánh thắng ở backbone này đều
    phải ghi trung bình trọng số fusion theo lớp vào file kết quả.
 3. **Baseline (không Pha 1) chưa chạy** — người dùng hoãn có chủ ý: baseline chắc chắn trên 0.74
    và fusion đã hơn `latent_bottleneck` rồi nên nó không đổi được kết luận.
+
+---
+
+## §48 — Một nửa lợi ích của AdapterFusion là **SỨC CHỨA**, và §47 không lặp trọn vẹn trên máy thứ hai (13/09, 15 ô + Pha 1, vast `ntat` 50882617)
+
+**Khai báo trước**: `records/prediction_2026-09-13_fusion_transfer_hay_suc_chua.md`, viết
+**trước** khi chạy ô nào, kèm ngưỡng và **cả vùng "không kết luận"**.
+
+### Câu hỏi
+
+§47 cho `fusft` hơn đối chứng **+0.0259 F1@0.5 (5/5)** trên codebert. Nhưng `fusft` **thêm
+~22M tham số fusion + 1,8M tham số adapter**. Hai cách giải thích không phân biệt được bằng
+số của §47: **(T)** lợi ích đến từ tri thức adapter nguồn học ở Pha 1; **(C)** lợi ích đến từ
+việc có thêm tham số, nội dung adapter nguồn không quan trọng.
+
+### Can thiệp
+
+`fusftrnd`: giữ **nguyên** kiến trúc, số tham số, optimizer, Pha 1 checkpoint, fold, máy —
+**chỉ thay** trọng số adapter **nguồn** bằng nhiễu Gauss **khớp std từng tensor**, rồi đóng
+băng y hệt. Khớp thang độ là bắt buộc: dùng khởi tạo gốc (`up = 0`) thì adapter nguồn thành
+ánh xạ đồng nhất, chỉ trả lời "bỏ hẳn adapter nguồn thì sao", chưa loại được (C).
+
+Cả ba nhánh chạy **cùng một máy mới** (máy của §47 đã huỷ; mục 4 cấm ghép cặp qua hai máy).
+
+### Kết quả — n=5, codebert, seed 42
+
+| nhánh | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `fusft` (adapter **đã học**) | +0.0226 4/5 | +0.0214 4/5 | +0.0113 3/5 | +0.0056 4/5 |
+| `fusftrnd` (adapter **ngẫu nhiên**) | **+0.0111 4/5** | +0.0032 2/5 | +0.0069 3/5 | +0.0117 2/5 |
+| **`fusft` − `fusftrnd`** (trực tiếp) | +0.0115 **3/5** | +0.0182 3/5 | +0.0044 3/5 | **−0.0061** 3/5 |
+
+### Phán quyết theo đúng luật đã chốt trước: **KHÔNG KẾT LUẬN**
+
+`D_rnd = +0.0111` (dưới ngưỡng +0.0130) **nhưng 4/5 fold** (ngưỡng đòi ≤3/5) ⇒ rơi vào vùng
+giữa đã khai báo trước. Vùng đó nói rõ: *"không được đọc theo hướng có lợi; phải lên n=15
+hoặc bỏ"*.
+
+### Hai điều ĐỌC ĐƯỢC, và cả hai làm YẾU §47
+
+**1. Khoảng một nửa lợi ích là sức chứa.** Adapter **ngẫu nhiên** tái tạo `+0.0111` trong
+tổng `+0.0226`, với **cùng 4/5 fold**. Phần còn lại — chính là phần "tri thức Pha 1" — chỉ
+`+0.0115` với **3/5 fold** và **âm ở PR-AUC (−0.0061)**, tức **không tách được khỏi nhiễu** ở n=5.
+
+**2. §47 không lặp trọn vẹn trên máy thứ hai.** Cùng `fusft`, cùng codebert, cùng loại GPU
+(5060 Ti, sàn nhiễu 0.010):
+
+| | máy §47 | máy này |
+|---|---|---|
+| F1@0.5 | +0.0259 **5/5** | +0.0226 4/5 |
+| **ROC-AUC** | **+0.0224 5/5** | **+0.0113 3/5** |
+
+F1@0.5 giữ được; **ROC-AUC thì không** — từ 5/5 xuống 3/5, biên độ còn một nửa và dưới sàn
+nhiễu. Tức phát biểu mạnh nhất của §47 (*"ăn ở CẢ ngưỡng LẪN thứ hạng"*) **chỉ đúng ở một lần chạy**.
+
+### Pha 1 `codebert × com` + adapter NẰM NGAY RANH GIỚI — phát hiện phụ nhưng quan trọng
+
+Huấn luyện lại Pha 1 trên máy mới với **đúng seed 42, đúng mã, đúng phiên bản thư viện**
+(torch 2.11.0+cu128, transformers 4.57.1, sklearn 1.7.2) thì nó **SẬP**: val kẹt **0.3333**
+(đoán một lớp) 7 epoch rồi cạn patience. Đối chiếu log từng epoch: hai lần chạy bám sát nhau
+tới epoch 5 (train loss lệch < 0.003) rồi **tách ở epoch 6** — lần cũ vớ được một nhịp val
+loss giảm nên patience reset và thoát cao nguyên; lần mới không. Nới `PHASE1_PATIENCE=10`
+(riêng Pha 1) thì nó thoát ở epoch 6→7 và đạt **0.5776**.
+
+> **Phi tất định của GPU đủ để quyết định Pha 1 này học được hay không.** Mọi kết quả xây
+> trên một checkpoint Pha 1 đơn lẻ ở cấu hình này đều thừa hưởng sự bấp bênh đó — kể cả §47.
+
+### Kết luận thực dụng
+
+Hướng adapter-fusion: **không đáng lên n=15**. Lý do cộng dồn — (a) không lặp trên t5p (§47),
+(b) một nửa lợi ích là sức chứa, (c) phần "tri thức" không tách được khỏi nhiễu, (d) chỉ số
+thứ hạng không lặp trên máy thứ hai, (e) Pha 1 nền tảng thì bấp bênh.
