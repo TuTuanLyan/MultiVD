@@ -1,31 +1,38 @@
-# CURRENT_RUN — ĐÃ XONG 13/09/2026, vast ĐÃ HUỶ. Nhánh git `fusion`
+# CURRENT_RUN — 13/09/2026, nhánh git `fusion`. Máy vast `ntat` 50882617 CÒN SỐNG
 
-> **Không còn gì đang chạy.** vast `ntat` 50857599 huỷ lúc ~10:55 UTC sau khi đối chiếu
-> **59/59 file đúng từng byte, cả hai chiều**. Chạy ~3,8 giờ ≈ $0,30.
+> **Đang chạy**: hai ô gỡ lỗi để đo **trọng số lớp fusion** (`tools/fusion_weights.py`).
+> Xong là hết việc đáng chạy ⇒ **huỷ máy**.
 
-## Kết quả — ADAPTER FUSION, 26 ô, 0 job hỏng
+## Đã xong hôm nay — hai khối, hai kết luận
 
-`fusft` (fine-tune cả backbone, adapter nguồn đóng băng) so với đối chứng `latent_bottleneck`:
+| khối | máy | kết quả |
+|---|---|---|
+| `fus1` (26 ô) | 50857599, **đã huỷ** | **FACTS §47** — `fusft` chắc trên codebert (5/5 cả F1 lẫn ROC) nhưng **không lặp trên t5p** ở n=5 |
+| `fus2` (15 ô) | 50882617 | **FACTS §48** — **một nửa** lợi ích là **sức chứa**; §47 không lặp trọn vẹn trên máy thứ hai |
 
-| backbone | n=5 | F1@0.5 | ROC-AUC |
+### Đọc nhanh §48 (codebert, n=5, cùng máy cùng phiên)
+
+| nhánh | F1@0.5 | ROC-AUC | PR-AUC |
 |---|---|---|---|
-| **codebert** | 5 | **+0.0259 5/5** p=0.062 | **+0.0224 5/5** p=0.062 |
-| **t5p** | 5 | +0.0036 3/5 | +0.0057 3/5 |
+| `fusft` (adapter **đã học**) | +0.0226 4/5 | +0.0113 3/5 | +0.0056 4/5 |
+| `fusftrnd` (adapter **ngẫu nhiên**) | +0.0111 4/5 | +0.0069 3/5 | +0.0117 2/5 |
+| hiệu trực tiếp | +0.0115 **3/5** | +0.0044 3/5 | **−0.0061** 3/5 |
 
-> **`fusft` là hiệu ứng của codebert, KHÔNG phải của phương pháp.** Trên t5p nó co lại gần
-> hết khi từ n=3 lên n=5 (lần thứ **năm** trong dự án). Theo luật mục 1: **không lên n=15**.
+Phán quyết theo luật chốt trước: **KHÔNG KẾT LUẬN** (rơi vùng giữa đã khai báo).
+Nhưng đọc được: phần "tri thức Pha 1" **không tách được khỏi nhiễu** ở n=5.
 
-`fusfrz` (đóng băng backbone) đã bị loại ở bậc 1 — F1@val của t5p âm.
-Chi tiết đầy đủ: **FACTS §47**.
+### Khuyến nghị
 
-## Còn để ngỏ, CHỜ QUYẾT
+**Không lên n=15.** Năm lý do cộng dồn ghi ở cuối §48.
+
+## Việc còn để ngỏ
 
 | việc | ghi chú |
 |---|---|
-| vì sao codebert ăn mà t5p không | câu hỏi đáng giá nhất còn lại của hướng này; là **thí nghiệm mới**, cần duyệt |
-| ghi trọng số fusion vào file kết quả | checkpoint Pha 2 bị xoá nên phần diễn giải được của bài báo đã mất |
-| baseline (không Pha 1) cho cây `fus1` | hoãn có chủ ý, không đổi được kết luận |
-| tập **`twin`** | vẫn treo từ 11/09 — mục 6: phụ, chỉ chạy khi được yêu cầu |
+| trọng số fusion | đang đo, sẽ bổ sung vào §48 |
+| vì sao codebert ăn mà t5p không | thí nghiệm mới, cần duyệt |
+| Pha 1 `codebert × com` bấp bênh | phát hiện phụ của §48; nếu còn dùng cấu hình này thì nên chạy nhiều seed Pha 1 |
+| tập `twin` | treo từ 11/09 |
 
 ---
 

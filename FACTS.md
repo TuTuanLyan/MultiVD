@@ -4385,3 +4385,37 @@ loss giảm nên patience reset và thoát cao nguyên; lần mới không. Nớ
 Hướng adapter-fusion: **không đáng lên n=15**. Lý do cộng dồn — (a) không lặp trên t5p (§47),
 (b) một nửa lợi ích là sức chứa, (c) phần "tri thức" không tách được khỏi nhiễu, (d) chỉ số
 thứ hạng không lặp trên máy thứ hai, (e) Pha 1 nền tảng thì bấp bênh.
+
+### §48.1 — Cơ chế CÓ hoạt động đúng như bài báo mô tả, nhưng nó đáng rất ít
+
+Đo trọng số attention của lớp fusion trên tập test thật (fold 1, 152 mẫu, 46 327 token,
+`tools/fusion_weights.py`). Cột là trọng số fusion gán cho adapter **nguồn**:
+
+| lớp | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | **TB** |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| src **đã học** | 0.455 | 0.364 | 0.522 | 0.592 | 0.505 | 0.805 | 0.460 | 0.427 | 0.539 | **0.861** | 0.684 | **0.984** | 0.600 |
+| src **ngẫu nhiên** | 0.550 | 0.464 | 0.538 | 0.525 | 0.563 | 0.583 | 0.555 | 0.519 | 0.518 | 0.557 | 0.496 | 0.614 | 0.540 |
+
+| | độ lệch chuẩn giữa các lớp | min–max | biên độ |
+|---|---|---|---|
+| src **đã học** | **0.1850** | 0.364–0.984 | **0.621** |
+| src **ngẫu nhiên** | 0.0379 | 0.464–0.614 | 0.150 |
+
+**Độ tản giữa các lớp của bản đã học lớn gấp 4,9 lần bản ngẫu nhiên.**
+
+Đọc thẳng: khi adapter nguồn **có nội dung**, lớp fusion học một cách trộn **phụ thuộc lớp rất
+mạnh** — dồn gần hết trọng số vào nguồn ở các lớp trên (lớp 9: 0.861, lớp 11: **0.984**) và
+nhường cho đích ở các lớp dưới. Khi adapter nguồn là **nhiễu**, fusion nằm **phẳng ~0.54 ở cả
+12 lớp**: nó không tìm thấy gì để chọn.
+
+> **Cơ chế của AdapterFusion CÓ hoạt động đúng như bài báo mô tả** — nó phát hiện và khai thác
+> được nội dung của adapter nguồn, và phân biệt rõ giữa "có tri thức" và "nhiễu cùng thang độ".
+> **Nhưng lượng thông tin nó moi ra đáng rất ít**: lợi ích cuối cùng so với adapter ngẫu nhiên
+> chỉ `+0.0115 F1@0.5` với **3/5 fold** và **âm ở PR-AUC**.
+
+Đây là dạng kết quả dễ đọc nhầm nhất: **cơ chế đúng không kéo theo hiệu quả đáng kể**. Nếu chỉ
+nhìn bảng trọng số fusion thì sẽ kết luận "transfer hoạt động"; phải nhìn cả chỉ số cuối mới
+thấy nó gần như không đổi được gì. Và ngược lại, nếu chỉ nhìn chỉ số cuối thì sẽ kết luận
+"fusion không dùng adapter nguồn", cũng sai.
+
+**Giới hạn**: n=1 fold, mỗi bên một checkpoint. Đủ để mô tả cơ chế, **không** đủ để định lượng.
