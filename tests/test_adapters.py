@@ -95,6 +95,25 @@ def test_fusion_luc_dau_gan_bang_trung_binh_hai_adapter():
     assert torch.allclose(out, expect, atol=1e-3)
 
 
+def test_gop_truoc_roi_chieu_tuong_duong_chieu_roi_gop():
+    """`AdapterFusion.forward` gop  sum_n a_n*z_n  TRUOC roi moi qua W_V, thay vi chieu tung
+    z_n roi cong — de bo mot tensor (B,T,N,H) moi lop (t5p OOM neu khong lam vay, 13/09).
+
+    Phep bien doi do dung vi W_V TUYEN TINH. Kiem thang: so dau ra that voi ban tham chieu
+    viet theo dang cu. Neu ai do them bias hay phi tuyen vao `value`, phep nay se hong ngay
+    — do chinh la dieu can mot bai kiem, chu khong phai mot dong chu thich."""
+    torch.manual_seed(0)
+    f = AdapterFusion(24)
+    h = torch.randn(2, 5, 24)
+    zs = [torch.randn(2, 5, 24) for _ in range(3)]
+    got = f(h, zs)
+    w = f.last_weights
+    # ban THAM CHIEU: chieu tung adapter roi moi cong
+    ref = sum(w[..., n:n + 1] * f.value(zs[n]) for n in range(len(zs)))
+    assert torch.allclose(got, ref, atol=1e-5), \
+        f"hai dang KHONG tuong duong, lech max {float((got - ref).abs().max()):.2e}"
+
+
 def test_spec_doc_lai_dung_hinh_dang_tu_state_dict():
     bb = _backbone(ROBERTA)
     inject_adapters(bb, names=("src",), dim=6)

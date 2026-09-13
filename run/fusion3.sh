@@ -23,6 +23,9 @@
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HF_HOME="${HF_HOME:-/opt/hf-cache}" HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+# t5p-220m + fusion cham tran 15.49 GiB o batch 16. expandable_segments go phan vo vun;
+# phan con lai da go bang cach gop truoc-roi-chieu trong AdapterFusion.forward.
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 exec 7>/tmp/mvd_fusion3.lock || exit 1
 flock -n 7 || { echo "DA CO fusion3 dang chay tren may nay — dung"; exit 3; }
 

@@ -62,14 +62,19 @@ class AdapterFusion(nn.Module):
         self.last_weights = None   # (B, T, N) — de doc xem fusion nghieng ve adapter nao
 
     def forward(self, h, zs):
-        z = torch.stack(zs, dim=2)                      # (B, T, N, H)
-        q = self.query(h).unsqueeze(2)                  # (B, T, 1, H)
-        k = self.key(z)                                 # (B, T, N, H)
-        v = self.value(z)                               # (B, T, N, H)
-        scores = (q * k).sum(-1) / self.temperature     # (B, T, N)
+        z = torch.stack(zs, dim=2)                          # (B, T, N, H)
+        q = self.query(h)                                   # (B, T, H)
+        k = self.key(z)                                     # (B, T, N, H)
+        # einsum thay cho (q.unsqueeze(2) * k).sum(-1): tranh vat chat hoa mot tensor
+        # (B, T, N, H) trung gian chi de roi cong lai theo H.
+        scores = torch.einsum("bth,btnh->btn", q, k) / self.temperature
         w = scores.softmax(dim=-1)
         self.last_weights = w.detach()
-        return (w.unsqueeze(-1) * v).sum(dim=2)         # (B, T, H)
+        # `value` TUYEN TINH nen  sum_n a_n * W_V(z_n) == W_V( sum_n a_n * z_n ).
+        # Gop TRUOC roi moi chieu: bo han mot tensor (B, T, N, H) moi lop. Dung ve toan hoc,
+        # chi khac thu tu phep cong dau phay dong (~1e-7, duoi san nhieu 0.010 nam bac).
+        # Can that: o batch 16 x len 512, t5p-220m OOM o 15.40/15.49 GiB neu khong lam vay.
+        return self.value((w.unsqueeze(-1) * z).sum(dim=2))  # (B, T, H)
 
 
 class AdapterBlock(nn.Module):
