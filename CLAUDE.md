@@ -344,7 +344,8 @@ nằm ở thư mục nào, khối nào đã xong, cái gì chưa chạy, và ba 
 
 | File | Nội dung |
 |---|---|
-| [HANDOFF.md](HANDOFF.md) | **hiện trạng bàn giao — đọc đầu tiên ở phiên mới** |
+| [NEXT_CONTRIBUTION.md](NEXT_CONTRIBUTION.md) | **ĐỌC ĐẦU TIÊN — mục tiêu là TÌM ĐÓNG GÓP MỚI, không phải trả lời phản biện; kèm cái gì đã bị bác và ba cổng cho đề xuất mới** |
+| [HANDOFF.md](HANDOFF.md) | hiện trạng bàn giao |
 | [ARTIFACTS.md](ARTIFACTS.md) | **mọi trang kết quả đã xuất bản, kèm link và mô tả** |
 | [CURRENT_RUN.md](CURRENT_RUN.md) | khối đang chạy (hoặc khối vừa xong), cấu hình chi tiết |
 | [SERVER.md](SERVER.md) | **máy nào, thư mục nào được dùng — `/drive1` là chỗ chính** |
