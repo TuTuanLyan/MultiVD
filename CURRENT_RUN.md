@@ -1,38 +1,40 @@
-# CURRENT_RUN — 13/09/2026, nhánh git `fusion`. Máy vast `ntat` 50882617 CÒN SỐNG
+# CURRENT_RUN — ĐÃ XONG HẾT 13/09/2026, cả hai vast ĐÃ HUỶ. Nhánh git `fusion`
 
-> **Đang chạy**: hai ô gỡ lỗi để đo **trọng số lớp fusion** (`tools/fusion_weights.py`).
-> Xong là hết việc đáng chạy ⇒ **huỷ máy**.
+> **Không còn gì đang chạy.** `ntat` 50857599 huỷ ~10:55 UTC, `ntat` 50882617 huỷ ~15:15 UTC.
+> Dữ liệu đối chiếu **từng byte, cả hai chiều** trước khi huỷ; lần thứ hai kéo **cả checkpoint
+> Pha 1** về (bài học từ lần đầu). Hai máy ~7 giờ tổng ≈ $0,55.
 
-## Đã xong hôm nay — hai khối, hai kết luận
+## AdapterFusion (arXiv:2005.00247) — ba khối, kết luận: **KHÔNG đáng đi tiếp**
 
-| khối | máy | kết quả |
+| khối | ô | kết quả |
 |---|---|---|
-| `fus1` (26 ô) | 50857599, **đã huỷ** | **FACTS §47** — `fusft` chắc trên codebert (5/5 cả F1 lẫn ROC) nhưng **không lặp trên t5p** ở n=5 |
-| `fus2` (15 ô) | 50882617 | **FACTS §48** — **một nửa** lợi ích là **sức chứa**; §47 không lặp trọn vẹn trên máy thứ hai |
+| `fus1` | 26 | **§47** — `fusft` chắc trên codebert (5/5 cả F1 lẫn ROC), **không lặp trên t5p** |
+| `fus2` | 15 | **§48** — **một nửa** lợi ích là **sức chứa**; §47 không lặp trọn trên máy hai |
+| `fus2w` | 10 | **§48.1/§48.2** — trọng số fusion: chỉ **hình dạng theo lớp** khác, **độ lớn ngược chiều trực giác** |
 
-### Đọc nhanh §48 (codebert, n=5, cùng máy cùng phiên)
+### Năm lý do cộng dồn để dừng (chi tiết cuối §48)
 
-| nhánh | F1@0.5 | ROC-AUC | PR-AUC |
-|---|---|---|---|
-| `fusft` (adapter **đã học**) | +0.0226 4/5 | +0.0113 3/5 | +0.0056 4/5 |
-| `fusftrnd` (adapter **ngẫu nhiên**) | +0.0111 4/5 | +0.0069 3/5 | +0.0117 2/5 |
-| hiệu trực tiếp | +0.0115 **3/5** | +0.0044 3/5 | **−0.0061** 3/5 |
+1. `fusft` không lặp trên t5p ở n=5 (+0.0036, 3/5).
+2. Adapter **ngẫu nhiên** tái tạo ~một nửa lợi ích (+0.0111 / +0.0226, cùng 4/5 fold).
+3. Phần "tri thức Pha 1" còn lại: +0.0115 **3/5 fold**, **âm ở PR-AUC** — không tách khỏi nhiễu.
+4. ROC-AUC của §47 không lặp trên máy thứ hai (+0.0224 5/5 → +0.0113 3/5).
+5. Pha 1 `codebert × com` + adapter **nằm ngay ranh giới**: cùng seed, cùng mã, cùng thư viện,
+   huấn luyện lại thì **sập** (val 0.3333). Phi tất định GPU đủ để quyết định nó học hay không.
 
-Phán quyết theo luật chốt trước: **KHÔNG KẾT LUẬN** (rơi vùng giữa đã khai báo).
-Nhưng đọc được: phần "tri thức Pha 1" **không tách được khỏi nhiễu** ở n=5.
+### Phát hiện phương pháp luận đáng giữ (§48.2)
 
-### Khuyến nghị
+Cùng fold 1, hai checkpoint huấn luyện **độc lập** cùng seed cho độ tản 0.0379 và 0.1209 —
+**biến thiên giữa hai lần chạy lớn hơn hiệu ứng cần đo trên một fold**. Trong một ngày, fold 1
+đã **ba lần** vẽ ra bức tranh sạch hơn thực tế ở khối này.
 
-**Không lên n=15.** Năm lý do cộng dồn ghi ở cuối §48.
-
-## Việc còn để ngỏ
+## Việc còn để ngỏ — đều là thí nghiệm MỚI, cần duyệt
 
 | việc | ghi chú |
 |---|---|
-| trọng số fusion | đang đo, sẽ bổ sung vào §48 |
-| vì sao codebert ăn mà t5p không | thí nghiệm mới, cần duyệt |
-| Pha 1 `codebert × com` bấp bênh | phát hiện phụ của §48; nếu còn dùng cấu hình này thì nên chạy nhiều seed Pha 1 |
-| tập `twin` | treo từ 11/09 |
+| vì sao codebert ăn mà t5p không | câu hỏi đáng giá nhất còn lại của hướng này |
+| Pha 1 nhiều seed cho cấu hình bấp bênh | hệ quả trực tiếp của §48; ảnh hưởng cả §47 |
+| tập `twin` | treo từ 11/09 (mục 6: phụ, chỉ khi được yêu cầu) |
+| đối chứng `none` ở cấu hình chốt | đặc tả sẵn ở cuối **FACTS §46**, 42 ô |
 
 ---
 
