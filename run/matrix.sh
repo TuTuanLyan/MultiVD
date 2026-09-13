@@ -85,6 +85,16 @@ PHASE1_EPOCHS="${PHASE1_EPOCHS:-15}"
 PHASE2_EPOCHS="${PHASE2_EPOCHS:-30}"
 LR="${LR:-2e-5}"
 PATIENCE="${PATIENCE:-5}"
+# Patience RIENG cho Pha 1. Rong => dung chung PATIENCE nhu cu, khong doi mot byte.
+#
+# Vi sao can tach: Pha 1 `codebert x com` co adapter nam NGAY RANH GIOI giua "hoc duoc" va
+# "doan mot lop". Do duoc 13/09: hai lan chay cung seed 42, cung ma, cung phien ban thu vien,
+# bam sat nhau toi epoch 5 (train loss lech < 0.003) roi tach o epoch 6 — lan may man co mot
+# nhip val loss giam nen patience reset va no thoat cao nguyen (val 0.5583); lan kia khong co
+# nhip do, can patience 5 o epoch 7 va dung lai o 0.3333. Noi patience cho RIENG Pha 1 la
+# dung cho no du cho thoat, ma KHONG doi dieu kien dung cua Pha 2 — noi ca hai thi phep so
+# giua cac nhanh doi them mot bien.
+PHASE1_PATIENCE="${PHASE1_PATIENCE:-}"
 MIN_EPOCHS="${MIN_EPOCHS:-3}"
 # Hậu tố gắn vào TÊN NHÁNH và vào khoá kho Phase 1. Dùng khi một run cần chứa hai
 # giá trị của cùng một siêu tham số — ví dụ λ=0.2 và λ=0.05 — mà vẫn DÙNG CHUNG
@@ -284,7 +294,8 @@ for BB in $BACKBONES; do
       --epochs "$PHASE1_EPOCHS" --learning_rate "$LR" --lambda_cwe "$LAMBDA_CWE" \
       --checkpoint_path "$PART" \
       $PHASE1_EXTRA \
-      $(shared_args "$MODEL" "$POOL") > "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>&1
+      $(shared_args "$MODEL" "$POOL") \
+      ${PHASE1_PATIENCE:+--patience "$PHASE1_PATIENCE"} > "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>&1
     tail -3 "$JOBLOG/phase1_${LABEL}_${MODE}${PHASE1_TAG}.log" 2>/dev/null | sed "s/^/    /"
     if [[ -f "$PART" ]]; then
       # Cong chat luong phai chay o CA HAI duong, khong chi duong tai dung.

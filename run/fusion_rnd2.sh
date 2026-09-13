@@ -18,6 +18,8 @@ export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:T
 PY="${PYTHON:-/venv/main/bin/python}"
 exec 6>/tmp/mvd_fusion_rnd2.lock || exit 1
 flock -n 6 || { echo "DA CO fusion_rnd2 dang chay — dung"; exit 3; }
+PHASE1_PATIENCE="${PHASE1_PATIENCE:-10}"   # Pha 1 nam ngay ranh gioi, xem khai bao truoc
+export PHASE1_PATIENCE
 FOLDS="${FOLDS:-1 2 3 4 5}"; DIM="${ADAPTER_DIM:-48}"; ALR="${ADAPTER_LR:-1e-4}"
 BB="codebert=microsoft/codebert-base:cls"
 ts(){ date -u '+%F %T'; }

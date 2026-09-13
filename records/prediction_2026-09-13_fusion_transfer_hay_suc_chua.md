@@ -69,6 +69,29 @@ Nó chỉ đổi chỗ lấy số, và đổi vì một ràng buộc vật lý, 
 * Seed nhiễu đổi theo fold (`seed*1000 + fold`) để kết luận không cược vào **một** lần bốc bài.
 * **Không** sửa ngưỡng, không đổi chỉ số chính, không thêm fold sau khi thấy số.
 
+### SỬA LẦN 2 — 12:4x UTC 13/09, vẫn TRƯỚC khi có ô Pha 2 nào dùng được
+
+Pha 1 huấn luyện lại trên máy mới **sập**: val macro-F1 kẹt **0.3333** (đoán một lớp) suốt 7
+epoch rồi cạn patience. Máy cũ cùng seed 42, cùng mã, cùng phiên bản thư viện thì đạt **0.5583**.
+
+Đối chiếu log từng epoch: hai lần chạy bám sát nhau tới epoch 5 (train loss lệch < 0.003) rồi
+**tách ở epoch 6** — lần cũ có một nhịp val loss giảm nên patience reset và nó thoát cao nguyên;
+lần mới không có nhịp đó. Tức **Pha 1 này nằm ngay ranh giới**, và khác biệt là phi tất định
+của GPU, không phải lỗi môi trường.
+
+**Xử lý, khai báo trước:** nới `PHASE1_PATIENCE=10` cho **riêng Pha 1** (Pha 2 giữ nguyên 5, để
+không đổi thêm một biến nào của phép so giữa các nhánh).
+
+**LUẬT CHẤP NHẬN Pha 1 — chốt trước, không sửa sau:**
+
+* Chạy **ĐÚNG MỘT LẦN** với patience 10. Nhận val bằng bao nhiêu thì nhận.
+* `val ≥ 0.50` ⇒ chấp nhận, chạy tiếp 15 ô.
+* `val < 0.50` ⇒ **DỪNG**, báo "Pha 1 `codebert × com` + adapter không ổn định, câu hỏi
+  transfer-hay-sức-chứa **không trả lời được** ở cấu hình này", và **không** bốc lại seed.
+
+Ghi rõ để chặn đúng cái bẫy "chạy lại tới khi ra kết quả mình muốn": Pha 1 là **đầu vào** của
+thí nghiệm chứ không phải thứ được đo, nhưng chọn đầu vào theo kết quả vẫn là thiên lệch.
+
 ---
 
 ## KẾT QUẢ (điền sau khi đủ 5 ô — ĐỂ TRỐNG)
