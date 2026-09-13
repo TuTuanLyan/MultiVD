@@ -4495,3 +4495,69 @@ chọn ô tốt.
    được: cấu hình nào tình cờ không chạy ở điều kiện khó sẽ trông tốt hơn.
 3. Báo **số điều kiện ÂM**, không chỉ trung bình. `r2p0` và chốt cách nhau 0.044 ở trung bình
    nhưng **5/11 so với 1/11** ở đếm dấu mới là thứ nói lên bản chất.
+
+---
+
+## §50 — Tách theo NHÓM RÒ RỈ: phương pháp chốt **KHÔNG** sống nhờ học vẹt, nhưng adapter-fusion **không** mang thêm tri thức (14/09, **0 GPU**, đọc lại dữ liệu đã có)
+
+**Vì sao nhóm này là phép kiểm đúng.** Reviewer yêu cầu giữ split **ngẫu nhiên** vì nó cố ý
+chứa những hàng test có **bản đối nghịch gần trùng** — cùng code, **NGƯỢC NHÃN** — nằm trong
+train. Đoán đúng ở đó nghĩa là mô hình phân biệt được khác biệt nhỏ giữa hàm lỗi và hàm đã vá,
+tức học **đặc trưng lỗ hổng** chứ không khớp **mẫu văn bản**. Điểm tổng trộn ba nhóm nên không
+đọc được điều đó. `tools/leak_groups.py` đã gán nhãn nhóm từ 07/09; `tools/leak_groups_pair.py`
+(mới) mở rộng để so **hai nhánh bất kỳ**, vì các cây fusion không có baseline.
+
+Nhóm mỗi fold: `train` 16–27 hàng · `test` 4–12 · `none` 107–113 (trên 152).
+
+### (1) Phương pháp CHỐT vs BASELINE — n=15, codebert
+
+| nhóm | số hàng TB | Δ macro-F1@0.5 |
+|---|---|---|
+| `train` (bản đối nghịch trong TRAIN) | 23.4 | **+0.0591 11/15** p=0.118 |
+| `test` (bản đối nghịch trong TEST) | 7.6 | +0.1347 10/15 |
+| **`none`** (không có bản đối nghịch) | **111.2** | **+0.0459 14/15 p=0.001** |
+| TẤT CẢ | 152 | +0.0493 **15/15** p=0.000 |
+
+> **Đây là kết quả đáng giá nhất của mục này.** Lợi ích **KHÔNG** tập trung ở nhóm dễ học vẹt:
+> trên **73% hàng sạch** (`none`) nó vẫn **+0.0459 với 14/15 fold, p=0.001** — trên sàn nhiễu
+> 0.010 gấp bốn lần. Tức phương pháp chốt **khái quát hoá thật**, không sống nhờ rò rỉ.
+> Đối chiếu §21.1: ASAM ρ=2.0 thì ngược lại — lợi ích của nó **tập trung ở nhóm `train`**
+> (+0.0509) còn trên hàng sạch chỉ +0.0071, **dưới** sàn nhiễu.
+
+### (2) `fusft` vs phương pháp CHỐT — n=10
+
+| nhóm | Δ macro-F1@0.5 |
+|---|---|
+| `train` | +0.0332 7/10 |
+| `none` | +0.0299 8/10 |
+| TẤT CẢ | +0.0243 **9/10** p=0.021 |
+
+Fusion cộng thêm khá đều trên cả hai nhóm.
+
+### (3) `fusft` vs `fusftrnd` — tách TRI THỨC khỏi SỨC CHỨA, n=5
+
+| nhóm | Δ macro-F1@0.5 |
+|---|---|
+| **`train`** | **−0.0595 1/5** |
+| `test` | −0.0007 2/5 |
+| `none` | +0.0273 3/5 |
+| TẤT CẢ | +0.0115 3/5 |
+
+> **Trên đúng nhóm đo "có học được đặc trưng lỗ hổng không", adapter nguồn ĐÃ HỌC lại THUA
+> adapter NGẪU NHIÊN** (−0.0595, 1/5). Phần lợi ích của `fusft` so với đối chứng nhiễu nằm ở
+> nhóm `none` (+0.0273), tức ở **khái quát hoá thường**, không ở **phân biệt lỗ hổng**.
+
+Cộng với §48 (một nửa lợi ích tái tạo được bằng nhiễu) và §48.1 (trọng số fusion ưu ái adapter
+ngẫu nhiên hơn): ba phép đo độc lập cùng nói một điều — **fusion không mang thêm tri thức
+chuyển giao**.
+
+**Giới hạn**: n=5 ở mục (3), nhóm `train` chỉ ~23 hàng/fold nên phương sai lớn. Đọc là **dấu
+hiệu mạnh**, không phải kết luận đóng.
+
+### Đọc gộp — trạng thái thật của đóng góp hiện tại
+
+| | khái quát hoá (`none`, 73% hàng) | phân biệt lỗ hổng (`train`) |
+|---|---|---|
+| chốt vs baseline | **+0.0459 14/15 p=0.001** | +0.0591 11/15 |
+| fusion vs chốt | +0.0299 8/10 | +0.0332 7/10 |
+| fusion: tri thức vs sức chứa | +0.0273 3/5 | **−0.0595 1/5** |
