@@ -4386,36 +4386,49 @@ Hướng adapter-fusion: **không đáng lên n=15**. Lý do cộng dồn — (a
 (b) một nửa lợi ích là sức chứa, (c) phần "tri thức" không tách được khỏi nhiễu, (d) chỉ số
 thứ hạng không lặp trên máy thứ hai, (e) Pha 1 nền tảng thì bấp bênh.
 
-### §48.1 — Cơ chế CÓ hoạt động đúng như bài báo mô tả, nhưng nó đáng rất ít
+### §48.1 — Trọng số fusion: chỉ **HÌNH DẠNG theo lớp** khác, còn **ĐỘ LỚN thì ngược chiều trực giác** (n=5)
 
-Đo trọng số attention của lớp fusion trên tập test thật (fold 1, 152 mẫu, 46 327 token,
-`tools/fusion_weights.py`). Cột là trọng số fusion gán cho adapter **nguồn**:
+Đo trọng số attention của lớp fusion trên tập test thật, **cả 5 fold**, mỗi fold một cặp
+checkpoint (`tools/fusion_weights.py`, `run/fusion_w5.sh`). Cột đo là trọng số fusion gán cho
+adapter **nguồn**.
 
-| lớp | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | **TB** |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| src **đã học** | 0.455 | 0.364 | 0.522 | 0.592 | 0.505 | 0.805 | 0.460 | 0.427 | 0.539 | **0.861** | 0.684 | **0.984** | 0.600 |
-| src **ngẫu nhiên** | 0.550 | 0.464 | 0.538 | 0.525 | 0.563 | 0.583 | 0.555 | 0.519 | 0.518 | 0.557 | 0.496 | 0.614 | 0.540 |
+| | độ tản giữa các lớp | trọng số TB cho nguồn |
+|---|---|---|
+| src **đã học** | **0.1776** | 0.5566 |
+| src **ngẫu nhiên** | 0.1075 | **0.7065** |
+| hiệu (đã học − ngẫu nhiên) | **+0.0702, 5/5 fold**, p=0.062 | −0.1498, **1/5 fold** |
 
-| | độ lệch chuẩn giữa các lớp | min–max | biên độ |
-|---|---|---|---|
-| src **đã học** | **0.1850** | 0.364–0.984 | **0.621** |
-| src **ngẫu nhiên** | 0.0379 | 0.464–0.614 | 0.150 |
+**Hai phát biểu, và chúng nói ngược nhau:**
 
-**Độ tản giữa các lớp của bản đã học lớn gấp 4,9 lần bản ngẫu nhiên.**
+1. **Hình dạng**: adapter đã học làm fusion trộn **phụ thuộc lớp mạnh hơn** — 5/5 fold, chạm
+   sàn Wilcoxon p=0.0625. Nhưng tỉ lệ chỉ **1,65×** (từng fold: 1.0 / 1.8 / 1.9 / 1.7 / 2.0×).
+2. **Độ lớn**: fusion gán trọng số trung bình **CAO HƠN** cho adapter **ngẫu nhiên** (0.7065 so
+   với 0.5566), 4/5 fold theo chiều đó.
 
-Đọc thẳng: khi adapter nguồn **có nội dung**, lớp fusion học một cách trộn **phụ thuộc lớp rất
-mạnh** — dồn gần hết trọng số vào nguồn ở các lớp trên (lớp 9: 0.861, lớp 11: **0.984**) và
-nhường cho đích ở các lớp dưới. Khi adapter nguồn là **nhiễu**, fusion nằm **phẳng ~0.54 ở cả
-12 lớp**: nó không tìm thấy gì để chọn.
+> Điểm (2) bác thẳng cách đọc trực giác *"trọng số fusion cao = mô hình đang dùng tri thức"*.
+> Một đường nhiễu cùng thang độ lại được ưu ái hơn một đường đã học. Trọng số fusion **không**
+> đo được "hữu ích"; chỉ **hình dạng theo lớp** mới phân biệt được hai loại adapter.
 
-> **Cơ chế của AdapterFusion CÓ hoạt động đúng như bài báo mô tả** — nó phát hiện và khai thác
-> được nội dung của adapter nguồn, và phân biệt rõ giữa "có tri thức" và "nhiễu cùng thang độ".
-> **Nhưng lượng thông tin nó moi ra đáng rất ít**: lợi ích cuối cùng so với adapter ngẫu nhiên
-> chỉ `+0.0115 F1@0.5` với **3/5 fold** và **âm ở PR-AUC**.
+### §48.2 — Bản n=1 của mục này đã SAI, và sai theo cách đáng ghi
 
-Đây là dạng kết quả dễ đọc nhầm nhất: **cơ chế đúng không kéo theo hiệu quả đáng kể**. Nếu chỉ
-nhìn bảng trọng số fusion thì sẽ kết luận "transfer hoạt động"; phải nhìn cả chỉ số cuối mới
-thấy nó gần như không đổi được gì. Và ngược lại, nếu chỉ nhìn chỉ số cuối thì sẽ kết luận
-"fusion không dùng adapter nguồn", cũng sai.
+Bản đầu của §48.1 (viết khi mới có **fold 1**) phát biểu: *"độ tản của bản đã học gấp **4,9 lần**
+bản ngẫu nhiên; khi adapter nguồn là nhiễu, fusion nằm phẳng ~0.54 ở cả 12 lớp, nó không tìm
+thấy gì để chọn."* Đo đủ 5 fold thì tỉ lệ là **1,65×**, và bản ngẫu nhiên **không** phẳng.
 
-**Giới hạn**: n=1 fold, mỗi bên một checkpoint. Đủ để mô tả cơ chế, **không** đủ để định lượng.
+Bằng chứng sắc nhất nằm ở chỗ khác: **cùng fold 1**, hai checkpoint huấn luyện **độc lập** cùng
+seed cho ra
+
+| fold 1, cùng cấu hình | lần đo 1 | lần đo 2 |
+|---|---|---|
+| độ tản, src đã học | 0.1850 | 0.1218 |
+| độ tản, src ngẫu nhiên | **0.0379** | **0.1209** |
+| tỉ lệ | **4,9×** | **1,0×** |
+
+> **Biến thiên GIỮA HAI LẦN CHẠY cùng cấu hình lớn hơn hiệu ứng cần đo trên một fold.** Con số
+> 0.0379 của lần đầu là một lần bốc bài may, không phải tính chất của adapter ngẫu nhiên.
+
+Đây là lần thứ **ba trong cùng một ngày** fold 1 vẽ ra bức tranh sạch hơn thực tế ở khối này —
+trước đó là `fusfrz` cho `+0.0406` rồi tụt xuống dưới đối chứng, và ấn tượng đầu về `fusftrnd`.
+Cộng với §41/§40 thì luật *"n=3 mới là sàn để DỪNG, không phải để KẾT LUẬN"* nên đọc chặt hơn nữa:
+**n=1 không đủ để mô tả cả một cơ chế**, kể cả khi cơ chế đó nghe rất hợp lý.
+

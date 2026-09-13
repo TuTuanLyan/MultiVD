@@ -1,0 +1,453 @@
+2026-09-13 14:34:44 - INFO - Using device: cuda
+2026-09-13 14:34:44 - INFO - Run started | Run: fus2w_codebert | Method: transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw | Phase: phase2 | Fold: 1 | Seed: 42 | Device: cuda
+2026-09-13 14:34:44 - INFO - Loading Python training data: data/sven_python_folds_norm/fold1/train.jsonl
+2026-09-13 14:34:44 - INFO - Loading Python validation data: data/sven_python_folds_norm/fold1/val.jsonl
+2026-09-13 14:34:44 - INFO - Data split: python_train | Total: 456 | Labels: {0: 235, 1: 221} | CWEs: {'CWE-022': 39, 'CWE-078': 123, 'CWE-079': 49, 'CWE-089': 245} | Languages: {'python': 456} | Invalid CWE: 0
+2026-09-13 14:34:44 - INFO - Data split: python_val | Total: 152 | Labels: {0: 74, 1: 78} | CWEs: {'CWE-022': 8, 'CWE-078': 42, 'CWE-079': 19, 'CWE-089': 83} | Languages: {'python': 152} | Invalid CWE: 0
+2026-09-13 14:34:44 - INFO - Auxiliary head width taken from checkpoint: 10
+2026-09-13 14:34:46 - INFO - Dung lai adapter tu checkpoint | ten=['src'] | dim=48 | fusion=False
+2026-09-13 14:34:46 - INFO - Loaded source checkpoint: model/fus2/phase1/codebert__latent_bottleneck_com_l0p05_ad48/seed_42/best.pt | Best epoch: 12 | Best Val Macro-F1: 0.575774
+2026-09-13 14:34:47 - INFO - ADAPTER FUSION BAT | che do=ft | 12 lop | dim=48 | mo 146793794 tham so, khoa 900770 | adapter nguon DONG BANG (0 tham so mo)
+2026-09-13 14:34:47 - INFO - lambda_cwe: CLI Pha 2 = 0.2 (khong dung o Pha 2) | Pha 1 that = 0.05 — ghi theo Pha 1
+2026-09-13 14:34:47 - INFO - Phase 2 optimizer: AdamW | nhom ADAPTER rieng: 22146624 tham so o lr 0.0001 (backbone/head o 2e-05)
+2026-09-13 14:34:47 - INFO - Environment: {"components": {"backbone": {"frozen": 894528, "total": 147686784, "trainable": 146792256}, "cwe_head": {"frozen": 90, "total": 90, "trainable": 0}, "latent_proj": {"frozen": 6152, "total": 6152, "trainable": 0}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 1, "frozen_parameters": 900770, "gpu": "NVIDIA GeForce RTX 5060 Ti", "hyperparameters": {"adamw_anneal_lr": false, "adapter_dim": 0, "adapter_lr": 0.0001, "anneal_fun": "sigmoid", "anneal_k": 0.05, "anneal_t0_ratio": 0.05, "anneal_t0_steps": 43, "anneal_w": 1.0, "asam_eta": 0.01, "aux_class_balanced": false, "aux_mode": "latent_bottleneck", "aux_weight_lr": 0.01, "aux_weight_mode": "fixed", "batch_size": 16, "checkpoint_path": "model/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1/best.pt", "cwe_vocab": "precomputed", "data_path": "data/train_ccpp_filtered.jsonl", "data_root": "data/sven_python_folds_norm", "epochs": 30, "eval_batch_size": 16, "feat_distill_beta": 0.0, "feat_distill_mode": "cos", "fisher_path": null, "fold": 1, "freeze_backbone_layers": 0, "freeze_prototypes_steps": 0, "fusion_frozen_params": 900770, "fusion_src_random": false, "fusion_trainable_params": 146793794, "grad_checkpointing": false, "lambda_cwe": 0.05, "lambda_cwe_phase2_cli": 0.2, "latent_temperature": 0.1, "learning_rate": 2e-05, "lora_rank": 0, "lp_epochs": 0, "lp_learning_rate": 0.001, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw", "min_epochs": 3, "model_name": "microsoft/codebert-base", "num_cwes": 10, "num_latent": 8, "num_workers": 0, "output_dir": "results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw", "patience": 5, "phase": "phase2", "phase2_fusion": "ft", "phase2_gate": "off", "phase2_gate_alpha": 0.3, "phase2_gate_init": 0.0, "phase2_gate_lr": 0.01, "phase2_gate_proj": "learned", "phase2_lambda_cwe": 0.0, "phase2_optimizer": "adamw", "phase2_reinit_head": false, "phase2_steps_per_epoch": 29, "phase2_total_steps": 870, "pooling": "cls", "pretrain_cof": 5000.0, "recadam_anchor": "source", "recadam_anchor_head": "source", "replay_batch_size": 0, "replay_cwe_vocab": "fixed4", "replay_data": null, "replay_epochs": 0, "replay_lambda_cwe": 0.0, "replay_mu": 0.0, "replay_stratify": false, "result_path": "results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1.json", "run_name": "fus2w_codebert", "sam_rho": 0.0, "sam_variant": "sam", "seed": 42, "selection_metric": "macro_f1", "source_best_epoch": 12, "source_best_val_macro_f1": 0.5757736986787266, "source_checkpoint": "model/fus2/phase1/codebert__latent_bottleneck_com_l0p05_ad48/seed_42/best.pt", "source_eval_data": null, "source_interp_grid": null, "source_interpolation": 1.0, "source_lambda_cwe": 0.05, "source_sam_rho": 0.0, "spd_lambda": 1.0, "spd_replace_wd": false, "strict_determinism": false, "target_lang": "python", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "phase2_train", "model_name": "microsoft/codebert-base", "seed": 42, "sklearn": "1.7.2", "torch": "2.11.0+cu128", "trainable_parameters": 146793794, "transformers": "4.57.1"}
+2026-09-13 14:34:47 - INFO - Training started | Phase: phase2 | Epochs: 30
+2026-09-13 14:34:47 - INFO - Run finished | Phase: phase2 | Fold: 1 | Seed: 42 | Elapsed: 3.59s
+Traceback (most recent call last):
+  File "/workspace/MultiVD/src/train_transfer.py", line 2034, in <module>
+    main()
+  File "/workspace/MultiVD/src/train_transfer.py", line 2020, in main
+    run_phase2(args, device)
+  File "/workspace/MultiVD/src/train_transfer.py", line 1285, in run_phase2
+    train_loop(
+  File "/workspace/MultiVD/src/train.py", line 461, in train_loop
+    train = train_one_epoch_phase2(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/MultiVD/src/train.py", line 230, in train_one_epoch_phase2
+    loss, vul_loss, aux_loss, outputs, labels, feat_loss = _phase2_target_loss(
+                                                           ^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/MultiVD/src/train.py", line 166, in _phase2_target_loss
+    outputs = model(input_ids, attention_mask, return_cwe=False, return_features=want_feat)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/MultiVD/src/model.py", line 321, in forward
+    outputs = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/roberta/modeling_roberta.py", line 862, in forward
+    encoder_outputs = self.encoder(
+                      ^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/transformers/models/roberta/modeling_roberta.py", line 606, in forward
+    layer_outputs = layer_module(
+                    ^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/MultiVD/src/adapters.py", line 109, in forward
+    h = self.fusion(h, zs)
+        ^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/venv/main/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/MultiVD/src/adapters.py", line 77, in forward
+    return self.value((w.unsqueeze(-1) * z).sum(dim=2))  # (B, T, H)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 24.00 MiB. GPU 0 has a total capacity of 15.49 GiB of which 17.69 MiB is free. Process 26115 has 9.71 GiB memory in use. Including non-PyTorch memory, this process has 5.74 GiB memory in use. Of the allocated memory 5.58 GiB is allocated by PyTorch, and 8.79 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+2026-09-13 15:12:32 - INFO - Using device: cuda
+2026-09-13 15:12:32 - INFO - Run started | Run: fus2w_codebert | Method: transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw | Phase: phase2 | Fold: 1 | Seed: 42 | Device: cuda
+2026-09-13 15:12:32 - INFO - Loading Python training data: data/sven_python_folds_norm/fold1/train.jsonl
+2026-09-13 15:12:32 - INFO - Loading Python validation data: data/sven_python_folds_norm/fold1/val.jsonl
+2026-09-13 15:12:32 - INFO - Data split: python_train | Total: 456 | Labels: {0: 235, 1: 221} | CWEs: {'CWE-022': 39, 'CWE-078': 123, 'CWE-079': 49, 'CWE-089': 245} | Languages: {'python': 456} | Invalid CWE: 0
+2026-09-13 15:12:32 - INFO - Data split: python_val | Total: 152 | Labels: {0: 74, 1: 78} | CWEs: {'CWE-022': 8, 'CWE-078': 42, 'CWE-079': 19, 'CWE-089': 83} | Languages: {'python': 152} | Invalid CWE: 0
+2026-09-13 15:12:32 - INFO - Auxiliary head width taken from checkpoint: 10
+2026-09-13 15:12:34 - INFO - Dung lai adapter tu checkpoint | ten=['src'] | dim=48 | fusion=False
+2026-09-13 15:12:34 - INFO - Loaded source checkpoint: model/fus2/phase1/codebert__latent_bottleneck_com_l0p05_ad48/seed_42/best.pt | Best epoch: 12 | Best Val Macro-F1: 0.575774
+2026-09-13 15:12:34 - INFO - ADAPTER FUSION BAT | che do=ft | 12 lop | dim=48 | mo 146793794 tham so, khoa 900770 | adapter nguon DONG BANG (0 tham so mo)
+2026-09-13 15:12:34 - INFO - lambda_cwe: CLI Pha 2 = 0.2 (khong dung o Pha 2) | Pha 1 that = 0.05 — ghi theo Pha 1
+2026-09-13 15:12:34 - INFO - Phase 2 optimizer: AdamW | nhom ADAPTER rieng: 22146624 tham so o lr 0.0001 (backbone/head o 2e-05)
+2026-09-13 15:12:34 - INFO - Environment: {"components": {"backbone": {"frozen": 894528, "total": 147686784, "trainable": 146792256}, "cwe_head": {"frozen": 90, "total": 90, "trainable": 0}, "latent_proj": {"frozen": 6152, "total": 6152, "trainable": 0}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 1, "frozen_parameters": 900770, "gpu": "NVIDIA GeForce RTX 5060 Ti", "hyperparameters": {"adamw_anneal_lr": false, "adapter_dim": 0, "adapter_lr": 0.0001, "anneal_fun": "sigmoid", "anneal_k": 0.05, "anneal_t0_ratio": 0.05, "anneal_t0_steps": 43, "anneal_w": 1.0, "asam_eta": 0.01, "aux_class_balanced": false, "aux_mode": "latent_bottleneck", "aux_weight_lr": 0.01, "aux_weight_mode": "fixed", "batch_size": 16, "checkpoint_path": "model/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1/best.pt", "cwe_vocab": "precomputed", "data_path": "data/train_ccpp_filtered.jsonl", "data_root": "data/sven_python_folds_norm", "epochs": 30, "eval_batch_size": 16, "feat_distill_beta": 0.0, "feat_distill_mode": "cos", "fisher_path": null, "fold": 1, "freeze_backbone_layers": 0, "freeze_prototypes_steps": 0, "fusion_frozen_params": 900770, "fusion_src_random": false, "fusion_trainable_params": 146793794, "grad_checkpointing": false, "lambda_cwe": 0.05, "lambda_cwe_phase2_cli": 0.2, "latent_temperature": 0.1, "learning_rate": 2e-05, "lora_rank": 0, "lp_epochs": 0, "lp_learning_rate": 0.001, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw", "min_epochs": 3, "model_name": "microsoft/codebert-base", "num_cwes": 10, "num_latent": 8, "num_workers": 0, "output_dir": "results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw", "patience": 5, "phase": "phase2", "phase2_fusion": "ft", "phase2_gate": "off", "phase2_gate_alpha": 0.3, "phase2_gate_init": 0.0, "phase2_gate_lr": 0.01, "phase2_gate_proj": "learned", "phase2_lambda_cwe": 0.0, "phase2_optimizer": "adamw", "phase2_reinit_head": false, "phase2_steps_per_epoch": 29, "phase2_total_steps": 870, "pooling": "cls", "pretrain_cof": 5000.0, "recadam_anchor": "source", "recadam_anchor_head": "source", "replay_batch_size": 0, "replay_cwe_vocab": "fixed4", "replay_data": null, "replay_epochs": 0, "replay_lambda_cwe": 0.0, "replay_mu": 0.0, "replay_stratify": false, "result_path": "results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1.json", "run_name": "fus2w_codebert", "sam_rho": 0.0, "sam_variant": "sam", "seed": 42, "selection_metric": "macro_f1", "source_best_epoch": 12, "source_best_val_macro_f1": 0.5757736986787266, "source_checkpoint": "model/fus2/phase1/codebert__latent_bottleneck_com_l0p05_ad48/seed_42/best.pt", "source_eval_data": null, "source_interp_grid": null, "source_interpolation": 1.0, "source_lambda_cwe": 0.05, "source_sam_rho": 0.0, "spd_lambda": 1.0, "spd_replace_wd": false, "strict_determinism": false, "target_lang": "python", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "phase2_train", "model_name": "microsoft/codebert-base", "seed": 42, "sklearn": "1.7.2", "torch": "2.11.0+cu128", "trainable_parameters": 146793794, "transformers": "4.57.1"}
+2026-09-13 15:12:34 - INFO - Training started | Phase: phase2 | Epochs: 30
+2026-09-13 15:12:35 - INFO - RecAdam first-step safety checks passed
+2026-09-13 15:12:56 - INFO - Epoch 1/30 | Train loss: 0.600995 | Val loss: 0.509383 | LR: 2.00e-05 | Best epoch: 1 | Patience: 0 | Train: 19.46s | Validation: 2.12s | Epoch: 22.04s | Total: 22.04s
+2026-09-13 15:12:56 - INFO - [Classification Report - split=train epoch=1 - threshold=0.50]
+2026-09-13 15:12:56 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:12:56 - INFO - 
+2026-09-13 15:12:56 - INFO -       safe (0)     0.7277    0.5915    0.6526       235
+2026-09-13 15:12:56 - INFO - vulnerable (1)     0.6377    0.7647    0.6955       221
+2026-09-13 15:12:56 - INFO - 
+2026-09-13 15:12:56 - INFO -       accuracy                         0.6754       456
+2026-09-13 15:12:56 - INFO -      macro avg     0.6827    0.6781    0.6740       456
+2026-09-13 15:12:56 - INFO -   weighted avg     0.6841    0.6754    0.6734       456
+2026-09-13 15:12:56 - INFO - Confusion matrix - [[tn=139, fp=96], [fn=52, tp=169]]
+2026-09-13 15:12:56 - INFO - probability_positive min=0.0052 mean=0.4948 std=0.2603 max=0.9974 predicted_0=191 predicted_1=265
+2026-09-13 15:12:56 - INFO - [Classification Report - split=validation epoch=1 - threshold=0.50]
+2026-09-13 15:12:56 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:12:56 - INFO - 
+2026-09-13 15:12:56 - INFO -       safe (0)     0.6897    0.8108    0.7453        74
+2026-09-13 15:12:56 - INFO - vulnerable (1)     0.7846    0.6538    0.7133        78
+2026-09-13 15:12:56 - INFO - 
+2026-09-13 15:12:56 - INFO -       accuracy                         0.7303       152
+2026-09-13 15:12:56 - INFO -      macro avg     0.7371    0.7323    0.7293       152
+2026-09-13 15:12:56 - INFO -   weighted avg     0.7384    0.7303    0.7289       152
+2026-09-13 15:12:56 - INFO - Confusion matrix - [[tn=60, fp=14], [fn=27, tp=51]]
+2026-09-13 15:12:56 - INFO - probability_positive min=0.0041 mean=0.4600 std=0.3796 max=0.9979 predicted_0=87 predicted_1=65
+2026-09-13 15:12:56 - INFO - New best model | Macro-F1: 0.729314 | Epoch: 1
+2026-09-13 15:13:18 - INFO - Epoch 2/30 | Train loss: 0.442656 | Val loss: 0.603205 | LR: 2.00e-05 | Best epoch: 2 | Patience: 0 | Train: 19.05s | Validation: 2.14s | Epoch: 22.07s | Total: 44.12s
+2026-09-13 15:13:18 - INFO - [Classification Report - split=train epoch=2 - threshold=0.50]
+2026-09-13 15:13:18 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:13:18 - INFO - 
+2026-09-13 15:13:18 - INFO -       safe (0)     0.7897    0.8468    0.8172       235
+2026-09-13 15:13:18 - INFO - vulnerable (1)     0.8235    0.7602    0.7906       221
+2026-09-13 15:13:18 - INFO - 
+2026-09-13 15:13:18 - INFO -       accuracy                         0.8048       456
+2026-09-13 15:13:18 - INFO -      macro avg     0.8066    0.8035    0.8039       456
+2026-09-13 15:13:18 - INFO -   weighted avg     0.8061    0.8048    0.8043       456
+2026-09-13 15:13:18 - INFO - Confusion matrix - [[tn=199, fp=36], [fn=53, tp=168]]
+2026-09-13 15:13:18 - INFO - probability_positive min=0.0014 mean=0.4759 std=0.3768 max=0.9991 predicted_0=252 predicted_1=204
+2026-09-13 15:13:18 - INFO - [Classification Report - split=validation epoch=2 - threshold=0.50]
+2026-09-13 15:13:18 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:13:18 - INFO - 
+2026-09-13 15:13:18 - INFO -       safe (0)     0.7529    0.8649    0.8050        74
+2026-09-13 15:13:18 - INFO - vulnerable (1)     0.8507    0.7308    0.7862        78
+2026-09-13 15:13:18 - INFO - 
+2026-09-13 15:13:18 - INFO -       accuracy                         0.7961       152
+2026-09-13 15:13:18 - INFO -      macro avg     0.8018    0.7978    0.7956       152
+2026-09-13 15:13:18 - INFO -   weighted avg     0.8031    0.7961    0.7954       152
+2026-09-13 15:13:18 - INFO - Confusion matrix - [[tn=64, fp=10], [fn=21, tp=57]]
+2026-09-13 15:13:18 - INFO - probability_positive min=0.0193 mean=0.4601 std=0.4277 max=0.9997 predicted_0=85 predicted_1=67
+2026-09-13 15:13:18 - INFO - New best model | Macro-F1: 0.795619 | Epoch: 2
+2026-09-13 15:13:41 - INFO - Epoch 3/30 | Train loss: 0.311218 | Val loss: 0.534661 | LR: 2.00e-05 | Best epoch: 3 | Patience: 0 | Train: 19.13s | Validation: 2.13s | Epoch: 22.24s | Total: 66.38s
+2026-09-13 15:13:41 - INFO - [Classification Report - split=train epoch=3 - threshold=0.50]
+2026-09-13 15:13:41 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:13:41 - INFO - 
+2026-09-13 15:13:41 - INFO -       safe (0)     0.8477    0.8766    0.8619       235
+2026-09-13 15:13:41 - INFO - vulnerable (1)     0.8638    0.8326    0.8479       221
+2026-09-13 15:13:41 - INFO - 
+2026-09-13 15:13:41 - INFO -       accuracy                         0.8553       456
+2026-09-13 15:13:41 - INFO -      macro avg     0.8558    0.8546    0.8549       456
+2026-09-13 15:13:41 - INFO -   weighted avg     0.8555    0.8553    0.8551       456
+2026-09-13 15:13:41 - INFO - Confusion matrix - [[tn=206, fp=29], [fn=37, tp=184]]
+2026-09-13 15:13:41 - INFO - probability_positive min=0.0010 mean=0.4717 std=0.4093 max=0.9994 predicted_0=243 predicted_1=213
+2026-09-13 15:13:41 - INFO - [Classification Report - split=validation epoch=3 - threshold=0.50]
+2026-09-13 15:13:41 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:13:41 - INFO - 
+2026-09-13 15:13:41 - INFO -       safe (0)     0.7975    0.8514    0.8235        74
+2026-09-13 15:13:41 - INFO - vulnerable (1)     0.8493    0.7949    0.8212        78
+2026-09-13 15:13:41 - INFO - 
+2026-09-13 15:13:41 - INFO -       accuracy                         0.8224       152
+2026-09-13 15:13:41 - INFO -      macro avg     0.8234    0.8231    0.8224       152
+2026-09-13 15:13:41 - INFO -   weighted avg     0.8241    0.8224    0.8223       152
+2026-09-13 15:13:41 - INFO - Confusion matrix - [[tn=63, fp=11], [fn=16, tp=62]]
+2026-09-13 15:13:41 - INFO - probability_positive min=0.0019 mean=0.4680 std=0.4278 max=0.9993 predicted_0=79 predicted_1=73
+2026-09-13 15:13:41 - INFO - New best model | Macro-F1: 0.822361 | Epoch: 3
+2026-09-13 15:14:03 - INFO - Epoch 4/30 | Train loss: 0.271792 | Val loss: 0.571702 | LR: 2.00e-05 | Best epoch: 4 | Patience: 0 | Train: 19.16s | Validation: 2.13s | Epoch: 22.19s | Total: 88.59s
+2026-09-13 15:14:03 - INFO - [Classification Report - split=train epoch=4 - threshold=0.50]
+2026-09-13 15:14:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:14:03 - INFO - 
+2026-09-13 15:14:03 - INFO -       safe (0)     0.9336    0.8979    0.9154       235
+2026-09-13 15:14:03 - INFO - vulnerable (1)     0.8957    0.9321    0.9135       221
+2026-09-13 15:14:03 - INFO - 
+2026-09-13 15:14:03 - INFO -       accuracy                         0.9145       456
+2026-09-13 15:14:03 - INFO -      macro avg     0.9146    0.9150    0.9145       456
+2026-09-13 15:14:03 - INFO -   weighted avg     0.9152    0.9145    0.9145       456
+2026-09-13 15:14:03 - INFO - Confusion matrix - [[tn=211, fp=24], [fn=15, tp=206]]
+2026-09-13 15:14:03 - INFO - probability_positive min=0.0008 mean=0.4919 std=0.4358 max=0.9998 predicted_0=226 predicted_1=230
+2026-09-13 15:14:03 - INFO - [Classification Report - split=validation epoch=4 - threshold=0.50]
+2026-09-13 15:14:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:14:03 - INFO - 
+2026-09-13 15:14:03 - INFO -       safe (0)     0.8784    0.8784    0.8784        74
+2026-09-13 15:14:03 - INFO - vulnerable (1)     0.8846    0.8846    0.8846        78
+2026-09-13 15:14:03 - INFO - 
+2026-09-13 15:14:03 - INFO -       accuracy                         0.8816       152
+2026-09-13 15:14:03 - INFO -      macro avg     0.8815    0.8815    0.8815       152
+2026-09-13 15:14:03 - INFO -   weighted avg     0.8816    0.8816    0.8816       152
+2026-09-13 15:14:03 - INFO - Confusion matrix - [[tn=65, fp=9], [fn=9, tp=69]]
+2026-09-13 15:14:03 - INFO - probability_positive min=0.0005 mean=0.5109 std=0.4791 max=0.9998 predicted_0=74 predicted_1=78
+2026-09-13 15:14:03 - INFO - New best model | Macro-F1: 0.881497 | Epoch: 4
+2026-09-13 15:14:24 - INFO - Epoch 5/30 | Train loss: 0.192188 | Val loss: 0.419360 | LR: 2.00e-05 | Best epoch: 4 | Patience: 1 | Train: 19.18s | Validation: 2.15s | Epoch: 21.33s | Total: 109.95s
+2026-09-13 15:14:24 - INFO - [Classification Report - split=train epoch=5 - threshold=0.50]
+2026-09-13 15:14:24 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:14:24 - INFO - 
+2026-09-13 15:14:24 - INFO -       safe (0)     0.9180    0.9532    0.9353       235
+2026-09-13 15:14:24 - INFO - vulnerable (1)     0.9481    0.9095    0.9284       221
+2026-09-13 15:14:24 - INFO - 
+2026-09-13 15:14:24 - INFO -       accuracy                         0.9320       456
+2026-09-13 15:14:24 - INFO -      macro avg     0.9331    0.9313    0.9318       456
+2026-09-13 15:14:24 - INFO -   weighted avg     0.9326    0.9320    0.9319       456
+2026-09-13 15:14:24 - INFO - Confusion matrix - [[tn=224, fp=11], [fn=20, tp=201]]
+2026-09-13 15:14:24 - INFO - probability_positive min=0.0002 mean=0.4724 std=0.4635 max=0.9997 predicted_0=244 predicted_1=212
+2026-09-13 15:14:24 - INFO - [Classification Report - split=validation epoch=5 - threshold=0.50]
+2026-09-13 15:14:24 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:14:24 - INFO - 
+2026-09-13 15:14:24 - INFO -       safe (0)     0.8421    0.8649    0.8533        74
+2026-09-13 15:14:24 - INFO - vulnerable (1)     0.8684    0.8462    0.8571        78
+2026-09-13 15:14:24 - INFO - 
+2026-09-13 15:14:24 - INFO -       accuracy                         0.8553       152
+2026-09-13 15:14:24 - INFO -      macro avg     0.8553    0.8555    0.8552       152
+2026-09-13 15:14:24 - INFO -   weighted avg     0.8556    0.8553    0.8553       152
+2026-09-13 15:14:24 - INFO - Confusion matrix - [[tn=64, fp=10], [fn=12, tp=66]]
+2026-09-13 15:14:24 - INFO - probability_positive min=0.0014 mean=0.5040 std=0.4406 max=0.9998 predicted_0=76 predicted_1=76
+2026-09-13 15:14:46 - INFO - Epoch 6/30 | Train loss: 0.194673 | Val loss: 0.691756 | LR: 2.00e-05 | Best epoch: 4 | Patience: 2 | Train: 19.15s | Validation: 2.14s | Epoch: 21.30s | Total: 131.26s
+2026-09-13 15:14:46 - INFO - [Classification Report - split=train epoch=6 - threshold=0.50]
+2026-09-13 15:14:46 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:14:46 - INFO - 
+2026-09-13 15:14:46 - INFO -       safe (0)     0.9370    0.9489    0.9429       235
+2026-09-13 15:14:46 - INFO - vulnerable (1)     0.9450    0.9321    0.9385       221
+2026-09-13 15:14:46 - INFO - 
+2026-09-13 15:14:46 - INFO -       accuracy                         0.9408       456
+2026-09-13 15:14:46 - INFO -      macro avg     0.9410    0.9405    0.9407       456
+2026-09-13 15:14:46 - INFO -   weighted avg     0.9408    0.9408    0.9408       456
+2026-09-13 15:14:46 - INFO - Confusion matrix - [[tn=223, fp=12], [fn=15, tp=206]]
+2026-09-13 15:14:46 - INFO - probability_positive min=0.0001 mean=0.4837 std=0.4739 max=1.0000 predicted_0=238 predicted_1=218
+2026-09-13 15:14:46 - INFO - [Classification Report - split=validation epoch=6 - threshold=0.50]
+2026-09-13 15:14:46 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:14:46 - INFO - 
+2026-09-13 15:14:46 - INFO -       safe (0)     0.8592    0.8243    0.8414        74
+2026-09-13 15:14:46 - INFO - vulnerable (1)     0.8395    0.8718    0.8553        78
+2026-09-13 15:14:46 - INFO - 
+2026-09-13 15:14:46 - INFO -       accuracy                         0.8487       152
+2026-09-13 15:14:46 - INFO -      macro avg     0.8493    0.8481    0.8484       152
+2026-09-13 15:14:46 - INFO -   weighted avg     0.8491    0.8487    0.8485       152
+2026-09-13 15:14:46 - INFO - Confusion matrix - [[tn=61, fp=13], [fn=10, tp=68]]
+2026-09-13 15:14:46 - INFO - probability_positive min=0.0001 mean=0.5223 std=0.4836 max=1.0000 predicted_0=71 predicted_1=81
+2026-09-13 15:15:07 - INFO - Epoch 7/30 | Train loss: 0.139658 | Val loss: 0.860665 | LR: 2.00e-05 | Best epoch: 4 | Patience: 3 | Train: 19.17s | Validation: 2.14s | Epoch: 21.31s | Total: 152.58s
+2026-09-13 15:15:07 - INFO - [Classification Report - split=train epoch=7 - threshold=0.50]
+2026-09-13 15:15:07 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:15:07 - INFO - 
+2026-09-13 15:15:07 - INFO -       safe (0)     0.9737    0.9447    0.9590       235
+2026-09-13 15:15:07 - INFO - vulnerable (1)     0.9430    0.9729    0.9577       221
+2026-09-13 15:15:07 - INFO - 
+2026-09-13 15:15:07 - INFO -       accuracy                         0.9583       456
+2026-09-13 15:15:07 - INFO -      macro avg     0.9583    0.9588    0.9583       456
+2026-09-13 15:15:07 - INFO -   weighted avg     0.9588    0.9583    0.9583       456
+2026-09-13 15:15:07 - INFO - Confusion matrix - [[tn=222, fp=13], [fn=6, tp=215]]
+2026-09-13 15:15:07 - INFO - probability_positive min=0.0001 mean=0.4971 std=0.4852 max=1.0000 predicted_0=228 predicted_1=228
+2026-09-13 15:15:07 - INFO - [Classification Report - split=validation epoch=7 - threshold=0.50]
+2026-09-13 15:15:07 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:15:07 - INFO - 
+2026-09-13 15:15:07 - INFO -       safe (0)     0.8400    0.8514    0.8456        74
+2026-09-13 15:15:07 - INFO - vulnerable (1)     0.8571    0.8462    0.8516        78
+2026-09-13 15:15:07 - INFO - 
+2026-09-13 15:15:07 - INFO -       accuracy                         0.8487       152
+2026-09-13 15:15:07 - INFO -      macro avg     0.8486    0.8488    0.8486       152
+2026-09-13 15:15:07 - INFO -   weighted avg     0.8488    0.8487    0.8487       152
+2026-09-13 15:15:07 - INFO - Confusion matrix - [[tn=63, fp=11], [fn=12, tp=66]]
+2026-09-13 15:15:07 - INFO - probability_positive min=0.0001 mean=0.5008 std=0.4742 max=0.9998 predicted_0=75 predicted_1=77
+2026-09-13 15:15:28 - INFO - Epoch 8/30 | Train loss: 0.146125 | Val loss: 0.994423 | LR: 2.00e-05 | Best epoch: 4 | Patience: 4 | Train: 19.18s | Validation: 2.15s | Epoch: 21.33s | Total: 173.92s
+2026-09-13 15:15:28 - INFO - [Classification Report - split=train epoch=8 - threshold=0.50]
+2026-09-13 15:15:28 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:15:28 - INFO - 
+2026-09-13 15:15:28 - INFO -       safe (0)     0.9784    0.9617    0.9700       235
+2026-09-13 15:15:28 - INFO - vulnerable (1)     0.9600    0.9774    0.9686       221
+2026-09-13 15:15:28 - INFO - 
+2026-09-13 15:15:28 - INFO -       accuracy                         0.9693       456
+2026-09-13 15:15:28 - INFO -      macro avg     0.9692    0.9695    0.9693       456
+2026-09-13 15:15:28 - INFO -   weighted avg     0.9695    0.9693    0.9693       456
+2026-09-13 15:15:28 - INFO - Confusion matrix - [[tn=226, fp=9], [fn=5, tp=216]]
+2026-09-13 15:15:28 - INFO - probability_positive min=0.0000 mean=0.4880 std=0.4926 max=1.0000 predicted_0=231 predicted_1=225
+2026-09-13 15:15:28 - INFO - [Classification Report - split=validation epoch=8 - threshold=0.50]
+2026-09-13 15:15:28 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:15:28 - INFO - 
+2026-09-13 15:15:28 - INFO -       safe (0)     0.8354    0.8919    0.8627        74
+2026-09-13 15:15:28 - INFO - vulnerable (1)     0.8904    0.8333    0.8609        78
+2026-09-13 15:15:28 - INFO - 
+2026-09-13 15:15:28 - INFO -       accuracy                         0.8618       152
+2026-09-13 15:15:28 - INFO -      macro avg     0.8629    0.8626    0.8618       152
+2026-09-13 15:15:28 - INFO -   weighted avg     0.8637    0.8618    0.8618       152
+2026-09-13 15:15:28 - INFO - Confusion matrix - [[tn=66, fp=8], [fn=13, tp=65]]
+2026-09-13 15:15:28 - INFO - probability_positive min=0.0000 mean=0.4803 std=0.4939 max=1.0000 predicted_0=79 predicted_1=73
+2026-09-13 15:15:49 - INFO - Epoch 9/30 | Train loss: 0.180802 | Val loss: 0.508376 | LR: 2.00e-05 | Best epoch: 4 | Patience: 5 | Train: 19.18s | Validation: 2.14s | Epoch: 21.32s | Total: 195.25s
+2026-09-13 15:15:50 - INFO - [Classification Report - split=train epoch=9 - threshold=0.50]
+2026-09-13 15:15:50 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:15:50 - INFO - 
+2026-09-13 15:15:50 - INFO -       safe (0)     0.9694    0.9447    0.9569       235
+2026-09-13 15:15:50 - INFO - vulnerable (1)     0.9427    0.9683    0.9554       221
+2026-09-13 15:15:50 - INFO - 
+2026-09-13 15:15:50 - INFO -       accuracy                         0.9561       456
+2026-09-13 15:15:50 - INFO -      macro avg     0.9561    0.9565    0.9561       456
+2026-09-13 15:15:50 - INFO -   weighted avg     0.9565    0.9561    0.9562       456
+2026-09-13 15:15:50 - INFO - Confusion matrix - [[tn=222, fp=13], [fn=7, tp=214]]
+2026-09-13 15:15:50 - INFO - probability_positive min=0.0000 mean=0.4905 std=0.4879 max=1.0000 predicted_0=229 predicted_1=227
+2026-09-13 15:15:50 - INFO - [Classification Report - split=validation epoch=9 - threshold=0.50]
+2026-09-13 15:15:50 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:15:50 - INFO - 
+2026-09-13 15:15:50 - INFO -       safe (0)     0.9219    0.7973    0.8551        74
+2026-09-13 15:15:50 - INFO - vulnerable (1)     0.8295    0.9359    0.8795        78
+2026-09-13 15:15:50 - INFO - 
+2026-09-13 15:15:50 - INFO -       accuracy                         0.8684       152
+2026-09-13 15:15:50 - INFO -      macro avg     0.8757    0.8666    0.8673       152
+2026-09-13 15:15:50 - INFO -   weighted avg     0.8745    0.8684    0.8676       152
+2026-09-13 15:15:50 - INFO - Confusion matrix - [[tn=59, fp=15], [fn=5, tp=73]]
+2026-09-13 15:15:50 - INFO - probability_positive min=0.0001 mean=0.5504 std=0.4655 max=0.9990 predicted_0=64 predicted_1=88
+2026-09-13 15:15:50 - INFO - Early stopping | Epoch: 9 | Best epoch: 4
+2026-09-13 15:15:50 - INFO - Best checkpoint saved | Path: model/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1/best.pt | Epoch: 4 | Val macro_f1: 0.881497
+2026-09-13 15:15:50 - INFO - Training finished | Elapsed: 195.26s
+2026-09-13 15:15:50 - INFO - Runtime ghi lai | model/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1/best.pt.runtime.json | 9 epoch | 21.7s/epoch | NVIDIA GeForce RTX 5060 Ti
+2026-09-13 15:15:50 - INFO - Run finished | Phase: phase2 | Fold: 1 | Seed: 42 | Elapsed: 197.80s
+2026-09-13 15:15:56 - INFO - Using device: cuda
+2026-09-13 15:15:56 - INFO - Run started | Run: fus2w_codebert | Method: transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw | Phase: test | Fold: 1 | Seed: 42 | Device: cuda
+2026-09-13 15:15:56 - INFO - Loading Python validation data: data/sven_python_folds_norm/fold1/val.jsonl
+2026-09-13 15:15:56 - INFO - Loading Python test data: data/sven_python_folds_norm/fold1/test.jsonl
+2026-09-13 15:15:56 - INFO - Data split: python_val | Total: 152 | Labels: {0: 74, 1: 78} | CWEs: {'CWE-022': 8, 'CWE-078': 42, 'CWE-079': 19, 'CWE-089': 83} | Languages: {'python': 152} | Invalid CWE: 0
+2026-09-13 15:15:56 - INFO - Data split: python_test | Total: 152 | Labels: {0: 71, 1: 81} | CWEs: {'CWE-022': 19, 'CWE-078': 39, 'CWE-079': 14, 'CWE-089': 80} | Languages: {'python': 152} | Invalid CWE: 0
+2026-09-13 15:15:57 - INFO - Auxiliary head width taken from checkpoint: 10
+2026-09-13 15:15:58 - INFO - Dung lai adapter tu checkpoint | ten=['src', 'tgt'] | dim=48 | fusion=True
+2026-09-13 15:15:58 - INFO - Environment: {"components": {"backbone": {"frozen": 0, "total": 147686784, "trainable": 147686784}, "cwe_head": {"frozen": 90, "total": 90, "trainable": 0}, "latent_proj": {"frozen": 6152, "total": 6152, "trainable": 0}, "vul_head": {"frozen": 0, "total": 1538, "trainable": 1538}}, "cuda": "12.8", "fold": 1, "frozen_parameters": 6242, "gpu": "NVIDIA GeForce RTX 5060 Ti", "hyperparameters": {"adamw_anneal_lr": false, "adapter_dim": 0, "adapter_lr": 0.0001, "anneal_fun": "sigmoid", "anneal_k": 0.05, "anneal_t0_ratio": 0.05, "anneal_w": 1.0, "asam_eta": 0.01, "aux_class_balanced": false, "aux_mode": "latent_bottleneck", "aux_weight_lr": 0.01, "aux_weight_mode": "fixed", "batch_size": 16, "checkpoint_path": "model/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1/best.pt", "cwe_vocab": "precomputed", "data_path": "data/train_ccpp_filtered.jsonl", "data_root": "data/sven_python_folds_norm", "epochs": 10, "eval_batch_size": 16, "feat_distill_beta": 0.0, "feat_distill_mode": "cos", "fisher_path": null, "fold": 1, "freeze_backbone_layers": 0, "freeze_prototypes_steps": 0, "fusion_src_random": false, "grad_checkpointing": false, "lambda_cwe": 0.2, "latent_temperature": 0.1, "learning_rate": 2e-05, "lora_rank": 0, "lp_epochs": 0, "lp_learning_rate": 0.001, "max_eval_samples": null, "max_grad_norm": 1.0, "max_length": 512, "max_train_samples": null, "method_name": "transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw", "min_epochs": 3, "model_name": "microsoft/codebert-base", "num_cwes": 10, "num_latent": 8, "num_workers": 0, "output_dir": "results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw", "patience": 5, "phase": "test", "phase2_fusion": "off", "phase2_gate": "off", "phase2_gate_alpha": 0.3, "phase2_gate_init": 0.0, "phase2_gate_lr": 0.01, "phase2_gate_proj": "learned", "phase2_lambda_cwe": 0.0, "phase2_optimizer": "recadam", "phase2_reinit_head": false, "pooling": "cls", "pretrain_cof": 5000.0, "recadam_anchor": "source", "recadam_anchor_head": "source", "replay_batch_size": 0, "replay_cwe_vocab": "fixed4", "replay_data": null, "replay_epochs": 0, "replay_lambda_cwe": 0.0, "replay_mu": 0.0, "replay_stratify": false, "result_path": "results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1.json", "run_name": "fus2w_codebert", "sam_rho": 0.0, "sam_variant": "sam", "seed": 42, "selection_metric": "macro_f1", "source_checkpoint": null, "source_eval_data": null, "source_interp_grid": null, "source_interpolation": 1.0, "spd_lambda": 1.0, "spd_replace_wd": false, "strict_determinism": false, "target_lang": "python", "test_path": null, "train_path": null, "truncation_strategy": "head_middle_tail", "val_path": null, "weight_decay": 0.01}, "mode": "test_inference_no_optimizer", "model_name": "microsoft/codebert-base", "seed": 42, "sklearn": "1.7.2", "torch": "2.11.0+cu128", "trainable_parameters": 147688322, "transformers": "4.57.1"}
+2026-09-13 15:16:01 - INFO - Evaluation time | Split: validation+threshold | Seconds: 2.94
+2026-09-13 15:16:01 - INFO - [Classification Report - split=validation - threshold=0.50]
+2026-09-13 15:16:01 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:01 - INFO - 
+2026-09-13 15:16:01 - INFO -       safe (0)     0.8784    0.8784    0.8784        74
+2026-09-13 15:16:01 - INFO - vulnerable (1)     0.8846    0.8846    0.8846        78
+2026-09-13 15:16:01 - INFO - 
+2026-09-13 15:16:01 - INFO -       accuracy                         0.8816       152
+2026-09-13 15:16:01 - INFO -      macro avg     0.8815    0.8815    0.8815       152
+2026-09-13 15:16:01 - INFO -   weighted avg     0.8816    0.8816    0.8816       152
+2026-09-13 15:16:01 - INFO - Confusion matrix - [[tn=65, fp=9], [fn=9, tp=69]]
+2026-09-13 15:16:01 - INFO - probability_positive min=0.0005 mean=0.5109 std=0.4791 max=0.9998 predicted_0=74 predicted_1=78
+2026-09-13 15:16:01 - INFO - [Classification Report - split=validation_calibrated - threshold=0.47]
+2026-09-13 15:16:01 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:01 - INFO - 
+2026-09-13 15:16:01 - INFO -       safe (0)     0.8784    0.8784    0.8784        74
+2026-09-13 15:16:01 - INFO - vulnerable (1)     0.8846    0.8846    0.8846        78
+2026-09-13 15:16:01 - INFO - 
+2026-09-13 15:16:01 - INFO -       accuracy                         0.8816       152
+2026-09-13 15:16:01 - INFO -      macro avg     0.8815    0.8815    0.8815       152
+2026-09-13 15:16:01 - INFO -   weighted avg     0.8816    0.8816    0.8816       152
+2026-09-13 15:16:01 - INFO - Confusion matrix - [[tn=65, fp=9], [fn=9, tp=69]]
+2026-09-13 15:16:01 - INFO - probability_positive min=0.0005 mean=0.5109 std=0.4791 max=0.9998 predicted_0=74 predicted_1=78
+2026-09-13 15:16:03 - INFO - Evaluation time | Split: test | Seconds: 2.14
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test - threshold=0.50]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.7792    0.8451    0.8108        71
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.8533    0.7901    0.8205        81
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.8158       152
+2026-09-13 15:16:03 - INFO -      macro avg     0.8163    0.8176    0.8157       152
+2026-09-13 15:16:03 - INFO -   weighted avg     0.8187    0.8158    0.8160       152
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=60, fp=11], [fn=17, tp=64]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0005 mean=0.4988 std=0.4688 max=0.9999 predicted_0=77 predicted_1=75
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_valcal - threshold=0.47]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.7792    0.8451    0.8108        71
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.8533    0.7901    0.8205        81
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.8158       152
+2026-09-13 15:16:03 - INFO -      macro avg     0.8163    0.8176    0.8157       152
+2026-09-13 15:16:03 - INFO -   weighted avg     0.8187    0.8158    0.8160       152
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=60, fp=11], [fn=17, tp=64]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0005 mean=0.4988 std=0.4688 max=0.9999 predicted_0=77 predicted_1=75
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_0.5_CWE-022 - threshold=0.50]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.7000    0.7000    0.7000        10
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.6667    0.6667    0.6667         9
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.6842        19
+2026-09-13 15:16:03 - INFO -      macro avg     0.6833    0.6833    0.6833        19
+2026-09-13 15:16:03 - INFO -   weighted avg     0.6842    0.6842    0.6842        19
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=7, fp=3], [fn=3, tp=6]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0013 mean=0.4152 std=0.4057 max=0.9983 predicted_0=10 predicted_1=9
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_0.5_CWE-078 - threshold=0.50]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.6471    0.7333    0.6875        15
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.8182    0.7500    0.7826        24
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.7436        39
+2026-09-13 15:16:03 - INFO -      macro avg     0.7326    0.7417    0.7351        39
+2026-09-13 15:16:03 - INFO -   weighted avg     0.7524    0.7436    0.7460        39
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=11, fp=4], [fn=6, tp=18]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0005 mean=0.5811 std=0.4537 max=0.9996 predicted_0=17 predicted_1=22
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_0.5_CWE-079 - threshold=0.50]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.5556    0.7143    0.6250         7
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.6000    0.4286    0.5000         7
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.5714        14
+2026-09-13 15:16:03 - INFO -      macro avg     0.5778    0.5714    0.5625        14
+2026-09-13 15:16:03 - INFO -   weighted avg     0.5778    0.5714    0.5625        14
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=5, fp=2], [fn=4, tp=3]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0014 mean=0.4193 std=0.4368 max=0.9990 predicted_0=9 predicted_1=5
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_0.5_CWE-089 - threshold=0.50]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.9024    0.9487    0.9250        39
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.9487    0.9024    0.9250        41
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.9250        80
+2026-09-13 15:16:03 - INFO -      macro avg     0.9256    0.9256    0.9250        80
+2026-09-13 15:16:03 - INFO -   weighted avg     0.9262    0.9250    0.9250        80
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=37, fp=2], [fn=4, tp=37]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0005 mean=0.4925 std=0.4884 max=0.9999 predicted_0=41 predicted_1=39
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_valcal_CWE-022 - threshold=0.47]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.7000    0.7000    0.7000        10
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.6667    0.6667    0.6667         9
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.6842        19
+2026-09-13 15:16:03 - INFO -      macro avg     0.6833    0.6833    0.6833        19
+2026-09-13 15:16:03 - INFO -   weighted avg     0.6842    0.6842    0.6842        19
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=7, fp=3], [fn=3, tp=6]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0013 mean=0.4152 std=0.4057 max=0.9983 predicted_0=10 predicted_1=9
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_valcal_CWE-078 - threshold=0.47]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.6471    0.7333    0.6875        15
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.8182    0.7500    0.7826        24
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.7436        39
+2026-09-13 15:16:03 - INFO -      macro avg     0.7326    0.7417    0.7351        39
+2026-09-13 15:16:03 - INFO -   weighted avg     0.7524    0.7436    0.7460        39
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=11, fp=4], [fn=6, tp=18]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0005 mean=0.5811 std=0.4537 max=0.9996 predicted_0=17 predicted_1=22
+2026-09-13 15:16:03 - INFO - [Classification Report - split=test_at_valcal_CWE-079 - threshold=0.47]
+2026-09-13 15:16:03 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       safe (0)     0.5556    0.7143    0.6250         7
+2026-09-13 15:16:03 - INFO - vulnerable (1)     0.6000    0.4286    0.5000         7
+2026-09-13 15:16:03 - INFO - 
+2026-09-13 15:16:03 - INFO -       accuracy                         0.5714        14
+2026-09-13 15:16:03 - INFO -      macro avg     0.5778    0.5714    0.5625        14
+2026-09-13 15:16:03 - INFO -   weighted avg     0.5778    0.5714    0.5625        14
+2026-09-13 15:16:03 - INFO - Confusion matrix - [[tn=5, fp=2], [fn=4, tp=3]]
+2026-09-13 15:16:03 - INFO - probability_positive min=0.0014 mean=0.4193 std=0.4368 max=0.9990 predicted_0=9 predicted_1=5
+2026-09-13 15:16:04 - INFO - [Classification Report - split=test_at_valcal_CWE-089 - threshold=0.47]
+2026-09-13 15:16:04 - INFO -                 precision    recall  f1-score   support
+2026-09-13 15:16:04 - INFO - 
+2026-09-13 15:16:04 - INFO -       safe (0)     0.9024    0.9487    0.9250        39
+2026-09-13 15:16:04 - INFO - vulnerable (1)     0.9487    0.9024    0.9250        41
+2026-09-13 15:16:04 - INFO - 
+2026-09-13 15:16:04 - INFO -       accuracy                         0.9250        80
+2026-09-13 15:16:04 - INFO -      macro avg     0.9256    0.9256    0.9250        80
+2026-09-13 15:16:04 - INFO -   weighted avg     0.9262    0.9250    0.9250        80
+2026-09-13 15:16:04 - INFO - Confusion matrix - [[tn=37, fp=2], [fn=4, tp=37]]
+2026-09-13 15:16:04 - INFO - probability_positive min=0.0005 mean=0.4925 std=0.4884 max=0.9999 predicted_0=41 predicted_1=39
+2026-09-13 15:16:04 - INFO - Test result saved: results/fus2w_codebert/transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw/seed_42/fold1.json
+2026-09-13 15:16:04 - INFO - Run finished | Phase: test | Fold: 1 | Seed: 42 | Elapsed: 7.60s
