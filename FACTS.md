@@ -4432,3 +4432,66 @@ trước đó là `fusfrz` cho `+0.0406` rồi tụt xuống dưới đối ch�
 Cộng với §41/§40 thì luật *"n=3 mới là sàn để DỪNG, không phải để KẾT LUẬN"* nên đọc chặt hơn nữa:
 **n=1 không đủ để mô tả cả một cơ chế**, kể cả khi cơ chế đó nghe rất hợp lý.
 
+
+---
+
+## §49 — `RecAdam + ASAM ρ=2.0` trông tốt nhất nếu nhìn MỘT ô, nhưng trung bình nó **thấp hơn baseline** (14/09, đọc lại dữ liệu cũ, 0 GPU)
+
+**Vì sao có mục này.** Xếp các cấu hình theo số tuyệt đối thì `latent_bottleneck + RecAdam +
+ASAM ρ=2.0` (`r2p0`) đứng đầu: F1@0.5 **0.8498**, cao hơn cả nhánh adapter-fusion. Tôi đã suýt
+đề xuất đưa nó vào hàng kiểm chứng như một ứng viên thay cấu hình chốt. **Đó là sai.**
+
+### Phép gộp phải khử trùng trước
+
+Lần tính đầu cho "17 tổ hợp `r2p0` / 52 tổ hợp chốt". **Sai**: đơn vị khi đó là nhóm
+*(cây, nhánh, seed)*, nên **cùng một điều kiện** `(backbone, nguồn, seed)` bị đếm nhiều lần —
+`t5p × 4cwe × seed 42` xuất hiện 5 lần ở `r2p0` và 9 lần ở chốt. Khử trùng về đúng
+`(backbone, nguồn, seed)`: **11** tổ hợp `r2p0`, **33** tổ hợp chốt, **11** có cả hai.
+
+### So công bằng — chỉ trên 11 tổ hợp CÓ CẢ HAI
+
+| backbone | nguồn | seed | `r2p0` | `chốt` |
+|---|---|---|---|---|
+| codebert | 4cwe | 42 | **−0.1025** | +0.0516 |
+| codebert | com | 42 | +0.0718 | +0.0515 |
+| t5p | 4cwe | 7 | +0.0174 | +0.0319 |
+| t5p | 4cwe | 42 | +0.0457 | +0.0349 |
+| t5p | 4cwe | 1234 | +0.0327 | +0.0978 |
+| t5p | com | 7 | −0.0269 | +0.0329 |
+| t5p | com | 42 | +0.0580 | +0.0330 |
+| t5p | com | 1234 | **−0.1169** | +0.0076 |
+| t5p | full | 7 | **−0.0976** | −0.0049 |
+| t5p | full | 42 | −0.0165 | +0.0227 |
+| t5p | full | 1234 | +0.0159 | +0.0012 |
+
+| | Δ F1@0.5 trung bình | số tổ hợp **âm** |
+|---|---|---|
+| `r2p0` | **−0.0108** | **5/11** |
+| `chốt` (AdamW, SAM tắt) | **+0.0328** | **1/11** |
+
+`r2p0` **trung bình còn thấp hơn baseline**, và chỉ thắng chốt ở **4/11** tổ hợp.
+
+> Cùng backbone t5p, cùng nguồn `com`, **chỉ đổi seed** 42 → 1234: `r2p0` nhảy từ
+> **+0.0580** xuống **−0.1169**. Trên `codebert × 4cwe` nó là **−0.1025**.
+
+### Vì sao cấu hình chốt là cấu hình chốt
+
+Không phải vì đỉnh cao nhất, mà vì **ổn định qua mọi điều kiện**: âm ở **1/11** tổ hợp so với
+**5/11**. Mục 7 ghi *"RecAdam ổn định nhất giữa backbone"* — nhưng ổn định giữa **backbone**
+khác ổn định giữa **seed và nguồn**, và ở chiều thứ hai `r2p0` rất tệ.
+
+### Bài học phương pháp — đây mới là phần đáng giữ
+
+Bảng xếp theo số tuyệt đối đã đẩy `r2p0` lên đầu vì nó được tính trên **đúng ô may nhất của
+nó** (`codebert × com × seed 42`, n=4, một khối, một máy). Đúng **thiên lệch chọn lọc** mà mục 3
+cảnh báo, chỉ khác chiều: lần trước là cổng chất lượng loại ô xấu, lần này là bảng xếp hạng
+chọn ô tốt.
+
+**Hai phép chặn, dùng cho mọi bảng xếp hạng cấu hình về sau:**
+
+1. **Khử trùng về điều kiện thật** `(backbone, nguồn, seed)` trước khi đếm — nếu không, một
+   cấu hình chạy nhiều khối sẽ được đếm nhiều lần.
+2. **Chỉ so trên phần giao**. Hai cấu hình phủ khác nhau thì trung bình của chúng không so
+   được: cấu hình nào tình cờ không chạy ở điều kiện khó sẽ trông tốt hơn.
+3. Báo **số điều kiện ÂM**, không chỉ trung bình. `r2p0` và chốt cách nhau 0.044 ở trung bình
+   nhưng **5/11 so với 1/11** ở đếm dấu mới là thứ nói lên bản chất.
