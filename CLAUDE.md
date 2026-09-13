@@ -42,8 +42,9 @@ gì dùng được.
 | **2. Xác nhận** | 5 fold | 42 | cấu hình nào sống sót bậc 1 | hiệu ứng có ổn định qua đủ fold không |
 | **3. Chạy kết quả** | 5 fold × 3 seed = **15** | 42, 7, 1234 | **chỉ khi đã chốt** | con số đưa vào bài |
 
-**Vì sao tách bạch:** n=3 đã **bốn lần** đổi dấu hoặc co lại ở n=5 trong dự án này
-(`DEAD_ENDS.md` §E), nên bậc 1 chỉ đủ để **dừng**, không đủ để **kết luận**. Ngược lại,
+**Vì sao tách bạch:** n=3 đã **NĂM lần** đổi dấu hoặc co lại ở n=5 trong dự án này
+(`DEAD_ENDS.md` §E; lần thứ năm là AdapterFusion trên t5p, **FACTS §47**: +0.0175 3/3
+→ +0.0036 3/5), nên bậc 1 chỉ đủ để **dừng**, không đủ để **kết luận**. Ngược lại,
 chạy n=15 cho một cấu hình chưa sàng là đốt ~5× GPU cho một câu hỏi mà n=3 đã trả lời.
 
 **Cách áp dụng:**
