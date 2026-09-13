@@ -152,6 +152,46 @@ def adapter_blocks(backbone):
     return [l for l in encoder_layers(backbone) if isinstance(l, AdapterBlock)]
 
 
+def randomize_adapter(backbone, name, seed=0, match_scale=True):
+    """Thay adapter `name` bang NHIEU GAUSS cung thang do — doi chung bat buoc cua khoi fusion.
+
+    VI SAO CAN. Nhanh `fusft` them ~22M tham so fusion + 1,8M tham so adapter so voi doi
+    chung. Loi ich do co the den tu THEM SUC CHUA chu khong tu tri thuc cua Pha 1, va hai
+    kha nang do KHONG phan biet duoc neu khong co phep doi chung nay. Cung ly do §44 bat
+    buoc doi chung "chieu ngau nhien" cho nut that 8 chieu.
+
+    VI SAO PHAI KHOP THANG DO. Neu dung lai khoi tao goc (`up = 0`) thi adapter nguon thanh
+    anh xa DONG NHAT — phep do khi do chi tra loi "khong co adapter nguon thi sao", chua
+    loai duoc gia thuyet "mot phep bien doi co do lon nhu the, NOI DUNG GI CUNG DUOC, cung
+    giup". Khop do lech chuan tung tensor giu nguyen DO LON, pha huy NOI DUNG — do moi dung
+    la gia thuyet khong can bac.
+
+    Seed rieng cho tung fold (goi ben ngoai cong fold vao) de ket qua khong cuoc vao mot lan
+    boc bai may rui.
+    """
+    g = torch.Generator(device="cpu").manual_seed(int(seed))
+    changed = []
+    for blk in adapter_blocks(backbone):
+        if name not in blk.adapters:
+            continue
+        for pname, prm in blk.adapters[name].named_parameters():
+            with torch.no_grad():
+                if match_scale:
+                    std = float(prm.detach().float().std())
+                    mean = float(prm.detach().float().mean())
+                else:
+                    std, mean = 0.02, 0.0
+                if std == 0.0:
+                    # Tensor hang (vi du bias toan 0): nhieu quanh 0 se la mot thien lech
+                    # NGAU NHIEN ma ban da hoc khong co => bo qua, giu nguyen.
+                    continue
+                noise = torch.randn(prm.shape, generator=g, dtype=torch.float32) * std + mean
+                prm.copy_(noise.to(prm.dtype).to(prm.device))
+            changed.append(pname)
+    return {"adapter": name, "tensors": len(changed), "seed": int(seed),
+            "match_scale": bool(match_scale)}
+
+
 def spec_from_state_dict(state_dict, prefix="backbone."):
     """Doc LAI hinh dang adapter/fusion tu state dict cua checkpoint.
 

@@ -32,7 +32,7 @@ from logging_utils import configure_logging, get_logger
 from model import (TransferModel, build_backbone, freeze_backbone_layers,
                    inject_lora, merge_lora)
 from adapters import (adapter_blocks, enable_fusion as enable_adapter_fusion,
-                      inject_adapters, is_adapter_param, set_trainable,
+                      inject_adapters, is_adapter_param, randomize_adapter, set_trainable,
                       spec_from_state_dict)
 from RecAdam import RecAdam, anneal_function
 from train import assert_recadam_setup, train_loop
@@ -1141,6 +1141,16 @@ def run_phase2(args, device):
         # `ft`  = fine-tune ca backbone pretrained (adapter NGUON van dong bang)
         # `frozen` = KHONG dung toi backbone, chi hoc adapter dich + fusion + head
         train_bb = (fusion_mode == "ft")
+        if getattr(args, "fusion_src_random", False):
+            # Seed rieng theo fold: khong cuoc ca ket luan vao MOT lan boc bai.
+            rinfo = randomize_adapter(model.backbone, "src",
+                                      seed=int(args.seed) * 1000 + int(args.fold))
+            model.to(device)
+            args.fusion_src_random_info = rinfo
+            logger.info("DOI CHUNG: adapter NGUON da bi thay bang nhieu Gauss cung thang do "
+                        "| %s — moi loi ich con lai KHONG the la tri thuc Pha 1", 
+                        json.dumps(rinfo, sort_keys=True))
+
         # KHONG dung toi head: `freeze_aux_head` da chay o tren va phai giu nguyen ket qua do.
         stats = set_trainable(model, train_backbone=train_bb,
                               train_adapters=("tgt",), train_fusion=True)
@@ -1912,6 +1922,11 @@ def parse_args():
     fusion.add_argument("--adapter_lr", type=float, default=1e-4,
                         help="Learning rate RIENG cho adapter va fusion. KHONG de bang lr "
                              "backbone: adapter khoi tao 0 nen o 2e-5 no khong bao gio hoc.")
+    fusion.add_argument("--fusion_src_random", action="store_true",
+                        help="DOI CHUNG: thay adapter NGUON bang nhieu Gauss cung thang do, "
+                             "roi van dong bang nhu thuong. Tach 'loi ich tu tri thuc Pha 1' "
+                             "khoi 'loi ich tu them suc chua'. Khong co phep nay thi +0.0259 "
+                             "cua codebert (§47) KHONG duoc goi la transfer.")
     fusion.add_argument("--grad_checkpointing", action="store_true",
                         help="Danh doi THOI GIAN lay BO NHO: khong giu activation, tinh lai "
                              "luc backward. Gradient y het (RNG duoc giu nen dropout tai lap "

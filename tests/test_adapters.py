@@ -11,7 +11,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from adapters import (Adapter, AdapterBlock, AdapterFusion, adapter_blocks,  # noqa: E402
                       encoder_layers, enable_fusion, inject_adapters,
-                      set_trainable, spec_from_state_dict)
+                      randomize_adapter, set_trainable, spec_from_state_dict)
 
 ROBERTA = "hf-internal-testing/tiny-random-roberta"
 T5 = "hf-internal-testing/tiny-random-t5"
@@ -148,6 +148,67 @@ def test_gradient_checkpointing_van_cho_gradient_toi_adapter(name=None):
         "adapter dich KHONG nhan gradient duoi checkpointing — dung use_reentrant=False"
     assert any(g[n] for n in g if ".fusion." in n), "fusion khong nhan gradient"
     assert not any(g[n] for n in g if ".adapters.src." in n), "adapter nguon van nhan gradient"
+
+
+def test_doi_chung_ngau_nhien_giu_THANG_DO_nhung_pha_NOI_DUNG():
+    """Doi chung cua khoi fusion: adapter nguon bi thay bang nhieu Gauss CUNG THANG DO.
+
+    Neu khong khop thang do thi phep doi chung tra loi sai cau hoi: `up = 0` cho ra anh xa
+    dong nhat, tuc chi do "bo han adapter nguon", chua loai duoc "mot phep bien doi co do
+    lon nhu the, noi dung gi cung duoc, cung giup".
+    """
+    torch.manual_seed(0)
+    bb = _backbone(ROBERTA)
+    inject_adapters(bb, names=("src",), dim=6)
+    # gia lap adapter DA HOC: up khac 0 va co mot thang do cu the
+    with torch.no_grad():
+        for blk in adapter_blocks(bb):
+            blk.adapters["src"].up.weight.normal_(0, 0.05)
+            blk.adapters["src"].down.weight.normal_(0, 0.03)
+    before = {n: prm.detach().clone() for n, prm in bb.named_parameters() if ".adapters.src." in n}
+    info = randomize_adapter(bb, "src", seed=7)
+    after = {n: prm.detach().clone() for n, prm in bb.named_parameters() if ".adapters.src." in n}
+
+    assert info["tensors"] > 0
+    # CHIEU 1 — NOI DUNG phai doi
+    assert any(not torch.allclose(before[n], after[n]) for n in before), "trong so khong doi gi"
+    # CHIEU 2 — THANG DO phai duoc giu (do tren tensor lon, bo bias nho)
+    for n in before:
+        if before[n].numel() < 50:
+            continue
+        s0, s1 = float(before[n].std()), float(after[n].std())
+        assert abs(s1 - s0) / s0 < 0.25, f"{n}: std {s0:.4g} -> {s1:.4g}, lech qua nhieu"
+    # CHIEU 3 — KHONG duoc thanh anh xa dong nhat (do la phep doi chung KHAC)
+    ups = [after[n] for n in after if n.endswith("up.weight")]
+    assert max(float(u.abs().max()) for u in ups) > 1e-6, "adapter ngau nhien lai thanh dong nhat"
+
+
+def test_doi_chung_ngau_nhien_tai_lap_duoc_va_doi_theo_seed():
+    def draw(seed):
+        torch.manual_seed(0)
+        bb = _backbone(ROBERTA)
+        inject_adapters(bb, names=("src",), dim=6)
+        with torch.no_grad():
+            for blk in adapter_blocks(bb):
+                blk.adapters["src"].up.weight.normal_(0, 0.05)
+        randomize_adapter(bb, "src", seed=seed)
+        return adapter_blocks(bb)[0].adapters["src"].up.weight.detach().clone()
+    a, a2, b = draw(11), draw(11), draw(12)
+    assert torch.allclose(a, a2), "cung seed phai ra cung ket qua"
+    assert not torch.allclose(a, b), "khac seed phai ra khac ket qua"
+
+
+def test_doi_chung_ngau_nhien_van_bi_dong_bang():
+    """Doi chung phai dong bang Y HET nhanh that — neu no duoc hoc thi phep so doi hai bien."""
+    bb = _backbone(ROBERTA)
+    inject_adapters(bb, names=("src", "tgt"), dim=4)
+    enable_fusion(bb)
+    m = _Model(bb)
+    randomize_adapter(bb, "src", seed=3)
+    set_trainable(m, train_backbone=True)
+    on = {n for n, prm in m.named_parameters() if prm.requires_grad}
+    assert not any(".adapters.src." in n for n in on), "adapter nguon ngau nhien BI MO"
+    assert any(".adapters.tgt." in n for n in on) and any(".fusion." in n for n in on)
 
 
 def test_spec_doc_lai_dung_hinh_dang_tu_state_dict():
