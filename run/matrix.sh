@@ -328,7 +328,14 @@ run_fold() {
   banner "FOLD $FOLD"
 
   # 1) baseline của TỪNG backbone, trước mọi nhánh: mọi Δ quy về nó.
+  #
+  # SKIP_BASELINE=1 — HOAN baseline lai, chay nhanh method truoc (nguoi dung neu 13/09).
+  # Dung khi dang THU MOT THU MOI: neu method da thap hon nguong biet truoc thi khoi
+  # ton GPU chay baseline, vi method thua roi. MAC DINH 0 => duong chay cu khong doi.
+  # Baseline chay bu sau bang chinh lenh nay voi SKIP_BASELINE=0: vong lap tren tu bo
+  # qua o da co, nen khong chay lai gi.
   for BB in $BACKBONES; do
+    [[ "${SKIP_BASELINE:-0}" == 1 ]] && break
     local LABEL="${BB%%=*}" REST="${BB#*=}"; local MODEL="${REST%%:*}" POOL="${REST##*:}"
     local RN="${RUN_NAME}_${LABEL}"
     local RES="results/$RN/baseline/seed_$SEED"; mkdir -p "$RES"

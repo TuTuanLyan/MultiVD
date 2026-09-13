@@ -31,6 +31,9 @@ from evaluate import (
 from logging_utils import configure_logging, get_logger
 from model import (TransferModel, build_backbone, freeze_backbone_layers,
                    inject_lora, merge_lora)
+from adapters import (adapter_blocks, enable_fusion as enable_adapter_fusion,
+                      inject_adapters, is_adapter_param, set_trainable,
+                      spec_from_state_dict)
 from RecAdam import RecAdam, anneal_function
 from train import assert_recadam_setup, train_loop
 
@@ -406,6 +409,15 @@ def make_model(model_name, device, args=None):
         latent_temperature=temperature,
         pooling=pooling,
     ).to(device)
+    # ADAPTER FUSION (arXiv:2005.00247). Pha 1 hoc DUNG MOT adapter, ten `src`.
+    # Chi chen o pha 1: o pha 2 chinh `load_checkpoint` dung lai adapter tu state dict,
+    # nen khong bao gio dung co nay de doan hinh dang.
+    if args is not None and int(getattr(args, "adapter_dim", 0) or 0) > 0 and args.phase == "phase1":
+        info = inject_adapters(model.backbone, names=("src",), dim=int(args.adapter_dim))
+        model.to(device)
+        n = sum(p.numel() for nm, p in model.named_parameters() if is_adapter_param(nm))
+        logger.info("Adapter BAT o Pha 1 | %s | %d tham so adapter", json.dumps(info, sort_keys=True), n)
+
     if args is not None and getattr(args, "lora_rank", 0) > 0 and args.phase == "phase1":
         count = inject_lora(model.backbone, args.lora_rank)
         # inject_lora builds fresh parameters on CPU, so the model has to move
@@ -508,6 +520,29 @@ def split_gate_param_groups(named_trainable, base_lr, gate_lr, weight_decay):
             sum(p.numel() for p in gate))
 
 
+def split_adapter_param_groups(named_trainable, base_lr, adapter_lr, weight_decay):
+    """Adapter va fusion moi khoi tao phai co learning rate RIENG, lon hon backbone.
+
+    Cung mot cai bay da tra gia voi CONG 8 chieu (`split_gate_param_groups`): o lr 2e-5
+    mot tham so khoi tao tu 0 gan nhu khong dich noi trong 30 epoch, nen ket qua se la
+    "adapter khong an gi" trong khi that ra adapter chua bao gio duoc hoc. Adapter
+    khoi tao `up = 0` nen no BAT DAU tu dung 0 — chinh la truong hop xau nhat cua bay do.
+    1e-4 la muc chuan cua ho adapter (Houlsby 2019, Pfeiffer 2020).
+
+    Tra ([nhom], so tham so adapter). Khong co adapter ⇒ tra ĐÚNG một nhóm như cũ.
+    """
+    fast, rest = [], []
+    for name, prm in named_trainable:
+        (fast if is_adapter_param(name) else rest).append(prm)
+    if not fast:
+        return [{"params": rest, "lr": base_lr, "weight_decay": weight_decay}], 0
+    groups = [{"params": fast, "lr": adapter_lr, "weight_decay": weight_decay}]
+    # Bien the B dong bang backbone => `rest` co the CHI con head. Nhom rong lam AdamW vo.
+    if rest:
+        groups.insert(0, {"params": rest, "lr": base_lr, "weight_decay": weight_decay})
+    return groups, sum(p.numel() for p in fast)
+
+
 def load_checkpoint(path, model, device):
     checkpoint = torch.load(path, map_location=device, weights_only=True)
     # MANH 2: checkpoint cua mot lan chay CO CONG mang them `lat_vul_head`/`gate_*`. Mo hinh
@@ -519,6 +554,17 @@ def load_checkpoint(path, model, device):
         mode = "input" if any(k.startswith("gate_proj.") for k in keys) else "scalar"
         model.enable_latent_gate(mode=mode)
         model.to(device)
+    # ADAPTER FUSION: y het ly do tren — checkpoint co adapter/fusion thi phai dung lai
+    # dung cac module do TRUOC khi nap, roi van nap NGHIEM NGAT. `strict=False` o day se
+    # nuot im toan bo adapter da hoc o Pha 1 va Pha 2 chay tiep tren mot mo hinh rong.
+    spec = spec_from_state_dict(checkpoint["model_state_dict"])
+    if spec["names"]:
+        inject_adapters(model.backbone, names=tuple(spec["names"]), dim=int(spec["dim"]))
+        if spec["fusion"]:
+            enable_adapter_fusion(model.backbone)
+        model.to(device)
+        logger.info("Dung lai adapter tu checkpoint | ten=%s | dim=%s | fusion=%s",
+                    spec["names"], spec["dim"], spec["fusion"])
     model.load_state_dict(checkpoint["model_state_dict"])
     return checkpoint
 
@@ -637,9 +683,20 @@ def run_phase1(args, device):
             logger.info("lambda hoc duoc BAT | khoi tao tai lambda_eff=%.4f (dung bang --lambda_cwe, "
                         "de day nay la mo rong that su cua baseline)", args.lambda_cwe)
 
-    param_groups = [
-        {"params": list(model.parameters()), "weight_decay": args.weight_decay},
-    ]
+    # ADAPTER: tach nhom lr RIENG o CA Pha 1. Adapter khoi tao `up = 0`, nen o lr 2e-5
+    # no gan nhu khong roi khoi 0 trong 15 epoch — Pha 1 se ra mot checkpoint co adapter
+    # nhung adapter do RONG, va ca khoi Pha 2 se do "fusion khong an gi" tren mot tien de sai.
+    _ad_named = [(n, prm) for n, prm in model.named_parameters() if prm.requires_grad]
+    if any(is_adapter_param(n) for n, _ in _ad_named):
+        param_groups, _n_ad = split_adapter_param_groups(
+            _ad_named, args.learning_rate, float(getattr(args, "adapter_lr", 1e-4)),
+            args.weight_decay)
+        logger.info("Pha 1: nhom ADAPTER rieng %d tham so o lr %.4g (phan con lai %.4g)",
+                    _n_ad, float(getattr(args, "adapter_lr", 1e-4)), args.learning_rate)
+    else:
+        param_groups = [
+            {"params": list(model.parameters()), "weight_decay": args.weight_decay},
+        ]
     if aux_weighter is not None:
         # KHONG weight decay tren hai vo huong log-phuong sai: decay se keo chung
         # ve 0, tuc keo sigma^2 ve 1, tuc ap dat mot lambda cu the — dung thu ma
@@ -1041,6 +1098,54 @@ def run_phase2(args, device):
             sum(p.numel() for p in model.vul_head.parameters()),
         )
 
+    # ------------------------------------------------------------------
+    # ADAPTER FUSION (arXiv:2005.00247) — them adapter DICH + lop fusion.
+    # Dat O DAY vi cung ba ly do nhu cong 8 chieu o tren: sau load_state_dict cua Pha 1,
+    # sau freeze_aux_head, va TRUOC `named_trainable` — khong thi adapter moi khong bao
+    # gio vao optimizer va ca khoi se do ra mot bang "fusion khong an gi" sai su that.
+    # ------------------------------------------------------------------
+    fusion_mode = getattr(args, "phase2_fusion", "off") or "off"
+    if fusion_mode != "off":
+        blocks = adapter_blocks(model.backbone)
+        if not blocks:
+            # Checkpoint Pha 1 khong co adapter thi khong co gi de fusion. Dung han:
+            # chay tiep se ra mot nhanh "fusion" thuc chat chi la fine-tune thuong.
+            raise ValueError(
+                f"--phase2_fusion {fusion_mode} can checkpoint Pha 1 CO adapter, nhung "
+                f"{args.source_checkpoint} khong co. Chay lai Pha 1 voi --adapter_dim > 0"
+            )
+        if args.phase2_optimizer != "adamw":
+            # Y het ly do cua cong 8 chieu: RecAdam/SPD neo theo CHI SO, ma adapter dich
+            # va fusion khong co ban doi ung trong checkpoint Pha 1 => neo lech im lang.
+            raise ValueError(
+                f"--phase2_fusion chi chay voi --phase2_optimizer adamw, dang la "
+                f"{args.phase2_optimizer!r}: adapter moi khong co ban doi ung de neo")
+        if (getattr(args, "phase2_gate", "off") or "off") != "off":
+            raise ValueError("--phase2_fusion va --phase2_gate la hai co che thay the nhau, "
+                             "bat ca hai thi phep so doi hai bien")
+        dim = blocks[0].adapters[blocks[0].active[0]].down.out_features
+        inject_adapters(model.backbone, names=("tgt",), dim=dim)
+        enable_adapter_fusion(model.backbone)
+        model.to(device)
+        # `ft`  = fine-tune ca backbone pretrained (adapter NGUON van dong bang)
+        # `frozen` = KHONG dung toi backbone, chi hoc adapter dich + fusion + head
+        train_bb = (fusion_mode == "ft")
+        # KHONG dung toi head: `freeze_aux_head` da chay o tren va phai giu nguyen ket qua do.
+        stats = set_trainable(model, train_backbone=train_bb,
+                              train_adapters=("tgt",), train_fusion=True)
+        # Dem ra de doi chieu: `requires_grad = False` viet ra ma khong ai kiem thi khong
+        # phai bang chung. Con so nay di thang vao ket qua qua training_args.
+        args.fusion_trainable_params = int(stats["trainable"])
+        args.fusion_frozen_params = int(stats["frozen"])
+        src_on = [n for n, prm in model.named_parameters()
+                  if prm.requires_grad and ".adapters.src." in n]
+        if src_on:
+            raise RuntimeError(f"adapter NGUON con mo o {len(src_on)} tham so — sai ca hai bien the")
+        logger.info(
+            "ADAPTER FUSION BAT | che do=%s | %d lop | dim=%d | mo %d tham so, khoa %d | "
+            "adapter nguon DONG BANG (0 tham so mo)",
+            fusion_mode, len(blocks), dim, stats["trainable"], stats["frozen"])
+
     # Take names alongside the tensors: the anchor may need to swap individual
     # backbone entries for their pretrained originals, which needs the name.
     # named_parameters() and parameters() iterate in the same order, so the
@@ -1134,17 +1239,27 @@ def run_phase2(args, device):
             )
             print_recadam_schedule(args, total_steps, anneal_t0, len(train_loader))
         else:
-            groups, n_gate = split_gate_param_groups(
-                named_trainable, args.learning_rate,
-                float(getattr(args, "phase2_gate_lr", 1e-2)), args.weight_decay)
-            optimizer = torch.optim.AdamW(groups, lr=args.learning_rate,
-                                          weight_decay=args.weight_decay)
-            if n_gate:
-                logger.info("Phase 2 optimizer: AdamW | nhom CONG rieng: %d tham so o lr %.4g "
-                            "(phan con lai %.4g)", n_gate,
-                            float(getattr(args, "phase2_gate_lr", 1e-2)), args.learning_rate)
+            if any(is_adapter_param(n) for n, _ in named_trainable):
+                groups, n_ad = split_adapter_param_groups(
+                    named_trainable, args.learning_rate,
+                    float(getattr(args, "adapter_lr", 1e-4)), args.weight_decay)
+                optimizer = torch.optim.AdamW(groups, lr=args.learning_rate,
+                                              weight_decay=args.weight_decay)
+                logger.info("Phase 2 optimizer: AdamW | nhom ADAPTER rieng: %d tham so o lr %.4g "
+                            "(backbone/head o %.4g)", n_ad,
+                            float(getattr(args, "adapter_lr", 1e-4)), args.learning_rate)
             else:
-                logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
+                groups, n_gate = split_gate_param_groups(
+                    named_trainable, args.learning_rate,
+                    float(getattr(args, "phase2_gate_lr", 1e-2)), args.weight_decay)
+                optimizer = torch.optim.AdamW(groups, lr=args.learning_rate,
+                                              weight_decay=args.weight_decay)
+                if n_gate:
+                    logger.info("Phase 2 optimizer: AdamW | nhom CONG rieng: %d tham so o lr %.4g "
+                                "(phan con lai %.4g)", n_gate,
+                                float(getattr(args, "phase2_gate_lr", 1e-2)), args.learning_rate)
+                else:
+                    logger.info("Phase 2 optimizer: AdamW (RecAdam anchoring disabled)")
         log_environment(args, model, device, "phase2_train")
         train_loop(
             args, model, train_loader, val_loader, optimizer, device, "phase2",
@@ -1777,6 +1892,18 @@ def parse_args():
                            "quyet dinh SAI mot cach tu tin (0.54 F1 zero-shot) sang dich co hai khong")
 
     gate = parser.add_argument_group("MANH 2 — duong quyet dinh kep co cong")
+    fusion = parser.add_argument_group(
+        "adapter fusion (arXiv:2005.00247)",
+        "Pha 1 hoc adapter `src`; Pha 2 them adapter `tgt` + lop fusion, adapter `src` "
+        "DONG BANG o ca hai bien the. Mac dinh TAT => duong chay cu khong doi mot byte.")
+    fusion.add_argument("--adapter_dim", type=int, default=0,
+                        help="Do rong nut that adapter (0 = TAT). 48 ~ reduction 16 tren H=768.")
+    fusion.add_argument("--adapter_lr", type=float, default=1e-4,
+                        help="Learning rate RIENG cho adapter va fusion. KHONG de bang lr "
+                             "backbone: adapter khoi tao 0 nen o 2e-5 no khong bao gio hoc.")
+    fusion.add_argument("--phase2_fusion", choices=("off", "ft", "frozen"), default="off",
+                        help="off = khong fusion. ft = fine-tune ca backbone pretrained. "
+                             "frozen = KHONG dung toi backbone. Ca hai deu khoa adapter nguon.")
     gate.add_argument("--phase2_gate", choices=("off", "scalar", "input"), default="off",
                       help="bat duong quyet dinh THU HAI di qua nut that 8 chieu cua Pha 1 "
                            "(latent_proj DONG BANG), tron voi nhanh 768 chieu bang mot cong hoc "
