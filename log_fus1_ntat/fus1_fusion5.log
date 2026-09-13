@@ -1,0 +1,324 @@
+########## FUSION5 bat dau 2026-09-13 10:29:55 | fold: 4 5 ##########
+===== 2026-09-13 10:29:55 | FOLD 4 | doi chung latent_bottleneck =====
+
+################################################################
+  MA TRAN — run fus1 · seed 42 · fold: 4
+################################################################
+  backbone   : codebert t5p 
+  nhanh      : latent_bottleneck
+  optimizer  : adamw
+  source     : data/phase1_common.jsonl   lambda 0.05   vocab precomputed
+  hau to nhanh: _com_l0p05
+  target     : data/sven_python_folds_norm (python)
+  Phase 1 kho: model/n48/phase1
+
+################################################################
+  PHASE 1 — kho dung chung
+################################################################
+=== 2026-09-13 10:30:01 | phase1 codebert/latent_bottleneck | da co, dung lai ===
+=== 2026-09-13 10:30:03 | phase1 t5p/latent_bottleneck | da co, dung lai ===
+
+################################################################
+  FOLD 4
+################################################################
+=== 2026-09-13 10:30:03 | fold 4 | codebert/latent_bottleneck_com_l0p05/adamw ===
+=== 2026-09-13 10:33:38 | fold 4 | t5p/latent_bottleneck_com_l0p05/adamw ===
+
+################################################################
+  BANG SAU FOLD 4
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420        --       --   0.8287         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220        --   0.8115         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683        --       --   0.8419         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750        --   0.8371         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+
+################################################################
+  XONG — fold: 4   (job hong: 0)
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420        --       --   0.8287         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220        --   0.8115         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683        --       --   0.8419         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750        --   0.8371         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+===== 2026-09-13 10:39:12 | FOLD 4 | fusft =====
+
+################################################################
+  MA TRAN — run fus1 · seed 42 · fold: 4
+################################################################
+  backbone   : codebert t5p 
+  nhanh      : latent_bottleneck
+  optimizer  : adamw
+  source     : data/phase1_common.jsonl   lambda 0.05   vocab precomputed
+  hau to nhanh: _com_l0p05_ad48_fusft
+  kho Phase 1 : hau to [_com_l0p05_ad48] - DUNG LAI cua khoi khac
+  target     : data/sven_python_folds_norm (python)
+  Phase 1 kho: model/fus1/phase1
+
+################################################################
+  PHASE 1 — kho dung chung
+################################################################
+=== 2026-09-13 10:39:18 | phase1 codebert/latent_bottleneck | da co, dung lai ===
+=== 2026-09-13 10:39:20 | phase1 t5p/latent_bottleneck | da co, dung lai ===
+
+################################################################
+  FOLD 4
+################################################################
+=== 2026-09-13 10:39:20 | fold 4 | codebert/latent_bottleneck_com_l0p05_ad48_fusft/adamw ===
+=== 2026-09-13 10:44:08 | fold 4 | t5p/latent_bottleneck_com_l0p05_ad48_fusft/adamw ===
+
+################################################################
+  BANG SAU FOLD 4
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420   0.8289        --   0.8288         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220        --   0.8115         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683   0.8605        --   0.8465         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750        --   0.8371         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+
+################################################################
+  XONG — fold: 4   (job hong: 0)
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420   0.8289        --   0.8288         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220        --   0.8115         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683   0.8605        --   0.8465         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750        --   0.8371         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+===== 2026-09-13 10:53:53 | FOLD 5 | doi chung latent_bottleneck =====
+
+################################################################
+  MA TRAN — run fus1 · seed 42 · fold: 5
+################################################################
+  backbone   : codebert t5p 
+  nhanh      : latent_bottleneck
+  optimizer  : adamw
+  source     : data/phase1_common.jsonl   lambda 0.05   vocab precomputed
+  hau to nhanh: _com_l0p05
+  target     : data/sven_python_folds_norm (python)
+  Phase 1 kho: model/n48/phase1
+
+################################################################
+  PHASE 1 — kho dung chung
+################################################################
+=== 2026-09-13 10:53:59 | phase1 codebert/latent_bottleneck | da co, dung lai ===
+=== 2026-09-13 10:54:01 | phase1 t5p/latent_bottleneck | da co, dung lai ===
+
+################################################################
+  FOLD 5
+################################################################
+=== 2026-09-13 10:54:01 | fold 5 | codebert/latent_bottleneck_com_l0p05/adamw ===
+=== 2026-09-13 10:56:48 | fold 5 | t5p/latent_bottleneck_com_l0p05/adamw ===
+
+################################################################
+  BANG SAU FOLD 5
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420   0.8289        --   0.8288         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220   0.7950    0.8082         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683   0.8605        --   0.8465         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750   0.8289    0.8354         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+
+################################################################
+  XONG — fold: 5   (job hong: 0)
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420   0.8289        --   0.8288         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220   0.7950    0.8082         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683   0.8605        --   0.8465         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750   0.8289    0.8354         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+===== 2026-09-13 11:03:39 | FOLD 5 | fusft =====
+
+################################################################
+  MA TRAN — run fus1 · seed 42 · fold: 5
+################################################################
+  backbone   : codebert t5p 
+  nhanh      : latent_bottleneck
+  optimizer  : adamw
+  source     : data/phase1_common.jsonl   lambda 0.05   vocab precomputed
+  hau to nhanh: _com_l0p05_ad48_fusft
+  kho Phase 1 : hau to [_com_l0p05_ad48] - DUNG LAI cua khoi khac
+  target     : data/sven_python_folds_norm (python)
+  Phase 1 kho: model/fus1/phase1
+
+################################################################
+  PHASE 1 — kho dung chung
+################################################################
+=== 2026-09-13 11:03:45 | phase1 codebert/latent_bottleneck | da co, dung lai ===
+=== 2026-09-13 11:03:47 | phase1 t5p/latent_bottleneck | da co, dung lai ===
+
+################################################################
+  FOLD 5
+################################################################
+=== 2026-09-13 11:03:47 | fold 5 | codebert/latent_bottleneck_com_l0p05_ad48_fusft/adamw ===
+=== 2026-09-13 11:09:27 | fold 5 | t5p/latent_bottleneck_com_l0p05_ad48_fusft/adamw ===
+
+################################################################
+  BANG SAU FOLD 5
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420   0.8289   0.8553    0.8341         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220   0.7950    0.8082         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683   0.8605   0.8090    0.8390         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750   0.8289    0.8354         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+
+################################################################
+  XONG — fold: 5   (job hong: 0)
+################################################################
+
+[test_macro_f1_at_0.5]  seed 42
+backbone    nhánh                        f1       f2       f3       f4       f5     mean     Δbase    +/n
+---------------------------------------------------------------------------------------------------------
+codebert    latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8479   0.8153   0.7894        --       --   0.8175         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8153   0.8289   0.8420   0.8289   0.8553    0.8341         —       
+            latent_bottleneck_com_l0p05_adamw  0.8073   0.8158   0.8009   0.8220   0.7950    0.8082         —       
+
+t5p         latent_bottleneck_com_l0p05_ad48_fusfrz_adamw  0.8026   0.8552   0.8476        --       --   0.8351         —       
+            latent_bottleneck_com_l0p05_ad48_fusft_adamw  0.8417   0.8157   0.8683   0.8605   0.8090    0.8390         —       
+            latent_bottleneck_com_l0p05_adamw  0.8355   0.8025   0.8353   0.8750   0.8289    0.8354         —       
+
+giá trị gia tăng của head phụ — Δ(nhánh) − Δ(none), ghép cặp theo fold
+------------------------------------------------------------------------------
+  codebert     thiếu nhánh none → không tách được giá trị gia tăng
+  t5p          thiếu nhánh none → không tách được giá trị gia tăng
+
+ĐỌC XU HƯỚNG (chỉ để quyết định chạy tiếp hay dừng)
+------------------------------------------------------------------------------
+
+  * = Macro-F1 < 0.55 (nhánh hỏng)   ~ = ROC-AUC < 0.65 (ngang ngẫu nhiên)
+  Ba fold đủ để DỪNG, không đủ để KẾT LUẬN — n=3 đã bốn lần đổi dấu ở n=5.
+  Sàn nhiễu 0.010 là cho CÙNG loại GPU. Nếu khối này trải trên hai loại GPU thì sàn là 0.028.
+
+########## FUSION5 xong 2026-09-13 11:14:31 | tong 26 o ##########

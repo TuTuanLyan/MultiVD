@@ -1,50 +1,31 @@
-# CURRENT_RUN — ĐANG CHẠY 13/09/2026: ADAPTER FUSION, nhánh git `fusion`
+# CURRENT_RUN — ĐÃ XONG 13/09/2026, vast ĐÃ HUỶ. Nhánh git `fusion`
 
-> **Máy: vast `ntat` id 50857599** — RTX 5060 Ti, $0.0801/h, ssh `115.73.216.179:56162`
-> (endpoint = `public_ipaddr` + HostPort của `22/tcp`, **không** phải `ssh_host:ssh_port`).
-> Hai máy local đang chạy việc của người dùng khác ⇒ nhường.
+> **Không còn gì đang chạy.** vast `ntat` 50857599 huỷ lúc ~10:55 UTC sau khi đối chiếu
+> **59/59 file đúng từng byte, cả hai chiều**. Chạy ~3,8 giờ ≈ $0,30.
 
-Thử hướng **AdapterFusion** (Pfeiffer et al. 2020, arXiv:2005.00247) cho chuyển giao
-`ccpp+js → python`. Người dùng nêu 13/09.
+## Kết quả — ADAPTER FUSION, 26 ô, 0 job hỏng
 
-| | |
+`fusft` (fine-tune cả backbone, adapter nguồn đóng băng) so với đối chứng `latent_bottleneck`:
+
+| backbone | n=5 | F1@0.5 | ROC-AUC |
+|---|---|---|---|
+| **codebert** | 5 | **+0.0259 5/5** p=0.062 | **+0.0224 5/5** p=0.062 |
+| **t5p** | 5 | +0.0036 3/5 | +0.0057 3/5 |
+
+> **`fusft` là hiệu ứng của codebert, KHÔNG phải của phương pháp.** Trên t5p nó co lại gần
+> hết khi từ n=3 lên n=5 (lần thứ **năm** trong dự án). Theo luật mục 1: **không lên n=15**.
+
+`fusfrz` (đóng băng backbone) đã bị loại ở bậc 1 — F1@val của t5p âm.
+Chi tiết đầy đủ: **FACTS §47**.
+
+## Còn để ngỏ, CHỜ QUYẾT
+
+| việc | ghi chú |
 |---|---|
-| **Pha 1** | `latent_bottleneck` λ=0.05 **như cũ**, thêm adapter bottleneck `src` (dim 48) chèn sau **mỗi** lớp transformer; fine-tune **cả** backbone + adapter + head |
-| **Pha 2** | thêm adapter `tgt` (python) + lớp fusion. Adapter `src` **ĐÓNG BĂNG ở cả hai biến thể** |
-| `fusft` | fine-tune **cả** backbone pretrained |
-| `fusfrz` | **không** đụng tới backbone, chỉ học adapter đích + fusion + head |
-| optimizer | **AdamW, SAM tắt hẳn cả hai pha** — người dùng nêu rõ: không RecAdam, không ASAM |
-| nguồn / đích | `com` (3 744 dòng ccpp+js) → `data/sven_python_folds_norm`, python |
-| quy mô | **bậc 1: n=3 fold, seed 42**, hai backbone (codebert, t5p) |
-| cây kết quả | `results/fus1_codebert`, `results/fus1_t5p` — **một cây duy nhất** cho cả đối chứng lẫn fusion |
-
-## Thứ tự chạy — method trước, baseline sau
-
-Người dùng nêu 13/09: *"chạy cùng fold method trước, baseline sau; nếu nó thấp luôn thì
-khỏi chạy baseline"* — baseline chắc chắn trên 0.74, nên method thấp hơn ngưỡng đó là
-thua rồi, khỏi tốn GPU. Cài bằng `SKIP_BASELINE=1` của `run/matrix.sh` (mặc định 0).
-
-| bước | lệnh | trạng thái |
-|---|---|---|
-| 1. đối chứng `latent_bottleneck` (phương pháp chốt hiện tại) | `run/fusion_ctl.sh` | **đang chạy** |
-| 2. fusion hai biến thể | `run/fusion3.sh` | chờ bước 1 |
-| 3. baseline | `SKIP_BASELINE=0 run/fusion_ctl.sh` | **chỉ chạy nếu bước 2 đáng** |
-
-**Mốc đã có** (đối chứng, fold 1): codebert F1@0.5 **0.8073** ROC **0.8800** ·
-t5p F1@0.5 **0.8355** ROC **0.9077**. Fusion phải vượt mốc này mới đáng đi tiếp.
-
-## Mã mới (nhánh `fusion`, commit 51afc5d)
-
-`src/adapters.py` · `tests/test_adapters.py` (12 phép, hai chiều, cả RoBERTa lẫn T5) ·
-cờ mới `--adapter_dim`, `--adapter_lr`, `--phase2_fusion {off,ft,frozen}`.
-
-Hai bẫy đã chặn trước, cả hai là bẫy cũ của dự án: **(1)** adapter khởi tạo `up=0` nên ở
-lr backbone 2e-5 nó không rời khỏi 0 — đúng chuyện cổng 8 chiều kẹt ở g=0.5000, nên
-adapter có nhóm lr riêng 1e-4 ở **cả hai pha**; **(2)** `strict=False` lúc nạp checkpoint
-nuốt im adapter đã học — thay bằng đọc lại hình dạng từ chính state dict rồi nạp nghiêm ngặt.
-
-Thử khói 32 mẫu trên CPU **bắt được một lỗi thật** trước khi tiêu GPU: `set_trainable`
-mở lại cả head phụ, phá `freeze_aux_head`, Pha 2 chết ở `assert_recadam_setup`.
+| vì sao codebert ăn mà t5p không | câu hỏi đáng giá nhất còn lại của hướng này; là **thí nghiệm mới**, cần duyệt |
+| ghi trọng số fusion vào file kết quả | checkpoint Pha 2 bị xoá nên phần diễn giải được của bài báo đã mất |
+| baseline (không Pha 1) cho cây `fus1` | hoãn có chủ ý, không đổi được kết luận |
+| tập **`twin`** | vẫn treo từ 11/09 — mục 6: phụ, chỉ chạy khi được yêu cầu |
 
 ---
 

@@ -4234,3 +4234,82 @@ baseline khác nhau** — lấy hiệu hai Δ đó là đúng thao tác bị c�
 | đích | `data/sven_python_folds_norm`, python |
 | quy mô | **bậc 1: 3 fold, seed 42** → 2 backbone × 3 nguồn × 3 fold × 2 nhánh + 6 baseline = **42 ô** |
 
+
+---
+
+## §47 — ADAPTER FUSION (arXiv:2005.00247): mạnh và ổn định trên **codebert**, nhưng **KHÔNG lặp** trên t5p ở n=5 (13/09, 26 ô, vast 5060 Ti)
+
+Người dùng yêu cầu 13/09 thử hướng AdapterFusion cho chuyển giao `ccpp+js → python`.
+
+| | |
+|---|---|
+| **Pha 1** | `latent_bottleneck` λ=0.05 **như cũ**, thêm adapter bottleneck `src` (dim 48, reduction 16) sau **mỗi** lớp transformer; fine-tune **cả** backbone + adapter + head |
+| **Pha 2** | thêm adapter `tgt` + lớp fusion; adapter `src` **đóng băng ở cả hai biến thể** |
+| `fusft` | fine-tune **cả** backbone pretrained |
+| `fusfrz` | **không** đụng backbone — chỉ adapter đích + fusion + head (~22M/132M tham số) |
+| optimizer | AdamW, SAM tắt hẳn cả hai pha. Nguồn `com`, đích `sven_python_folds_norm` |
+| đối chứng | `latent_bottleneck` (phương pháp chốt mục 7) — **cùng cây, cùng máy, cùng phiên** |
+
+### Pha 1 có adapter KHÔNG làm hỏng gì
+
+| backbone | có adapter | ba mốc không-adapter |
+|---|---|---|
+| codebert | 0.5583 | 0.5598 / 0.5626 / 0.5730 |
+| t5p | **0.5980** | 0.5684 / 0.5897 / 0.5907 |
+
+t5p còn cao hơn cả ba mốc. Checkpoint lớn hơn đúng 3,6 MB = 894 528 tham số adapter × 4 byte.
+
+### Bậc 1 (n=3): `fusft` qua cổng leo bậc, `fusfrz` trượt
+
+| backbone | biến thể | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| codebert | `fusft` | +0.0207 3/3 | +0.0153 2/3 | +0.0257 3/3 | +0.0222 2/3 |
+| t5p | `fusft` | +0.0175 3/3 | +0.0059 2/3 | +0.0129 3/3 | +0.0160 3/3 |
+| codebert | `fusfrz` | +0.0095 1/3 | +0.0270 3/3 | +0.0041 2/3 | +0.0039 2/3 |
+| t5p | `fusfrz` | +0.0107 2/3 | **−0.0024** 1/3 | +0.0078 1/3 | +0.0069 1/3 |
+
+`fusft` dương trên **cả bốn** chỉ số trên **cả hai** backbone ⇒ đủ điều kiện lên n=5.
+`fusfrz` bị loại. Đáng ghi: fold 1 của `fusfrz` trên codebert cho **+0.0406** rồi tụt xuống
+**dưới** đối chứng ở fold 3 — lại một lần nữa đúng `never-conclude-from-the-first-cell`.
+
+### Bậc 2 (n=5) — **ĐÂY MỚI LÀ KẾT QUẢ**
+
+| backbone | n | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| **codebert** | 5 | **+0.0259 5/5** p=0.062 | +0.0222 4/5 | **+0.0224 5/5** p=0.062 | +0.0192 3/5 |
+| **t5p** | 5 | +0.0036 3/5 | +0.0007 3/5 | +0.0057 3/5 | +0.0140 4/5 |
+
+**Hiệu ứng trên t5p co lại gần hết khi thêm fold** — LẦN THỨ NĂM trong dự án:
+
+| | n=3 | → n=5 |
+|---|---|---|
+| codebert F1@0.5 | +0.0207 (3/3) | **+0.0259 (5/5)** |
+| codebert ROC-AUC | +0.0257 (3/3) | **+0.0224 (5/5)** |
+| t5p F1@0.5 | +0.0175 (3/3) | **+0.0036 (3/5)** |
+| t5p ROC-AUC | +0.0129 (3/3) | **+0.0057 (3/5)** |
+
+Trên t5p, fold 4 **và** fold 5 đều âm; +0.0036 và +0.0057 nằm **dưới sàn nhiễu cùng-GPU 0.010**;
+3/5 fold là đúng một đồng xu.
+
+### Kết luận
+
+> **`fusft` là hiệu ứng của codebert, không phải hiệu ứng của phương pháp.**
+
+Trên codebert nó rất chắc: 5/5 fold ở **cả** F1@0.5 **và** ROC-AUC (tức cả ngưỡng lẫn thứ hạng,
+khác hẳn phần lớn can thiệp khác vốn chỉ được một trong hai), biên độ trên sàn nhiễu, và chạm
+sàn Wilcoxon p=0.0625 — mức tốt nhất n=5 có thể đạt. Nhưng **không lặp trên t5p**, nên theo luật
+mục 1 **KHÔNG được lên n=15**, và không viết được thành phát biểu chung.
+
+Nó rơi đúng họ **§38.2**: *"mọi nhánh thắng ở backbone này đều thua ở kia"*. Tính tới nay
+**chỉ §40 (đường cong cỡ tập đích)** là qua được cổng "lặp trên cả hai backbone".
+
+### Ba ghi chú kỹ thuật
+
+1. **t5p + `fusft` OOM ở 16 GB.** Đã gỡ bằng hai bước, **không** hạ batch (hạ batch làm phép so
+   đổi hai biến): (a) `W_V` tuyến tính nên `Σ αₙ·W_V(zₙ) = W_V(Σ αₙ·zₙ)` — gộp trước rồi chiếu,
+   bỏ một tensor `(B,T,N,H)` mỗi lớp; (b) `--grad_checkpointing`. Cả hai cho gradient y hệt.
+2. **Checkpoint Pha 2 bị xoá** nên **trọng số attention của lớp fusion đã mất**. Đó lại chính là
+   phần diễn giải được của bài báo — nó cho biết mô hình dùng adapter nguồn bao nhiêu. Lần sau
+   phải ghi trung bình trọng số fusion theo lớp vào file kết quả.
+3. **Baseline (không Pha 1) chưa chạy** — người dùng hoãn có chủ ý: baseline chắc chắn trên 0.74
+   và fusion đã hơn `latent_bottleneck` rồi nên nó không đổi được kết luận.
