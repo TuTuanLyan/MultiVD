@@ -353,3 +353,77 @@ nằm ở thư mục nào, khối nào đã xong, cái gì chưa chạy, và ba 
 Khi người dùng yêu cầu đặc biệt phải lưu ra 1 file CURRENT_RUN.md để chạy cái hiện tại và nêu ra nội dung hiện tại đang làm gì và đang chạy cái gì, setting ra sao để đảm bảo không nhầm. Khi xong sẽ phải update vào ở đầu file md này là đã xong + ngày giờ để biết hiện tại không còn chạy cái này nếu run sau không có gì đặc biệt hoặc chỉ là chạy lại phần nhỏ.
 
 File này có thể lưu các queue, các yêu cầu có thể ngay cả khi không đặc biệt và chỉ cần lưu yêu cầu có thể khác ở các máy khác nhau để hiểu rõ ràng có thể note thêm tên máy để phân biệt, file này không cần thiết phải backup. Ở local có thể lưu thêm cả các việc ở trên máy trên vast để biết trên đó đang run gì hoặc update trực tiếp ở vast.
+
+---
+
+## 13. Bẫy RIÊNG của repo này — đọc trước khi đụng vào hạ tầng chạy
+
+Phần này chỉ chứa thứ **đúng riêng ở repo này** (tên file, cờ, script nào hỏng). Bài học
+phổ thông dùng chung nhiều dự án thì nằm ở memory, không lặp ở đây. Người dùng nêu 13/09/2026.
+
+### `scripts/chain_after.sh` HỎNG — dùng `scripts/chain_after_pid.sh`
+
+`chain_after.sh` chờ driver trước bằng `pgrep -f "$PAT"`, mà chính `$PAT` lại nằm trong
+**argv của chính nó** ⇒ pgrep **tự khớp mình**, vòng lặp 5 giờ không bao giờ thoát, lệnh
+tiếp theo không bao giờ chạy. Trên vast nghĩa là GPU nằm không mà vẫn tính tiền.
+
+`chain_after_pid.sh <workdir> <pid> <log> <lệnh...>` chờ theo **PID** — PID không thể tự khớp.
+
+**Lấy PID phải khớp argv CHÍNH XÁC**, không dùng regex lỏng: `bash -c "... setsid nohup bash
+run/X.sh ..."` chứa nguyên chuỗi `bash run/X.sh` nên regex lỏng bắt phải **shell bọc ngoài**,
+mà nó có thể thoát **trước** driver ⇒ chuỗi sau phóng đè ⇒ hai chuỗi một GPU ⇒ OOM.
+
+```bash
+PID=$(ps -eo pid,args --no-headers | awk '{pid=$1; $1=""; sub(/^ /,""); if ($0=="bash run/X.sh") {print pid; exit}}')
+```
+
+### LoRA trong `src/model.py` là MÃ CHẾT
+
+`LoRALinear`, `inject_lora`, `merge_lora`, cờ `--lora_rank` — **chưa bao giờ được dùng**:
+`lora_rank=0` ở toàn bộ **1452** ô có ghi hyperparameters (214 ô cũ hơn thì chưa có field),
+và **không script nào** trong `run/` hay `scripts/` truyền `--lora_rank`. Dự án luôn
+fine-tune cả model. Đừng suy ra kết luận gì từ sự tồn tại của nó.
+
+### `SKIP_BASELINE=1` — hoãn baseline, chạy method trước
+
+Người dùng nêu 13/09: đang **thử cái mới** thì chạy method trước, baseline sau; method đã
+thấp hơn ngưỡng biết trước (**baseline luôn trên 0.74**) thì thua rồi, khỏi tốn GPU.
+Mặc định `0` ⇒ đường chạy cũ không đổi. Chạy bù baseline sau bằng chính lệnh đó với
+`SKIP_BASELINE=0`: vòng lặp tự bỏ qua ô đã có.
+
+### Adapter / AdapterFusion (nhánh git `fusion`)
+
+- Cờ: `--adapter_dim` (0 = tắt), `--adapter_lr` (mặc định 1e-4), `--phase2_fusion {off,ft,frozen}`.
+- **Fusion từ chối chạy với `recadam`/`spd`** — neo của chúng khớp theo **chỉ số** tham số,
+  mà adapter đích không có bản đối ứng trong checkpoint Pha 1 nên sẽ lệch im lặng. Chỉ `adamw`.
+- `adapters.set_trainable()` **chỉ được đụng** backbone/adapter/fusion. Bản đầu nó mở lại cả
+  các head ⇒ huỷ `freeze_aux_head()` ⇒ Pha 2 chết ở `assert_recadam_setup: auxiliary head not
+  frozen`. Phần còn lại phải **giữ nguyên** trạng thái đã có.
+- Đọc kết quả bằng `tools/report2.py`: tên nhánh `transfer_latent_bottleneck_com_l0p05_ad48_fusft_adamw`
+  tách thành `nguồn=com`, `tag=ad48_fusft`; nhánh đối chứng tách thành `tag=adamw`. Nên lệnh là
+  `--a ad48_fusft --b adamw`.
+
+### SSH vào vast: endpoint là `public_ipaddr` + HostPort của `22/tcp`
+
+`ssh_host` và `ssh_port` mà `vastai show instance` in ra cho **connection refused**. Lấy đúng:
+
+```bash
+vastai show instance <id> --raw | python3 -c "import json,sys; d=json.load(sys.stdin); \
+  print(d['public_ipaddr'], d['ports']['22/tcp'][0]['HostPort'])"
+```
+
+Gắn khoá theo từng instance: `vastai attach ssh <id> "$(cat ~/.ssh/id_ed25519.pub)"`.
+
+### `tools/head_vs_none.py` — giá trị riêng của head phụ
+
+Chỉ giữ nhánh **cấu hình gốc** (tên đúng bằng `transfer_<mode>_<tag>[_<opt>]`) vì các khối quét
+siêu tham số (`bridge3`, `opt1`) chạy hàng chục biến thể Pha 2 trên **cùng** một tag Pha 1; khoá
+ghép cặp không phân biệt tên nhánh thì chúng **đè nhau im lặng**. Công cụ in số va chạm khoá còn
+lại và nó **phải bằng 0**.
+
+### Sửa mục 7 — con số "+0.0111, 33/43, p=0.0006" đã lạc hậu
+
+Mục 7 ghi *"AdamW: head ăn về điểm — Δ vs `none` +0.0111, 33/43 fold, p=0.0006"*. Con số đó
+(a) tính trên **macro-F1 và chỉ macro-F1**, (b) **không tách** các ô `none` sập. Đo lại
+12/09/2026 trên cả bốn chỉ số, tách ô sập: còn **+0.0071, 32/46** ở F1@0.5 và **null ở cả hai
+chỉ số thứ hạng** (ROC +0.0036 27/46 p=0.30). Chi tiết và bảng đầy đủ ở **FACTS §46**.
