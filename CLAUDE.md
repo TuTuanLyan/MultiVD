@@ -228,8 +228,10 @@ mẫu trong train nhưng **NGƯỢC NHÃN** ở test. Mô hình đoán đúng nh
 học **đặc trưng lỗ hổng** chứ không học **mẫu văn bản**. `src/build_folds.py` chia theo từng
 dòng nên ~40% hàng test có bản gần giống trong train — đó chính là tính chất được yêu cầu.
 
-> **Đừng đề xuất chạy `twin` như "câu trả lời cho phản biện rò rỉ"** — bản cũ của mục này ghi
-> vậy và **SAI**. `twin` chỉ chạy khi người dùng yêu cầu, vì mục đích khác.
+**`twin` là SIDE RESULT, chạy sau.** Chính reviewer đề xuất chạy nó — nhưng như một kết quả
+phụ, **không phải kết quả chính**, nên nó được xếp sau. Bản cũ của mục này ghi `twin` là
+*"câu trả lời cho phản biện rò rỉ"* — **SAI** ở chỗ đó: không có phản biện rò rỉ nào cần trả
+lời, vì rò rỉ là tính chất được cố ý đưa vào `norm`.
 
 Trường mỗi dòng: `code, label, cwe, cwe_id, cwe_class, lang`.
 
