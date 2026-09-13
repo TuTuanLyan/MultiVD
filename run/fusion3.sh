@@ -31,6 +31,10 @@ flock -n 7 || { echo "DA CO fusion3 dang chay tren may nay — dung"; exit 3; }
 
 FOLDS="${FOLDS:-1 2 3}"
 DIM="${ADAPTER_DIM:-48}"          # reduction 16 tren H=768
+# GC=1 => gradient checkpointing. t5p-220m + fusion OOM o 16 GB du da go tensor thua trong
+# AdapterFusion (thieu 24 MiB). Checkpointing cho gradient Y HET, chi cham ~30%%, nen no
+# KHONG doi phep so — khac han viec ha batch size von doi hai bien cung luc.
+GC="${GC:-1}"
 ALR="${ADAPTER_LR:-1e-4}"
 P1TAG="_com_l0p05_ad${DIM}"
 BB="codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-220m-bimodal:mean"
@@ -57,7 +61,7 @@ for FOLD in $FOLDS; do
     ARM_TAG="$TAG" PHASE1_TAG="$P1TAG" PHASE1_STORE="model/fus1/phase1" \
     LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
     PHASE1_EXTRA="--sam_rho 0 --adapter_dim $DIM --adapter_lr $ALR" \
-    PHASE2_EXTRA="--sam_rho 0 --phase2_fusion $V --adapter_lr $ALR" \
+    PHASE2_EXTRA="--sam_rho 0 --phase2_fusion $V --adapter_lr $ALR ${GC:+--grad_checkpointing}" \
     DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     PYTHON=python bash run/matrix.sh 7>&-
   done

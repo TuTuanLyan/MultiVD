@@ -114,6 +114,42 @@ def test_gop_truoc_roi_chieu_tuong_duong_chieu_roi_gop():
         f"hai dang KHONG tuong duong, lech max {float((got - ref).abs().max()):.2e}"
 
 
+def test_gradient_checkpointing_van_cho_gradient_toi_adapter(name=None):
+    """Gradient checkpointing + backbone DONG BANG la canh de hong AM THAM.
+
+    Ban `reentrant` cua torch.utils.checkpoint khong chay gradient vao tham so nam trong
+    doan da checkpoint neu DAU VAO doan do khong `requires_grad`. O bien the `frozen`,
+    backbone dong bang nen dau vao moi lop khong can grad — nhung adapter NAM TRONG lop
+    thi can. Neu dung ban reentrant, adapter se khong bao gio duoc hoc, va khoi chay ra
+    mot bang "fusion khong an gi" hoan toan sai. Vi the phai `use_reentrant=False`.
+
+    Kiem CA HAI: (1) dau ra khop ban khong checkpointing, (2) gradient van toi dung cho.
+    """
+    bb = _backbone(name or ROBERTA)
+    inject_adapters(bb, names=("src", "tgt"), dim=4)
+    enable_fusion(bb)
+    m = _Model(bb)
+    set_trainable(m, train_backbone=False)          # bien the `frozen`
+    ids, mask = _ids(bb)
+
+    m.eval()
+    with torch.no_grad():
+        ref = m.backbone(input_ids=ids, attention_mask=mask).last_hidden_state.clone()
+    bb.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    m.eval()
+    with torch.no_grad():
+        got = m.backbone(input_ids=ids, attention_mask=mask).last_hidden_state
+    assert torch.allclose(ref, got, atol=1e-5), "checkpointing lam doi dau ra"
+
+    m.train()
+    m.vul_head(m.backbone(input_ids=ids, attention_mask=mask).last_hidden_state[:, 0]).sum().backward()
+    g = {n: (prm.grad is not None) for n, prm in m.named_parameters()}
+    assert any(g[n] for n in g if ".adapters.tgt." in n), \
+        "adapter dich KHONG nhan gradient duoi checkpointing — dung use_reentrant=False"
+    assert any(g[n] for n in g if ".fusion." in n), "fusion khong nhan gradient"
+    assert not any(g[n] for n in g if ".adapters.src." in n), "adapter nguon van nhan gradient"
+
+
 def test_spec_doc_lai_dung_hinh_dang_tu_state_dict():
     bb = _backbone(ROBERTA)
     inject_adapters(bb, names=("src",), dim=6)
@@ -186,7 +222,8 @@ def test_gradient_chi_chay_vao_phan_duoc_mo():
 
 
 # ----------------------------------------------------------------------------
-PARAMETRIZED = ("test_khoi_tao_la_anh_xa_dong_nhat",
+PARAMETRIZED = ("test_gradient_checkpointing_van_cho_gradient_toi_adapter",
+                "test_khoi_tao_la_anh_xa_dong_nhat",
                 "test_adapter_co_tac_dung_khi_trong_so_khac_khong",
                 "test_boc_lop_khong_lam_hong_tuple",
                 "test_fusion_hai_adapter_va_trong_so_cong_bang_mot")

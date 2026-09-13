@@ -427,6 +427,17 @@ def make_model(model_name, device, args=None):
             "LoRA injected | Rank: %d | Projections wrapped: %d | Backbone otherwise frozen",
             args.lora_rank, count,
         )
+    if args is not None and getattr(args, "grad_checkpointing", False):
+        if not hasattr(model.backbone, "gradient_checkpointing_enable"):
+            raise ValueError(f"{type(model.backbone).__name__} khong ho tro gradient checkpointing")
+        # use_reentrant=False: ban reentrant KHONG chay gradient toi cac tham so nam trong
+        # doan da checkpoint neu DAU VAO cua doan khong requires_grad — dung canh cua bien the
+        # `frozen` (backbone dong bang, chi adapter ben trong lop can grad). Ban non-reentrant
+        # xu ly dung ca hai canh.
+        model.backbone.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False})
+        logger.info("Gradient checkpointing BAT tren %s", type(model.backbone).__name__)
+
     if args is not None and getattr(args, "freeze_backbone_layers", 0) > 0:
         info = freeze_backbone_layers(model.backbone, args.freeze_backbone_layers)
         logger.info("Backbone partially frozen | %s", json.dumps(info, sort_keys=True))
@@ -1901,6 +1912,10 @@ def parse_args():
     fusion.add_argument("--adapter_lr", type=float, default=1e-4,
                         help="Learning rate RIENG cho adapter va fusion. KHONG de bang lr "
                              "backbone: adapter khoi tao 0 nen o 2e-5 no khong bao gio hoc.")
+    fusion.add_argument("--grad_checkpointing", action="store_true",
+                        help="Danh doi THOI GIAN lay BO NHO: khong giu activation, tinh lai "
+                             "luc backward. Gradient y het (RNG duoc giu nen dropout tai lap "
+                             "dung mask), chi cham ~30%%. Can cho t5p-220m + fusion o 16 GB.")
     fusion.add_argument("--phase2_fusion", choices=("off", "ft", "frozen"), default="off",
                         help="off = khong fusion. ft = fine-tune ca backbone pretrained. "
                              "frozen = KHONG dung toi backbone. Ca hai deu khoa adapter nguon.")
