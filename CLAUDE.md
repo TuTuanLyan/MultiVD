@@ -222,10 +222,14 @@ backbone yếu hay sập. Dựng lại từ bộ gốc bằng `src/build_sources
 | **`data/sven_python_folds_norm`** | 760 (380/380) | ngẫu nhiên 60/20/20 → 456/152/152 mỗi fold | **mặc định** |
 | `data/sven_python_twin` | ~760 | theo **cụm gần trùng**, không rò rỉ | phụ, chỉ khi được yêu cầu |
 
-Reviewer yêu cầu phân phối ngẫu nhiên nên `norm` là tập chính. Nhưng phải biết
-điểm yếu của nó: `src/build_folds.py` chia **theo từng dòng**, nên ~40% hàng test
-có bản sao gần giống nằm trong train. `twin` gom cụm gần trùng rồi mới chia — đó
-là câu trả lời cho phản biện rò rỉ, để dành chạy sau.
+**`norm` là tập chính, và chia ngẫu nhiên là CHỦ Ý của reviewer — không phải điểm yếu.**
+Lý do reviewer nêu: split ngẫu nhiên **cố tình** chứa cả ca gần-trùng-lặp *và* ca gần giống
+mẫu trong train nhưng **NGƯỢC NHÃN** ở test. Mô hình đoán đúng những ca đó mới chứng tỏ nó
+học **đặc trưng lỗ hổng** chứ không học **mẫu văn bản**. `src/build_folds.py` chia theo từng
+dòng nên ~40% hàng test có bản gần giống trong train — đó chính là tính chất được yêu cầu.
+
+> **Đừng đề xuất chạy `twin` như "câu trả lời cho phản biện rò rỉ"** — bản cũ của mục này ghi
+> vậy và **SAI**. `twin` chỉ chạy khi người dùng yêu cầu, vì mục đích khác.
 
 Trường mỗi dòng: `code, label, cwe, cwe_id, cwe_class, lang`.
 
