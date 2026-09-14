@@ -4652,7 +4652,8 @@ Mạnh hơn ước lượng khác máy trước đây (`fus1`: `fusft`−chốt 
 
 > **ĐÍNH CHÍNH — đọc §52.1 trước khi dùng bảng này.** Cùng ngày, khối `fus3` ở local
 > chạy lại đúng ba nhánh này với **cùng checkpoint Pha 1** trên A4000: `fusft` − chốt
-> tụt từ **+0.0397 5/5** xuống **−0.0005 3/5**. Phát biểu "`fusft` hơn chốt" **đã rút lại**.
+> tụt từ **+0.0397 5/5** xuống **−0.0005 3/5** ở F1. Nhưng **§52.2** tính đủ bốn khối cho thấy
+> ROC/PR **dương ở 4/4 khối** — thứ rút lại là con số ở **ngưỡng**, không phải cả phát biểu.
 
 > **KHÔNG hồi sinh AdapterFusion.** §48 vẫn đứng — một nửa lợi ích tái tạo được bằng adapter
 > **ngẫu nhiên** (+0.0111 so với +0.0226); §50 vẫn đứng — trên nhóm rò rỉ `train`, adapter **đã
@@ -4744,9 +4745,14 @@ Khối `fus3` ở local (A4000) chạy **đúng ba nhánh, đúng 5 fold, đúng
 
 **Ba điều đọc được:**
 
-1. **Phát biểu "`fusft` hơn chốt" của §52 BỊ RÚT LẠI.** Một kết quả 5/5 fold, cùng dấu cả bốn
-   chỉ số, biến mất sạch khi chỉ đổi card. Nguyên nhân nằm gần trọn ở nhánh **chốt** (+0.024
+1. **Con số +0.0397 5/5 của §52 BỊ RÚT LẠI — nhưng CHỈ ở chỉ số NGƯỠNG.** Một kết quả 5/5 fold
+   biến mất sạch ở F1 khi chỉ đổi card. Nguyên nhân nằm gần trọn ở nhánh **chốt** (+0.024
    giữa hai máy) chứ không ở `fusft` (−0.016).
+
+   > **ĐÍNH CHÍNH 14/09 chiều — bản đầu của dòng này viết "phát biểu `fusft` hơn chốt bị rút
+   > lại", QUÁ RỘNG.** Tính đủ **bốn khối độc lập trên bốn máy** (**§52.2**) thì ROC-AUC và
+   > PR-AUC **dương ở 4/4 khối**. Thứ bị rút lại là con số và đếm dấu ở **ngưỡng 0.5**, không
+   > phải cả phát biểu.
 2. **Sàn nhiễu 0.028 giữa hai loại GPU được xác nhận lần nữa — và lần này nó nuốt trọn một
    kết quả 5/5.** Đây là lần đầu dự án có phép lặp với **checkpoint Pha 1 giống hệt**, nên
    không thể đổ cho dao động Pha 1 (§48.2): toàn bộ chênh lệch sinh ra ở **Pha 2**.
@@ -4838,3 +4844,43 @@ chạy đúng 12 epoch và lấy checkpoint **CUỐI**, trong khi mọi kết qu
 **Quan sát phụ:** độ trải giữa các fold tăng đơn điệu theo mức phá nhãn — baseline 0.042,
 thật 0.105, xáo toàn bộ 0.157, đổi chỗ cặp 0.209 (codebert). Phá nhãn không chỉ hạ trung bình,
 nó **thổi phồng phương sai**.
+
+
+### §52.2 — Bốn khối độc lập: `fusft` − chốt trên codebert (14/09, tổng hợp, 0 GPU)
+
+Mỗi khối n=5, codebert, nguồn `com`, `adamw`, seed 42, **đối chứng cùng cây cùng máy cùng phiên**.
+**Không gộp qua máy** (mục 4 cấm) — đây là đếm xem bao nhiêu khối độc lập đồng ý.
+
+| khối | máy | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| `fus1` | vast A, 5060 Ti | +0.0259 5/5 | +0.0222 4/5 | +0.0224 5/5 | +0.0192 3/5 |
+| `fus2` | vast B, 5060 Ti | +0.0226 4/5 | +0.0214 4/5 | +0.0113 3/5 | +0.0056 4/5 |
+| `fus5060` | vast C, 5060 Ti | +0.0397 5/5 | +0.0408 5/5 | +0.0294 5/5 | +0.0160 4/5 |
+| `fus3` | local A4000 | **−0.0005 3/5** | −0.0001 2/5 | +0.0203 4/5 | +0.0345 5/5 |
+| **số khối có TB dương** | | **3/4** | 3/4 | **4/4** | **4/4** |
+
+**Đọc đúng:**
+
+- Ở **thứ hạng** (ROC/PR), `fusft` ≥ chốt ở **cả bốn khối**, biên độ **+0.011…+0.029**. Phát biểu
+  *"fusion không hơn chốt"* là **SAI**.
+- Ở **ngưỡng 0.5**, ba khối dương, khối thứ tư **đúng bằng 0**. Con số cụ thể của §52 không lặp.
+- Biên độ nằm **quanh sàn nhiễu cùng loại GPU (0.010)** và **dưới sàn giữa các loại GPU (0.028)**
+  ở ba trên bốn khối.
+
+**Nhưng điều này KHÔNG làm AdapterFusion thành đóng góp**, và lý do **không** nằm ở chuyện lặp lại:
+
+| bằng chứng | số |
+|---|---|
+| §48 — adapter **ngẫu nhiên** khớp std tái tạo ~một nửa lợi ích | +0.0111 / +0.0226, cùng 4/5 fold; phần dư +0.0115 **3/5**, **âm ở PR-AUC** |
+| §50 — trên nhóm `train` (đúng chỗ đo phân biệt lỗ hổng) | adapter **đã học THUA** ngẫu nhiên: **−0.0595, 1/5** |
+| §47 — backbone thứ hai | t5p n=5: **+0.0036, 3/5** — không lặp, trượt cổng 2 |
+| §48.1 — trọng số fusion | gán **cao hơn** cho adapter ngẫu nhiên (0.7065 vs 0.5566), 4/5 fold |
+
+> **Phát biểu chính xác:** `fusft` cho điểm **thứ hạng** nhỉnh hơn chốt một chút và khá đều qua
+> bốn khối, **nhưng phần nhỉnh đó không tách được khỏi hiệu ứng thêm tham số**, và nó **âm đúng
+> ở nhóm đo khả năng phân biệt lỗ hổng**.
+
+**Bẫy công cụ gặp khi dựng bảng này:** `results_fus2_ntat/` chứa **ba** cây (`fus2_codebert`,
+`fus2dbg_codebert`, `fus2w_codebert`). Glob `*codebert*/*/seed_*/fold*.json` gộp cả ba và cho
+`fus2` = +0.0298 5/5 thay vì +0.0226 4/5 — đúng loại **va chạm khoá** mục 13 CLAUDE.md cảnh báo.
+Phải trỏ **đường dẫn cây tường minh**, không dùng glob lỏng.
