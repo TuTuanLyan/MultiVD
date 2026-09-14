@@ -4561,3 +4561,72 @@ hiệu mạnh**, không phải kết luận đóng.
 | chốt vs baseline | **+0.0459 14/15 p=0.001** | +0.0591 11/15 |
 | fusion vs chốt | +0.0299 8/10 | +0.0332 7/10 |
 | fusion: tri thức vs sức chứa | +0.0273 3/5 | **−0.0595 1/5** |
+
+---
+
+## §51 — Nhãn Pha 1 NHIỄU, và độ nhiễu đó dự đoán đúng thứ tự chuyển giao (14/09/2026)
+
+**Nguồn của mục này:** hai đồng nghiệp chạy **độc lập** baseline in-domain trên CleanVul js và
+CleanVul cpp, **cả hai đều dưới 0.6**. Người dùng báo 14/09. Con số của chính dự án này khớp.
+
+### Tác vụ NGUỒN chỉ học được tới ~0.57, trong khi tác vụ ĐÍCH học được tới 0.80
+
+Phase-1 val macro-F1, **ba seed trên ba máy khác nhau** (§40.5):
+
+| nguồn | seed 42 | seed 7 | seed 1234 | độ tản |
+|---|---|---|---|---|
+| `4cwe` (930 dòng, 4 CWE, 87% js) | 0.6976 | 0.6684 | 0.7223 | 0.054 |
+| `com` (3 744) | 0.5897 | 0.5907 | 0.5684 | 0.022 |
+| `full` (7 598) | 0.5648 | 0.5834 | 0.5930 | 0.028 |
+
+Baseline trên **đích** (python, không Pha 1): **0.7985 / 0.8073 / 0.8140**.
+
+> Ta đang tiền-huấn-luyện trên một tác vụ **0.57** để giúp một tác vụ **0.80**. Đây không phải
+> "pretrain mạnh → finetune yếu" mà là chiều ngược lại. Chưa mục nào của dự án nêu thẳng điều này.
+
+### Thứ tự chuyển giao ĐI ĐÚNG theo độ sạch của nhãn nguồn
+
+Từ §40.5, n=15 mỗi ô, RecAdam λ=0.05, ρ=0:
+
+| nguồn | val Pha 1 | Δ macro-F1 vs baseline | Δ ROC-AUC |
+|---|---|---|---|
+| `4cwe` | **0.70** | +0.0133 (11/15) | +0.0030 (8/15) |
+| `com` | 0.59 | +0.0092 (10/15) | +0.0056 (9/15) |
+| `full` | 0.57 | +0.0021 (8/15) | **−0.0094 (4/15)** |
+
+**Nhiều dữ liệu nguồn hơn ⇒ chuyển giao KÉM hơn.** Đó là chữ ký của nhiễu nhãn, không phải của
+thiếu dữ liệu. `full` gấp đôi `com` và âm trên ROC-AUC.
+
+> **Nhiễu loạn phải nêu:** ba nguồn khác nhau không chỉ ở độ sạch mà còn ở **cỡ** (930/3744/7598),
+> **tỉ lệ ngôn ngữ** (87% js / 63% ccpp / 80% ccpp) và **độ trùng CWE với đích** (`4cwe` đúng bằng
+> bốn CWE của đích). Thứ tự này **nhất quán** với giả thuyết nhiễu nhưng **chưa tách** khỏi ba
+> biến kia. Phép tách nằm ở đối chứng "xáo nhãn nhị phân nguồn" — **chưa chạy**.
+
+### Tài liệu khớp
+
+- **CleanVul** (arXiv:2411.17274) tự đo: bộ dữ liệu lỗ hổng mang **40–75% nhiễu nhãn**, vì mọi
+  thay đổi trong một commit vá đều bị dán nhãn "liên quan lỗ hổng".
+- **arXiv:2309.17002** (ICLR'24): nhiễu nhãn lúc tiền-huấn-luyện **có thể có lợi in-domain**
+  nhưng **luôn làm hại out-of-domain**. Chuyển giao **xuyên ngôn ngữ chính là out-of-domain**.
+
+### Cấu trúc CẶP là có thật — đã kiểm
+
+`com`: **1755 cặp 2-phần tử hoàn chỉnh** / 1797 `pair_id` (93,8% số dòng).
+
+| phép đo (mẫu 300 cặp) | giá trị |
+|---|---|
+| Jaccard 5-gram **trong cặp** | trung vị **0.802** (92/300 ≥ 0.9; 54/300 < 0.3) |
+| Jaccard cặp **ngẫu nhiên** | trung vị **0.000** |
+| chênh độ dài tương đối trong cặp | trung vị 0.086 |
+| cùng `cwe_id` ở cả hai nửa | **1755/1755** |
+
+Tập **đích cũng là dữ liệu cặp**: 380 vul / 380 fixed, **301/380** tìm lại được bạn đối nghịch
+1-1 ở Jaccard ≥ 0.5 (trung vị 0.68). Tức "hàng gần trùng nhưng ngược nhãn" mà reviewer cố ý đưa
+vào split ngẫu nhiên **chính là nửa còn lại của cặp**.
+
+### Bẫy dữ liệu đi kèm
+
+Trường `cwe` của **nguồn** là `CWE-89`, của **đích** là `CWE-089`; `cwe_class` của nguồn là
+**pillar CWE-1000 (10 lớp)** còn của đích là **0–3 cho đúng 4 CWE**. Ghép hai bên **phải** chuẩn
+hoá qua `cwe_id` dạng số. Sau khi chuẩn hoá, cả bốn CWE của đích đều có trong `com` ở **cả hai
+ngôn ngữ**: CWE-89 46 dòng (6 ccpp/40 js), CWE-78 100 (36/64), CWE-22 92 (54/38), CWE-79 692 (22/670).

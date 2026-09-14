@@ -1801,6 +1801,9 @@ def parse_args():
                                "pr_auc is threshold-free and catches a model that only wins "
                                "at 0.5")
     training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
+    training.add_argument("--save_last_epoch", action="store_true",
+                          help="ghi checkpoint epoch CUOI va tat dung som; de khop so buoc "
+                               "gradient giua nhanh nhan that va nhanh nhan xao")
     training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
 
     recadam = parser.add_argument_group("RecAdam phase 2")

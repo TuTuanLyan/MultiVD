@@ -511,7 +511,18 @@ def train_loop(
             score = val["macro_f1"]
         new_best = False
         tied_best = False
-        if score > best_score:
+        # `--save_last_epoch`: LUON ghi checkpoint cua epoch vua xong va KHONG dung som.
+        #
+        # Vi sao can: doi chung "xao nhan" lam tac vu khong hoc duoc, nen chon-theo-val
+        # se chot o mot epoch ngau nhien rat som, trong khi nhanh nhan THAT chot o epoch
+        # 11-12. Khi do hai nhanh khac nhau CA nhan LAN so buoc gradient, va neu nhanh
+        # xao chuyen giao kem thi khong biet tai cai nao. Co nay ep ca hai nhanh chay
+        # dung cung so epoch va lay checkpoint CUOI.
+        # Duong mac dinh (co tat) khong doi mot byte.
+        if getattr(args, "save_last_epoch", False):
+            best_score, best_epoch, patience_counter = score, epoch, 0
+            save_checkpoint(args.checkpoint_path, model, epoch, score, args)
+        elif score > best_score:
             best_score, best_epoch, patience_counter = score, epoch, 0
             save_checkpoint(args.checkpoint_path, model, epoch, score, args)
             new_best = True
@@ -562,7 +573,8 @@ def train_loop(
                 best_score,
                 epoch,
             )
-        if epoch >= args.min_epochs and patience_counter >= args.patience:
+        if (not getattr(args, "save_last_epoch", False)
+                and epoch >= args.min_epochs and patience_counter >= args.patience):
             logger.info("Early stopping | Epoch: %d | Best epoch: %d", epoch, best_epoch)
             break
     logger.info(
