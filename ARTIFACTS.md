@@ -10,6 +10,24 @@ hoặc vào <https://claude.ai/code/artifacts>.
 
 ## Đang dùng
 
+### 🧪 Sổ bằng chứng Fusion — 14/09/2026
+
+<https://claude.ai/code/artifact/ef620133-d3a7-43de-8d07-4f78f04e4199>
+
+Toàn bộ thiết lập và kết quả của **nhánh git `fusion`** (12–14/09), 131 ô + 6 Phase-1,
+bốn vast 5060 Ti + một A4000, ≈ $1,1. Mở đầu bằng **bảng trạng thái từng phát biểu**:
+bốn cái **đứng vững** (chốt khái quát hoá thật trên 73% hàng sạch +0.0459 14/15 p=0.001;
+nhãn nguồn mang tri thức; nhãn sai gây hại chủ động; Pha 1 tạo ra trục lỗ hổng chứ backbone
+gốc không có), ba cái **đã rút lại** (AdapterFusion hơn chốt — 5/5 fold rồi biến mất khi đổi
+card; căn hướng-vá theo CWE; head phụ là đòn bẩy độ chính xác), hai cái **không kết luận**.
+
+Mỗi khối có hộp thiết lập chi tiết và bảng đủ **bốn chỉ số kèm đếm dấu**. Có thanh đo biên độ
+so với **hai sàn nhiễu** (0.010 cùng loại GPU, 0.028 giữa các loại) — nhìn là thấy vì sao
+`fusft − chốt` không sống sót.
+
+Cập nhật trang này: xuất bản lại **cùng đường dẫn file** `fusion_ledger.html` để giữ URL.
+
+
 ### 📉 Trục ρ và chọn nguồn — đêm 08→09/09/2026
 
 <https://claude.ai/code/artifact/b6ba617d-eef2-4bee-ad8b-e8db92f7eadf>
