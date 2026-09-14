@@ -1,8 +1,64 @@
-# CURRENT_RUN — ĐÃ XONG HẾT 13/09/2026, cả hai vast ĐÃ HUỶ. Nhánh git `fusion`
+# CURRENT_RUN — ĐANG CHẠY: khối `fus5060` trên vast `ntat` (RTX 5060 Ti). Nhánh git `fusion`
 
-> **Không còn gì đang chạy.** `ntat` 50857599 huỷ ~10:55 UTC, `ntat` 50882617 huỷ ~15:15 UTC.
-> Dữ liệu đối chiếu **từng byte, cả hai chiều** trước khi huỷ; lần thứ hai kéo **cả checkpoint
-> Pha 1** về (bài học từ lần đầu). Hai máy ~7 giờ tổng ≈ $0,55.
+> **14/09/2026 02:38 UTC — khối `fus5060` phóng trên vast `ntat` id 50965796**, RTX 5060 Ti 16 GB,
+> $0,0818/h, `115.73.216.179:54470`. Driver PID 2739, log `/workspace/MultiVD/log/fusion_5060.log`,
+> lock `/tmp/mvd_fusion_5060.lock`. Monitor nền đang theo (task `bvyj4q254`).
+
+## Khối `fus5060` — baseline vs chốt vs fusft, 15 ô, CÙNG MỘT MÁY
+
+| | |
+|---|---|
+| bậc | **2 — xác nhận** (5 fold, seed 42) |
+| backbone | codebert (`microsoft/codebert-base`, pooling `cls`) |
+| nguồn Pha 1 | `com` (`data/phase1_common.jsonl`), `cwe_vocab=precomputed`, λ=0.05, SAM tắt |
+| đích | `data/sven_python_folds_norm`, python, fold 1–5 |
+| optimizer Pha 2 | **chỉ `adamw`** (fusion từ chối `recadam`/`spd`) |
+| cây kết quả | `results/fus5060_codebert` — **KHÔNG** trùng tên cây local `results/fus3_codebert` |
+
+Ba nhánh, mỗi fold chạy đủ ba rồi mới sang fold sau (mục 1):
+
+1. `baseline` — không Pha 1
+2. `latent_bottleneck` **cấu hình chốt** — Pha 1 + head phụ, KHÔNG adapter, Pha 1 dùng lại
+   `model/n48/phase1/codebert__latent_bottleneck_com_l0p05`
+3. `fusft` — adapter nguồn + adapter đích + fusion, fine-tune cả backbone, Pha 1 dùng lại
+   `model/fus2/phase1/codebert__latent_bottleneck_com_l0p05_ad48`
+
+**Vì sao chạy lại cả ba.** Hai cây `fus1`/`fus2` cũ nằm trên các máy đã huỷ, và baseline ở máy
+khác **không ghép cặp được** với `fusft` (mục 4; sàn nhiễu giữa loại GPU 0.028 > hiệu ứng 0.0226).
+Đây là con số "fusion so với baseline, đo cùng một máy" còn thiếu — nó **không đổi** kết luận
+§47/§48 đã có, chỉ bịt lỗ hổng đo lường.
+
+**Máy local A4000 vẫn đang chờ** với `run/fusion_base.sh` (PID 3746584, cây `results/fus3_codebert`,
+cổng: VRAM ≥ 11500 MiB ổn định 3 lần liên tiếp VÀ không tiến trình của user khác). Nó đã chờ
+9h43 chưa chạy được ô nào vì `cuongtm` chiếm GPU. Hai cây tên khác nhau nên **không có nguy cơ
+trộn máy**; nếu local chạy được thì đó là một bộ độc lập, cộng thêm chứ không gộp.
+
+### Môi trường trên `ntat` — đã đối chiếu
+
+| | local (vdenv) | ntat (`/venv/main`) |
+|---|---|---|
+| transformers | 4.57.1 | **4.57.1** ✓ (cài theo `requirements-pin.txt`) |
+| torch | 2.9.1+cu128 | 2.11.0+cu128 (lệch sẵn giữa máy, ghi nhận) |
+| sklearn | 1.7.2 | 1.9.1 (chỉ dùng cho metric, không vào đường huấn luyện) |
+| numpy | 2.3.4 | 2.5.3 |
+
+GPU compute capability **(12, 0)** — Blackwell sm_120; torch 2.11+cu128 chạy được, đã thử.
+
+Thử khói **cả hai chiều** trước khi phóng: có cache ⇒ dựng được tokenizer+backbone trên GPU;
+`HF_HOME` rỗng ⇒ **hỏng** đúng như phải thế (cổng offline có tác dụng thật). Rồi chạy một ô
+`fusft` thật rút gọn (32 mẫu train): mã thoát 0, checkpoint có **48 khoá adapter nguồn + 48 khoá
+adapter đích + 60 khoá fusion** — đúng bằng số đo được trên máy vast trước.
+
+Đối chiếu **từng byte** sau khi đẩy: hai checkpoint Pha 1 (498 700 197 và 502 302 277 B),
+`data/phase1_common.jsonl` (8 458 506 B), `run/matrix.sh`, `src/*.py` — khớp tuyệt đối.
+
+---
+
+## Đã xong trước đó — 13/09/2026, cả hai vast ĐÃ HUỶ
+
+> `ntat` 50857599 huỷ ~10:55 UTC, `ntat` 50882617 huỷ ~15:15 UTC. Dữ liệu đối chiếu **từng byte,
+> cả hai chiều** trước khi huỷ; lần thứ hai kéo **cả checkpoint Pha 1** về (bài học từ lần đầu).
+> Hai máy ~7 giờ tổng ≈ $0,55.
 
 ## AdapterFusion (arXiv:2005.00247) — ba khối, kết luận: **KHÔNG đáng đi tiếp**
 
