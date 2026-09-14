@@ -5131,6 +5131,9 @@ là minh hoạ, không phải phép đo. Cần thêm seed để siết.
 là *"chốt + adapter + fusion hơn baseline"*, **không** phải *"fusion hơn chốt"* — phần gia tăng
 so với chốt vẫn là chỗ §48/§50/§52.1 chặn lại.
 
+> **ĐỌC §55.4 TRƯỚC.** Toàn bộ mục này chỉ đúng cho **codebert**. Trên t5p, cả hai nhánh
+> học được **3/3** seed — không có bất ổn nào, nên phát biểu **trượt cổng 2**.
+
 ### §55.3 — SÁU seed trên codebert: có head **6/6**, không head **3/6**; và kết cục có tính **LƯỠNG CỰC** (đêm 14→15/09, 12 Pha 1, 0 ô Pha 2)
 
 §55.1 ước tỉ lệ từ **3 seed** (3/3 vs 1/3) và tôi đã ghi rõ khoảng tin cậy quá rộng. Thêm seed
@@ -5186,3 +5189,30 @@ sập ở `codebert × full`, §46, là **tám** bối cảnh), nhưng con số 
 để phát biểu chắc. **Không được viết vào bài như một kết quả có ý nghĩa.**
 
 Khối `p1seed_t5p` (đang chạy) hỏi cùng câu trên **backbone thứ hai** — cổng 2.
+
+### §55.4 — CỔNG 2 TRƯỢT: bất ổn của Pha 1 là **đặc thù codebert**, t5p không có (đêm 14→15/09, 6 Pha 1, 0 ô Pha 2)
+
+`p1seed_t5p` hỏi **đúng** câu của §55.1/§55.3 trên backbone thứ hai (`codet5p-220m-bimodal`,
+pooling `mean`), cùng ba seed, cùng giao thức.
+
+| seed | **codebert** không head | có head | **t5p** không head | có head |
+|---|---|---|---|---|
+| 42 | **0.4430** ❌ | 0.5758 ✅ | 0.5939 ✅ | 0.6051 ✅ |
+| 7 | 0.5787 ✅ | 0.5932 ✅ | **0.6137** ✅ | 0.6003 ✅ |
+| 1234 | **0.5124** ❌ | 0.5372 ✅ | 0.5915 ✅ | 0.5878 ✅ |
+| **tỉ lệ học được** | **1/3** | **3/3** | **3/3** | **3/3** |
+
+Trên t5p **không có bất ổn nào**: cả hai nhánh học được ở cả ba seed, và nhánh **không head**
+còn nhỉnh hơn (TB **0.5997** so với 0.5977).
+
+> **Phát biểu "head phụ ổn định hoá Pha 1" TRƯỢT CỔNG 2.** Nó là hiện tượng **đặc thù codebert**,
+> không lặp trên backbone thứ hai. Theo luật của `NEXT_CONTRIBUTION.md` §3, nó **không được**
+> phát biểu như một tính chất của phương pháp.
+
+Đây là lần thứ **bảy** trong dự án một cơ chế tách theo backbone — §38.2 đã ghi *"mọi cơ chế đã
+thử đều tách theo backbone"*, và mục này là bằng chứng mới nhất, lần này với một thiết kế
+**lặp theo seed** nên không thể đổ cho một lần rút xui.
+
+**Cái còn lại sau khi trượt cổng 2:** head phụ có thể là **bảo hiểm cho riêng codebert**, nơi
+Pha 1 `none` + adapter hỏng một nửa số lần (§55.3: 3/6). Đó là một lưu ý kỹ thuật đáng ghi cho
+người dùng lại repo này, **không phải** một đóng góp học thuật.
