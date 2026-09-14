@@ -30,6 +30,11 @@ BB_LIST="${BB_LIST:-codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-
 
 exec 4>/tmp/mvd_shuf1.lock || exit 1
 flock -n 4 || { echo "DA CO shuf1 dang chay"; exit 3; }
+# Ghi PID cua CHINH driver nay, mang ten cua chinh no. Dung lai file PID cua khoi khac
+# thi mot PID da chet va mot PID CHUA BAO GIO DUNG cho ra cung mot tin hieu "da xong".
+PIDFILE="${PIDFILE:-/workspace/shuf1.pid}"
+echo "$$" > "$PIDFILE" 2>/dev/null || true
+trap 'rm -f "$PIDFILE"' EXIT
 ts(){ date -u '+%F %T'; }
 
 # Ba nhanh: <ten>|<file du lieu>

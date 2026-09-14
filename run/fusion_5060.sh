@@ -29,6 +29,11 @@ RN="${RUN_NAME:-fus5060}"
 # Mot driver mot lock (memory: one-driver-one-lock-and-count-artifacts).
 exec 4>/tmp/mvd_fusion_5060.lock || exit 1
 flock -n 4 || { echo "DA CO fusion_5060 dang chay"; exit 3; }
+# Ghi PID cua CHINH driver nay, mang ten cua chinh no. Dung lai file PID cua khoi khac
+# thi mot PID da chet va mot PID CHUA BAO GIO DUNG cho ra cung mot tin hieu "da xong".
+PIDFILE="${PIDFILE:-/workspace/fusion_5060.pid}"
+echo "$$" > "$PIDFILE" 2>/dev/null || true
+trap 'rm -f "$PIDFILE"' EXIT
 ts(){ date -u '+%F %T'; }
 
 echo "########## FUSION_5060 bat dau $(ts) | $(hostname) ##########"
