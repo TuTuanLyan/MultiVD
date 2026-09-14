@@ -4650,6 +4650,10 @@ Pha 1 dùng lại (không huấn luyện lại): `n48/...com_l0p05` và `fus2/..
 
 Mạnh hơn ước lượng khác máy trước đây (`fus1`: `fusft`−chốt +0.0259 5/5 F1).
 
+> **ĐÍNH CHÍNH — đọc §52.1 trước khi dùng bảng này.** Cùng ngày, khối `fus3` ở local
+> chạy lại đúng ba nhánh này với **cùng checkpoint Pha 1** trên A4000: `fusft` − chốt
+> tụt từ **+0.0397 5/5** xuống **−0.0005 3/5**. Phát biểu "`fusft` hơn chốt" **đã rút lại**.
+
 > **KHÔNG hồi sinh AdapterFusion.** §48 vẫn đứng — một nửa lợi ích tái tạo được bằng adapter
 > **ngẫu nhiên** (+0.0111 so với +0.0226); §50 vẫn đứng — trên nhóm rò rỉ `train`, adapter **đã
 > học THUA** adapter ngẫu nhiên (−0.0595, 1/5). Phản biện "chỉ là sức chứa" chưa bị bác. Thêm:
@@ -4716,3 +4720,41 @@ AUC phân biệt vul/fixed trên python, dùng hướng lấy **hoàn toàn từ
   AUC 0.5915 — trong khi nó là **408/760 hàng của tập đích**. Đó là lý do con số gộp chỉ 0.6477
   dù CWE-78 và CWE-79 đạt 0.81–0.83.
 - Trừ trung bình không ảnh hưởng AUC (chỉ tịnh tiến điểm), nên không có rò rỉ transductive.
+
+### §52.1 — §52 KHÔNG LẶP LẠI trên card khác. Phép lặp sạch nhất dự án từng có (14/09)
+
+Khối `fus3` ở local (A4000) chạy **đúng ba nhánh, đúng 5 fold, đúng seed 42** của §52, dùng
+**cùng file checkpoint Pha 1** (`model/n48/phase1` và `model/fus2/phase1` — cùng đường dẫn,
+đã đối chiếu từng byte khi đẩy lên vast), cùng mã, cùng dữ liệu. **Chỉ khác GPU.**
+
+| nhánh | RTX 5060 Ti | A4000 | lệch |
+|---|---|---|---|
+| baseline | 0.7738 | 0.7631 | −0.011 |
+| chốt | 0.7978 | **0.8220** | **+0.024** |
+| `fusft` | **0.8375** | 0.8215 | −0.016 |
+
+| phép so | 5060 Ti | A4000 |
+|---|---|---|
+| `fusft` − baseline | +0.0637 5/5 | +0.0584 5/5 |
+| chốt − baseline | +0.0240 4/5 | **+0.0589 5/5** |
+| **`fusft` − chốt, F1@0.5** | **+0.0397 5/5** | **−0.0005 3/5** |
+| `fusft` − chốt, F1@val | +0.0408 5/5 | −0.0001 2/5 |
+| `fusft` − chốt, ROC-AUC | +0.0294 5/5 | +0.0203 4/5 |
+| `fusft` − chốt, PR-AUC | +0.0160 4/5 | **+0.0345 5/5** |
+
+**Ba điều đọc được:**
+
+1. **Phát biểu "`fusft` hơn chốt" của §52 BỊ RÚT LẠI.** Một kết quả 5/5 fold, cùng dấu cả bốn
+   chỉ số, biến mất sạch khi chỉ đổi card. Nguyên nhân nằm gần trọn ở nhánh **chốt** (+0.024
+   giữa hai máy) chứ không ở `fusft` (−0.016).
+2. **Sàn nhiễu 0.028 giữa hai loại GPU được xác nhận lần nữa — và lần này nó nuốt trọn một
+   kết quả 5/5.** Đây là lần đầu dự án có phép lặp với **checkpoint Pha 1 giống hệt**, nên
+   không thể đổ cho dao động Pha 1 (§48.2): toàn bộ chênh lệch sinh ra ở **Pha 2**.
+3. **Ngưỡng sập, thứ hạng giữ.** F1@0.5 và F1@val về 0; ROC-AUC và PR-AUC dương ở **cả hai
+   máy**. Đúng mẫu hình đã lặp năm lần với ASAM (mục 2b): cơ chế cải thiện **xếp hạng**, không
+   cải thiện **quyết định ở ngưỡng 0.5**. In một chỉ số thì cùng bộ dữ liệu này cho ra hoặc
+   "5/5 rất mạnh" hoặc "không có gì", tuỳ chỉ số chọn.
+
+> **Luật rút ra, áp cho mọi khối sau:** n=5 trên **một máy** không đủ để phát biểu, kể cả khi
+> 5/5 fold và cả bốn chỉ số cùng dấu. Phải có **một lần lặp trên phần cứng khác** trước khi
+> viết bất cứ điều gì. Đây là lần thứ **sáu** một mẫu hình sạch ở quy mô nhỏ biến mất khi mở rộng.
