@@ -5070,3 +5070,60 @@ Khi **cả hai** nhánh cùng học được (seed 7), khoảng cách Pha 1 ch�
 **Giới hạn:** 3 seed mỗi nhánh. 3/3 so với 1/3 ở n=3 thì kiểm định Fisher cho p≈0.4 — **gợi ý
 mạnh, chưa phải bằng chứng**. Nhưng cộng với hai lần `none` sập độc lập ở `codebert × full`
 (§46, hai λ khác nhau), mẫu hình này đã xuất hiện ở **bốn bối cảnh độc lập**.
+
+### §55.2 — Chạy lại ở seed 7 (cả hai Pha 1 LÀNH): giá trị của head co xuống **43%** so với §55 (15 ô)
+
+Khối `fusnone7`: **đúng** thí nghiệm của §55 nhưng ở **seed 7**, nơi cả hai Pha 1 đều học được
+(0.5932 và 0.5787, chênh 0.0145). Pha 1 dùng lại từ `p1seed`; cổng kiểm **nội dung** checkpoint
+(`aux_mode` đúng, 48 khoá adapter, val > 0.53) chứ không chỉ kiểm file tồn tại. 15/15 ô, đối chiếu
+byte khớp tuyệt đối.
+
+| | seed 42 — Pha 1 không-head **HỎNG** | seed 7 — cả hai **LÀNH** |
+|---|---|---|
+| `fusft` − baseline, F1@0.5 | **+0.0502 5/5** | **+0.0553 5/5** |
+| `nonefus` − baseline, F1@0.5 | **−0.0033 2/5** | **+0.0371 4/5** |
+| **`fusft` − `nonefus`, F1@0.5** | **+0.0535 5/5** | **+0.0182 3/5** |
+| `fusft` − `nonefus`, F1@val | +0.0456 5/5 | +0.0330 4/5 |
+| `fusft` − `nonefus`, ROC-AUC | +0.0344 4/5 | **+0.0119 2/5** |
+| `fusft` − `nonefus`, PR-AUC | +0.0454 5/5 | +0.0201 4/5 |
+
+Ở seed 7, **cả bốn** chỉ số của `fusft − baseline` đều **5/5**.
+
+### Giá trị THẬT của head phụ, tách làm hai phần
+
+Khi **cả hai** Pha 1 chạy được, head chỉ còn đáng **+0.0182 (3/5)** ở F1 và **+0.0119 (2/5)** ở
+ROC — quanh sàn nhiễu, đếm dấu không nhất quán. Con số **+0.0535 5/5** của §55 phần lớn là do
+nhánh không-head rút phải một Pha 1 hỏng.
+
+Nhưng Pha 1 không-head hỏng **2/3 seed** (§55.1). Phép tính kỳ vọng theo seed — *minh hoạ từ
+3 seed, KHÔNG phải phép đo*:
+
+```
+E[có head]    = +0.0528                                    (3/3 seed chạy được)
+E[không head] = (1/3)(+0.0371) + (2/3)(−0.0033) = +0.0102  (1/3 seed chạy được)
+chênh kỳ vọng = +0.0426
+   trong đó "giỏi hơn khi cả hai chạy được" = +0.0182  (43%)
+            "không hỏng"                     = +0.0244  (57%)
+```
+
+> **Hơn một nửa giá trị của head phụ là BẢO HIỂM, không phải ĐỘ CHÍNH XÁC.** Đây là phát biểu
+> hẹp hơn hẳn "head là đòn bẩy độ chính xác" (đã đóng ở §46) nhưng nó **bảo vệ được** và có cơ
+> chế đo trực tiếp: tỉ lệ Pha 1 học được.
+
+**Giới hạn**: tỉ lệ hỏng ước từ **3 seed**. Khoảng tin cậy của 1/3 với n=3 rất rộng — con số 57%
+là minh hoạ, không phải phép đo. Cần thêm seed để siết.
+
+### Điều chắc nhất của cả nhánh `fusion`
+
+`fusft` − baseline trên codebert, **bốn khối độc lập, ba máy, hai seed, hai bộ checkpoint Pha 1**:
+
+| khối | seed | máy | ΔF1@0.5 |
+|---|---|---|---|
+| `fus5060` | 42 | vast C 5060 Ti | **+0.0637 5/5** |
+| `fus3` | 42 | local A4000 | **+0.0584 5/5** |
+| `fusnone` | 42 | vast ntat 5060 Ti | **+0.0502 5/5** |
+| `fusnone7` | **7** | vast ntat 5060 Ti | **+0.0553 5/5** |
+
+**5/5 fold ở cả bốn khối**, biên độ 0.050–0.064. Đây là con số ổn định nhất dự án có. Nhưng nó
+là *"chốt + adapter + fusion hơn baseline"*, **không** phải *"fusion hơn chốt"* — phần gia tăng
+so với chốt vẫn là chỗ §48/§50/§52.1 chặn lại.
