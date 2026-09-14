@@ -1,11 +1,32 @@
-# CURRENT_RUN — ĐANG CHẠY: khối `shuf1` (xáo nhãn) trên vast `ntat`. Nhánh git `fusion`
+# CURRENT_RUN — ĐÊM 14→15/09: vast `ntat` chạy hai khối Pha 1, KHÔNG tốn ô Pha 2
 
-> **14/09/2026 03:56 UTC — `shuf1` phóng**, vast `ntat` id 50965796 (RTX 5060 Ti, $0,0818/h).
-> Driver PID 10443, log `/workspace/MultiVD/log/shuf1.log`, lock `/tmp/mvd_shuf1.lock`.
-> Monitor `b5eua1lr8`. **24 ô, bậc 1 (n=3 fold)**, ước 4–5 giờ.
->
-> Dự đoán đã ghi TRƯỚC khi đo:
-> `records/prediction_2026-09-14_xao_nhan_phoi_nhiem_hay_tri_thuc.md`
+> **Người dùng nghỉ đêm 14/09, dặn "chú ý vast".** Máy `ntat` id **50965796** (RTX 5060 Ti,
+> **$0,0818/h**, đã chạy 15,1 h ≈ **$1,24**). Hai khối nối chuỗi, tổng ~6,5 giờ — lấp gần kín đêm.
+
+| | |
+|---|---|
+| đang chạy | `p1seed` đợt 2 — codebert, seed **1 / 2026 / 999**, 6 lần Pha 1, PID 50094 |
+| nối tiếp | `p1seed_t5p` — **backbone thứ hai**, seed 42 / 7 / 1234, 6 lần Pha 1 |
+| nối bằng | `scripts/chain_after_pid.sh` (PID 50094), cổng **hai lớp**: argv khớp chính xác **và** lock đang bị giữ |
+| monitor | `b86kc1i3z` — báo khi có lỗi, khi **>1 job một GPU**, khi **GPU nằm không ≥10 phút**, và khi xong |
+
+**Vì sao hai khối này.** Phát biểu đang nổi lên là *"head phụ ổn định hoá Pha 1"* (FACTS §55.1:
+codebert **3/3** seed học được khi có head, **1/3** khi không). Chỗ yếu nhất của nó là **tỉ lệ
+hỏng ước từ 3 seed** — khoảng tin cậy quá rộng. Đợt 2 đưa codebert lên **6 seed**; khối t5p trả
+lời *"tính không ổn định này có đặc thù backbone không"*, tức **cổng 2** của
+`NEXT_CONTRIBUTION.md`. Cả hai **chỉ chạy Pha 1**, không sinh ô nào nên không thể tạo ra một
+con số gây hiểu nhầm.
+
+Đã thử khói t5p+adapter trên CPU trước khi nối: adapter BẬT, 894 528 tham số, 48 khoá trong
+checkpoint, mã thoát 0.
+
+### Nếu có sự cố trong đêm
+
+- Driver chết giữa chừng ⇒ **phóng lại**, không huỷ máy (mục 8).
+- `>1` job trên một GPU ⇒ giết cái phóng sau theo PID chính xác, giữ cái đang chạy.
+- Hết việc mà chưa sáng ⇒ monitor báo; máy nằm không tốn $0,08/h, không có gì gấp.
+
+---
 
 ## Khối `shuf1` — lợi ích Pha 1 là TRI THỨC hay PHƠI NHIỄM?
 
