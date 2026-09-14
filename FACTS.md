@@ -4990,6 +4990,10 @@ trong khi `ln(2) = 0.6931` là mức đoán bừa. Val đi 0.3333 (đoán một 
 
 `nonefus` rơi **đúng** về baseline: cả bốn chỉ số trong khoảng ±0.005, không chỉ số nào quá 3/5 fold.
 
+> **ĐỌC §55.1 TRƯỚC KHI DÙNG MỤC NÀY.** Pha 1 nhánh không-head **không phải luôn sập**:
+> ở seed 7 nó đạt 0.5787 bình thường. Con số `fusft − nonefus = +0.0535` dưới đây so với
+> **một lần rút hỏng**, nên **không đo** giá trị của head phụ.
+
 ### Đọc cho đúng — đây KHÔNG phải "head đáng +0.053"
 
 Phát biểu đúng là: *trong lần chạy này, bỏ head làm **Pha 1 sập**, và một Pha 1 đã sập thì không
@@ -5025,3 +5029,44 @@ Pha 2 nào**.
   **cứu head phụ ở đúng một vai trò cụ thể: ổn định, không phải độ chính xác.**
 - Không sập ⇒ lần trước chỉ là xui, và câu hỏi gốc *"fusion có cần head không"* **vẫn chưa được
   trả lời** — phải chạy lại khối `fusnone` với Pha 1 không sập.
+
+### §55.1 — Khối `p1seed`: head phụ **ổn định hoá** Pha 1 (3/3 vs 1/3), và §55 phải đọc lại (14/09, 4 Pha 1, **0 ô Pha 2**)
+
+§55 kết luận từ **một** lần rút rằng bỏ head làm Pha 1 sập. §48.2 đã cảnh báo một lần rút không
+đủ. Khối này chạy lại **đúng Pha 1 đó** ở seed 7 và 1234, kèm đối chứng nhánh có head ở cùng seed.
+
+Tiêu chí "có học không" là **train loss có rời khỏi `ln(2)=0.6931` không**, không phải val —
+vì seed 1234 có val 0.5124 (trên mức ngẫu nhiên) nhưng train loss đứng im, tức cùng một kiểu hỏng.
+
+| nhánh | seed | val | epoch chốt | train loss đầu → cuối | có học |
+|---|---|---|---|---|---|
+| **có head** | 7 | 0.5932 | 15 | 0.8137 → **0.4140** | ✅ |
+| **có head** | 42 | 0.5758 | 12 | — | ✅ |
+| **có head** | 1234 | 0.5372 | 14 | 0.8058 → **0.5683** | ✅ |
+| **không head** | 7 | **0.5787** | 12 | 0.7080 → **0.4682** | ✅ |
+| **không head** | 42 | 0.4430 | 3 | 0.7081 → **0.6963** | ❌ |
+| **không head** | 1234 | 0.5124 | 2 | 0.7032 → **0.6963** | ❌ |
+
+> **Có head 3/3 · không head 1/3.** Giá trị của head phụ là **ĐỘ ỔN ĐỊNH**, không phải **độ
+> chính xác** — đúng điều §46 đã nêu là tính chất duy nhất còn sống sót, nay lần đầu được đo
+> bằng thiết kế **lặp theo seed** thay vì giai thoại.
+
+### §55 PHẢI ĐỌC LẠI — hai chỗ
+
+**1. Suy đoán "adapter không có head thì Pha 1 LUÔN không ổn định" — RÚT.** Ở seed 7 nó học
+bình thường và đạt **0.5787**, còn **cao hơn** nhánh có head ở seed 42 (0.5758). Không phải
+"luôn", mà là **2 trên 3 lần**.
+
+**2. Con số `fusft − nonefus = +0.0535 5/5` của §55 BỊ NHIỄU LOẠN.** Nó so nhánh có head với
+**một lần rút hỏng**, không phải với "không có head". Nó **không đo** cái nó định đo, và
+**không được** trích dẫn như giá trị của head phụ.
+
+### Điều này đổi gì cho hướng đi
+
+Khi **cả hai** nhánh cùng học được (seed 7), khoảng cách Pha 1 chỉ **0.0145** (0.5932 vs 0.5787)
+— nằm trong dải dao động giữa các lần rút. Nên giả thuyết *"fusion cần head phụ để có lợi ích"*
+**chưa có bằng chứng**; phải chạy lại khối `fusnone` ở **seed 7**, nơi cả hai Pha 1 đều lành.
+
+**Giới hạn:** 3 seed mỗi nhánh. 3/3 so với 1/3 ở n=3 thì kiểm định Fisher cho p≈0.4 — **gợi ý
+mạnh, chưa phải bằng chứng**. Nhưng cộng với hai lần `none` sập độc lập ở `codebert × full`
+(§46, hai λ khác nhau), mẫu hình này đã xuất hiện ở **bốn bối cảnh độc lập**.
