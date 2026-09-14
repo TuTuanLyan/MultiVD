@@ -381,6 +381,7 @@ phổ thông dùng chung nhiều dự án thì nằm ở memory, không lặp �
 | **LoRA** (`LoRALinear`, `inject_lora`, `--lora_rank`) | **MÃ CHẾT.** `lora_rank=0` ở toàn bộ **1452** ô có ghi hyperparameters, không script nào truyền cờ đó. Dự án luôn fine-tune cả model |
 | **`SKIP_BASELINE=1`** | Hoãn baseline, chạy method trước (người dùng 13/09; baseline luôn **trên 0.74** nên method thấp hơn là thua rồi). Mặc định `0`. Chạy bù sau với `SKIP_BASELINE=0` — ô đã có tự bị bỏ qua |
 | **SSH vào vast** | Endpoint là `public_ipaddr` + HostPort của `22/tcp`; `ssh_host:ssh_port` cho **connection refused**. Gắn khoá từng instance: `vastai attach ssh <id> "$(cat ~/.ssh/id_ed25519.pub)"` |
+| **`tools/report2.py` + `baseline`** | Trước 14/09 nó **chỉ** glob `transfer_*` nên `--b baseline` im lặng trả *"không ghép được cặp nào"* — nhìn y hệt "chưa có dữ liệu". Đã sửa: nhánh `baseline` được nạp và đăng ký dưới **mọi** `src` của cùng cây, vì nó không có Pha 1 nên là đối chứng **dùng chung**; phép so vẫn ghép cặp theo fold |
 | **`tools/head_vs_none.py`** | Chỉ giữ nhánh **cấu hình gốc** (tên đúng bằng `transfer_<mode>_<tag>[_<opt>]`): các khối quét (`bridge3`, `opt1`) chạy hàng chục biến thể Pha 2 trên **cùng** tag Pha 1 nên khoá ghép cặp không phân biệt tên nhánh sẽ **đè nhau im lặng**. Số va chạm khoá in ra **phải bằng 0** |
 
 **Lấy PID phải khớp argv CHÍNH XÁC.** `bash -c "… setsid nohup bash run/X.sh …"` chứa nguyên

@@ -53,6 +53,21 @@ def load(roots):
             for suf in ("_adamw", "_spd"):
                 if tag.endswith(suf): tag = tag[:-len(suf)]; break
             cells[(root, src, tag, d.get("seed"), d.get("fold"))] = d
+
+        # Nhanh `baseline` nam ngoai `transfer_*` nen vong glob tren KHONG BAO GIO thay no,
+        # va `--b baseline` im lang tra ve "khong ghep duoc cap nao" — nhin y het "chua co
+        # du lieu". Bat duoc 14/09 nho chay thu cong cu tu O DAU TIEN cua khoi fus5060.
+        #
+        # baseline khong co Pha 1 nen no khong co `nguon`: no la DOI CHUNG DUNG CHUNG cho
+        # moi nguon trong cung mot cay. Nen dang ky no duoi TUNG `src` da thay o cay do,
+        # de khoa ghep cap trung. Viec mot o baseline duoc ghep voi nhieu nhanh la dung —
+        # phep so van la GHEP CAP THEO FOLD (muc 2), khong phai hieu hai trung binh.
+        srcs = {k[1] for k in cells if k[0] == root} or {"-"}
+        for p in glob.glob(os.path.join(root, "baseline", "seed_*", "fold*.json")):
+            try: d = json.load(open(p))
+            except Exception: continue
+            for src in srcs:
+                cells[(root, src, "baseline", d.get("seed"), d.get("fold"))] = d
     return cells
 
 def main():
