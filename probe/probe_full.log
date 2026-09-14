@@ -1,0 +1,104 @@
+########## phase1 ##########
+== nap mo hinh | microsoft/codebert-base | pooling=cls | device=cpu
+  nap model/n48/phase1/codebert__latent_bottleneck_com_l0p05/seed_42/best.pt: thieu=0 thua=0 | vd thieu=[] thua=[]
+== cap day du trong nguon: 1755 / 1797 pair_id
+== nhung 3510 dong nguon
+    ...16/3510
+    ...336/3510
+    ...656/3510
+    ...976/3510
+    ...1296/3510
+    ...1616/3510
+    ...1936/3510
+    ...2256/3510
+    ...2576/3510
+    ...2896/3510
+    ...3216/3510
+== 1755 vector huong-va | ngon ngu Counter({'ccpp': 1063, 'js': 692})
+   CWE hay gap: [('CWE-79', 346), ('CWE-20', 209), ('CWE-200', 154), ('CWE-190', 117), ('CWE-703', 117), ('CWE-352', 80)]
+
+--- THO (chua tru trung binh toan cuc) ---
+   cung_cwe_khac_ngonngu    cos = +0.2850   (n cap = 8057)
+   cung_cwe_cung_ngonngu    cos = +0.3545   (n cap = 110374)
+   khac_cwe_khac_ngonngu    cos = +0.2468   (n cap = 727539)
+   khac_cwe_cung_ngonngu    cos = +0.2479   (n cap = 693165)
+   tat_ca                   cos = +0.2552   (n cap = 1539135)
+   HIEU (cung-khac, deu khac ngon ngu) = +0.0383 | null +0.0001±0.0090 | z = +4.24 | p_hoanvi = 0.000
+
+--- DA TRU trung binh toan cuc (phan RIENG cua CWE) ---
+   cung_cwe_khac_ngonngu    cos = -0.1653   (n cap = 8057)
+   cung_cwe_cung_ngonngu    cos = +0.3252   (n cap = 110374)
+   khac_cwe_khac_ngonngu    cos = -0.2538   (n cap = 727539)
+   khac_cwe_cung_ngonngu    cos = +0.4396   (n cap = 693165)
+   tat_ca                   cos = +0.1005   (n cap = 1539135)
+   HIEU (cung-khac, deu khac ngon ngu) = +0.0885 | null -0.0004±0.0191 | z = +4.65 | p_hoanvi = 0.000
+
+   |trung binh toan cuc| / |d| trung binh = 0.779   (cao => moi cap dich cung mot huong, phan rieng CWE it)
+
+== nhung 760 dong dich (python)
+    ...16/760
+    ...336/760
+    ...656/760
+
+--- mu_c uoc tu `com` (ccpp+js), cham voi dac trung PYTHON ---
+    diem = <h - h_tb, mu_c>; AUC > 0.5 = huong-va tu ngon ngu KHAC phan loai duoc
+   CWE-22   n=  66 | AUC(mu dung CWE) = 0.6474 | AUC(mu CWE khac) tb = 0.6314 | AUC(huong ngau nhien) tb = 0.4891 ± 0.0855
+   CWE-78   n= 204 | AUC(mu dung CWE) = 0.8271 | AUC(mu CWE khac) tb = 0.7941 | AUC(huong ngau nhien) tb = 0.5577 ± 0.2443
+   CWE-79   n=  82 | AUC(mu dung CWE) = 0.8132 | AUC(mu CWE khac) tb = 0.7793 | AUC(huong ngau nhien) tb = 0.4677 ± 0.1958
+   CWE-89   n= 408 | AUC(mu dung CWE) = 0.5915 | AUC(mu CWE khac) tb = 0.5620 | AUC(huong ngau nhien) tb = 0.5114 ± 0.0725
+
+   MOT huong duy nhat (trung binh moi CWE), toan bo python: AUC = 0.6477
+
+da ghi probe/dir_phase1.json
+########## pretrained ##########
+== nap mo hinh | microsoft/codebert-base | pooling=cls | device=cpu
+== cap day du trong nguon: 1755 / 1797 pair_id
+== nhung 3510 dong nguon
+    ...16/3510
+    ...336/3510
+    ...656/3510
+    ...976/3510
+    ...1296/3510
+    ...1616/3510
+    ...1936/3510
+    ...2256/3510
+    ...2576/3510
+    ...2896/3510
+    ...3216/3510
+== 1755 vector huong-va | ngon ngu Counter({'ccpp': 1063, 'js': 692})
+   CWE hay gap: [('CWE-79', 346), ('CWE-20', 209), ('CWE-200', 154), ('CWE-190', 117), ('CWE-703', 117), ('CWE-352', 80)]
+
+--- THO (chua tru trung binh toan cuc) ---
+   cung_cwe_khac_ngonngu    cos = +0.0081   (n cap = 8057)
+   cung_cwe_cung_ngonngu    cos = +0.0159   (n cap = 110374)
+   khac_cwe_khac_ngonngu    cos = +0.0130   (n cap = 727539)
+   khac_cwe_cung_ngonngu    cos = +0.0116   (n cap = 693165)
+   tat_ca                   cos = +0.0126   (n cap = 1539135)
+   HIEU (cung-khac, deu khac ngon ngu) = -0.0049 | null -0.0001±0.0027 | z = -1.76 | p_hoanvi = 0.065
+
+--- DA TRU trung binh toan cuc (phan RIENG cua CWE) ---
+   cung_cwe_khac_ngonngu    cos = -0.0008   (n cap = 8057)
+   cung_cwe_cung_ngonngu    cos = +0.0237   (n cap = 110374)
+   khac_cwe_khac_ngonngu    cos = +0.0129   (n cap = 727539)
+   khac_cwe_cung_ngonngu    cos = +0.0333   (n cap = 693165)
+   tat_ca                   cos = +0.0228   (n cap = 1539135)
+   HIEU (cung-khac, deu khac ngon ngu) = -0.0137 | null +0.0002±0.0043 | z = -3.24 | p_hoanvi = 0.000
+
+   |trung binh toan cuc| / |d| trung binh = 0.152   (cao => moi cap dich cung mot huong, phan rieng CWE it)
+
+== nhung 760 dong dich (python)
+    ...16/760
+    ...336/760
+    ...656/760
+
+--- mu_c uoc tu `com` (ccpp+js), cham voi dac trung PYTHON ---
+    diem = <h - h_tb, mu_c>; AUC > 0.5 = huong-va tu ngon ngu KHAC phan loai duoc
+   CWE-22   n=  66 | AUC(mu dung CWE) = 0.5280 | AUC(mu CWE khac) tb = 0.5138 | AUC(huong ngau nhien) tb = 0.4987 ± 0.0355
+   CWE-78   n= 204 | AUC(mu dung CWE) = 0.5013 | AUC(mu CWE khac) tb = 0.4979 | AUC(huong ngau nhien) tb = 0.5032 ± 0.0257
+   CWE-79   n=  82 | AUC(mu dung CWE) = 0.5259 | AUC(mu CWE khac) tb = 0.5113 | AUC(huong ngau nhien) tb = 0.4988 ± 0.0210
+   CWE-89   n= 408 | AUC(mu dung CWE) = 0.5296 | AUC(mu CWE khac) tb = 0.5154 | AUC(huong ngau nhien) tb = 0.5018 ± 0.0475
+
+   MOT huong duy nhat (trung binh moi CWE), toan bo python: AUC = 0.5242
+
+da ghi probe/dir_pretrained.json
+PROBE_DONE

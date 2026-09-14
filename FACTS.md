@@ -4657,3 +4657,62 @@ Mạnh hơn ước lượng khác máy trước đây (`fus1`: `fusft`−chốt 
 > Đây là một lỗ hổng đo lường được bịt, không phải một kết luận mới.
 
 Kéo về `results_fus5060_ntat/`, đối chiếu 15/15 file **khớp tuyệt đối cả tên lẫn byte**.
+
+---
+
+## §53 — Pha 1 TẠO RA trục lỗ hổng; biểu diễn code gốc KHÔNG có (14/09/2026)
+
+`tools/patch_direction_probe.py`, chạy trên CPU, **không tốn một giây GPU huấn luyện**.
+1755 cặp `com` (1063 ccpp / 692 js), `d = h(vul) − h(fixed)`, pooling `cls`.
+Hai mô hình, cùng một phép đo: **CodeBERT gốc** và **checkpoint Pha 1** (`com`, λ=0.05).
+
+### Cấu trúc hướng-vá
+
+| | CodeBERT **gốc** | sau **Pha 1** |
+|---|---|---|
+| cos, cùng CWE **khác** ngôn ngữ | +0.0081 | **+0.2850** |
+| cos, khác CWE khác ngôn ngữ | +0.0130 | +0.2468 |
+| hiệu (cùng − khác) | **−0.0049**, z = −1.76, p=0.065 | **+0.0383**, z = **+4.24**, p=0.000 |
+| hiệu sau khi trừ trung bình toàn cục | −0.0137, z = −3.24 | +0.0885, z = +4.65 |
+| `\|trung bình toàn cục\| / \|d\|` | **0.152** | **0.779** |
+
+### `μ_c` ước từ `com` (ccpp+js) chấm với đặc trưng PYTHON — 0 bước huấn luyện
+
+AUC phân biệt vul/fixed trên python, dùng hướng lấy **hoàn toàn từ ngôn ngữ khác**:
+
+| CWE | n | gốc | **sau Pha 1** | dùng μ của CWE **khác** (Pha 1) | hướng ngẫu nhiên |
+|---|---|---|---|---|---|
+| CWE-22 | 66 | 0.5280 | 0.6474 | 0.6314 | 0.489 ± 0.086 |
+| CWE-78 | 204 | 0.5013 | **0.8271** | 0.7941 | 0.558 ± 0.244 |
+| CWE-79 | 82 | 0.5259 | **0.8132** | 0.7793 | 0.468 ± 0.196 |
+| CWE-89 | 408 | 0.5296 | 0.5915 | 0.5620 | 0.511 ± 0.073 |
+| **một hướng duy nhất**, cả 760 | | **0.5242** | **0.6477** | | |
+
+### Ba điều đọc được
+
+1. **Biểu diễn code gốc KHÔNG chứa "trục lỗ hổng".** Mọi AUC 0.50–0.53, không phân biệt được
+   với hướng ngẫu nhiên (0.499 ± 0.03), và các hướng-vá gần như **trực giao** (cos ≈ 0.01).
+   **Pha 1 tạo ra toàn bộ hiệu ứng.**
+   > Hệ quả: `d = h(vul) − h(fixed)` sau Pha 1 **chính là trục quyết định của bộ phân loại Pha 1**.
+   > Một loss ép căn hướng-vá chỉ dựng lại tường minh cái huấn luyện nhị phân đã dựng ngầm —
+   > **không phải cơ chế mới**. Đề xuất A của `NEXT_CONTRIBUTION.md` §4 **đóng** tại đây.
+
+2. **Phần "theo CWE" là thật nhưng nhỏ.** z = +4.24 rất chắc, nhưng dùng μ của **sai** CWE chỉ
+   mất ~0.03 AUC. **78%** độ lớn hướng-vá nằm trên **một** trục duy nhất.
+
+3. **Pha 1 NÉN SỤP không gian hướng-vá**: từ trực giao (0.152) thành gần một chiều (0.779).
+   Sau huấn luyện, một bản vá SQL-injection và một bản vá path-traversal trỏ gần cùng hướng.
+   Đây đúng là cơ chế arXiv:2309.17002 nêu là nguyên nhân nhiễu nhãn hại **out-of-domain** —
+   mà chuyển giao xuyên ngôn ngữ chính là out-of-domain. **Giả thuyết mới, ngược với đề xuất
+   ban đầu: vấn đề không phải hướng-vá chưa đủ căn, mà là Pha 1 căn QUÁ TAY.**
+
+### Ràng buộc phải nêu
+
+- So "gốc vs Pha 1" đổi **hai** thứ cùng lúc: hướng μ **và** không gian đặc trưng. Nó đủ để
+  kết luận "Pha 1 tạo ra trục chuyển giao được", **không** đủ để tách phần nào do cái nào.
+  Đã có đối chứng trong không gian Pha 1: hướng **ngẫu nhiên** cho ~0.50, nên trong cùng
+  không gian đó hướng-từ-cặp hơn hẳn ngẫu nhiên.
+- **Nguồn mỏng thì chuyển giao yếu**: CWE-89 chỉ có 46 dòng trong `com` (6 ccpp/40 js) và cho
+  AUC 0.5915 — trong khi nó là **408/760 hàng của tập đích**. Đó là lý do con số gộp chỉ 0.6477
+  dù CWE-78 và CWE-79 đạt 0.81–0.83.
+- Trừ trung bình không ảnh hưởng AUC (chỉ tịnh tiến điểm), nên không có rò rỉ transductive.

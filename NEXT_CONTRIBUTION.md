@@ -68,45 +68,50 @@ Rút từ chính các thất bại trên. Thiết kế thí nghiệm **trước 
 Và: **n=1 không đủ để mô tả một cơ chế** — §48.2 đo được biến thiên **giữa hai lần chạy cùng
 cấu hình** còn lớn hơn hiệu ứng cần đo trên một fold.
 
-## 4. ĐỀ XUẤT đã chuẩn bị — dùng cấu trúc cặp đang bị vứt bỏ
+## 4. ĐỀ XUẤT A đã BỊ BÁC bằng chính số đo — 14/09, FACTS §53
 
-**Phát hiện then chốt (14/09):** dữ liệu Pha 1 có trường `pair_id` — mỗi cặp là **cùng một hàm,
-trước và sau khi vá, ngược nhãn**. Hiện Pha 1 **xáo trộn rồi ném bỏ** thông tin này.
+**Đề xuất A** (căn hướng-vá xuyên ngôn ngữ theo CWE) **đóng**. Lý do, đo bằng
+`tools/patch_direction_probe.py` trên CPU, không tốn giây GPU huấn luyện nào:
 
-| nguồn | cặp đầy đủ | ccpp / js | % dòng nằm trong cặp |
-|---|---|---|---|
-| `com` | **1755** | 1063 / 692 | 93,8% |
-| `full` | 3463 | 2685 / 778 | 91,2% |
-| `4cwe` | 455 | 49 / 406 | 97,8% |
+| | CodeBERT **gốc** | sau **Pha 1** |
+|---|---|---|
+| cos hướng-vá cùng CWE khác ngôn ngữ | +0.0081 | +0.2850 |
+| hiệu (cùng CWE − khác CWE) | −0.0049, z=−1.76 | +0.0383, **z=+4.24** |
+| `\|trung bình toàn cục\|/\|d\|` | 0.152 | **0.779** |
+| AUC trên PYTHON từ μ ước ở ccpp+js | **0.5242** | **0.6477** |
 
-Mỗi cặp là **âm khó nhất có thể** — đúng thứ nhóm `train` ở §50 đo.
+Backbone gốc **không có** trục lỗ hổng — mọi AUC 0.50–0.53, ngang hướng ngẫu nhiên, hướng-vá
+**trực giao**. **Pha 1 tạo ra toàn bộ hiệu ứng.** Nên `d = h(vul) − h(fixed)` chính là trục
+quyết định của bộ phân loại Pha 1, và một loss ép căn nó chỉ **dựng lại tường minh** cái mà
+huấn luyện nhị phân đã dựng ngầm. Không phải cơ chế mới.
 
-### Đề xuất A — căn HƯỚNG-VÁ xuyên ngôn ngữ *(mạnh nhất)*
+Và phần "theo CWE" tuy chắc về thống kê thì **nhỏ**: dùng μ của **sai** CWE chỉ mất ~0.03 AUC.
 
-Với mỗi cặp, `d = h(vul) − h(fixed)` là **vector hướng lỗ hổng**. Giả thuyết: với **cùng một
-CWE**, hướng đó phải **giống nhau giữa các ngôn ngữ**. Ba thành phần loss:
+### Giả thuyết THAY THẾ, rơi ra từ chính số đo — NÉN SỤP CHIỀU
 
-1. **trong cặp** — tách `vul` khỏi chính bản vá của nó
-2. **xuyên ngôn ngữ** — `d` của cặp ccpp cùng hướng với `d` của cặp js **cùng CWE**
-3. **tương phản theo CWE** — và khác hướng với `d` của CWE khác
+Pha 1 kéo không gian hướng-vá từ **trực giao** (0.152) về **gần một chiều** (0.779). Sau huấn
+luyện, bản vá SQL-injection và bản vá path-traversal trỏ gần cùng hướng: thứ phân biệt loại lỗ
+hổng **bị ném đi**. Đó đúng là cơ chế **arXiv:2309.17002** (ICLR'24) nêu là nguyên nhân nhiễu
+nhãn tiền-huấn-luyện **luôn làm hại out-of-domain** — và xuyên ngôn ngữ **là** out-of-domain.
 
-Vì sao đáng: **0 tham số lúc suy luận** ⇒ qua cổng 1 về mặt cấu trúc; **chỉ có nghĩa khi ≥2
-ngôn ngữ** ⇒ là phát biểu cross-language thật, không phải "khởi tạo tốt"; **dùng thông tin đang
-bị vứt**.
+> **Vấn đề không phải hướng-vá chưa đủ căn. Pha 1 căn QUÁ TAY.**
+> Hàm mục tiêu **chống nén sụp** trong không gian hướng-vá sẽ giữ lại phần phân biệt CWE,
+> và phần đó mới là thứ chuyển giao sang một ngôn ngữ có phân bố CWE khác hẳn.
 
-Đối chứng đã thiết kế: (a) **xáo nhãn CWE** khi ghép cặp dương xuyên ngôn ngữ — giữ độ lớn
-loss, phá nội dung; (b) căn **chỉ trong cùng ngôn ngữ** — kiểm phần "xuyên ngôn ngữ" có làm gì
-không.
+Ba điểm khiến nó đáng theo: **rơi ra từ số đo** chứ không từ suy đoán; vẫn là **thay đổi hàm
+mục tiêu, 0 tham số lúc suy luận** ⇒ qua cổng 1 về mặt cấu trúc; và có **đại lượng cơ chế đo
+trực tiếp được** (`|trung bình|/|d|`, hiện 0.779) để kiểm cơ chế hoạt động **tách khỏi** việc
+điểm số có lên hay không — thứ mà mọi hướng đã thất bại trước đây đều thiếu.
 
-> **CHƯA tra tài liệu.** Contrastive/patch-based cho vuln detection thì đã có; *căn hướng-vá
-> giữa các ngôn ngữ theo CWE* thì chưa thấy, nhưng đó là trí nhớ chứ không phải phép tra cứu.
-> **Việc đầu tiên sáng mai: tra tài liệu trước khi viết code.**
+**Chưa được chạy.** Phải đợi `shuf1` trả lời trước: nếu nhãn nguồn không mang tri thức gì thì
+hướng này cũng vô nghĩa.
 
-### Đề xuất B — mất mát BIÊN trong cặp *(rẻ, bậc thang dưới của A)*
+### Đề xuất B vẫn còn — mất mát BIÊN trong cặp
 
-Thay phân loại nhị phân độc lập từng dòng bằng `score(vul) ≥ score(fixed) + m` **trong từng
-cặp**. Cũng **0 tham số**. Nếu riêng nó đã ăn thì phần "xuyên ngôn ngữ" của A mới là thứ phải
-chứng minh thêm.
+`score(vul) ≥ score(fixed) + m` trong từng cặp, thay phân loại nhị phân độc lập từng dòng.
+**0 tham số.** Lập luận chống nhiễu (§51): nhãn *tuyệt đối* sai 40–75%, nhưng quan hệ *tương
+đối* "bản này trước bản vá" **đúng theo cấu tạo**; một cặp mà commit không liên quan bảo mật
+chỉ cho gradient **yếu** thay vì gradient **sai**. Chưa bị bác, chưa được chạy.
 
 ## 5. Hạ tầng đã sẵn
 
@@ -120,9 +125,11 @@ chứng minh thêm.
 | `data/*.jsonl` có `pair_id` | cấu trúc cặp cho đề xuất A/B |
 | Pha 1 đã có ở local | `model/n48/phase1/` (không adapter), `model/fus2/phase1/` (có adapter) |
 
-## 6. Đang chạy / đang chờ
+## 6. Đang chạy / đang chờ — cập nhật 14/09 04:10 UTC
 
-- **local `fus3`**, 15 ô (5 baseline + 5 chốt + 5 `fusft`, codebert, n=5), `run/fusion_base.sh`.
-  Đang **chờ GPU rảnh** — cổng đòi VRAM ≥ 11,5 GB ổn định 3 lần liên tiếp và không có job
-  python của người khác. Cho con số "fusion vs baseline" đo **cùng máy** — hiện chưa có.
-- **vast**: không còn instance nào. Chỉ thuê khi thật sự cần gấp.
+- **`shuf1` trên vast `ntat`** (5060 Ti), 24 ô, bậc 1. Đối chứng **xáo nhãn nguồn**: lợi ích
+  Pha 1 là **tri thức lỗ hổng** hay chỉ **phơi nhiễm miền**? Dự đoán ghi trước khi đo ở
+  `records/prediction_2026-09-14_xao_nhan_phoi_nhiem_hay_tri_thuc.md`. **Câu trả lời của nó
+  quyết định mọi hướng phía sau có đáng làm không.**
+- **`fus3` local** (A4000), 15 ô — bản độc lập của `fus5060`, cây tên khác nên không gộp.
+- **ĐÃ XONG**: `fus5060` 15/15 ô (**FACTS §52**), probe hướng-vá (**FACTS §53**).
