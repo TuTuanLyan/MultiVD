@@ -4884,3 +4884,69 @@ Mỗi khối n=5, codebert, nguồn `com`, `adamw`, seed 42, **đối chứng c�
 `fus2dbg_codebert`, `fus2w_codebert`). Glob `*codebert*/*/seed_*/fold*.json` gộp cả ba và cho
 `fus2` = +0.0298 5/5 thay vì +0.0226 4/5 — đúng loại **va chạm khoá** mục 13 CLAUDE.md cảnh báo.
 Phải trỏ **đường dẫn cây tường minh**, không dùng glob lỏng.
+
+### §54.1 — LEO LÊN n=5 + nhánh `realbest`: Pha 1 **CÓ** giá trị, nhưng chỉ ở NGƯỠNG (14/09, 50 ô)
+
+Khối `shuf2` thêm 26 ô: fold 4–5 cho ba nhánh cũ (Pha 1 **dùng lại nguyên vẹn**), cộng nhánh
+`realbest` — Pha 1 y hệt nhánh `real` nhưng **chọn-theo-val + dừng sớm bình thường** (15 epoch,
+patience mặc định) thay vì ép 12 epoch lấy checkpoint cuối. Cây `shuf1` giờ **50/50 ô**,
+n=5 × 2 backbone. Đối chiếu từng byte: khớp tuyệt đối.
+
+### Điểm tuyệt đối (TB 5 fold)
+
+| nhánh | codebert F1@0.5 | ROC | PR | t5p F1@0.5 | ROC | PR |
+|---|---|---|---|---|---|---|
+| **`realbest`** | **0.7777** | 0.8563 | 0.8536 | **0.8314** | **0.9159** | **0.9213** |
+| `real` (ép 12 ep) | 0.7660 | 0.8482 | 0.8539 | 0.8043 | 0.9053 | 0.9094 |
+| baseline | 0.7598 | **0.8710** | **0.8766** | 0.8013 | 0.8939 | 0.9022 |
+| `shufpair` | 0.6884 | 0.7841 | 0.7830 | 0.7812 | 0.8684 | 0.8666 |
+| `shufall` | 0.6797 | 0.7749 | 0.7747 | 0.7541 | 0.8270 | 0.8148 |
+
+### Δ ghép cặp theo `(backbone, fold)` — **10 điểm**, sàn kiểm định dấu p=0.002
+
+| | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| **`realbest` − baseline** | **+0.0240 8/10 p=0.109** | **+0.0293 9/10 p=0.021** | +0.0037 5/10 | −0.0020 5/10 |
+| `real` − baseline | +0.0046 5/10 | +0.0057 6/10 | −0.0057 6/10 | −0.0077 5/10 |
+| **`real` − `shufall`** | **+0.0682 9/10 p=0.021** | **+0.0746 10/10 p=0.002** | **+0.0758 9/10 p=0.021** | **+0.0869 9/10 p=0.021** |
+| `real` − `shufpair` | +0.0503 7/10 | +0.0432 8/10 | **+0.0505 9/10 p=0.021** | +0.0568 8/10 |
+| `shufpair` − `shufall` | +0.0179 7/10 | +0.0314 7/10 | +0.0253 8/10 | +0.0301 8/10 |
+| **`shufall` − baseline** | −0.0636 2/10 | **−0.0688 0/10 p=0.002** | **−0.0814 0/10 p=0.002** | **−0.0946 0/10 p=0.002** |
+| `shufpair` − baseline | −0.0457 2/10 | −0.0375 2/10 | −0.0562 2/10 | −0.0646 1/10 p=0.021 |
+
+### §54 ĐÃ SAI ở một điểm, sửa tại đây
+
+§54 viết *"Pha 1 với nhãn thật KHÔNG mang lại gì"* dựa trên `real − baseline = +0.0018`. Sai —
+đó là hậu quả của **chính quy tắc ép 12 epoch** mà tôi đặt ra để khớp số bước gradient. Với cách
+chọn checkpoint **đã công bố**, con số là **+0.0240 (8/10)** trên F1@0.5 và **+0.0293 (9/10,
+p=0.021)** trên F1@ngưỡng-val. Trên sàn nhiễu 0.010 gấp 2–3 lần, và **dương ở cả hai backbone**.
+
+> **Nhưng chỉ ở NGƯỠNG.** Trên thứ hạng, gộp lại là ~0 (+0.0037 và −0.0020, đều 5/10), và
+> **hai backbone nói ngược nhau**: codebert ROC −0.0147 (1/5), PR −0.0230 (1/5); t5p ROC
+> +0.0220 (4/5), PR +0.0190 (4/5). Cổng 2 **không qua** cho phát biểu về thứ hạng.
+
+Đây là mẫu hình **đối xứng gương** với ASAM (mục 2b): ASAM cải thiện **thứ hạng** không cải
+thiện **ngưỡng**; Pha 1 `none` cải thiện **ngưỡng** không cải thiện **thứ hạng**. Hai cơ chế
+trong cùng một phương pháp đẩy vào hai chỗ khác nhau, và điểm tổng che mất điều đó.
+
+### Ba kết luận cuối của khối, phân theo mức chắc chắn
+
+**1. CHẮC — nhãn nguồn mang tri thức chuyển giao được.** `real − shufall` dương **cả bốn chỉ số**,
+9/10 và 10/10, p=0.021–0.002, lặp trên **cả hai backbone**. Cách hiểu "chỉ là phơi nhiễm miền"
+**bị bác** dứt điểm.
+
+**2. CHẮC — nhãn sai gây hại chủ động.** `shufall − baseline` âm cả bốn, **0/10 ở ba chỉ số**,
+p=0.002. Đúng dự đoán arXiv:2309.17002 cho out-of-domain.
+
+**3. CHẮC (ở ngưỡng) — Pha 1 có giá trị ròng ~+0.025…+0.029 F1**, nhưng **0 ở thứ hạng** và
+hai backbone ngược nhau ở đó.
+
+> **Con số then chốt cho hướng đi:** khoảng cách giữa *nhãn sai* và *nhãn thật* là **0.068–0.087**;
+> khoảng cách giữa *nhãn thật* và *không có Pha 1* chỉ **0.024–0.029**. Nghĩa là **phần lớn giá
+> trị của nhãn đang bị tiêu vào việc gỡ lại thiệt hại** mà chính việc tiền-huấn-luyện trên bộ
+> dữ liệu này gây ra. Một cách huấn luyện chịu được nhãn nhiễu có **~0.06 biên độ** để giành lại,
+> và đó là mục tiêu bằng số đầu tiên dự án có cho hướng đóng góp.
+
+**Biến quyết định đăng ký trước vẫn KHÔNG KẾT LUẬN**: `real − shufpair` trên F1@0.5 đòi
+≥+0.020 **và** đếm dấu ~5/6; thực tế **+0.0503 nhưng 7/10** (70% < 83%). Biên độ đạt, đếm dấu
+không. ROC-AUC thì đạt (9/10, p=0.021). Áp đúng bảng, không nới sau khi thấy số.
