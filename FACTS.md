@@ -5047,7 +5047,7 @@ vì seed 1234 có val 0.5124 (trên mức ngẫu nhiên) nhưng train loss đứ
 | **không head** | 42 | 0.4430 | 3 | 0.7081 → **0.6963** | ❌ |
 | **không head** | 1234 | 0.5124 | 2 | 0.7032 → **0.6963** | ❌ |
 
-> **Có head 3/3 · không head 1/3.** Giá trị của head phụ là **ĐỘ ỔN ĐỊNH**, không phải **độ
+> **Có head 3/3 · không head 1/3.** *(§55.3: ở 6 seed là **6/6 vs 3/6**, Fisher p=0.18.)* Giá trị của head phụ là **ĐỘ ỔN ĐỊNH**, không phải **độ
 > chính xác** — đúng điều §46 đã nêu là tính chất duy nhất còn sống sót, nay lần đầu được đo
 > bằng thiết kế **lặp theo seed** thay vì giai thoại.
 
@@ -5089,6 +5089,9 @@ byte khớp tuyệt đối.
 
 Ở seed 7, **cả bốn** chỉ số của `fusft − baseline` đều **5/5**.
 
+> **§55.3 SỬA con số 57% dưới đây thành 49%** — nó tính từ tỉ lệ 1/3 ước trên 3 seed;
+> với 6 seed tỉ lệ là **3/6**. Phần định tính không đổi, tỉ lệ thì đổi.
+
 ### Giá trị THẬT của head phụ, tách làm hai phần
 
 Khi **cả hai** Pha 1 chạy được, head chỉ còn đáng **+0.0182 (3/5)** ở F1 và **+0.0119 (2/5)** ở
@@ -5127,3 +5130,59 @@ là minh hoạ, không phải phép đo. Cần thêm seed để siết.
 **5/5 fold ở cả bốn khối**, biên độ 0.050–0.064. Đây là con số ổn định nhất dự án có. Nhưng nó
 là *"chốt + adapter + fusion hơn baseline"*, **không** phải *"fusion hơn chốt"* — phần gia tăng
 so với chốt vẫn là chỗ §48/§50/§52.1 chặn lại.
+
+### §55.3 — SÁU seed trên codebert: có head **6/6**, không head **3/6**; và kết cục có tính **LƯỠNG CỰC** (đêm 14→15/09, 12 Pha 1, 0 ô Pha 2)
+
+§55.1 ước tỉ lệ từ **3 seed** (3/3 vs 1/3) và tôi đã ghi rõ khoảng tin cậy quá rộng. Thêm seed
+**1, 2026, 999** đưa lên **6 seed mỗi nhánh**. Tiêu chí "có học" = **train loss rời khỏi
+`ln(2)=0.6931` ít nhất 0.05**, không dùng val.
+
+| seed | CÓ head | học | KHÔNG head | học |
+|---|---|---|---|---|
+| 42 | 0.5758 | ✅ | **0.4430** | ❌ |
+| 7 | 0.5932 | ✅ | 0.5787 | ✅ |
+| 1234 | 0.5372 | ✅ | **0.5124** | ❌ |
+| 1 | 0.5614 | ✅ | **0.4668** | ❌ |
+| 2026 | 0.6057 | ✅ | 0.6002 | ✅ |
+| 999 | 0.6009 | ✅ | 0.5814 | ✅ |
+| | **6/6** | | **3/6** | |
+
+### Phát hiện quan trọng hơn cả tỉ lệ: kết cục LƯỠNG CỰC
+
+| | giá trị | trung bình |
+|---|---|---|
+| có head, mọi seed | 0.5372 … 0.6057 | **0.5790** (độ tản 0.0240) |
+| không head, **khi học được** | 0.5787 / 0.5814 / 0.6002 | **0.5868** |
+| không head, **khi hỏng** | 0.4430 / 0.4668 / 0.5124 | 0.4741 |
+
+> **Bỏ head KHÔNG làm mô hình kém hơn — nó làm mô hình LƯỠNG CỰC.** Khi học được, nhánh không
+> head cho **0.5868**, tức **ngang hoặc hơn** nhánh có head (0.5790). Khi hỏng, nó không học gì
+> cả. Head phụ **không nâng đỉnh, nó xoá đuôi dưới.**
+
+Đây là phát biểu chính xác hơn hẳn "head làm mô hình tốt hơn", và nó **kiểm chứng được trực
+tiếp** bằng tỉ lệ Pha 1 học được — không cần đi vòng qua điểm số Pha 2.
+
+### Phép tính kỳ vọng, SỬA LẠI từ §55.2
+
+§55.2 dùng tỉ lệ 1/3 (từ 3 seed) và kết luận **57%** giá trị của head là "không hỏng".
+Với 3/6:
+
+```
+E[có head]    = +0.0528
+E[không head] = (3/6)(+0.0371) + (3/6)(−0.0033) = +0.0169
+chênh         = +0.0359
+   "giỏi hơn khi CẢ HAI chạy được" = +0.0182  →  51%
+   "không hỏng"                    = +0.0177  →  49%
+```
+
+**Con số 57% của §55.2 sửa thành 49%.** Giá trị của head chia **gần đúng một nửa** giữa *giỏi
+hơn khi cả hai chạy được* và *không hỏng*, chứ không nghiêng về bảo hiểm như §55.2 nói.
+
+### Giới hạn — phải nêu
+
+**Fisher hai phía cho 6/6 vs 3/6: p = 0.18.** Ở n=6 mỗi nhánh, khác biệt này **chưa có ý nghĩa
+thống kê**. Nó là **mẫu hình nhất quán qua sáu lần rút độc lập** (và cộng thêm hai lần `none`
+sập ở `codebert × full`, §46, là **tám** bối cảnh), nhưng con số p nói thẳng: cần nhiều seed hơn
+để phát biểu chắc. **Không được viết vào bài như một kết quả có ý nghĩa.**
+
+Khối `p1seed_t5p` (đang chạy) hỏi cùng câu trên **backbone thứ hai** — cổng 2.
