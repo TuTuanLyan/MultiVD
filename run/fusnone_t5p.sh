@@ -9,6 +9,10 @@
 # Khoang cach Pha 1 chi 0.0145 — nen day moi la phep so sach.
 #
 # Pha 1 DUNG LAI tu p1seed, khong huan luyen lai. Baseline chay moi o cung seed 7.
+# --grad_checkpointing BAT cho CA HAI nhanh: t5p + adapter + fusion + fine-tune ca backbone
+# vuot tran 16 GB dung 24 MiB (OOM that o 23:43, giong het §47/§48). Checkpointing dung
+# use_reentrant=False nen gradient khong doi, chi cham hon. Phai bat cho CA HAI nhanh —
+# neu chi bat mot ben thi hai nhanh khac NHIEU HON MOT bien.
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HF_HOME="${HF_HOME:-/workspace/.hf_home}"
@@ -68,7 +72,7 @@ for FOLD in ${FOLDS:-1 2 3 4 5}; do
   ARM_TAG="_com_l0p05_ad48_fusft" PHASE1_TAG="_com_l0p05_ad48" PHASE1_STORE="$STORE" \
   LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_PATIENCE=10 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
   PHASE1_EXTRA="--sam_rho 0 --adapter_dim 48 --adapter_lr 1e-4" \
-  PHASE2_EXTRA="--sam_rho 0 --phase2_fusion ft --adapter_lr 1e-4" \
+  PHASE2_EXTRA="--sam_rho 0 --phase2_fusion ft --adapter_lr 1e-4 --grad_checkpointing" \
   DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
   PYTHON="$PY" bash run/matrix.sh 4>&-
 
@@ -79,7 +83,7 @@ for FOLD in ${FOLDS:-1 2 3 4 5}; do
   ARM_TAG="_com_ad48_fusft" PHASE1_TAG="_com_ad48" PHASE1_STORE="$STORE" \
   LAMBDA_CWE=0.05 PHASE1_EPOCHS=15 PHASE1_PATIENCE=10 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
   PHASE1_EXTRA="--sam_rho 0 --adapter_dim 48 --adapter_lr 1e-4" \
-  PHASE2_EXTRA="--sam_rho 0 --phase2_fusion ft --adapter_lr 1e-4" \
+  PHASE2_EXTRA="--sam_rho 0 --phase2_fusion ft --adapter_lr 1e-4 --grad_checkpointing" \
   DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
   PYTHON="$PY" bash run/matrix.sh 4>&-
 
