@@ -74,6 +74,31 @@ thì ghi nguyên trạng chứ không chọn chỉ số có lợi (bài học §
   (CLAUDE.md mục 3): chạy Pha 2 và ghi kèm val Pha 1. `PHASE1_MIN_VAL=0`.
 - Cả ba nhánh và baseline chạy **cùng một máy, cùng một phiên** (mục 4).
 
-## Kết quả
+## Kết quả — điền 14/09 08:45 UTC, KHÔNG sửa một chữ nào ở trên
 
-*(để trống — điền sau khi đo, không sửa phần trên)*
+24/24 ô. Chi tiết đầy đủ: **FACTS §54**.
+
+### Đối chiếu với từng dự đoán
+
+| # | tôi đã dự đoán | thực tế | đúng/sai |
+|---|---|---|---|
+| 1 | `G(real) > 0`, khoảng +0.005…+0.02 F1 | **+0.0018, 3/6** | **SAI** — thấp hơn hẳn cận dưới tôi đoán |
+| 2 | `G(shuf) ≈ 0.4…0.8 × G(real)`, đều dương | `G(shufall)` = **−0.0601**, `G(shufpair)` = −0.0369 — **đều ÂM** | **SAI HẲN** — tôi đoán phơi nhiễm chiếm phần lớn lợi ích; thực tế nhãn sai **gây hại** |
+| 3 | `G(shufpair) ≈ G(shufall)`, chênh < 0.010 | chênh **+0.0232 F1, 4/6** | **không rõ** — trên sàn nhiễu nhưng đếm dấu yếu |
+
+Tôi sai ở **hai trong ba** dự đoán, và sai theo cùng một hướng: tôi đánh giá **quá thấp** vai trò
+của nhãn. Giả thuyết "phơi nhiễm miền là chính" đến từ §46 (head phụ chỉ +0.0005) và §44
+(nút thắt thua PCA-8) — nhưng cả hai đo **giá trị gia tăng của head phụ**, không đo **giá trị
+của nhãn nhị phân**. Tôi đã suy rộng từ cái này sang cái kia mà không có cơ sở.
+
+### Ngưỡng đã đặt trước, áp đúng như đã viết
+
+Biến quyết định đăng ký: `D = G(real) − G(shufpair)` trên F1@0.5, cần **≥ +0.020 VÀ ≥ 5/6**.
+Thực tế **+0.0387 nhưng 3/6** ⇒ **KHÔNG KẾT LUẬN** trên biến này. Áp đúng bảng, không nới.
+
+Hai phát biểu **có** đạt chuẩn (và không phải biến đăng ký chính, nên ghi là kết quả thứ cấp
+đã được thiết kế sẵn chứ không phải tìm thấy sau):
+
+- `real − shufall`: dương **cả bốn chỉ số**, 5/6 và 6/6, **lặp trên cả hai backbone** (t5p 3/3
+  ở cả bốn) ⇒ **nhãn mang tri thức chuyển giao được**.
+- `shufall − baseline`: âm cả bốn, **0/6 ở ba chỉ số** ⇒ **nhãn sai gây hại chủ động**.

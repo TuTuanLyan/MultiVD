@@ -4758,3 +4758,83 @@ Khối `fus3` ở local (A4000) chạy **đúng ba nhánh, đúng 5 fold, đúng
 > **Luật rút ra, áp cho mọi khối sau:** n=5 trên **một máy** không đủ để phát biểu, kể cả khi
 > 5/5 fold và cả bốn chỉ số cùng dấu. Phải có **một lần lặp trên phần cứng khác** trước khi
 > viết bất cứ điều gì. Đây là lần thứ **sáu** một mẫu hình sạch ở quy mô nhỏ biến mất khi mở rộng.
+
+---
+
+## §54 — XÁO NHÃN NGUỒN: nhãn **có** mang tri thức, nhưng nó chỉ **ngăn hỏng** chứ không **cộng thêm** (14/09, 24 ô, vast `ntat` 5060 Ti)
+
+Dự đoán ghi **trước khi đo**: `records/prediction_2026-09-14_xao_nhan_phoi_nhiem_hay_tri_thuc.md`.
+Bậc 1 — kiểm chứng, n=3 fold, seed 42, **cả hai backbone**, nguồn `com`, nhánh `none`
+(cô lập đúng nhãn nhị phân), `adamw`, `--sam_rho 0`, Pha 2 trên `sven_python_folds_norm`.
+
+Ba nhánh Pha 1 **cùng seed, cùng split, cùng đúng 12 epoch** (`--save_last_epoch`, tắt dừng sớm),
+chỉ khác cột `label`. Phép chia Pha 1 chia theo `pair_id` và **không đọc nhãn**, nên split trùng khít.
+
+### Pha 1 — phép xáo làm đúng việc
+
+| | codebert | t5p |
+|---|---|---|
+| nhãn thật | 0.5765 | 0.5890 |
+| xáo toàn bộ | **0.4374** | **0.4938** |
+| đổi chỗ trong cặp | **0.4525** | **0.5105** |
+
+Cả bốn ô xáo đều **ở hoặc dưới mức đoán ngẫu nhiên** — tác vụ thành không học được, đúng thiết kế.
+
+### Δ ghép cặp theo `(backbone, fold)` — 6 điểm mỗi ô
+
+| | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| **thật − xáo toàn bộ** | **+0.0619 5/6** | **+0.0768 6/6 p=0.031** | **+0.0578 5/6** | **+0.0531 5/6** |
+| **xáo toàn bộ − baseline** | −0.0601 2/6 | **−0.0753 0/6 p=0.031** | **−0.0736 0/6 p=0.031** | **−0.0692 0/6 p=0.031** |
+| thật − đổi chỗ trong cặp | +0.0387 3/6 | +0.0357 4/6 | +0.0398 5/6 | +0.0527 5/6 |
+| đổi chỗ trong cặp − xáo toàn bộ | +0.0232 4/6 | +0.0411 4/6 | +0.0180 4/6 | +0.0004 4/6 |
+| **thật − baseline** | **+0.0018 3/6** | +0.0015 2/6 | **−0.0158 3/6** | −0.0161 2/6 |
+| đổi chỗ trong cặp − baseline | −0.0369 2/6 | −0.0342 2/6 | −0.0556 2/6 | −0.0688 1/6 |
+
+### Tách theo backbone — `thật − nhãn bịa`
+
+| | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| codebert, thật − xáo toàn bộ | +0.0733 2/3 | +0.0794 3/3 | +0.0440 2/3 | +0.0406 2/3 |
+| **t5p, thật − xáo toàn bộ** | **+0.0505 3/3** | **+0.0741 3/3** | **+0.0715 3/3** | **+0.0655 3/3** |
+| codebert, thật − đổi chỗ cặp | +0.0742 2/3 | +0.0615 2/3 | +0.0567 2/3 | +0.0812 2/3 |
+| t5p, thật − đổi chỗ cặp | **+0.0031 1/3** | +0.0098 2/3 | +0.0229 3/3 | +0.0241 3/3 |
+
+### Ba kết luận, phân theo mức chắc chắn
+
+**1. CHẮC — qua cổng 2, lặp trên cả hai backbone: nhãn nguồn MANG tri thức chuyển giao được.**
+`thật − xáo toàn bộ` dương ở **cả bốn chỉ số**, 5/6 hoặc 6/6, biên độ 0.05–0.08 (gấp 5–8 lần sàn
+nhiễu 0.010), và trên **t5p là 3/3 ở cả bốn chỉ số**. Nhánh xáo được nhìn **đúng từng ký tự**
+cùng bộ code, cùng 12 epoch, cùng seed, cùng split — chỉ nhãn khác.
+> **Cách hiểu "lợi ích Pha 1 chỉ là phơi nhiễm miền" BỊ BÁC.**
+
+**2. CHẮC: tiền-huấn-luyện bằng nhãn sai CHỦ ĐỘNG GÂY HẠI.** `xáo toàn bộ − baseline` âm ở cả
+bốn chỉ số, **0/6 ở ba chỉ số** (p=0.031 — sàn của kiểm định dấu ở n=6). Đúng dự đoán của
+arXiv:2309.17002 cho chuyển giao **out-of-domain**, mà xuyên ngôn ngữ chính là out-of-domain.
+
+**3. KHÔNG KẾT LUẬN — theo đúng ngưỡng đã ghi trước.** Biến quyết định tôi đăng ký là
+`D = thật − đổi-chỗ-trong-cặp` trên F1@0.5, đòi **≥ +0.020 VÀ ≥ 5/6 fold**. Thực tế: **+0.0387
+nhưng chỉ 3/6**. Biên độ đạt, đếm dấu **không** đạt ⇒ rơi vào vùng "không kết luận" mà tôi đã
+vạch sẵn. Và hai backbone **nói ngược nhau** (codebert +0.0742 2/3, t5p +0.0031 1/3), đúng
+trường hợp cổng 2 sinh ra để chặn.
+
+### Phát hiện khó chịu nhất, và cách đọc nó
+
+`thật − baseline` = **+0.0018 (3/6)** trên F1, **âm nhẹ** ở ROC và PR. Trong cấu hình này,
+Pha 1 với nhãn thật **không mang lại gì** so với không có Pha 1.
+
+Ghép với (1) và (2) thì cách đọc là:
+
+> **Nhãn đúng không làm Pha 1 tốt lên — nó ngăn Pha 1 làm hỏng.** Vai trò của nhãn ở đây là
+> **bảo vệ**, không phải **cộng thêm**. Nhãn sai hoàn toàn: −0.06. Nhãn thật (mà CleanVul tự đo
+> là sai 40–75%): về mức hoà. Khoảng **0.06 đó chính là biên độ mà một cách huấn luyện chịu
+> được nhãn nhiễu có thể giành lại.**
+
+**Hạn chế do chính thiết kế tạo ra, phải nêu:** để khớp số bước gradient, cả ba nhánh bị ép
+chạy đúng 12 epoch và lấy checkpoint **CUỐI**, trong khi mọi kết quả đã công bố lấy checkpoint
+**tốt nhất theo val**. Phép so **giữa ba nhánh** vẫn sạch (cùng một quy tắc); nhưng dòng
+`thật − baseline` **KHÔNG so được** với +0.0092 của §40.5.
+
+**Quan sát phụ:** độ trải giữa các fold tăng đơn điệu theo mức phá nhãn — baseline 0.042,
+thật 0.105, xáo toàn bộ 0.157, đổi chỗ cặp 0.209 (codebert). Phá nhãn không chỉ hạ trung bình,
+nó **thổi phồng phương sai**.
