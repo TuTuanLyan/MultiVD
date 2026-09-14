@@ -4630,3 +4630,30 @@ Trường `cwe` của **nguồn** là `CWE-89`, của **đích** là `CWE-089`; 
 **pillar CWE-1000 (10 lớp)** còn của đích là **0–3 cho đúng 4 CWE**. Ghép hai bên **phải** chuẩn
 hoá qua `cwe_id` dạng số. Sau khi chuẩn hoá, cả bốn CWE của đích đều có trong `com` ở **cả hai
 ngôn ngữ**: CWE-89 46 dòng (6 ccpp/40 js), CWE-78 100 (36/64), CWE-22 92 (54/38), CWE-79 692 (22/670).
+
+---
+
+## §52 — `fus5060`: fusion vs baseline đo CÙNG MỘT MÁY, n=5 (14/09/2026)
+
+Lỗ hổng đo lường còn lại của §47/§48: mọi con số `fusft` trước đây so với baseline chạy ở
+**máy khác** (hai vast đã huỷ), mà sàn nhiễu giữa loại GPU là 0.028 — lớn hơn cả hiệu ứng.
+Khối này chạy **cả ba nhánh trên cùng một vast RTX 5060 Ti**, cùng phiên.
+
+codebert · nguồn `com` · λ=0.05 · `adamw` · `--sam_rho 0` · fold 1–5 · seed 42 · **15/15 ô**.
+Pha 1 dùng lại (không huấn luyện lại): `n48/...com_l0p05` và `fus2/...com_l0p05_ad48`.
+
+| so sánh | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `fusft` − baseline | **+0.0637 5/5** | +0.0611 4/5 | **+0.0445 5/5** | +0.0322 4/5 |
+| chốt − baseline | +0.0240 4/5 | +0.0203 4/5 | +0.0150 4/5 | +0.0163 4/5 |
+| `fusft` − chốt | **+0.0397 5/5** | **+0.0408 5/5** | **+0.0294 5/5** | +0.0160 4/5 |
+
+Mạnh hơn ước lượng khác máy trước đây (`fus1`: `fusft`−chốt +0.0259 5/5 F1).
+
+> **KHÔNG hồi sinh AdapterFusion.** §48 vẫn đứng — một nửa lợi ích tái tạo được bằng adapter
+> **ngẫu nhiên** (+0.0111 so với +0.0226); §50 vẫn đứng — trên nhóm rò rỉ `train`, adapter **đã
+> học THUA** adapter ngẫu nhiên (−0.0595, 1/5). Phản biện "chỉ là sức chứa" chưa bị bác. Thêm:
+> n=5 thì p=0.0625 là **sàn**, một backbone duy nhất, và t5p **không lặp** ở n=5 (+0.0036 3/5).
+> Đây là một lỗ hổng đo lường được bịt, không phải một kết luận mới.
+
+Kéo về `results_fus5060_ntat/`, đối chiếu 15/15 file **khớp tuyệt đối cả tên lẫn byte**.

@@ -1,8 +1,46 @@
-# CURRENT_RUN — ĐANG CHẠY: khối `fus5060` trên vast `ntat` (RTX 5060 Ti). Nhánh git `fusion`
+# CURRENT_RUN — ĐANG CHẠY: khối `shuf1` (xáo nhãn) trên vast `ntat`. Nhánh git `fusion`
 
-> **14/09/2026 02:38 UTC — khối `fus5060` phóng trên vast `ntat` id 50965796**, RTX 5060 Ti 16 GB,
-> $0,0818/h, `115.73.216.179:54470`. Driver PID 2739, log `/workspace/MultiVD/log/fusion_5060.log`,
-> lock `/tmp/mvd_fusion_5060.lock`. Monitor nền đang theo (task `bvyj4q254`).
+> **14/09/2026 03:56 UTC — `shuf1` phóng**, vast `ntat` id 50965796 (RTX 5060 Ti, $0,0818/h).
+> Driver PID 10443, log `/workspace/MultiVD/log/shuf1.log`, lock `/tmp/mvd_shuf1.lock`.
+> Monitor `b5eua1lr8`. **24 ô, bậc 1 (n=3 fold)**, ước 4–5 giờ.
+>
+> Dự đoán đã ghi TRƯỚC khi đo:
+> `records/prediction_2026-09-14_xao_nhan_phoi_nhiem_hay_tri_thuc.md`
+
+## Khối `shuf1` — lợi ích Pha 1 là TRI THỨC hay PHƠI NHIỄM?
+
+Ba nhánh Pha 1, đều `aux_mode=none`, nguồn `com`, **cùng seed / cùng split / cùng 12 epoch**
+(`--save_last_epoch`, tắt dừng sớm) — chỉ khác cột `label`:
+
+| nhánh | dữ liệu | giữ | phá |
+|---|---|---|---|
+| `real` | `phase1_common.jsonl` | — | — |
+| `shufall` | `phase1_common_shufall.jsonl` | tỉ lệ 50/50 | liên hệ code↔nhãn **và** cân bằng trong cặp (0.509) |
+| `shufpair` | `phase1_common_shufpair.jsonl` | tỉ lệ 50/50 **và** cân bằng cặp (1.000) | **chỉ**: bản nào trước khi vá |
+
+Pha 2 `adamw`, `--sam_rho 0`, fold 1–3, seed 42, cộng baseline. **Cả hai backbone**
+(codebert + t5p). Cây: `results/shuf1_codebert`, `results/shuf1_t5p`.
+
+Đã kiểm trước khi phóng: hai bản xáo audit **hai chiều** (bản gốc so chính nó cho 1.000);
+`--save_last_epoch` thử **hai chiều** (có cờ → 5 epoch, `best_epoch=5`, 0 dừng sớm; không cờ →
+dừng ở epoch 2, `best_epoch=1`); t5p nạp được offline qua **đúng `src/model.py:build_backbone`**;
+mọi file đối chiếu từng byte; runner chạy khô đếm đúng **18 lần gọi `matrix.sh` + 6 baseline**.
+
+---
+
+## ĐÃ XONG 14/09 03:50 UTC — khối `fus5060`, 15/15 ô (**FACTS §52**)
+
+Kết quả đã kéo về `results_fus5060_ntat/`, đối chiếu 15/15 file khớp tuyệt đối.
+
+| so sánh (codebert, `com`, n=5) | F1@0.5 | ROC-AUC |
+|---|---|---|
+| `fusft` − baseline | **+0.0637 5/5** | **+0.0445 5/5** |
+| chốt − baseline | +0.0240 4/5 | +0.0150 4/5 |
+| `fusft` − chốt | **+0.0397 5/5** | **+0.0294 5/5** |
+
+Không hồi sinh AdapterFusion — xem cảnh báo ở §52.
+
+### Chi tiết cấu hình khối `fus5060`
 
 ## Khối `fus5060` — baseline vs chốt vs fusft, 15 ô, CÙNG MỘT MÁY
 
