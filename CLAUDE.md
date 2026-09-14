@@ -88,6 +88,12 @@ fold", không phải "gần có ý nghĩa".
 
 Hiệu ứng dưới ~0.01 không phân biệt được với việc chạy lại đúng một thứ.
 
+> **n=5 trên MỘT máy KHÔNG đủ để phát biểu — kể cả 5/5 fold và cả bốn chỉ số cùng dấu.**
+> 14/09 (**FACTS §52.1**): hai khối dùng **cùng file checkpoint Pha 1**, cùng mã, cùng seed,
+> cùng 5 fold, **chỉ khác card** — `fusft − chốt` đi từ **+0.0397 5/5** xuống **−0.0005 3/5**.
+> Ghim Pha 1 không cứu được: riêng Pha 2 đã đủ. Phải **lặp trên phần cứng khác** rồi mới viết.
+> Đây là lần thứ **sáu** một mẫu hình sạch ở quy mô nhỏ biến mất khi mở rộng.
+
 ---
 
 ## 2b. LUÔN đọc CẢ HAI chỉ số, và đọc SỐ FOLD CÙNG DẤU trước khi đọc trung bình
