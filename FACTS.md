@@ -4950,3 +4950,78 @@ hai backbone ngược nhau ở đó.
 **Biến quyết định đăng ký trước vẫn KHÔNG KẾT LUẬN**: `real − shufpair` trên F1@0.5 đòi
 ≥+0.020 **và** đếm dấu ~5/6; thực tế **+0.0503 nhưng 7/10** (70% < 83%). Biên độ đạt, đếm dấu
 không. ROC-AUC thì đạt (9/10, p=0.021). Áp đúng bảng, không nới sau khi thấy số.
+
+---
+
+## §55 — BỎ head `latent_bottleneck` khỏi Pha 1 xoá sạch lợi ích của fusion (14/09, 15 ô, vast `ntat` 5060 Ti)
+
+Người dùng yêu cầu 14/09: thử bỏ head `latent_bottleneck` nhưng **giữ nguyên adapter + fusion**.
+Hai nhánh khác **đúng một biến** (`aux_mode`), cây riêng có baseline của chính nó, cùng máy cùng
+phiên. Giao thức Pha 1 đọc **thẳng từ `training_args`** của checkpoint nhánh có head — 15 epoch,
+**patience 10**, lr 2e-5, `adapter_dim 48`, `adapter_lr 1e-4`, SAM tắt — không đoán.
+
+### Pha 1: nhánh KHÔNG head **sập hoàn toàn**
+
+| Pha 1 (đều có adapter) | val | epoch chốt | epoch đã chạy |
+|---|---|---|---|
+| **có** head `latent_bottleneck` | **0.5758** | 12 | 15 |
+| **không** head (`none`) | **0.4430** | **3** | 13 (dừng sớm) |
+
+Không phải "học kém" mà là **không học được gì**: train loss đứng ở 0.696–0.701 suốt 13 epoch,
+trong khi `ln(2) = 0.6931` là mức đoán bừa. Val đi 0.3333 (đoán một lớp) → 0.4037 → 0.4430 rồi
+đứng im 10 epoch liền.
+
+> **`none` trên `com` KHÔNG có adapter thì bình thường** — checkpoint cũ `s42/phase1/codebert__none_com`
+> đạt val **0.5518**. Nên nghi vấn là chính **adapter** làm Pha 1 mất ổn định khi không có head giữ.
+
+### Pha 2 — n=5, codebert, seed 42
+
+| nhánh | F1@0.5 | F1@val | ROC-AUC | PR-AUC | val Pha 1 |
+|---|---|---|---|---|---|
+| `fusft` **có head** | **0.8195** | **0.8154** | **0.9051** | **0.9105** | 0.5758 |
+| baseline | 0.7693 | 0.7673 | 0.8701 | 0.8703 | — |
+| `nonefus` **không head** | 0.7660 | 0.7698 | 0.8707 | 0.8651 | 0.4430 |
+
+| Δ ghép cặp | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `fusft` − baseline | **+0.0502 5/5** | **+0.0481 5/5** | **+0.0350 5/5** | +0.0401 4/5 |
+| **`nonefus` − baseline** | **−0.0033 2/5** | **+0.0025 3/5** | **+0.0005 3/5** | **−0.0052 3/5** |
+| `fusft` − `nonefus` | **+0.0535 5/5** | **+0.0456 5/5** | +0.0344 4/5 | **+0.0454 5/5** |
+
+`nonefus` rơi **đúng** về baseline: cả bốn chỉ số trong khoảng ±0.005, không chỉ số nào quá 3/5 fold.
+
+### Đọc cho đúng — đây KHÔNG phải "head đáng +0.053"
+
+Phát biểu đúng là: *trong lần chạy này, bỏ head làm **Pha 1 sập**, và một Pha 1 đã sập thì không
+mang gì sang Pha 2.* Đây là **lần thứ ba** hiện tượng "`none` sập, `latent_bottleneck` không sập"
+được quan sát độc lập (hai lần trước ở `codebert × full`, hai λ khác nhau — §46), và là lần đầu
+trên nguồn `com`, trong cấu hình adapter.
+
+### Một tinh chỉnh đáng giá cho câu chuyện SỨC CHỨA (§48)
+
+| Pha 1 sập | có adapter+fusion? | Δ vs baseline |
+|---|---|---|
+| `shufall` val 0.4374 (§54.1) | **không** | **−0.0636** |
+| `nonefus` val 0.4430 (mục này) | **có** | **−0.0033** |
+
+Hai Pha 1 sập tương đương nhau; cái có adapter+fusion về **đúng** baseline, cái không có thì **hại**
+−0.064. ⇒ **Sức chứa thêm vào có tác dụng ĐỆM THIỆT HẠI, chứ không TẠO RA lợi ích.** Đây là cách
+đọc chính xác hơn "một nửa lợi ích là sức chứa" của §48.
+
+### Cảnh báo phương pháp: fold 1 lại lừa, lần thứ năm
+
+Ở fold 1, `nonefus` cho **0.789** so với baseline **0.744** (+0.045) và tôi đã ghi nhận nó như
+một quan sát đáng chú ý — **kèm chữ n=1, không kết luận**. Ở n=5 trung bình là **−0.0033**:
+fold 2 cho 0.749 vs 0.783 và fold 3 cho 0.736 vs 0.756, đều âm.
+
+### Câu còn mở, và phép kiểm rẻ nhất cho nó
+
+Bỏ head thì Pha 1 **luôn** sập, hay lần này chỉ xui? §48.2 đã đo được hai lần rút cùng cấu hình
+lệch rất xa, nên **một lần sập không đủ để gọi là tính chất**. Khối `p1seed` (đang chạy) chạy lại
+**đúng Pha 1 đó ở seed 7 và 1234**, cộng đối chứng nhánh có head ở cùng seed — **không tốn một ô
+Pha 2 nào**.
+
+- Sập lại ở cả hai seed ⇒ *"adapter không có head phụ thì Pha 1 không ổn định"* là thật, và nó
+  **cứu head phụ ở đúng một vai trò cụ thể: ổn định, không phải độ chính xác.**
+- Không sập ⇒ lần trước chỉ là xui, và câu hỏi gốc *"fusion có cần head không"* **vẫn chưa được
+  trả lời** — phải chạy lại khối `fusnone` với Pha 1 không sập.
