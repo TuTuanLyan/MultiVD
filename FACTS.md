@@ -5531,3 +5531,70 @@ ngang ngẫu nhiên. Mọi cách gộp chunk (kể cả trung bình) sẽ **khô
 Đây là phép kiểm rẻ nhất cho toàn bộ giả thuyết: chạy t5p ở `max_length` 1024 so với 512, cùng
 máy, **một biến duy nhất**. Nếu trục ngữ cảnh có độ dốc thì nó hiện ra ở đó trước, với chi phí
 ~2× và không phải viết chunking.
+
+---
+
+## §60 — CODE DÀI KHÓ HƠN **TRƯỚC KHI** bị cắt: −0.08 ROC trên dải 0→512 token, và val Pha 1 KHÔNG dự báo được Pha 2 (15/09, **0 GPU**)
+
+Hai câu hỏi của người dùng 15/09: (a) *"512 đôi khi nó nén mất đặc trưng lỗ hổng khi bị dài?"*
+(b) đồng nghiệp dùng multi-window (chunk → mean) đạt ROC 0.92, nhưng **val Pha 1 ở nguồn không
+cao hơn**, chỉ đích mới tốt lên.
+
+### (a) Tách "BỊ CẮT" khỏi "BỊ PHA LOÃNG"
+
+Chỉ lấy nhóm rò rỉ **`none`** (không có bản đối nghịch — loại bỏ nhiễu loạn của §58), chia theo
+độ dài token, gộp 5 fold. **Ba khoảng đầu KHÔNG bị cắt một token nào.**
+
+| khoảng token | n | codebert baseline | `fusft` | `nonefus` | t5p baseline | `fusft` | `nonefus` |
+|---|---|---|---|---|---|---|---|
+| 0–128 | 155 | **0.9538** | 0.9464 | 0.9592 | **0.9277** | 0.9530 | 0.9803 |
+| 128–256 | 199 | 0.8848 | 0.9300 | 0.8898 | 0.9041 | 0.9050 | 0.9469 |
+| 256–512 | 107 | **0.8667** | 0.8996 | 0.8779 | **0.8477** | 0.8632 | 0.8895 |
+| 512–1024 *(bị cắt)* | 69 | 0.8403 | 0.8151 | 0.7672 | 0.7714 | 0.8756 | 0.9286 |
+| 1024+ *(n nhỏ, không đọc)* | 26 | 0.7679 | 0.9345 | 0.9226 | 0.9048 | 0.8333 | 0.8095 |
+
+> **Trong vùng KHÔNG bị cắt, ROC đã tụt 0.087 (codebert) và 0.080 (t5p) từ 0–128 xuống 256–512.**
+> Đơn điệu ở **mọi nhánh, cả hai backbone**. Tức *"code dài khó hơn"* tồn tại **độc lập** với
+> việc cắt ở 512 — câu hỏi (a) là **CÓ**, và nó xuất hiện **trước** ngưỡng cắt.
+
+**Hai nguyên nhân phép đo này KHÔNG tách được:** (i) pha loãng biểu diễn — một vector cho nhiều
+token hơn; (ii) khó nội tại — hàm dài có lỗi tinh vi hơn.
+
+> **Chính thí nghiệm multi-window là phép tách:** nếu MW nâng dải **256–512** (nơi không có gì
+> bị cắt) thì nguyên nhân là **pha loãng**; nếu MW chỉ nâng dải **>512** thì nguyên nhân là **cắt**.
+> Đây là dự đoán phản chứng được, và kiểm được trên dữ liệu MW **đã có**, không cần chạy lại.
+
+### (b) val Pha 1 ở NGUỒN không dự báo được kết quả ở ĐÍCH
+
+Năm cặp mà **chỉ Pha 1 khác nhau**, mọi thứ khác giữ nguyên (cùng cây, cùng máy, cùng fold):
+
+| so sánh | val A | val B | val A > B | F1 A | F1 B | khớp | ROC A | ROC B | khớp |
+|---|---|---|---|---|---|---|---|---|---|
+| codebert s42 head vs none | 0.5758 | **0.4430** | có | 0.8195 | 0.7660 | ✔ | 0.9050 | 0.8707 | ✔ |
+| codebert s7 head vs none | 0.5932 | 0.5787 | có | 0.8303 | 0.8120 | ✔ | 0.9114 | 0.8993 | ✔ |
+| **t5p s42 head vs none** | 0.6051 | 0.5939 | có | 0.8405 | **0.8481** | ✘ | 0.9168 | **0.9321** | ✘ |
+| codebert bce vs pairB | 0.5649 | **0.4326** | có | 0.7973 | 0.7846 | ✔ | 0.8826 | 0.8572 | ✔ |
+| **t5p bce vs pairB** | 0.5892 | **0.6002** | không | 0.8244 | 0.8021 | ✘ | 0.8965 | 0.8975 | ✔ *(lệch 0.001 — hoà)* |
+| | | | | | | **3/5** | | | **4/5** |
+
+**Lọc tiếp — chỉ giữ cặp mà CẢ HAI Pha 1 đều lành** (bỏ hai dòng có val 0.4430 / 0.4326, nơi
+quan hệ đúng một cách tầm thường):
+
+> ### **F1 1/3 · ROC 2/3, trong đó một "khớp" là chênh 0.001.** Val Pha 1 **không** dự báo được Pha 2.
+
+Chênh lệch val Pha 1 ở ba cặp đó đều **≤ 0.015** — nằm trong dao động giữa hai lần rút (§48.2).
+Cộng với §57 (t5p: Pha 1 **tốt hơn** 0.6002 vs 0.5892 nhưng Pha 2 **kém hơn** −0.0223) và §54.1
+(đổi **quy tắc chọn checkpoint** Pha 1 đáng +0.024 trong khi val nguồn gần như không đổi):
+
+> **Quan sát của đồng nghiệp — "Pha 1 nguồn không cao hơn nhưng đích lại tốt hơn" — là chuyện
+> BÌNH THƯỜNG trong dự án này, không phải dấu hiệu sai.** Val nguồn đo *"học được tác vụ nguồn
+> nhiễu 40–75% tới đâu"*; nó không đo *"biểu diễn có chuyển giao được không"*. Đại lượng dự báo
+> tốt hơn là probe hướng-vá của §53 (AUC trên Python, 0 bước huấn luyện) — **chưa** ai đo nó
+> trên checkpoint MW.
+
+### Ràng buộc
+
+- Bảng (a) gộp fold nên **không** có đếm dấu ghép cặp; đọc là **mô tả**, không phải kiểm định.
+  Dải 1024+ chỉ 26 hàng, không đơn điệu, **không đọc**.
+- Bảng (b) chỉ n=5 (và n=3 sau khi lọc). Nó **bác** được phát biểu *"val Pha 1 dự báo Pha 2"*,
+  không đủ để phát biểu điều ngược lại có cấu trúc gì.
