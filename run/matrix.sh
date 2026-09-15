@@ -242,7 +242,11 @@ echo "  Phase 1 kho: $PHASE1_STORE"
 # optimizer, vì nó không phụ thuộc cả hai.
 # ---------------------------------------------------------------------------
 banner "PHASE 1 — kho dung chung"
-for BB in $BACKBONES; do
+# BASELINE_ONLY=1 thi KHONG dung toi Pha 1 nao ca — bo qua han vong nay. Neu khong, mot lan
+# goi chi de chay baseline o seed khac se thay `.../seed_<N>/best.pt` khong ton tai roi
+# HUAN LUYEN MOT PHA 1 MOI (~30 phut GPU) cho mot nhanh khong bao gio duoc chay.
+# Bat duoc bang thu kho PYTHON=/bin/echo, khong phai luc dang tinh tien.
+for BB in $([[ "${BASELINE_ONLY:-0}" == 1 ]] || echo $BACKBONES); do
   LABEL="${BB%%=*}"; REST="${BB#*=}"; MODEL="${REST%%:*}"; POOL="${REST##*:}"
   for MODE in $MODES; do
     CKPT="$PHASE1_STORE/${LABEL}__${MODE}${PHASE1_TAG}/seed_$SEED/best.pt"
@@ -384,6 +388,11 @@ run_fold() {
   #    backbone chạy liền nhau — dễ đọc "phương pháp này có phụ thuộc pretrained
   #    không" ngay trong lúc chạy.
   for MODE in $MODES; do
+    # BASELINE_ONLY=1 — chi chay doi chung baseline, BO QUA moi nhanh method.
+    # Can vi `MODES=""` KHONG tat duoc vong nay: dong 69 dung `${MODES:-...}` nen chuoi
+    # rong bi thay bang mac dinh 4 nhanh (bay da ghi o CLAUDE.md muc 1). Mac dinh 0
+    # => duong chay cu khong doi mot byte.
+    [[ "${BASELINE_ONLY:-0}" == 1 ]] && break
     for OPT in $OPTIMIZERS; do
       # Hau to theo optimizer. Phai la "khac recadam thi them ten" chu KHONG phai
       # "== adamw thi them _adamw": them optimizer thu ba (spd, 07/09) ma quen cho nay
