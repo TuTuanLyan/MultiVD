@@ -693,21 +693,29 @@ def run_phase1(args, device):
     # batch 16 tren ~3370 dong chi ~0.4%, loss se gan nhu khong bao gio kich hoat.
     pair_ctx = None
     pair_sampler = None
-    if float(getattr(args, "pair_margin_beta", 0.0)) > 0:
+    if float(getattr(args, "pair_margin_beta", 0.0)) > 0 or getattr(args, "pair_sampler_only", False):
         group, role, n_pairs = build_pair_index(train_records)
         n_rows_in_pair = int((group >= 0).sum().item())
         if n_pairs == 0:
             raise SystemExit("--pair_margin_beta > 0 nhung khong cap `pair_id` day du nao "
                              "trong tap huan luyen Pha 1 — DUNG thay vi chay mot loss luon bang 0")
         pair_sampler = PairBatchSampler(group, args.batch_size, seed=args.seed)
-        pair_ctx = {"group": group, "role": role,
-                    "beta": float(args.pair_margin_beta), "margin": float(args.pair_margin_m)}
+        # `--pair_sampler_only`: dung sampler, KHONG dung loss. pair_ctx=None => khong co so hang nao.
+        pair_ctx = None if getattr(args, "pair_sampler_only", False) else {
+            "group": group, "role": role,
+            "beta": float(args.pair_margin_beta), "margin": float(args.pair_margin_m)}
         args.pair_n_pairs = n_pairs
         args.pair_rows_covered = n_rows_in_pair
-        logger.info("BIEN TRONG CAP bat | beta %.3f | margin %.2f | %d cap day du / %d dong "
-                    "(%.1f%% so dong nam trong cap) | %d batch/epoch",
-                    args.pair_margin_beta, args.pair_margin_m, n_pairs, len(train_records),
-                    100.0 * n_rows_in_pair / max(1, len(train_records)), len(pair_sampler))
+        if pair_ctx is None:
+            logger.info("SAMPLER THEO CAP bat, KHONG co loss bien-cap (doi chung tach thu tu batch) | "
+                        "%d cap day du / %d dong (%.1f%%) | %d batch/epoch",
+                        n_pairs, len(train_records),
+                        100.0 * n_rows_in_pair / max(1, len(train_records)), len(pair_sampler))
+        else:
+            logger.info("BIEN TRONG CAP bat | beta %.3f | margin %.2f | %d cap day du / %d dong "
+                        "(%.1f%% so dong nam trong cap) | %d batch/epoch",
+                        args.pair_margin_beta, args.pair_margin_m, n_pairs, len(train_records),
+                        100.0 * n_rows_in_pair / max(1, len(train_records)), len(pair_sampler))
 
     train_loader = build_dataloader(
         train_records, tokenizer, args.max_length, args.batch_size, True, args.seed, args.num_workers,
@@ -1836,6 +1844,11 @@ def parse_args():
                                "pr_auc is threshold-free and catches a model that only wins "
                                "at 0.5")
     training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
+    training.add_argument("--pair_sampler_only", action="store_true",
+                          help="BAT sampler theo cap nhung KHONG them loss (beta=0). Doi chung tach "
+                               "'ham muc tieu' khoi 'thu tu batch': batch theo cap gom toan ham gan "
+                               "trung nhau nen gradient trong batch tuong quan cao, tu no da co the "
+                               "doi ket qua ma khong lien quan gi toi bien-cap")
     training.add_argument("--pair_margin_beta", type=float, default=0.0,
                           help="De xuat B: he so cua mat mat BIEN TRONG CAP o Pha 1. "
                                "0 = tat, duong chay cu khong doi mot byte")

@@ -5271,3 +5271,67 @@ Tách theo backbone, `fusft − nonefus` **đổi dấu**:
 Cộng với §46 (head hơn `none` chỉ +0.0005 trên 132 ô), §44 (nút thắt thua PCA-8), §45 (head giỏi
 gấp ba không đổi gì): **mạch "head phụ là đóng góp" đóng hoàn toàn.** Điều còn lại của nó là một
 lưu ý kỹ thuật cho riêng codebert, không phải đóng góp học thuật.
+
+---
+
+## §57 — BIÊN TRONG CẶP (Đề xuất B) ở β=0.5: **thua BCE**, và Pha 1 tốt hơn lại chuyển giao KÉM hơn (15/09, 18 ô)
+
+Dự đoán ghi **trước khi đo**: `records/prediction_2026-09-15_bien_trong_cap.md`.
+Bậc 1, n=3 fold, seed 42, **cả hai backbone**, nguồn `com`, Pha 2 **thuần** (không adapter,
+không fusion, không head phụ — §56 cho thấy head không đóng góp gì).
+
+`L = CE(nhãn) + β · mean_cặp softplus(m − (s_vul − s_fixed))`, `s = logit[1] − logit[0]`,
+β=0.5, m=1.0. Sampler theo cặp cho **1576/1576 cặp dùng được mỗi epoch** (93.4% số dòng).
+
+### Pha 1 — hai backbone rẽ hai hướng
+
+| | val | epoch | loss biên-cặp |
+|---|---|---|---|
+| codebert `bce` | 0.5649 | 9 | — |
+| codebert **`pairB`** | **0.4326** | 2 | 1.2285 → 1.2124 (**đứng im**) |
+| t5p `bce` | 0.5892 | 15 | — |
+| t5p **`pairB`** | **0.6002** | 6 | 1.2107 → **0.2386** (giảm mạnh) |
+
+Trên t5p hàm mục tiêu **tối ưu được rất tốt** và cho val Pha 1 **cao nhất** dự án từng đo trên
+`t5p × none × com`. Trên codebert nó sập — cùng kiểu bất ổn §55.3 đã đo (`none` sập 3/6 seed
+trên codebert, t5p 3/3 lành), không phải khuyết tật của biên-cặp.
+
+### Pha 2 — Δ ghép cặp theo `(backbone, fold)`, 6 điểm
+
+| | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| **`pairB` − `bce`** | **−0.0175 2/6** | **−0.0232 1/6** | **−0.0121 1/6** | **−0.0237 2/6** |
+| `bce` − baseline | +0.0195 4/6 | +0.0139 4/6 | +0.0068 3/6 | +0.0139 5/6 |
+| `pairB` − baseline | +0.0020 4/6 | −0.0093 4/6 | −0.0053 3/6 | −0.0097 3/6 |
+
+Tách theo backbone, **t5p** (nơi Pha 1 LÀNH và còn cao hơn):
+
+| t5p | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| `pairB` − `bce` | **−0.0223 1/3** | −0.0289 1/3 | +0.0011 1/3 | −0.0092 2/3 |
+
+### Phát hiện đáng giữ: Pha 1 TỐT HƠN lại chuyển giao KÉM HƠN
+
+t5p `pairB` có val Pha 1 **0.6002** (cao hơn `bce` 0.5892) và loss biên-cặp giảm 5× — tức mô
+hình **rất giỏi** tác vụ *tương đối*: phân biệt một hàm với **chính bản vá của nó**. Nhưng Pha 2
+lại kém hơn **−0.0223** F1.
+
+> Kỹ năng "tách một hàm khỏi bản vá của chính nó" **không mang sang** bài toán phân loại
+> **tuyệt đối** ở ngôn ngữ mới. Cách đọc hợp lý: tác vụ tương đối giải được bằng cách bắt
+> **dấu vết chỉnh sửa** (độ dài, vị trí token đổi) chứ không cần hiểu ngữ nghĩa lỗ hổng.
+
+Khớp với §54: chất lượng Pha 1 và khả năng chuyển giao **không gắn chặt**.
+
+### Phán quyết theo đúng ngưỡng đã ghi trước
+
+Biến đăng ký `D = Δ(pairB − bce)` trên F1@0.5: **−0.0175, 2/6**. Bảng ngưỡng nói
+`≤ +0.005 ⇒ không phân biệt được với nhiễu ⇒ đóng Đề xuất B ở β này`; và hai chỉ số
+(F1@val, ROC-AUC) đạt **5/6 ngược dấu**, tức chạm cả dòng "âm rõ ⇒ ghi lại và đóng".
+
+**Giới hạn — phải nêu:**
+- **Một giá trị β duy nhất.** Kết quả này bác β=0.5, **không** bác ý tưởng.
+- **Nửa codebert bị nhiễu loạn** vì Pha 1 sập. Phần đọc được nằm ở t5p.
+- **Nhiễu loạn sampler chưa tách.** Batch theo cặp gồm toàn hàm gần trùng nhau ⇒ gradient trong
+  batch tương quan cao; tự nó đã có thể đổi kết quả mà không liên quan gì tới hàm mục tiêu.
+  Đã ghi sẵn trong bản dự đoán; cờ `--pair_sampler_only` đã viết và thử khói ba chiều xong,
+  **chưa chạy** (máy đã dừng).
