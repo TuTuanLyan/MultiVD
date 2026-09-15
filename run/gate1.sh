@@ -79,13 +79,19 @@ PHASE2_EXTRA=--sam_rho_0 DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=pytho
 for FOLD in $FOLDS_LIST; do
   for BB in $BB_LIST; do
     L="${BB%%=*}"
+    # t5p o batch 16 can ~11.7 GB; cong job cua nguoi khac tren cung card la OOM (thieu dung
+    # 192 MiB, 16/09 00:22). Day la lan thu TU cua dung mot loi — §47, §48, §56, va gio.
+    # use_reentrant=False nen gradient KHONG doi, chi doi thoi gian; bat cho CA BA nhanh cua
+    # t5p de phep so trong cung backbone van chi doi MOT bien. KHONG bat cho codebert: no
+    # khong OOM va hai o codebert da chay xong.
+    GC=""; [ "$L" = "t5p" ] && GC=" --grad_checkpointing"
     # --- 1) METHOD truoc (baseline hoan lai)
     echo "===== $(ts) | $L | FOLD $FOLD | 1/3 METHOD transfer real seed 42 ====="
     SKIP_BASELINE=1 RUN_NAME="$RN" SEED=42 FOLDS="$FOLD" BACKBONES="$BB" \
     MODES=none OPTIMIZERS=adamw CWE_VOCAB=precomputed \
     ARM_TAG="_com_real" PHASE1_TAG="_com_real" PHASE1_STORE="$P1STORE" \
     PHASE1_DATA_PATH=data/phase1_common.jsonl LAMBDA_CWE=0.05 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
-    PHASE2_EXTRA="--sam_rho 0" DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
+    PHASE2_EXTRA="--sam_rho 0$GC" DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     PYTHON="$PY" bash run/matrix.sh 4>&-
 
     # --- 2) baseline seed 42 (model A)
@@ -94,6 +100,7 @@ for FOLD in $FOLDS_LIST; do
     MODES=none OPTIMIZERS=adamw CWE_VOCAB=precomputed \
     ARM_TAG="_com_real" PHASE1_TAG="_com_real" PHASE1_STORE="$P1STORE" \
     PHASE1_DATA_PATH=data/phase1_common.jsonl LAMBDA_CWE=0.05 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
+    BASELINE_EXTRA="$GC" \
     DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     PYTHON="$PY" bash run/matrix.sh 4>&-
 
@@ -103,6 +110,7 @@ for FOLD in $FOLDS_LIST; do
     MODES=none OPTIMIZERS=adamw CWE_VOCAB=precomputed \
     ARM_TAG="_com_real" PHASE1_TAG="_com_real" PHASE1_STORE="$P1STORE" \
     PHASE1_DATA_PATH=data/phase1_common.jsonl LAMBDA_CWE=0.05 PHASE1_MIN_VAL=0 MIN_EPOCHS=3 \
+    BASELINE_EXTRA="$GC" \
     DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     PYTHON="$PY" bash run/matrix.sh 4>&-
   done
