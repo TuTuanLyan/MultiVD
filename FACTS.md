@@ -5450,3 +5450,84 @@ trung** ở nhóm cần phân biệt gần-trùng-lặp.
   lập nhưng ở cấu hình khác.
 - `tools/leak_groups_auc.py` bỏ ô có nhóm chỉ chứa **một lớp** (2/10 ô ở nhóm `test`); số ô
   thực dùng in ra ở mỗi dòng.
+
+---
+
+## §59 — CẮT 512 TOKEN: không xoá tín hiệu ở NGUỒN, nhưng ở ĐÍCH nó tạo ra **16.2% hàng bất khả thi** trong đúng nhóm khó (15/09, **0 GPU**, chỉ tokenizer)
+
+Người dùng nêu 15/09: *"với length 512 thì rất dễ missing vì cpp hay js có code rất dài, lỗ hổng
+rất có thể nằm ở phân đoạn cuối"*. Đo bằng tokenizer, không chạy mô hình.
+
+### Khối lượng bị cắt
+
+| tập | n | token TB | trung vị | **vượt 512** |
+|---|---|---|---|---|
+| nguồn `com` | 3 744 | 922.9 | 426 | **43.4%** |
+| ↳ ccpp | 2 360 | 1 189.5 | — | **54.4%** |
+| ↳ js | 1 384 | 468.3 | — | 24.6% |
+| đích python | 760 | 430.6 | 252 | 28.9% |
+
+Nguồn bị cắt **gấp rưỡi** đích ⇒ Pha 1 huấn luyện trên đầu vào cụt hơn hẳn Pha 2. Đây là một
+dịch chuyển phân bố **cộng thêm** vào dịch chuyển ngôn ngữ.
+
+### Ở NGUỒN, cắt 512 KHÔNG xoá tín hiệu nhãn — 1 755 cặp
+
+| | |
+|---|---|
+| sau khi cắt, hai bản (vul, fixed) **giống hệt nhau** | **0 / 1 755 = 0.0%** |
+| vùng sửa **bắt đầu** sau token 512 | **0.0%** |
+| vùng sửa **nằm trọn** trong 512 | **78.2%** |
+| vùng sửa **kết thúc** sau 512 (mất một phần bản vá) | **21.8%** — ccpp 28.0%, js 12.1% |
+| vị trí token khác nhau **đầu tiên** | p50 = **94**, p90 = 345, p95 = 416 |
+
+> **Bản vá gần như luôn nằm ở đầu hàm.** Mô hình luôn nhìn thấy **một phần** khác biệt; ở 21.8%
+> cặp nó chỉ thấy một phần. Thứ bị mất nhiều là **ngữ cảnh**, không phải **tín hiệu phân biệt**.
+
+### Ở ĐÍCH, chuyện khác hẳn — và nó rơi đúng vào nhóm của §58
+
+| nhóm rò rỉ | n | token TB | trung vị | vượt 512 |
+|---|---|---|---|---|
+| **`train`** (gần trùng, ngược nhãn, trong train) | 117 | **704.3** | 590 | **58.1%** |
+| `test` | 38 | 743.2 | 696 | 78.9% |
+| `none` (73% số hàng) | 556 | 317.5 | 192 | 16.9% |
+
+**Nhóm khó CHÍNH LÀ nhóm code dài.** Khớp từng hàng `train` với bản đối nghịch gần nhất trong
+train (Jaccard 5-gram ≥ 0.75) rồi so chuỗi token đã cắt:
+
+> ### **19 / 117 hàng = 16.2% trở thành GIỐNG HỆT một mẫu train NGƯỢC NHÃN sau khi cắt 512.**
+>
+> Với những hàng đó, mô hình nhận **đúng cùng một đầu vào** với một mẫu huấn luyện mang **nhãn
+> ngược lại**. Không mô hình nào đúng được cả hai. Đây là **trần cứng**, không phải "học kém".
+
+Thêm **14.3%** hàng mất một phần vùng khác biệt. Khác biệt đầu tiên: p50 = 142, p90 = 365,
+**0 hàng** có khác biệt đầu tiên sau 512.
+
+### Nó ăn mất bao nhiêu điểm — bỏ 19 hàng bất khả thi rồi tính lại nhóm `train`
+
+| | codebert ROC giữ → bỏ | t5p ROC giữ → bỏ |
+|---|---|---|
+| baseline | 0.7109 → **0.7594** (+0.049) | 0.7282 → 0.7230 (−0.005) |
+| `fusft` | 0.8275 → 0.8525 (+0.025) | 0.8474 → 0.8523 (+0.005) |
+| `nonefus` | 0.8205 → 0.8344 (+0.014) | 0.8583 → 0.8644 (+0.006) |
+| **Δ `fusft` − baseline** | **+0.117 → +0.093** | +0.119 → +0.129 |
+
+> **§58 KHÔNG phải hiện vật của cắt chuỗi.** Bỏ hết hàng bất khả thi thì hiệu ứng vẫn +0.093
+> (codebert) và +0.129 (t5p). Nhưng trên codebert biên độ **co ~20%**, nên con số +0.1179 phải
+> được trích dẫn kèm ghi chú này.
+
+### Độ dài KHÔNG mang thông tin nhãn — nên không có thiên lệch độ dài
+
+AUC khi đoán nhãn **chỉ bằng số token**: nguồn **0.4793**, đích **0.4937** — đều dưới 0.5, tức
+ngang ngẫu nhiên. Mọi cách gộp chunk (kể cả trung bình) sẽ **không** vô tình bơm thiên lệch
+độ dài vào điểm số.
+
+### Ràng buộc kiến trúc — quyết định cách sửa
+
+| backbone | giới hạn vị trí | nới dài được không |
+|---|---|---|
+| `microsoft/codebert-base` (RoBERTa) | `max_position_embeddings = 514` | **KHÔNG** — phải chunk hoặc nội suy embedding vị trí |
+| `Salesforce/codet5p-220m-bimodal` (T5) | vị trí **tương đối**, 32 bucket, không có trần | **CÓ — đổi `--max_length` là xong, 0 dòng mã** |
+
+Đây là phép kiểm rẻ nhất cho toàn bộ giả thuyết: chạy t5p ở `max_length` 1024 so với 512, cùng
+máy, **một biến duy nhất**. Nếu trục ngữ cảnh có độ dốc thì nó hiện ra ở đó trước, với chi phí
+~2× và không phải viết chunking.
