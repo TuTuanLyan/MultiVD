@@ -5642,3 +5642,78 @@ sẽ chạy**, không bằng bản dựng lại theo trí nhớ.
 > và đo được (§60, −0.08 ROC), nhưng nguyên nhân **không phải** cắt chuỗi — cắt đã được xử lý.
 > Nguyên nhân còn lại là **pha loãng biểu diễn** hoặc **khó nội tại**, và multi-window nhắm
 > đúng vào cái thứ nhất.
+
+---
+
+## §61 — GHÉP MUỘN (Đề xuất 1): phần lớn lợi ích là **ENSEMBLE**, không phải **tri thức nguồn** (16/09, 18 ô, server 158 A4000)
+
+Khai báo trước: `records/prediction_2026-09-15_gate1_late_fusion.md`. Bậc 1, n=3, hai backbone,
+ba nhánh cùng cây cùng máy cùng phiên: `transfer real s42` · `baseline s42` · `baseline s7`.
+Cổng ghép muộn học trên val của chính fold đó (`tools/late_fusion_gate.py`).
+
+### Biến quyết định — theo ĐÚNG ngưỡng đã ghi trước
+
+| phép so, 6 điểm ghép cặp | F1@0.5 | F1@val | **ROC** | PR |
+|---|---|---|---|---|
+| ghép(base, **transfer**) − base | +0.0348 5/6 | +0.0439 5/6 | +0.0234 4/6 | +0.0275 6/6 |
+| ghép(base, **base seed 7**) − base **[ĐỐI CHỨNG]** | **+0.0278 5/6** | +0.0168 4/6 | **+0.0169 5/6** | +0.0215 4/6 |
+| **D_nguồn = ghép nguồn − đối chứng** | +0.0070 5/6 | +0.0271 5/6 | **+0.0065 3/6** | +0.0059 4/6 |
+
+> **Phán quyết: KHÔNG ĐẠT.** Ngưỡng đòi `D_nguồn@ROC ≥ +0.010` **và** `≥ 4/6`; thực tế
+> **+0.0065, 3/6**. Dây chuyền tự bỏ qua n=5 đúng theo luật, không nới sau khi thấy số.
+
+> ### **Ghép HAI MODEL TARGET-ONLY khác seed cho +0.0278 F1 / +0.0169 ROC — gần bằng toàn bộ
+> lợi ích của ghép muộn.** Phần thêm do *tri thức nguồn* chỉ còn +0.0070 / +0.0065.
+
+### Vì sao kết quả 0-GPU trước đó trông mạnh hơn hẳn — BÀI HỌC CHÍNH
+
+Bản đo trên cây `shuf1` (5060 Ti, n=5) cho `D_nguồn@ROC = +0.0256, 9/10, p=0.021`. Khác biệt
+duy nhất: ở đó **đối chứng là `shufall`** — model có Pha 1 huấn luyện trên **nhãn xáo**, tức một
+model **hỏng** (ROC 0.775 so với baseline 0.871). Ghép với một model hỏng thì **kéo xuống**, nên
+độ tương phản bị thổi lên.
+
+> **Chọn đối chứng nào quyết định kết luận.** `shufall` trả lời *"nhãn nguồn có mang tri thức
+> không"* (có — §54). Nó **không** trả lời *"ghép có cần transfer không"*. Đối chứng đúng cho câu
+> sau là một model target-only **tốt ngang**, và khi thay vào thì hiệu ứng mất gần hết.
+
+### Tách theo backbone — hai bức tranh NGƯỢC nhau
+
+| | baseline | transfer | ghép (logreg) | ghép − transfer |
+|---|---|---|---|---|
+| **codebert** ROC | 0.8640 | **0.8453** *(thua baseline)* | **0.8711** | **+0.0258, 3/3** |
+| **t5p** ROC | 0.8722 | **0.9130** | 0.9118 | **−0.0012, 2/3** |
+
+- **codebert**: transfer **kém hơn** baseline, nhưng ghép **hơn cả hai**, 3/3 fold trên **cả bốn**
+  chỉ số. Đây là ca ghép muộn hoạt động đúng như quảng cáo.
+- **t5p**: transfer **hơn hẳn** baseline, và ghép **không thêm gì** (−0.001, 2/3). Ghép với một
+  model yếu hơn chỉ pha loãng.
+
+> **Phát biểu chính xác: ghép muộn ăn khi hai model MẠNH NGANG NHAU và sai ở chỗ khác nhau;
+> nó vô dụng khi một model đã trội hẳn.** Đó là phát biểu về *điều kiện áp dụng*, không phải
+> về *transfer*.
+
+### Cơ chế per-CWE thì LẶP LẠI (§A.3 của đề xuất)
+
+`g` khớp riêng từng CWE trên val, cổng **không hề thấy nhãn CWE**:
+
+| | CWE-022 | CWE-078 | CWE-079 | CWE-089 |
+|---|---|---|---|---|
+| codebert | **1.00** (3/3 fold) | 0.77 | 0.77 | **0.00** (3/3 fold) |
+| t5p | 0.33 | **1.00** (3/3) | 0.90 | 0.43 |
+
+`g→1` = dựa vào transfer. Trên codebert nó tái hiện **chính xác** mẫu hình của khối `shuf1`:
+dựa hẳn vào transfer ở 022/079, dựa hẳn vào baseline ở 089. **Cơ chế có thật; thứ không đứng
+được là phát biểu rằng lợi ích đến từ transfer chứ không từ ensemble.**
+
+### Cổng 3 lặp lại trên phần cứng khác
+
+`transfer − baseline` tách theo nhóm rò rỉ, 6 ô, A4000: `train` **+0.1115 4/6** · `none`
+**−0.0070 3/6** · tất cả +0.0111 4/6. Mẫu hình của **§58** (lợi ích tập trung ở nhóm gần-trùng-
+ngược-nhãn) **lặp trên loại card khác**, tuy đếm dấu yếu hơn hẳn (4/6 so với 10/10).
+
+### Ràng buộc
+
+- n=3, **một máy**, một seed cho mỗi nhánh. Bậc 1 chỉ đủ để **dừng**.
+- Đối chứng ensemble chỉ có **một** seed thay thế (7). Ghép hai model trội (transfer+transfer
+  khác seed) **chưa đo** — đó là phép so còn thiếu để tách "bổ khuyết" khỏi "giảm phương sai".
+- `g` per-CWE khớp trên 11–83 hàng val mỗi CWE: đọc xu hướng, không đọc số.
