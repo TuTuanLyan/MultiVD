@@ -5453,7 +5453,17 @@ trung** ở nhóm cần phân biệt gần-trùng-lặp.
 
 ---
 
-## §59 — CẮT 512 TOKEN: không xoá tín hiệu ở NGUỒN, nhưng ở ĐÍCH nó tạo ra **16.2% hàng bất khả thi** trong đúng nhóm khó (15/09, **0 GPU**, chỉ tokenizer)
+## §59 — CẮT 512 TOKEN — **PHÁT BIỂU CHÍNH ĐÃ BỊ RÚT LẠI, đọc §59.1 trước** (15/09, **0 GPU**, chỉ tokenizer)
+
+> ### ⚠ ĐÍNH CHÍNH 15/09 — con số **16.2% hàng bất khả thi** là SAI.
+> Tôi đo bằng cắt đầu thuần `token[:512]`. **Dự án không dùng cách đó.** `src/dataset.py`
+> mặc định `truncation_strategy=head_middle_tail` — giữ **170 đầu + 170 giữa + 170 cuối**,
+> và chú thích trong chính mã đó nói rõ lý do: *"so paired samples do not become identical
+> prefixes"*. Đo lại bằng đúng `CodeDataset._truncate`: **0/117 = 0.0%**. Xem §59.1.
+> Phần **khối lượng bị cắt**, **độ dài theo nhóm rò rỉ** và **độ dài không mang thông tin
+> nhãn** vẫn đúng vì không phụ thuộc cách cắt. Phần **"bỏ 19 hàng bất khả thi"** bên dưới
+> **vô hiệu** — 19 hàng đó không suy biến.
+
 
 Người dùng nêu 15/09: *"với length 512 thì rất dễ missing vì cpp hay js có code rất dài, lỗ hổng
 rất có thể nằm ở phân đoạn cuối"*. Đo bằng tokenizer, không chạy mô hình.
@@ -5598,3 +5608,37 @@ Cộng với §57 (t5p: Pha 1 **tốt hơn** 0.6002 vs 0.5892 nhưng Pha 2 **ké
   Dải 1024+ chỉ 26 hàng, không đơn điệu, **không đọc**.
 - Bảng (b) chỉ n=5 (và n=3 sau khi lọc). Nó **bác** được phát biểu *"val Pha 1 dự báo Pha 2"*,
   không đủ để phát biểu điều ngược lại có cấu trúc gì.
+
+
+### §59.1 — ĐO LẠI BẰNG ĐÚNG MÃ THẬT: `head_middle_tail` xoá sạch vấn đề (15/09)
+
+Dùng thẳng `src/dataset.py::CodeDataset._truncate`, không tự viết lại. Ngân sách thực
+**510** token (512 trừ 2 token đặc biệt) = **170 đầu + 170 giữa + 170 cuối**.
+
+| | cắt `head` (tôi đã đo nhầm) | **`head_middle_tail` (mã thật)** |
+|---|---|---|
+| cặp NGUỒN giống hệt nhau sau khi cắt (1 755 cặp) | 1 (0.1%) | 12 (0.7%) |
+| hàng ĐÍCH nhóm `train` giống hệt mẫu train ngược nhãn | **19/117 = 16.2%** | **0/117 = 0.0%** |
+
+> **Cách cắt ba cửa sổ ĐÃ là biện pháp phòng, và nó hoạt động.** Không có hàng nào của tập
+> đích trở nên bất khả thi. Giả thuyết *"cắt 512 tạo ra mâu thuẫn nhãn"* **chết tại đây**.
+
+**Bài học, đã thành memory:** tôi đọc `max_length=512` rồi **giả định** cách cắt thay vì đọc
+`src/dataset.py`. Cờ `--truncation_strategy head_middle_tail` in ra trong **mọi** dòng lệnh
+của `run/matrix.sh` — nhìn một dòng log là thấy. Đo một cơ chế thì phải đo bằng **chính mã
+sẽ chạy**, không bằng bản dựng lại theo trí nhớ.
+
+### Cái gì của §59 CÒN ĐỨNG
+
+| | |
+|---|---|
+| 43.4% dòng nguồn vượt 512 (ccpp 54.4%, js 24.6%); đích 28.9% | ✔ không phụ thuộc cách cắt |
+| nhóm `train` dài hơn hẳn: 58.1% vượt 512 so với `none` 16.9% | ✔ |
+| độ dài **không** mang thông tin nhãn: AUC 0.4793 / 0.4937 | ✔ |
+| vị trí khác biệt đầu tiên p50 = 94, p95 = 416 | ✔ (nhưng hệ quả đổi: với ba cửa sổ thì phần giữa và cuối cũng được giữ) |
+| **§60 — code dài khó hơn TRƯỚC khi bị cắt** | ✔ **không hề bị ảnh hưởng**: nó đo trên hàng < 512 token, nơi không có token nào bị bỏ |
+
+> Nên câu trả lời cho người dùng **không đổi về hướng**: vấn đề *"hàm dài thì khó"* là **thật**
+> và đo được (§60, −0.08 ROC), nhưng nguyên nhân **không phải** cắt chuỗi — cắt đã được xử lý.
+> Nguyên nhân còn lại là **pha loãng biểu diễn** hoặc **khó nội tại**, và multi-window nhắm
+> đúng vào cái thứ nhất.
