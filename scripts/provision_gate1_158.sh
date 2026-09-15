@@ -26,7 +26,7 @@ rsync -az -e "$SSH" data/sven_python_folds_norm/ "$H:$R/data/sven_python_folds_n
 echo "-- day Pha 1 (~940 MB) --"
 $SSH $H "mkdir -p $R/model/shuf1/phase1"
 for L in codebert t5p; do
-  rsync -az --info=progress2 -e "$SSH" "model/shuf1/phase1/${L}__none_com_real/" \
+  rsync -az --info=stats1 -e "$SSH" "model/shuf1/phase1/${L}__none_com_real/" \
     "$H:$R/model/shuf1/phase1/${L}__none_com_real/" || exit 1
 done
 
