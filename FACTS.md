@@ -5335,3 +5335,118 @@ Biến đăng ký `D = Δ(pairB − bce)` trên F1@0.5: **−0.0175, 2/6**. Bả
   batch tương quan cao; tự nó đã có thể đổi kết quả mà không liên quan gì tới hàm mục tiêu.
   Đã ghi sẵn trong bản dự đoán; cờ `--pair_sampler_only` đã viết và thử khói ba chiều xong,
   **chưa chạy** (máy đã dừng).
+
+---
+
+## §58 — CỔNG 3 cho §56: lợi ích transfer tập trung ~4× ở nhóm GẦN-TRÙNG-NGƯỢC-NHÃN, và head phụ chỉ hại ở NGƯỠNG (15/09, **0 GPU**, đọc lại 30 ô của §56)
+
+Khai báo trước: `records/prediction_2026-09-15_gate3_fusion_nhom_ro_ri.md`, viết **trước** khi
+chạy, kèm ngưỡng và vùng "không kết luận". Công cụ: `tools/leak_groups_pair.py` (macro-F1, đã
+có) + `tools/leak_groups_auc.py` (**mới**, in ROC-AUC và PR-AUC theo nhóm — vì công cụ cũ chỉ
+in một chỉ số, trái luật §2b). Cổng hai chiều của công cụ mới: `A − A` cho **đúng 0.0000** ở
+mọi nhóm, `A − baseline` khác 0.
+
+Nhóm mỗi fold: `train` 23.4 hàng · `test` 7.6 · `none` 111.2 (trên 152).
+
+### (1) Giá trị của head phụ, tách theo nhóm — 10 ô ghép cặp, 2 backbone
+
+| nhóm | Δ macro-F1@0.5 | Δ ROC-AUC | Δ PR-AUC |
+|---|---|---|---|
+| **`train`** | **−0.0243 2/10** | **−0.0020 4/10** | +0.0149 5/10 |
+| `none` | +0.0027 5/10 | −0.0077 5/10 | −0.0052 6/10 |
+| TẤT CẢ | +0.0053 5/10 | −0.0016 3/10 | +0.0010 5/10 |
+
+Trên `train`, F1@0.5 âm ở **cả hai** backbone (codebert −0.0319 **1/5**, t5p −0.0166 **1/5**).
+
+**Phán quyết theo đúng ngưỡng đã ghi trước:** ô thứ ba của bảng Q1 (`Δ ≤ −0.020` **và** `≤3/10`)
+**kích hoạt** ⇒ *"head làm hại phân biệt lỗ hổng"*. **NHƯNG** ràng buộc số 2 của chính khai báo
+đó đã lường trước: bảng Q1 viết trên **một** chỉ số. Chỉ số **thứ hạng** cùng nhóm cho
+**−0.0020, 4/10** — tức **null**, không âm.
+
+> **Đọc đúng: đây là hiệu ứng NGƯỠNG, không phải hiệu ứng PHÂN BIỆT.** Head không làm mô hình
+> xếp hạng kém đi ở nhóm khó; nó làm **điểm cắt 0.5** rơi sai chỗ trên đúng những hàng đó.
+> Cùng mẫu hình ngưỡng-vs-thứ-hạng đã lặp bảy lần (§2b, §52.1, §54.1).
+>
+> Với §56 thì kết luận **mạnh thêm**: null +0.0053 **không** phải hai hiệu ứng thật triệt tiêu
+> nhau — ở thứ hạng head null ở **mọi** nhóm. Bỏ head vẫn an toàn, và ở ngưỡng 0.5 bỏ head còn
+> **tốt hơn** trên nhóm khó.
+
+### (2) Lợi ích so với baseline, tách theo nhóm — ĐÂY MỚI LÀ PHÁT HIỆN
+
+ROC-AUC, Δ ghép cặp theo fold, **từng backbone riêng**:
+
+| nhánh | backbone | `train` (23 hàng) | `none` (111 hàng) | tỉ lệ |
+|---|---|---|---|---|
+| `fusft` **có head** | codebert | **+0.1166 5/5** | +0.0243 5/5 | 4.8× |
+| `fusft` **có head** | t5p | **+0.1192 5/5** | +0.0109 3/5 | 10.9× |
+| `nonefus` **không head** | codebert | **+0.1096 4/5** | +0.0187 5/5 | 5.9× |
+| `nonefus` **không head** | t5p | **+0.1302 5/5** | +0.0319 5/5 | 4.1× |
+| **gộp** `fusft` | 10 ô | **+0.1179 10/10 p=0.002** | +0.0176 8/10 | 6.7× |
+| **gộp** `nonefus` | 10 ô | **+0.1199 9/10 p=0.021** | +0.0253 10/10 p=0.002 | 4.7× |
+
+Điểm tuyệt đối (TB 5 fold) cho thấy vì sao:
+
+| | codebert `train` ROC | `none` ROC | t5p `train` ROC | `none` ROC |
+|---|---|---|---|---|
+| baseline | **0.7109** | 0.9102 | **0.7282** | 0.9170 |
+| `fusft` | 0.8275 | 0.9345 | 0.8474 | 0.9279 |
+| `nonefus` | 0.8205 | 0.9289 | **0.8583** | **0.9488** |
+
+**Baseline yếu hẳn ở đúng nhóm khó** (0.71–0.73 so với 0.91–0.92 ở nhóm sạch), và Pha 1 lấp
+khoảng đó.
+
+### Đối chứng TRẦN — phải nêu, nó cắt phát hiện trên xuống một nửa
+
+Nhóm `none` đã ở 0.91 nên chỉ còn 0.09 dư địa; nhóm `train` ở 0.71 nên còn 0.29. Chuẩn hoá
+theo dư địa `Δ / (1 − baseline)`:
+
+| điều kiện | `train` | `none` |
+|---|---|---|
+| codebert `fusft` | 40.3% | 27.1% |
+| codebert `nonefus` | 37.9% | 20.8% |
+| t5p `fusft` | **43.9%** | 13.1% |
+| t5p `nonefus` | 47.9% | 38.4% |
+
+> Sau chuẩn hoá, `train` vẫn hơn `none` ở **4/4** điều kiện, nhưng tỉ lệ co từ **~5×** xuống
+> **1.2–3.4×**. Con số đáng trích dẫn là **4/4 cùng chiều**, không phải "5 lần".
+
+### Phán quyết Q2 theo đúng ngưỡng đã ghi trước: **KHÔNG KẾT LUẬN**
+
+Điều kiện chống-H1 viết trên **macro-F1** và đòi `Δ_train − Δ_none ≥ 0.030` ở **cả hai** nhánh
+**và cả hai** backbone. Thực tế trên macro-F1, `fusft` × codebert cho `train` **+0.0288** so với
+`none` **+0.0544** — tức `train` **thấp hơn**. Điều kiện **không** đạt ⇒ theo luật đã chốt,
+**không kết luận**, không được nới sau khi thấy số.
+
+Mẫu hình 4/4 ở trên nằm trên chỉ số **thứ hạng**, **không** có trong khai báo trước ⇒ nó là
+**quan sát hậu nghiệm**, phải lặp ở một khối độc lập rồi mới được phát biểu.
+
+### Vì sao nó vẫn đáng theo — và nó khớp với cái gì
+
+1. **Qua cổng 2**: cùng chiều trên **cả hai** backbone, với **và** không có head — bốn điều kiện
+   độc lập. Rất hiếm trong dự án này (§38.2: *"mọi cơ chế đã thử đều tách theo backbone"*).
+2. **Khớp §50** — khối hoàn toàn khác (chốt, **không** adapter, n=15, 3 seed): `train` +0.0591
+   so với `none` +0.0459, cùng chiều tuy biên độ nhỏ hơn.
+3. **Khớp §53**: Pha 1 **tạo ra** trục lỗ hổng (AUC 0.5242 → 0.6477 trên Python, 0 bước huấn
+   luyện). Nhóm `train` chính là nơi cần trục đó — phân biệt một hàm với **chính bản vá của nó**.
+4. **Khớp §54**: nhãn nguồn mang tri thức chuyển giao được (thật − xáo +0.068…+0.087).
+5. **Không mâu thuẫn với §48/§50(3)**: thứ mang khả năng phân biệt là **huấn luyện Pha 1 của
+   backbone**, không phải **nội dung adapter nguồn** — đó là lý do adapter đã học có thể thua
+   adapter ngẫu nhiên (−0.0595) trong khi Pha 1 vẫn +0.12 ở cùng nhóm.
+
+### Điều này đổi gì cho giả thuyết H1 (§0c của sổ bằng chứng)
+
+H1 nói *"adapter+fusion không thêm tri thức, nó thêm đường vòng quanh một Pha 1 hỏng"*. Số ở
+đây **không bác H1** — H1 nói về **phần gia tăng của fusion so với chốt**, còn mục này đo
+**Pha 1 + adapter + fusion so với KHÔNG có Pha 1**. Hai câu khác nhau. Nhưng nó thu hẹp H1:
+phần "đường vòng" giải thích được **sức chứa**, không giải thích được vì sao lợi ích **tập
+trung** ở nhóm cần phân biệt gần-trùng-lặp.
+
+### Ràng buộc
+
+- Nhóm `train` chỉ **~23 hàng/fold** — phương sai lớn. Đọc đếm dấu (4–5/5 mỗi điều kiện), đừng
+  đọc trung bình một mình.
+- Nhóm `test` (7.6 hàng) **không đọc**: nó cho +0.1372 ở chỗ này và −0.0043 ở chỗ kia.
+- **Một khối, một máy** (vast `ntat`), seed 7 cho codebert và 42 cho t5p. §50 là hậu thuẫn độc
+  lập nhưng ở cấu hình khác.
+- `tools/leak_groups_auc.py` bỏ ô có nhóm chỉ chứa **một lớp** (2/10 ô ở nhóm `test`); số ô
+  thực dùng in ra ở mỗi dòng.
