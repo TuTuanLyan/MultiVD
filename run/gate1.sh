@@ -20,7 +20,12 @@
 # Fold la vong NGOAI (CLAUDE.md muc 1), nen xong fold 3 la co ngay mot lat cat so duoc.
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export HF_HOME="${HF_HOME:-/workspace/.hf_home}"
+# HF_HOME: `/workspace` la duong dan cua VAST. Tren server 158 no KHONG ton tai, va cong
+# voi HF_HUB_OFFLINE=1 thi moi lan nap model deu chet bang thong bao "check your internet
+# connection" — nghe nhu loi mang chu khong nhu loi duong dan. Da mat mot lan phong vi cai nay.
+# Ton trong bien da dat san; neu chua, chi dat khi /workspace co that, con lai de HF dung
+# mac dinh ~/.cache/huggingface (tren 158 ca hai model da nam san o do).
+if [ -z "${HF_HOME:-}" ] && [ -d /workspace ]; then export HF_HOME=/workspace/.hf_home; fi
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
@@ -49,6 +54,17 @@ for f in run/matrix.sh src/train_transfer.py src/train_baseline.py src/report_fo
 done
 grep -q "BASELINE_ONLY" run/matrix.sh || { echo "!! run/matrix.sh chua co BASELINE_ONLY"; exit 5; }
 "$PY" -c "import torch,transformers,sklearn;print('env OK',torch.__version__,transformers.__version__)" || exit 5
+
+# CONG NAP MODEL OFFLINE. Kiem THU THAT su se duoc nap, khong chi kiem import duoc thu vien.
+# Cong nay ton ~5 giay va bat duoc dung lop loi da lam hong lan phong truoc (HF_HOME sai).
+"$PY" - <<'PYCHECK' || { echo "!! KHONG nap duoc model offline — kiem HF_HOME/cache, DUNG"; exit 5; }
+import os
+from transformers import AutoTokenizer, AutoConfig
+for m in ("microsoft/codebert-base", "Salesforce/codet5p-220m-bimodal"):
+    AutoTokenizer.from_pretrained(m, trust_remote_code=True)
+    AutoConfig.from_pretrained(m, trust_remote_code=True)
+print("  HF offline OK | HF_HOME =", os.environ.get("HF_HOME", "(mac dinh ~/.cache/huggingface)"))
+PYCHECK
 
 echo "########## GATE1 bat dau $(ts) | $(hostname) | fold: $FOLDS_LIST ##########"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
