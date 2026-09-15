@@ -16,7 +16,8 @@
 #   3. baseline seed 7                   <- model S, DOI CHUNG ENSEMBLE THUAN
 # Pha 1 DUNG LAI tu model/shuf1/phase1, khong huan luyen lai gi.
 #
-# Bac 2 — xac nhan, n=5 fold. Fold la vong NGOAI (CLAUDE.md muc 1).
+# Bac 1 — KIEM CHUNG, n=3 fold (nguoi dung neu 15/09: n=3 truoc, tot thi len n=5).
+# Fold la vong NGOAI (CLAUDE.md muc 1), nen xong fold 3 la co ngay mot lat cat so duoc.
 set -uo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HF_HOME="${HF_HOME:-/workspace/.hf_home}"
@@ -25,7 +26,7 @@ export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 PY="${PYTHON:-/venv/main/bin/python}"
 RN="${RUN_NAME:-gate1}"
-FOLDS_LIST="${FOLDS:-1 2 3 4 5}"
+FOLDS_LIST="${FOLDS:-1 2 3}"   # bac 1 — kiem chung; len n=5 bang FOLDS="1 2 3 4 5"
 BB_LIST="${BB_LIST:-codebert=microsoft/codebert-base:cls t5p=Salesforce/codet5p-220m-bimodal:mean}"
 P1STORE="${PHASE1_STORE:-model/shuf1/phase1}"
 
@@ -89,7 +90,7 @@ for FOLD in $FOLDS_LIST; do
     DATA_ROOT=data/sven_python_folds_norm TARGET_LANG=python \
     PYTHON="$PY" bash run/matrix.sh 4>&-
   done
-  echo "----- $(ts) | het fold $FOLD | o: $(find results/${RN}_* -name 'fold*.json' 2>/dev/null | wc -l)/30 -----"
+  echo "----- $(ts) | het fold $FOLD | o: $(find results/${RN}_* -name "fold*.json" 2>/dev/null | wc -l) -----"
 done
 
 TOT=$(find results/${RN}_* -name 'fold*.json' 2>/dev/null | wc -l)
