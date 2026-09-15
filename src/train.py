@@ -4,6 +4,8 @@ import math
 import time
 from collections import Counter
 
+from pairloss import pair_margin_loss
+
 import torch
 import torch.nn.functional as F
 
@@ -58,7 +60,8 @@ def _combine_phase1_loss(vul_loss, aux_loss, lambda_cwe, aux_weighter):
 
 
 def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max_grad_norm,
-                           aux_weighter=None, sam=None, aux_class_weight=None):
+                           aux_weighter=None, sam=None, aux_class_weight=None,
+                           pair_ctx=None):
     """`sam=None` giu nguyen duong chay cu tung byte.
 
     Khi co SAM: nhieu loan phai lay tren DUNG ham muc tieu dang toi uu, ma o
@@ -82,6 +85,16 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
             temperature=getattr(model, "latent_temperature", 0.1),
             class_weight=aux_class_weight)
         loss = _combine_phase1_loss(vul_loss, aux_loss, lambda_cwe, aux_weighter)
+        # De xuat B: rang buoc TUONG DOI trong tung cap truoc-va/sau-va. Nhan tuyet doi sai
+        # 40-75% (FACTS §51) nhung quan he "ban nao truoc ban va" dung theo cau tao, nen
+        # nhieu bi ha cap tu "giam sat SAI" xuong "giam sat YEU". pair_ctx=None => duong cu.
+        if pair_ctx is not None:
+            pl, npair = pair_margin_loss(
+                outputs["vul_logits"], batch["index"],
+                pair_ctx["group"], pair_ctx["role"], pair_ctx["margin"])
+            loss = loss + pair_ctx["beta"] * pl
+            totals["pair"] += float(pl.item()) * labels.size(0)
+            totals["pair_n"] += npair
         loss.backward()
 
         if sam is not None:
@@ -111,7 +124,11 @@ def train_one_epoch_phase1(model, dataloader, optimizer, device, lambda_cwe, max
         if assignment is not None:
             assignments.extend(assignment.detach().cpu().tolist())
             cwe_seen.extend(cwes.detach().cpu().tolist())
-    result = {key: value / examples for key, value in totals.items()}
+    # `pair_n` la SO DEM (bao nhieu cap dung duoc trong ca epoch), khong phai trung binh
+    # theo hang — chia cho `examples` se bien no thanh mot phan so vo nghia.
+    result = {key: value / examples for key, value in totals.items() if key != "pair_n"}
+    if "pair_n" in totals:
+        result["pair_n"] = totals["pair_n"]
     result.update(classification_metrics(labels_seen, probabilities, 0.5))
     result.update(labels=labels_seen, probabilities=probabilities)
     result["latent"] = latent_diagnostics(
@@ -394,6 +411,7 @@ def train_loop(
     device,
     phase,
     save_checkpoint,
+    pair_ctx=None,
     pretrain_params=None,
     aux_weighter=None,
     replay=None,
@@ -439,7 +457,12 @@ def train_loop(
             train = train_one_epoch_phase1(
                 model, train_loader, optimizer, device, args.lambda_cwe, args.max_grad_norm,
                 aux_weighter=aux_weighter, sam=sam, aux_class_weight=aux_class_weight,
+                pair_ctx=pair_ctx,
             )
+            if pair_ctx is not None:
+                logger.info("bien-trong-cap | beta %.3f margin %.2f | loss %.4f | %d cap dung duoc/epoch",
+                            pair_ctx["beta"], pair_ctx["margin"],
+                            train.get("pair", 0.0), int(train.get("pair_n", 0)))
             if aux_weighter is not None:
                 d = aux_weighter.diagnostics()
                 # λ_eff là đại lượng đáng đọc nhất của thí nghiệm này: nó nói mô

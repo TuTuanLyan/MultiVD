@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoModel, AutoTokenizer
 
 from dataset import CodeDataset
+from pairloss import PairBatchSampler, build_pair_index
 from evaluate import (
     classification_metrics,
     evaluate,
@@ -378,12 +379,24 @@ def seed_worker(worker_id):
 
 
 def build_dataloader(
-    records, tokenizer, max_length, batch_size, shuffle, seed, num_workers, truncation_strategy
+    records, tokenizer, max_length, batch_size, shuffle, seed, num_workers, truncation_strategy,
+    batch_sampler=None
 ):
     generator = torch.Generator()
     generator.manual_seed(seed)
+    dataset = CodeDataset(records, tokenizer, max_length, truncation_strategy)
+    if batch_sampler is not None:
+        # `batch_sampler` loai tru batch_size/shuffle/drop_last — DataLoader se bao loi neu
+        # truyen kem, nen phai bo han chung o nhanh nay.
+        return DataLoader(
+            dataset,
+            batch_sampler=batch_sampler,
+            num_workers=num_workers,
+            worker_init_fn=seed_worker if num_workers > 0 else None,
+            pin_memory=torch.cuda.is_available(),
+        )
     return DataLoader(
-        CodeDataset(records, tokenizer, max_length, truncation_strategy),
+        dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
@@ -675,9 +688,30 @@ def run_phase1(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = make_model(args.model_name, device, args)
     log_environment(args, model, device, "phase1_train")
+    # --- De xuat B: bien trong cap ---------------------------------------------------
+    # Phai co sampler theo cap: xao ngau nhien thi xac suat hai nua cua mot cap roi vao cung
+    # batch 16 tren ~3370 dong chi ~0.4%, loss se gan nhu khong bao gio kich hoat.
+    pair_ctx = None
+    pair_sampler = None
+    if float(getattr(args, "pair_margin_beta", 0.0)) > 0:
+        group, role, n_pairs = build_pair_index(train_records)
+        n_rows_in_pair = int((group >= 0).sum().item())
+        if n_pairs == 0:
+            raise SystemExit("--pair_margin_beta > 0 nhung khong cap `pair_id` day du nao "
+                             "trong tap huan luyen Pha 1 — DUNG thay vi chay mot loss luon bang 0")
+        pair_sampler = PairBatchSampler(group, args.batch_size, seed=args.seed)
+        pair_ctx = {"group": group, "role": role,
+                    "beta": float(args.pair_margin_beta), "margin": float(args.pair_margin_m)}
+        args.pair_n_pairs = n_pairs
+        args.pair_rows_covered = n_rows_in_pair
+        logger.info("BIEN TRONG CAP bat | beta %.3f | margin %.2f | %d cap day du / %d dong "
+                    "(%.1f%% so dong nam trong cap) | %d batch/epoch",
+                    args.pair_margin_beta, args.pair_margin_m, n_pairs, len(train_records),
+                    100.0 * n_rows_in_pair / max(1, len(train_records)), len(pair_sampler))
+
     train_loader = build_dataloader(
         train_records, tokenizer, args.max_length, args.batch_size, True, args.seed, args.num_workers,
-        args.truncation_strategy
+        args.truncation_strategy, batch_sampler=pair_sampler
     )
     val_loader = build_dataloader(
         val_records, tokenizer, args.max_length, args.eval_batch_size, False, args.seed, args.num_workers,
@@ -754,6 +788,7 @@ def run_phase1(args, device):
 
     train_loop(
         args, model, train_loader, val_loader, optimizer, device, "phase1", save_checkpoint,
+        pair_ctx=pair_ctx,
         aux_weighter=aux_weighter, aux_class_weight=aux_class_weight,
     )
     if aux_weighter is not None:
@@ -1801,6 +1836,11 @@ def parse_args():
                                "pr_auc is threshold-free and catches a model that only wins "
                                "at 0.5")
     training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
+    training.add_argument("--pair_margin_beta", type=float, default=0.0,
+                          help="De xuat B: he so cua mat mat BIEN TRONG CAP o Pha 1. "
+                               "0 = tat, duong chay cu khong doi mot byte")
+    training.add_argument("--pair_margin_m", type=float, default=1.0,
+                          help="bien m trong softplus(m - (s_vul - s_fixed)); s la logit[1]-logit[0]")
     training.add_argument("--save_last_epoch", action="store_true",
                           help="ghi checkpoint epoch CUOI va tat dung som; de khop so buoc "
                                "gradient giua nhanh nhan that va nhanh nhan xao")
