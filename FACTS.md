@@ -5216,3 +5216,58 @@ thử đều tách theo backbone"*, và mục này là bằng chứng mới nh�
 **Cái còn lại sau khi trượt cổng 2:** head phụ có thể là **bảo hiểm cho riêng codebert**, nơi
 Pha 1 `none` + adapter hỏng một nửa số lần (§55.3: 3/6). Đó là một lưu ý kỹ thuật đáng ghi cho
 người dùng lại repo này, **không phải** một đóng góp học thuật.
+
+---
+
+## §56 — HEAD PHỤ KHÔNG ĐÓNG GÓP GÌ cho fusion khi Pha 1 lành: **+0.0053, 5/10** (15/09, 30 ô, hai backbone)
+
+Trả lời trọn vẹn yêu cầu của người dùng 14/09 (*"thử bỏ latent bottleneck head"*). Hai khối,
+mỗi khối n=5 fold, cây riêng có baseline của chính nó, **cùng máy cùng phiên**, Pha 1 dùng lại
+từ `p1seed`/`p1seed_t5p` ở seed mà **cả hai nhánh đều học được**:
+
+| | codebert seed 7 | t5p seed 42 |
+|---|---|---|
+| Pha 1 có head | 0.5932 | 0.6051 |
+| Pha 1 không head | 0.5787 | 0.5939 |
+
+t5p phải bật `--grad_checkpointing` cho **cả hai** nhánh (OOM thiếu đúng 24 MiB ở lần đầu, y hệt
+§47/§48). `use_reentrant=False` nên gradient không đổi.
+
+### Điểm tuyệt đối (TB 5 fold)
+
+| nhánh | codebert F1 | ROC | PR | t5p F1 | ROC | PR |
+|---|---|---|---|---|---|---|
+| `fusft` **có head** | **0.8303** | **0.9112** | **0.9158** | 0.8405 | 0.9168 | 0.9210 |
+| `nonefus` **không head** | 0.8120 | 0.8993 | 0.8957 | **0.8481** | **0.9321** | **0.9393** |
+| baseline | 0.7749 | 0.8780 | 0.8830 | 0.7838 | 0.8882 | 0.8975 |
+
+### Δ ghép cặp theo `(backbone, fold)` — **10 điểm**
+
+| | F1@0.5 | F1@val | ROC-AUC | PR-AUC |
+|---|---|---|---|---|
+| **`fusft` − `nonefus`** | **+0.0053 5/10** | +0.0134 6/10 | **−0.0017 3/10** | **+0.0009 5/10** |
+| `fusft` − baseline | **+0.0560 9/10 p=0.021** | +0.0593 8/10 | **+0.0309 9/10 p=0.021** | **+0.0282 9/10 p=0.021** |
+| `nonefus` − baseline | **+0.0507 9/10 p=0.021** | +0.0459 8/10 | +0.0326 8/10 | +0.0273 8/10 |
+
+Tách theo backbone, `fusft − nonefus` **đổi dấu**:
+
+| | F1@0.5 | ROC-AUC |
+|---|---|---|
+| codebert | +0.0182 3/5 | +0.0119 2/5 |
+| t5p | **−0.0077 2/5** | **−0.0153 1/5** |
+
+### Kết luận
+
+> **Head phụ `latent_bottleneck` KHÔNG đóng góp gì** cho cấu hình adapter+fusion khi Pha 1 không
+> sập: **+0.0053 trên F1@0.5 với 5/10 fold** — đúng bằng tung đồng xu — và **âm** trên ROC-AUC
+> (−0.0017, 3/10). Hai backbone **đổi dấu** nhau, tức trượt cổng 2 theo cả hai hướng.
+>
+> Thứ tạo ra lợi ích là **Pha 1 + adapter + fusion**: cả hai nhánh hơn baseline **~+0.05 F1**
+> và **~+0.03 ROC**, 9/10 fold, p=0.021, trên **cả hai** backbone.
+
+**Hệ quả thực tiễn: có thể BỎ HẲN head phụ.** Phương pháp gọn đi một thành phần mà không mất gì
+đo được — trừ rủi ro Pha 1 sập, và rủi ro đó **chỉ có ở codebert** (§55.4: t5p 3/3 seed đều lành).
+
+Cộng với §46 (head hơn `none` chỉ +0.0005 trên 132 ô), §44 (nút thắt thua PCA-8), §45 (head giỏi
+gấp ba không đổi gì): **mạch "head phụ là đóng góp" đóng hoàn toàn.** Điều còn lại của nó là một
+lưu ý kỹ thuật cho riêng codebert, không phải đóng góp học thuật.
