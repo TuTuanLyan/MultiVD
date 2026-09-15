@@ -14,6 +14,32 @@
 
 ## Huỷ máy — DESTROY, không bao giờ STOP (người dùng nêu 08/09/2026)
 
+## HẾT VIỆC + NGƯỜI DÙNG KHÔNG CÓ MẶT ⇒ HUỶ NGAY, KHÔNG CHỜ HỎI
+
+Người dùng nêu **15/09/2026**, sau khi tôi để một 5060 Ti nằm không **6 giờ** ($0,49) trong đêm.
+
+"**Chú ý vast**" nghĩa là **QUẢN LÝ**, không phải **quan sát**. Khi hàng đợi cạn và người dùng
+đang ngủ hoặc vắng mặt:
+
+1. Liệt kê **mọi** hiện vật trên máy — ô kết quả **và** checkpoint trung gian.
+2. Đối chiếu **tên + byte** với local; số mục thiếu phải bằng **0**.
+   *Cẩn thận*: khối kéo về dưới **tên thư mục khác** (`results/fus5060_codebert` →
+   `results_fus5060_ntat`) sẽ bị báo "thiếu" giả nếu so theo đường dẫn thô.
+3. `vastai destroy instance <id> -y`, **kiểm output** (có thể in `Aborted.` rồi thoát 0),
+   rồi xác nhận instance biến mất khỏi `show instances`.
+4. Báo lại sau. **Không hỏi trước.**
+
+**Vì sao không chờ**: hoãn quyết định khi người dùng đang ngủ **không tạo ra thông tin**, chỉ tạo
+ra lãng phí. Huỷ máy sau khi đã kéo hết dữ liệu thì **đảo ngược được** (thuê lại + script dựng
+môi trường); tiền máy chạy không thì **không**.
+
+**Vẫn phải hỏi** khi muốn chạy một **hướng thí nghiệm MỚI** (mục 9 CLAUDE.md) — nhưng trong lúc
+chờ hỏi, **máy không được nằm không**.
+
+> Cảnh báo "GPU nằm không" của monitor là **lệnh hành động**, không phải dòng ghi chú.
+
+---
+
 `stop` **không** an toàn: máy đã stop vẫn có thể bị thuê lại hoặc dính schedule, và người dùng
 bị phạt vì để vast chạy không. Khi hết việc thì **huỷ hẳn**:
 
