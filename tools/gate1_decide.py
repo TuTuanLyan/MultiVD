@@ -75,6 +75,16 @@ def main(roots):
     d = pts[("D_nguon", "ROC")]
     mean = st.mean(d); pos = sum(1 for x in d if x > 1e-9); n = len(d)
     print(f"\nBIEN QUYET DINH  D_nguon@ROC = {mean:+.4f}  {pos}/{n}")
+
+    # CHUA DU DIEM thi KHONG duoc ap nguong. Nguong bac 1 doi ">= 4/6"; voi n=2 thi dieu kien
+    # do KHONG THE dat, nen ham se tra "KHONG DAT, DUNG" — tuc doc mot bo du lieu DANG CHAY DO
+    # thanh "phuong phap that bai". Day dung lop loi da mac ba lan trong ngay: mot tin hieu
+    # khong phan biet duoc "hong" voi "chua du". Day chuyen dem doc ma thoat 1 = bo qua n=5.
+    EXPECT = {2: 6, 4: 10}     # so cay -> so diem ky vong (3 fold / 5 fold, 2 backbone)
+    need = 6 if n <= 6 else 10
+    if n not in (6, 10):
+        print(f"  CHUA DU DIEM: co {n}, can 6 (n=3) hoac 10 (n=5). KHONG ap nguong.")
+        return 2
     if n <= 6:
         ok = mean >= 0.010 and pos >= 4
         print(f"  Bac 1 (n=3): nguong >= +0.010 VA >= 4/6  ->  {'DAT, LEO LEN n=5' if ok else 'KHONG DAT, DUNG'}")
