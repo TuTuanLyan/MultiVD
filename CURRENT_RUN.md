@@ -1,30 +1,49 @@
-# CURRENT_RUN — ĐÊM 14→15/09: vast `ntat` chạy hai khối Pha 1, KHÔNG tốn ô Pha 2
+# CURRENT_RUN — SÁNG 15/09: vast `ntat` ĐANG TRỐNG, hết việc đã xếp
 
-> **Người dùng nghỉ đêm 14/09, dặn "chú ý vast".** Máy `ntat` id **50965796** (RTX 5060 Ti,
-> **$0,0818/h**, đã chạy 15,1 h ≈ **$1,24**). Hai khối nối chuỗi, tổng ~6,5 giờ — lấp gần kín đêm.
+> **Đêm 14→15/09 chạy xong ba khối, tổng 30 ô Pha 2 + 12 Pha 1, không ô nào thiếu.**
+> Máy `ntat` id **50965796** (RTX 5060 Ti, $0,0818/h) đã chạy **~17 giờ ≈ $1,40**, hiện **trống**.
+> Mọi kết quả và checkpoint đã kéo về local, đối chiếu byte khớp tuyệt đối — **huỷ máy lúc nào
+> cũng an toàn**. Chưa huỷ vì chờ quyết định: chạy hướng mới hay dừng.
 
-| | |
-|---|---|
-| đang chạy | `p1seed` đợt 2 — codebert, seed **1 / 2026 / 999**, 6 lần Pha 1, PID 50094 |
-| nối tiếp | `p1seed_t5p` — **backbone thứ hai**, seed 42 / 7 / 1234, 6 lần Pha 1 |
-| nối bằng | `scripts/chain_after_pid.sh` (PID 50094), cổng **hai lớp**: argv khớp chính xác **và** lock đang bị giữ |
-| monitor | `b86kc1i3z` — báo khi có lỗi, khi **>1 job một GPU**, khi **GPU nằm không ≥10 phút**, và khi xong |
+## Đêm 14→15/09 đã trả lời xong ba câu
 
-**Vì sao hai khối này.** Phát biểu đang nổi lên là *"head phụ ổn định hoá Pha 1"* (FACTS §55.1:
-codebert **3/3** seed học được khi có head, **1/3** khi không). Chỗ yếu nhất của nó là **tỉ lệ
-hỏng ước từ 3 seed** — khoảng tin cậy quá rộng. Đợt 2 đưa codebert lên **6 seed**; khối t5p trả
-lời *"tính không ổn định này có đặc thù backbone không"*, tức **cổng 2** của
-`NEXT_CONTRIBUTION.md`. Cả hai **chỉ chạy Pha 1**, không sinh ô nào nên không thể tạo ra một
-con số gây hiểu nhầm.
+| khối | câu hỏi | kết quả |
+|---|---|---|
+| `p1seed` (6 seed codebert) | bỏ head thì Pha 1 có luôn sập không? | **không** — có head 6/6, không head **3/6**; kết cục **lưỡng cực** (**§55.3**) |
+| `p1seed_t5p` (3 seed) | bất ổn đó có đặc thù backbone không? | **có** — t5p cả hai nhánh **3/3**, **trượt cổng 2** (**§55.4**) |
+| `fusnone_t5p` (15 ô) | bỏ head mất gì khi Pha 1 lành? | **không mất gì** — `fusft − nonefus` = **+0.0053, 5/10** (**§56**) |
 
-Đã thử khói t5p+adapter trên CPU trước khi nối: adapter BẬT, 894 528 tham số, 48 khoá trong
-checkpoint, mã thoát 0.
+### Kết luận gộp — §56
 
-### Nếu có sự cố trong đêm
+Ghép cặp theo (backbone, fold), **10 điểm**, cả hai Pha 1 lành:
 
-- Driver chết giữa chừng ⇒ **phóng lại**, không huỷ máy (mục 8).
-- `>1` job trên một GPU ⇒ giết cái phóng sau theo PID chính xác, giữ cái đang chạy.
-- Hết việc mà chưa sáng ⇒ monitor báo; máy nằm không tốn $0,08/h, không có gì gấp.
+| | F1@0.5 | ROC-AUC | PR-AUC |
+|---|---|---|---|
+| `fusft` − `nonefus` | **+0.0053 5/10** | **−0.0017 3/10** | +0.0009 5/10 |
+| `fusft` − baseline | **+0.0560 9/10 p=0.021** | **+0.0309 9/10 p=0.021** | **+0.0282 9/10 p=0.021** |
+| `nonefus` − baseline | **+0.0507 9/10 p=0.021** | +0.0326 8/10 | +0.0273 8/10 |
+
+> **Head phụ `latent_bottleneck` có thể BỎ HẲN.** Thứ tạo ra lợi ích là **Pha 1 + adapter +
+> fusion** (~+0.05 F1, ~+0.03 ROC, 9/10 fold, p=0.021, **cả hai backbone**). Rủi ro duy nhất khi
+> bỏ là Pha 1 sập — và rủi ro đó **chỉ có ở codebert**.
+
+## Sự cố đêm và cách xử lý — để lần sau khỏi mắc lại
+
+1. **OOM trên t5p**, thiếu đúng **24 MiB**, y hệt §47/§48. Đã **dừng khối ngay** thay vì để chạy
+   tiếp, vì nhánh còn lại đang chạy **không** có `--grad_checkpointing` ⇒ hai nhánh sẽ khác nhiều
+   hơn một biến. Bật cờ cho **cả hai**, xoá cây, chạy lại từ đầu.
+2. **Nối chuỗi bằng file PID của khối KHÁC** (`shuf1.pid` trong khi khối đang chạy là `shuf2`)
+   ⇒ cổng kết luận "đã xong" ⇒ **hai chuỗi một GPU**. Cổng nối chuỗi giờ **hai lớp**: argv khớp
+   chính xác **và** lock đang bị giữ. Mỗi driver tự ghi PID của chính nó.
+3. **`awk '/train_transfer.py/ && /fusnone_t5p/'` trên `ps`** khớp luôn argv của shell từ xa
+   ⇒ ssh tự giết mình. Cách chữa: viết script ra file rồi đẩy lên chạy; lọc theo `comm=python`
+   kèm **loại trừ chính tiến trình và toàn bộ tổ tiên**.
+
+## Việc còn để ngỏ
+
+- `NEXT_CONTRIBUTION.md` mục 4: **Đề xuất B** (mất mát biên trong cặp) — chưa bị bác, chưa chạy.
+- Giả thuyết **chống nén sụp chiều** (§53) — chưa chạy.
+- `twin` như **side result** — chính reviewer đề xuất, xếp sau.
 
 ---
 
