@@ -37,8 +37,20 @@ from train_transfer import (
 logger = get_logger()
 
 
-def make_model(model_name, device, pooling="cls"):
-    return BaselineModel(build_backbone(model_name), pooling=pooling).to(device)
+def make_model(model_name, device, pooling="cls", grad_checkpointing=False):
+    model = BaselineModel(build_backbone(model_name), pooling=pooling).to(device)
+    if grad_checkpointing:
+        # Giong het duong da dung o src/train_transfer.py:443 — CUNG kwargs, CUNG
+        # use_reentrant=False. Can cho khoi ngu canh dai (max_length 1024 tren t5p): o 16 GB
+        # khong bat cai nay se OOM, con ha batch thay vao do lam phep so doi HAI bien thay vi
+        # mot (bai hoc §47/§48/§56). Tham so o CUOI chu ky — chen vao giua thi ba loi goi
+        # theo vi tri lech mot bac (bai hoc da ghi memory).
+        if not hasattr(model.backbone, "gradient_checkpointing_enable"):
+            raise ValueError(f"{type(model.backbone).__name__} khong ho tro gradient checkpointing")
+        model.backbone.gradient_checkpointing_enable(
+            gradient_checkpointing_kwargs={"use_reentrant": False})
+        logger.info("Gradient checkpointing BAT tren %s", type(model.backbone).__name__)
+    return model
 
 
 def parameter_counts(model):
@@ -172,7 +184,8 @@ def run_train(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     train_loader, val_loader = loaders(args, tokenizer)
     # set_seed is called before this fresh model initialization for every fold.
-    model = make_model(args.model_name, device, args.pooling)
+    model = make_model(args.model_name, device, args.pooling,
+                       getattr(args, "grad_checkpointing", False))
     log_environment(args, model, device, "baseline_train")
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
@@ -200,7 +213,8 @@ def _collect_runtime_baseline(args, device):
 def run_test(args, device):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     val_loader, test_loader = loaders(args, tokenizer, include_test=True)
-    model = make_model(args.model_name, device, args.pooling)
+    model = make_model(args.model_name, device, args.pooling,
+                       getattr(args, "grad_checkpointing", False))
     checkpoint = load_checkpoint(args.checkpoint_path, model, device, args)
     log_environment(args, model, device, "baseline_inference_no_optimizer")
 
@@ -338,6 +352,8 @@ def parse_args():
     parser.add_argument("--patience", type=int, default=5, help="early-stopping patience")
     parser.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clip norm")
     parser.add_argument("--num_workers", type=int, default=0, help="DataLoader workers")
+    parser.add_argument("--grad_checkpointing", action="store_true",
+                        help="doi tinh toan lay bo nho; can cho ngu canh dai tren card 16 GB")
     parser.add_argument("--max_train_samples", type=int, help="smoke training cap")
     parser.add_argument("--max_eval_samples", type=int, help="smoke evaluation cap")
     args = parser.parse_args()
