@@ -411,12 +411,17 @@ def train_loop(
     device,
     phase,
     save_checkpoint,
-    pair_ctx=None,
     pretrain_params=None,
     aux_weighter=None,
     replay=None,
     teacher_feats=None,
     aux_class_weight=None,
+    # `pair_ctx` phai o CUOI: chen vao giua chu ky se lam cac loi goi truyen
+    # THEO VI TRI bi lech mot bac. Da xay ra that 15/09: `pretrain_params` o dong
+    # 1322/1344 duoc truyen theo vi tri, bi gan thanh `pair_ctx`, va Pha 2 chet bang
+    # `TypeError: 'NoneType' object is not iterable` — mot loi KHONG lien quan gi
+    # toi tinh nang vua them, nen rat kho lan ra.
+    pair_ctx=None,
 ):
     # SAM chi bat khi --sam_rho > 0. Mac dinh 0 -> sam=None -> duong chay cu.
     sam = None
