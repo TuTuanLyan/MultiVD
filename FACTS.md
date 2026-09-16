@@ -5911,3 +5911,62 @@ So với router-đã-hiệu-chuẩn **0.9108** ⇒ riêng phần **định tuy�
 - Thông tin "hàng này thuộc CWE nào" **không nằm** trong hai đầu ra vô hướng của hai model.
   Muốn lấy trần đó thì router phải **đọc đoạn code** — và khi đó quay lại bài toán quá khớp
   trên 152 hàng val.
+
+---
+
+## §65 — SÀN NHIỄU DO HẠT GIỐNG là **~0.04 ROC**, lớn hơn hầu hết hiệu ứng dự án đang đo (16/09, 6 ô, 161)
+
+`ctxnf`: chạy lại **đúng một cấu hình** — t5p, `max_length 512`, `--grad_checkpointing`, cùng dữ
+liệu, cùng máy, cùng phiên — **chỉ đổi hạt giống** (42 và 7). Đây là thứ §62 thiếu.
+
+| fold | seed 42 (F1@0.5 / ROC) | seed 7 (F1@0.5 / ROC) |
+|---|---|---|
+| 1 | 0.7828 / 0.8915 | 0.7630 / 0.8731 |
+| 2 | 0.8018 / 0.8878 | 0.8220 / 0.9090 |
+| **3** | **0.7036 / 0.8372** | **0.8355 / 0.9199** |
+
+| chỉ số | **\|Δ\| TB** | Δ TB | dấu | từng fold |
+|---|---|---|---|---|
+| F1@0.5 | **0.0573** | −0.0441 | 1/3 | +0.0198 · −0.0202 · **−0.1318** |
+| F1@val | 0.0527 | −0.0351 | 1/3 | +0.0264 · −0.0202 · −0.1115 |
+| **ROC** | **0.0408** | −0.0285 | 1/3 | +0.0184 · −0.0211 · **−0.0827** |
+| PR | 0.0410 | −0.0261 | 1/3 | +0.0224 · −0.0345 · −0.0662 |
+
+### Hệ quả trực tiếp cho §62
+
+| phép so | ΔROC | dấu |
+|---|---|---|
+| **1024 − 512** (hiệu ứng ngữ cảnh) | +0.0360 | 3/3 |
+| 512 − 256 | +0.0180 | 2/3 |
+| **\|seed 42 − seed 7\|** (sàn nhiễu) | **0.0408** | — |
+
+> ### **Sàn nhiễu do hạt giống LỚN HƠN hiệu ứng ngữ cảnh. §62 phải rút xuống "CHƯA KẾT LUẬN".**
+>
+> Riêng fold 3, hai hạt giống lệch **0.0827 ROC** và **0.1318 F1** — gấp đôi mọi hiệu ứng dự án
+> đang đo. Thứ duy nhất §62 còn giữ được: 1024 dương **3/3 fold** trong khi nhiễu hạt giống đổi
+> dấu (1/3). Đếm dấu nhất quán là bằng chứng yếu hơn biên độ, nhưng không phải không có.
+
+### Hệ quả RỘNG HƠN — phải áp cho mọi mục cũ
+
+Hai sàn nhiễu dự án đang dùng (mục 2 của CLAUDE.md) là **0.010** (cùng seed, cùng loại GPU,
+khác máy) và **0.028** (khác loại GPU). Cả hai đều giữ **cùng một hạt giống**. Khối này đo cái
+thứ ba, chưa từng đo:
+
+| nguồn nhiễu | sàn |
+|---|---|
+| chạy lại cùng seed, cùng loại GPU, khác máy | 0.010 |
+| khác loại GPU | 0.028 |
+| **khác HẠT GIỐNG, cùng mọi thứ còn lại** | **~0.040** ROC · **~0.057** F1@0.5 |
+
+**Mọi phát biểu ở biên độ 0.01–0.04 dựa trên MỘT hạt giống đều phải đọc lại.** Đếm dấu qua
+nhiều fold vẫn có giá trị (nhiễu hạt giống đổi dấu, hiệu ứng thật thì không), nhưng **biên độ**
+thì không tách được khỏi nhiễu nếu chỉ có một seed.
+
+Chứng cứ độc lập cùng chiều: §gate2 đo `transfer@42` so với `transfer@7` — **cùng file checkpoint
+Pha 1**, chỉ khác hạt giống Pha 2 — lệch **0.0607 ROC** trên codebert (0.8453 vs 0.7846).
+
+### Ràng buộc
+
+- n=3 fold, **một** cặp hạt giống, **một** backbone (t5p), một máy. Ước lượng thô.
+- Ba fold cho |Δ| rất lệch nhau (0.018 / 0.021 / 0.083) — trung bình 0.0408 chịu ảnh hưởng nặng
+  của fold 3. Muốn con số chắc thì cần nhiều cặp hạt giống hơn.
