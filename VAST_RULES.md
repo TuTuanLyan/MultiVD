@@ -33,8 +33,11 @@ Người dùng nêu **15/09/2026**, sau khi tôi để một 5060 Ti nằm khôn
 ra lãng phí. Huỷ máy sau khi đã kéo hết dữ liệu thì **đảo ngược được** (thuê lại + script dựng
 môi trường); tiền máy chạy không thì **không**.
 
-**Vẫn phải hỏi** khi muốn chạy một **hướng thí nghiệm MỚI** (mục 9 CLAUDE.md) — nhưng trong lúc
-chờ hỏi, **máy không được nằm không**.
+**Ngoại lệ cho mục 9 CLAUDE.md — người dùng nêu 15/09:** khi chạy đêm mà **vast đang có sẵn**,
+được **tự lấy một hướng MỚI ra chạy** để lấp chỗ trống, thay vì để máy nằm không rồi chờ hỏi.
+Điều kiện: hướng đó phải đã có trong `NEXT_CONTRIBUTION.md` (đã bàn, chưa bị bác), **ghi dự
+đoán trước khi đo**, và báo rõ trong lần trả lời kế tiếp. Không áp dụng cho việc **thuê máy
+mới** — thuê thì vẫn phải hỏi.
 
 > Cảnh báo "GPU nằm không" của monitor là **lệnh hành động**, không phải dòng ghi chú.
 
