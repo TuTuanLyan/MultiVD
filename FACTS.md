@@ -5784,3 +5784,72 @@ cross-GPU 0.028; và ở dải hàng dài là +0.0702 với 3/3 fold ở **cả 
 - Chưa có sàn nhiễu đúng nghĩa (hai seed cùng `max_length`).
 - 1024 tốn ~2× tính toán và cần `--grad_checkpointing`; đây là phép so **cả đường ống**
   (huấn luyện + suy luận ở cùng độ dài), đúng thứ cần cho quyết định thực tiễn.
+
+---
+
+## §63 — TRẦN CỦA ROUTER: một router biết CWE HOÀN HẢO còn THUA cổng hiện tại; và `gate2` bị nhiễu loạn bởi chất lượng (16/09, **0 GPU** + 6 ô)
+
+### (1) Trần mà mọi router có thể đạt — đo trước khi xây
+
+Câu hỏi người dùng 16/09: *"chuyển sang MoE với router học route đúng model thì có chuẩn hơn `g` hiện tại không?"* Đo trần bằng cách **dùng nhãn test** để chọn (không làm được thật, nên đó là chặn trên).
+
+| ROC-AUC, TB 5 fold, cây `shuf1` | codebert | t5p |
+|---|---|---|
+| A · baseline đơn lẻ | 0.8711 | 0.8939 |
+| B · transfer đơn lẻ | 0.8484 | 0.9053 |
+| ghép `g=0.5` | 0.8736 | 0.9093 |
+| ghép `const` (quét trên val) | 0.8727 | 0.9088 |
+| **ghép `logreg` (đang dùng)** | **0.8823** | **0.9132** |
+| ⟂ trần: `g` hằng tốt nhất | 0.8877 | 0.9106 |
+| ⟂ **trần: router biết CWE HOÀN HẢO** | **0.8763** | **0.9155** |
+| ⟂ trần: chọn đúng model từng mẫu | 0.9623 | 0.9624 |
+
+> ### **Một router biết CWE hoàn hảo cho 0.8763 trên codebert — THẤP HƠN cổng `logreg` hiện tại (0.8823).** Trên t5p nó chỉ hơn **+0.0023**.
+>
+> Lý do: định tuyến theo CWE ép **một** `g` cho cả nhóm, vứt đi thông tin **theo từng mẫu**.
+> Cổng `logreg` dùng độ tự tin và mức bất đồng của **từng mẫu** nên giàu hơn hẳn.
+
+**Hệ quả: MoE định tuyến theo CWE trên hai model này KHÔNG đáng xây** — trần đo được nằm ở
+hoặc dưới mức đang có. Khoảng trống thật (0.88 → 0.96) **không** đóng được bằng định tuyến
+giữa hai model này; nó đòi model tốt hơn, không phải router tốt hơn.
+
+**Ràng buộc:** trần per-CWE chỉ có 4 nhóm. Một router đọc đặc trưng mã giàu hơn *có thể* vượt
+per-CWE — trần "chọn đúng từng mẫu" (0.962) cho thấy hai model **có** tách được. Nhưng hướng
+đáng theo là **đặc trưng theo mẫu**, không phải CWE.
+
+### (2) `gate2` — ngưỡng ghi trước ĐẠT, nhưng phép so BỊ NHIỄU LOẠN
+
+`X = ghép(transfer₄₂, baseline₄₂) − transfer₄₂` · `Y = ghép(transfer₄₂, transfer₇) − transfer₄₂`
+
+| 6 điểm, ROC | codebert | t5p | gộp |
+|---|---|---|---|
+| X | +0.0258 3/3 | −0.0012 2/3 | +0.0123 5/6 |
+| Y | −0.0103 1/3 | −0.0019 2/3 | −0.0061 3/6 |
+| **X − Y** | **+0.0362 3/3** | **+0.0007 1/3** | **+0.0184 4/6** |
+
+Ngưỡng đòi `≥ +0.010` và `≥ 4/6` ⇒ **ĐẠT**. **Nhưng không được dùng**, vì:
+
+| ROC đơn lẻ của "model thứ hai" | codebert | t5p |
+|---|---|---|
+| `baseline₄₂` (tri thức **khác**) | **0.8640** | 0.8722 |
+| `transfer₇` (tri thức **giống**) | **0.7846** | 0.8850 |
+| chênh lệch chất lượng | **+0.0794** | −0.0128 |
+
+> **Trên codebert, `transfer₇` là một lượt rút YẾU — kém `baseline₄₂` tới 0.079 ROC.** Nên
+> `X` so với `Y` đổi **HAI** biến: *tri thức* **và** *chất lượng*. Và `X − Y` bám sát chênh lệch
+> chất lượng: codebert chênh +0.079 ⇒ X−Y +0.036; t5p chênh −0.013 ⇒ X−Y **+0.0007**.
+
+**Phép so DUY NHẤT khớp chất lượng là t5p, và nó cho `X − Y = +0.0007, 1/3` — bằng không.**
+
+> **Phán quyết thật: KHÔNG KẾT LUẬN.** Tôi đã nêu đúng nhiễu loạn này **trước khi** thấy số
+> (ghi trong chính khai báo và trong báo cáo tiến độ), nên không được nhận con số thuận chiều.
+> Muốn trả lời thì cần một `transfer₇` **mạnh ngang** `baseline₄₂` — tức chạy nhiều hạt giống
+> rồi khớp chất lượng, không phải một lượt rút.
+
+### Ghi chú thuật ngữ — `g` là gì trong mã
+
+- `g05`: **đặt cứng** 0.5, không đọc val. 0 tham số.
+- `const`: **quét lưới** 17 điểm trên val. 1 tham số, một số cho cả fold.
+- `logreg`: **học** (cực đại likelihood) trên val, 4 tham số, **theo từng mẫu**. Đây là
+  **stacking**, không phải cổng trộn — `p = σ(w_A·logit_A + w_B·logit_B + w_D·|p_A−p_B| + b)`.
+  "Mức dựa vào B" `= w_B/(w_A+w_B)` là một cách đọc, không phải tham số có thật.
