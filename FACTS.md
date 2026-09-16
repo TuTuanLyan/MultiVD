@@ -5853,3 +5853,61 @@ Ngưỡng đòi `≥ +0.010` và `≥ 4/6` ⇒ **ĐẠT**. **Nhưng không đư�
 - `logreg`: **học** (cực đại likelihood) trên val, 4 tham số, **theo từng mẫu**. Đây là
   **stacking**, không phải cổng trộn — `p = σ(w_A·logit_A + w_B·logit_B + w_D·|p_A−p_B| + b)`.
   "Mức dựa vào B" `= w_B/(w_A+w_B)` là một cách đọc, không phải tham số có thật.
+
+---
+
+## §64 — NGHỊCH LÝ ROUTER ĐÃ GIẢI: định tuyến làm VỠ THANG ĐO CHUNG; hiệu chuẩn trước rồi route thì vượt hẳn (16/09, **0 GPU**)
+
+§63 đo được router-biết-CWE-hoàn-hảo **0.8763** < ghép `logreg` **0.8823** trên codebert. Nghịch lý.
+Giải bằng cách in **hai** chỉ số cạnh nhau: AUC **gộp toàn tập** (thứ ta báo cáo) và AUC **trong
+từng nhóm** (thứ router tối ưu hoá).
+
+| codebert, TB 5 fold | AUC **gộp** | AUC **trong nhóm** |
+|---|---|---|
+| ghép `logreg` (đang dùng) | **0.8823** | 0.7122 |
+| router oracle theo CWE, thang đo **thô** | 0.8763 | **0.7969** |
+| **router oracle + hiệu chuẩn Platt** | **0.9108** | **0.8009** |
+| router oracle + chuyển về hạng | 0.9033 | 0.7992 |
+
+| t5p | AUC gộp | AUC trong nhóm |
+|---|---|---|
+| ghép `logreg` | 0.9132 | 0.7622 |
+| router thô | 0.9155 | 0.8040 |
+| **router + Platt** | **0.9181** | 0.8046 |
+| router + hạng | 0.9199 | 0.8006 |
+
+### Cơ chế
+
+> **Router THẮNG ở chỗ nó tối ưu** (AUC trong nhóm 0.7969 so với 0.7122 — hơn **+0.085**)
+> **nhưng THUA ở chỗ ta đo** (AUC gộp). Vì ROC-AUC xếp hạng **toàn bộ 152 hàng chung một bảng**,
+> còn router dán điểm của hai model có **hai thang đo khác nhau** cạnh nhau. Chỗ dán tạo ra lỗi
+> xếp hạng **giữa các nhóm** mà không model nào tự mắc.
+>
+> Ghép muộn không dính lỗi này vì **một tổ hợp tuyến tính toàn cục chính là một thang đo chung**.
+
+**Hiệu chuẩn Platt từng model trên val rồi mới route: 0.8763 → 0.9108 (+0.0345).** Vượt cả ghép
+`logreg` **+0.0285**. Trên t5p +0.0026 (nhỏ hơn vì hai model vốn gần thang đo hơn).
+
+### Hiệu chuẩn KHÔNG giúp gì cho ghép hiện tại — và đó là điều phải nêu
+
+| Δ (đã hiệu chuẩn − thô) cho **ghép `logreg`**, 10 điểm | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| | +0.0020 6/10 | +0.0070 7/10 | **−0.0001 4/10** | −0.0003 4/10 |
+
+**Bằng không, đúng như lý thuyết.** Platt là một biến đổi logistic trên logit; hồi quy logistic
+của cổng khớp `w_A·logit_A + w_B·logit_B + b` nên **đã hấp thụ sẵn** mọi phép hiệu chuẩn affine.
+Cổng không cần hiệu chuẩn; **router thì cần**.
+
+### Và phần tăng đến từ ĐỊNH TUYẾN, không phải chỉ từ hiệu chuẩn
+
+Trung bình đơn giản hai xác suất **đã hiệu chuẩn**, một `g` toàn cục: codebert **0.8814**.
+So với router-đã-hiệu-chuẩn **0.9108** ⇒ riêng phần **định tuyến** đóng góp **+0.0294**.
+
+### Ràng buộc
+
+- Router ở đây là **oracle**: chọn `g` từng CWE bằng **nhãn test**. 0.9108 là **trần**, không
+  phải con số đạt được. Phần **hiệu chuẩn** thì không oracle (khớp trên val) nên kết luận
+  *"phải hiệu chuẩn trước khi route"* dùng được thật.
+- Thông tin "hàng này thuộc CWE nào" **không nằm** trong hai đầu ra vô hướng của hai model.
+  Muốn lấy trần đó thì router phải **đọc đoạn code** — và khi đó quay lại bài toán quá khớp
+  trên 152 hàng val.
