@@ -5717,3 +5717,70 @@ ngược-nhãn) **lặp trên loại card khác**, tuy đếm dấu yếu hơn h
 - Đối chứng ensemble chỉ có **một** seed thay thế (7). Ghép hai model trội (transfer+transfer
   khác seed) **chưa đo** — đó là phép so còn thiếu để tách "bổ khuyết" khỏi "giảm phương sai".
 - `g` per-CWE khớp trên 11–83 hàng val mỗi CWE: đọc xu hướng, không đọc số.
+
+---
+
+## §62 — TRỤC NGỮ CẢNH: 1024 token **TỐT HƠN HẲN** 512, đơn điệu — và dự đoán của tôi SAI (16/09, 9 ô, t5p, server 158)
+
+Khai báo trước: `records/prediction_2026-09-15_truc_ngu_canh.md`. Chỉ đổi **một** biến
+(`max_length`), `--grad_checkpointing` bật cho cả ba nhánh, baseline (target-only), n=3, t5p.
+
+### Điểm tuyệt đối trên toàn tập test
+
+| `max_length` | F1@0.5 | ROC-AUC |
+|---|---|---|
+| 256 | 0.7468 | 0.8541 |
+| 512 | 0.7627 | 0.8722 |
+| **1024** | **0.8150** | **0.9081** |
+
+**Đơn điệu tăng, và bước 512→1024 lớn hơn bước 256→512.**
+
+### Tách theo dải độ dài hàng test — ROC
+
+| dải | 256 | 512 | 1024 | Δ(1024−512) | Δ(512−256) |
+|---|---|---|---|---|---|
+| **≤256** — đầu vào **giống hệt** cả ba nhánh | 0.9094 | 0.9019 | 0.9389 | **+0.0370 3/3** | −0.0075 1/3 |
+| 257–512 — 256 bị cắt, hai nhánh kia không | 0.8822 | 0.8923 | 0.9031 | +0.0108 1/3 | +0.0100 2/3 |
+| **>512** — chỉ 1024 thêm nội dung | **0.7089** | **0.7996** | **0.8698** | **+0.0702 3/3** | **+0.0907 3/3** |
+
+### DỰ ĐOÁN CỦA TÔI SAI — ghi rõ vì nó đáng giá
+
+Tôi đã ghi trước: *"1024 sẽ KÉM HƠN 512"*, lập luận rằng t5p gộp bằng `mean` nên ngữ cảnh dài
+làm pha loãng vùng lỗi gấp đôi, và §59.1 cho thấy cắt không xoá tín hiệu phân biệt.
+**Thực tế ngược hẳn: +0.0359 ROC trên toàn tập, +0.0702 ở dải hàng dài, 3/3 fold.**
+
+Chỗ tôi suy luận hỏng: tôi coi "tín hiệu phân biệt còn nguyên" là đủ. Nhưng phân biệt
+*bản lỗi khỏi bản vá* và *quyết định một hàm có lỗ hổng hay không* là hai việc khác nhau —
+việc thứ hai cần **ngữ cảnh** (hàm gọi ở đâu, biến đến từ đâu), và ngữ cảnh đó **bị cắt mất**.
+Pha loãng do `mean` có thật nhưng nhỏ hơn hẳn phần ngữ cảnh thu được.
+
+### ĐỐI CHỨNG NỘI TẠI CỦA TÔI BỊ ĐẶT SAI — phải nêu
+
+Tôi thiết kế: hàng ≤256 token nhận **đầu vào giống hệt** ở cả ba nhánh nên Δ ở đó là **sàn
+nhiễu**. **Sai.** Đầu vào test giống nhau, nhưng **ba model khác nhau** — chúng được huấn luyện
+trên dữ liệu train bị cắt khác nhau. Nên Δ = +0.0370 ở dải ≤256 **không phải nhiễu**, nó là
+*"huấn luyện với ít bị cắt hơn thì tốt lên ở mọi nơi, kể cả hàng ngắn"* — một phát hiện, không
+phải một sàn.
+
+> Áp **đúng chữ** của ngưỡng đã ghi (`Δ ≥ +0.020` và `≥2/3` và `Δ > 2·S`): Δ=+0.0702 so với
+> 2·S=+0.0740 ⇒ **trượt ở vế thứ ba, KHÔNG KẾT LUẬN**. Nhưng vế đó dựng trên một giả định của
+> tôi đã sai. Sàn nhiễu đúng phải là **hai lần chạy cùng `max_length` khác seed** — chưa đo.
+
+**Đọc thận trọng nhất mà vẫn đứng được:** +0.0359 ROC trên toàn tập, trên sàn nhiễu
+cross-GPU 0.028; và ở dải hàng dài là +0.0702 với 3/3 fold ở **cả hai** bước.
+
+### Hệ quả
+
+1. **Multi-window đáng làm.** Ngữ cảnh dài giúp thật, và giúp nhiều nhất đúng chỗ nó thêm nội dung.
+2. **codebert bắt buộc phải chunk** — trần vị trí 514, không nới được. t5p thì chỉ cần đổi một cờ.
+3. **§60 phải đọc lại**: "code dài khó hơn" **có** chữa được bằng ngữ cảnh, ít nhất trên t5p —
+   chứ không phải thuần "khó nội tại" như tôi đã nghiêng về.
+4. Lập luận `max`/`log-sum-exp` thay `mean` **chưa bị bác nhưng cũng chưa được ủng hộ**: khối này
+   không đổi cách gộp, nên nó không nói gì về aggregator.
+
+### Ràng buộc
+
+- n=3, **một máy**, một seed, **chỉ baseline** (không có nhánh transfer). Bậc 1.
+- Chưa có sàn nhiễu đúng nghĩa (hai seed cùng `max_length`).
+- 1024 tốn ~2× tính toán và cần `--grad_checkpointing`; đây là phép so **cả đường ống**
+  (huấn luyện + suy luận ở cùng độ dài), đúng thứ cần cho quyết định thực tiễn.
