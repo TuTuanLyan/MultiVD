@@ -1,0 +1,1434 @@
+<title>MW-only n=5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&family=Roboto+Mono:wght@400;500;700&display=swap">
+<style>
+/* Bảng màu sáng đầy đủ trên :root; tối định nghĩa lại token ở hai khối bên dưới */
+:root {
+  --ground: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --ink: #18212d;
+  --muted: #5a6577;
+  --rule: #d8dee7;
+  --accent: #1d6a86;
+  --accent-soft: #dcebf1;
+  --ok: #2c7a4b;
+  --ok-soft: #e1f1e7;
+  --warn: #a8701a;
+  --warn-soft: #f7ecd6;
+  --crit: #b8322a;
+  --crit-soft: #f8e1df;
+  --run: #2c63c9;
+  --run-soft: #e0e9fa;
+  --pend: #8a94a3;
+  --pend-soft: #eceff3;
+  --loss: #7b5ea7;
+  --shadow: 0 1px 2px rgba(24, 33, 45, .06), 0 4px 14px rgba(24, 33, 45, .05);
+  --f-display: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-body: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0f141a;
+    --surface: #161e27;
+    --surface-2: #1d2733;
+    --ink: #e4e9f0;
+    --muted: #97a3b3;
+    --rule: #2a3542;
+    --accent: #5fb2cf;
+    --accent-soft: #17323d;
+    --ok: #5cc28a;
+    --ok-soft: #173326;
+    --warn: #e0a64a;
+    --warn-soft: #3a2c14;
+    --crit: #f0756b;
+    --crit-soft: #3d1b19;
+    --run: #79a4f2;
+    --run-soft: #1b2a45;
+    --pend: #6f7b8b;
+    --pend-soft: #222c37;
+    --loss: #b79ae0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .25);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0f141a;
+  --surface: #161e27;
+  --surface-2: #1d2733;
+  --ink: #e4e9f0;
+  --muted: #97a3b3;
+  --rule: #2a3542;
+  --accent: #5fb2cf;
+  --accent-soft: #17323d;
+  --ok: #5cc28a;
+  --ok-soft: #173326;
+  --warn: #e0a64a;
+  --warn-soft: #3a2c14;
+  --crit: #f0756b;
+  --crit-soft: #3d1b19;
+  --run: #79a4f2;
+  --run-soft: #1b2a45;
+  --pend: #6f7b8b;
+  --pend-soft: #222c37;
+  --loss: #b79ae0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .25);
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 0 96px; display: flex; flex-direction: column; gap: 22px; }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h1 { font-size: 30px; font-weight: 700; }
+h2 { font-size: 19px; font-weight: 600; }
+h3 { font-size: 15px; font-weight: 600; }
+.eyebrow { font-family: var(--f-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.num, td.num, .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, .chip:focus-visible, .p1cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Dải cảnh báo ghim ở đầu trang */
+/* 05/10 17:5x: cảnh báo là nút tròn nổi (góc dưới phải) ghi số chưa xem; bấm mới mở bảng danh sách */
+.alertbar { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  width: min(560px, calc(100vw - 32px)); max-height: 65vh; overflow-y: auto; margin: 0; padding: 12px 14px; border-radius: 12px;
+  background: var(--crit); color: #fff; box-shadow: 0 6px 24px rgba(0, 0, 0, .28); }
+.alertbar.none { background: var(--ok); }
+.alertbar .ab-close { margin-left: auto; background: rgba(0, 0, 0, .2); color: #fff; border: 0; border-radius: 5px; padding: 3px 9px; cursor: pointer; font: inherit; font-size: 12.5px; }
+.alert-fab { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 41;
+  width: 54px; height: 54px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer;
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 19px; color: #fff;
+  background: var(--ok); box-shadow: 0 4px 16px rgba(0, 0, 0, .28); }
+.alert-fab.crit { background: var(--crit); }
+.alert-fab.warn { background: var(--warn); }
+.alert-fab:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.alert-fab[aria-expanded="true"] { box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px currentColor, 0 4px 16px rgba(0, 0, 0, .28); }
+.alertbar .ab-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.alertbar .ab-title { font-family: var(--f-display); font-weight: 700; font-size: 16px; }
+.alertbar ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.alertbar li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; background: rgba(255, 255, 255, .12); border-radius: 6px; padding: 7px 10px; }
+.alertbar .kind { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; background: rgba(0, 0, 0, .22); border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+.alertbar .msg { min-width: 0; overflow-wrap: anywhere; }
+.alertbar .msg b { font-family: var(--f-mono); font-weight: 500; }
+.alertbar .ack { background: #fff; color: var(--crit); border: 0; border-radius: 5px; padding: 4px 10px; font-weight: 600; white-space: nowrap; }
+.alertbar .ack[disabled] { opacity: .6; cursor: default; }
+.follow { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; }
+.follow .up { padding-left: 8px; border-left: 2px solid currentColor; opacity: .92; }
+.outcome { align-self: flex-start; font-family: var(--f-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; border-radius: 999px; padding: 1px 8px; }
+.alertbar .outcome.ok { background: #fff; color: var(--ok); }
+.alertbar .outcome.bad { background: #000; color: #fff; }
+.alertbar .outcome.pend { background: rgba(0, 0, 0, .25); color: #fff; }
+.hist .outcome.ok { background: var(--ok-soft); color: var(--ok); }
+.alertbar.allfalse { background: var(--warn); }
+.alertbar li.false { background: var(--warn-soft); color: var(--ink); }
+.alertbar li.false .kind { background: rgba(0, 0, 0, .1); }
+.alertbar li.false .ack { background: var(--warn); color: #fff; }
+.alertbar .outcome.warn { background: var(--warn); color: #fff; }
+.hist .outcome.warn { background: var(--warn-soft); color: var(--warn); }
+.hist li.false { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 3px 6px; border-radius: 4px; }
+.hist li.real { background: var(--crit-soft); border-left: 3px solid var(--crit); padding: 3px 6px; border-radius: 4px; }
+.hist .outcome.bad { background: var(--crit-soft); color: var(--crit); }
+.hist .outcome.pend { background: var(--pend-soft); color: var(--muted); }
+.alertbar .ro { font-size: 12px; opacity: .9; }
+
+/* Đầu trang */
+header.top { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; padding-top: 22px; }
+.title-block { display: flex; flex-direction: column; gap: 8px; }
+.lede { color: var(--muted); max-width: 68ch; margin: 0; }
+.setting { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 6px 0 0; font-size: 13px; }
+.setting dt { color: var(--muted); }
+.setting dd { margin: 0; overflow-wrap: anywhere; }
+.status-block { display: flex; flex-direction: column; gap: 12px; }
+.progress { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--pend-soft); }
+.bar span { display: block; height: 100%; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.counts .k { font-family: var(--f-mono); font-weight: 500; font-size: 15px; margin-right: 4px; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.machines { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.mach { border: 1px solid var(--rule); border-radius: 8px; padding: 9px 11px; background: var(--surface); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mach .mh { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.mach .name { font-family: var(--f-mono); font-weight: 500; }
+.mach .now { font-size: 12.5px; overflow-wrap: anywhere; }
+.pill { font-family: var(--f-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.pill.run { background: var(--run-soft); color: var(--run); }
+.pill.idle { background: var(--pend-soft); color: var(--muted); }
+.pill.done { background: var(--ok-soft); color: var(--ok); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+
+/* Ma trận chính */
+section.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow); }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+table.matrix { min-width: 980px; }
+.matrix th, .matrix td { border-bottom: 1px solid var(--rule); padding: 9px 8px; vertical-align: top; text-align: left; }
+.matrix thead th { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--ink); }
+/* 05/10 18:3x: tiêu đề + chú giải + hàng tên cột NEO THEO CỬA SỔ, chỉ một thanh cuộn dọc (của trang). Hàng tên cột là bản sao nằm
+   ngoài khung cuộn ngang (khung có overflow-x thì sticky không bám cửa sổ được); bề rộng từng cột và vị trí cuộn ngang đồng bộ bằng JS,
+   hàng tên cột thật của bảng ẩn đi và nằm ngay dưới bản sao. */
+.mstack { display: block; }
+.mtop { position: sticky; top: 0; z-index: 7; background: var(--surface); padding-bottom: 2px; }
+.mtop .sec-head { padding-bottom: 10px; }
+.mhead-wrap { overflow: hidden; }
+table.mhead { table-layout: fixed; min-width: 0; }
+.matrix thead.ghost th { visibility: hidden; }
+.matrix thead th.main { color: var(--accent); }
+.matrix tr.group th { background: var(--surface-2); font-family: var(--f-display); font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); border-bottom: 1px solid var(--rule); }
+/* 05/10 17:4x: cột kết quả co vừa đúng một hàng 5 chip fold (width 1% + chip không xuống dòng), cột Nguồn nhận phần rộng còn lại */
+.matrix td.src { width: auto; min-width: 170px; }
+.matrix thead th:nth-child(n+3), .matrix tbody td:not(.src):not(.p1col) { width: 1%; }
+.matrix thead th:nth-child(2), .matrix td.p1col { width: 165px; min-width: 165px; }
+.matrix .chips { flex-wrap: nowrap; }
+.p1cell .num, .p1cell .st { white-space: nowrap; }
+.matrix td.src .lvl { font-family: var(--f-display); font-weight: 600; font-size: 15px; }
+.matrix td.src .sub { font-size: 12px; color: var(--muted); }
+.matrix td.main { background: var(--accent-soft); }
+.cnt { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--muted); line-height: 1.45; margin-top: 3px; }
+.cellwrap { display: flex; flex-direction: column; gap: 6px; }
+.mean { display: flex; align-items: baseline; gap: 6px; }
+.mean .v { font-family: var(--f-mono); font-size: 17px; font-weight: 500; }
+.mean .n { font-size: 11.5px; color: var(--muted); font-family: var(--f-mono); }
+.mean .v.collapse { color: var(--crit); }
+.mean .f1 { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); opacity: .85; }
+.mean .v.best { font-weight: 800; }
+.mean .f1.best { font-weight: 800; opacity: 1; }
+.mean { flex-wrap: wrap; }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip { border: 1px solid transparent; border-radius: 5px; min-width: 38px; padding: 2px 4px; font-family: var(--f-mono); font-size: 11.5px; text-align: center; line-height: 1.35; background: var(--pend-soft); color: var(--muted); }
+.chip .f { display: block; font-size: 9.5px; opacity: .75; }
+.chip.running { background: var(--run-soft); color: var(--run); border-color: var(--run); }
+.chip.done { background: var(--ok-soft); color: var(--ok); }
+.chip.collapse { background: var(--crit-soft); color: var(--crit); border-color: var(--crit); font-weight: 500; }
+.chip.failed { background: var(--crit); color: #fff; }
+.chip.stopped { background: repeating-linear-gradient(45deg, var(--pend-soft), var(--pend-soft) 4px, var(--surface-2) 4px, var(--surface-2) 8px); }
+.chip.alerted { box-shadow: 0 0 0 2px var(--warn); }
+.chip.sel, .p1cell.sel { outline: 2px solid var(--ink); outline-offset: 2px; }
+.p1cell { border: 0; background: transparent; padding: 0; text-align: left; color: inherit; display: flex; flex-direction: column; gap: 3px; }
+.p1cell .st { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.p1cell .alert-line { font-size: 12px; color: var(--warn); }
+.p1multi { display: flex; flex-direction: column; gap: 3px; }
+.p1multi .st { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.p1multi .num { white-space: nowrap; }
+.base-row td { background: var(--surface-2); }
+
+/* Bảng ghép cặp */
+table.paired { min-width: 820px; }
+.paired th, .paired td { padding: 7px 8px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.paired thead th { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--ink); }
+.paired tr.group th { background: var(--surface-2); font-family: var(--f-display); font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.paired td.d { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.paired td.d .k { color: var(--muted); font-size: 12px; }
+.paired td.pos { color: var(--ok); }
+.paired td.neg { color: var(--crit); }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; max-width: 90ch; }
+
+/* Chi tiết một fold */
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; font-size: 13px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { font-family: var(--f-mono); font-size: 10.5px; fill: var(--muted); }
+.chart .grid { stroke: var(--rule); stroke-width: 1; fill: none; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; fill: none; }
+.chart .l-loss { stroke: var(--loss); stroke-width: 2; fill: none; }
+.chart .l-roc { stroke: var(--accent); stroke-width: 2; fill: none; }
+.chart .best { stroke: var(--ok); stroke-width: 1.2; stroke-dasharray: 4 3; fill: none; }
+.chart .pt-roc { fill: var(--accent); }
+.chart .pt-loss { fill: var(--loss); }
+.cwe th, .cwe td { padding: 5px 8px; border-bottom: 1px solid var(--rule); text-align: left; font-size: 13px; }
+.cwe th { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.closebtn { border: 1px solid var(--rule); background: var(--surface-2); color: var(--ink); border-radius: 6px; padding: 4px 10px; }
+.hist summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.hist ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.banner-info { font-size: 13px; color: var(--muted); }
+footer { font-size: 12px; color: var(--muted); }
+
+/* Tab */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--rule); }
+.tabs button { border: 1px solid transparent; border-bottom: 0; background: transparent; color: var(--muted); font-family: var(--f-display); font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: 8px 8px 0 0; margin-bottom: -1px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); border-color: var(--rule); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body[data-tab="p1"] [data-pane]:not([data-pane="p1"]),
+body[data-tab="notes"] [data-pane]:not([data-pane="notes"]),
+body[data-tab="compare"] [data-pane]:not([data-pane="compare"]),
+body[data-tab="paper"] [data-pane]:not([data-pane="paper"]),
+body:not([data-tab="p1"]):not([data-tab="notes"]):not([data-tab="compare"]):not([data-tab="paper"]) [data-pane]:not([data-pane="results"]) { display: none !important; }
+body[data-tab="notes"] #ack-box, body[data-tab="p1"] #ack-box, body[data-tab="compare"] #ack-box, body[data-tab="paper"] #ack-box { display: none; }
+
+/* Tab Kết quả paper (07/10): n = 15 = 5 fold × seed 42 / 1234 / 7, đọc collection riêng paper_folds (+ ô seed 42 đã có ở folds) */
+table.ptbl { border-collapse: collapse; min-width: 900px; width: 100%; }
+.ptbl th, .ptbl td { padding: 6px 8px; border-bottom: 1px solid var(--rule); text-align: right; font-variant-numeric: tabular-nums; font-family: var(--f-mono); font-size: 12.5px; vertical-align: top; white-space: nowrap; }
+.ptbl th { font-size: 11px; color: var(--muted); font-weight: 500; background: var(--surface-2); }
+.ptbl thead tr.grp th { font-family: var(--f-display); font-size: 12px; color: var(--ink); font-weight: 600; text-align: center; border-left: 1px solid var(--rule); }
+.ptbl th:first-child, .ptbl td:first-child { text-align: left; font-family: var(--f-body); white-space: normal; min-width: 230px; }
+.ptbl td.gs, .ptbl th.gs { border-left: 1px solid var(--rule); }
+.ptbl .sd, .ptbl .k { display: block; font-size: 11px; color: var(--muted); }
+.ptbl .pos { color: var(--ok); } .ptbl .neg { color: var(--crit); }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+.pbox { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; background: var(--surface); }
+.pbox h3 { margin: 0 0 6px; font-size: 13.5px; }
+.pbox table { border-collapse: collapse; width: 100%; }
+.pbox th, .pbox td { padding: 4px 6px; text-align: right; font-family: var(--f-mono); font-size: 12px; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--rule); }
+.pbox th { color: var(--muted); font-weight: 500; font-size: 11px; }
+.pbox th:first-child, .pbox td:first-child { text-align: left; }
+.ptbl strong, .pbox strong { font-weight: 700; }
+.pc-collapse { color: var(--crit); font-weight: 600; } .pc-run { color: var(--run); } .pc-pend { color: var(--muted); } .pc-failed { color: var(--crit); }
+
+/* Tab so sánh: chọn config (mỗi config 5 fold), bảng đủ độ đo + từng CWE */
+.cmp-controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+.cmp-controls select { font: inherit; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink); max-width: 100%; }
+.cmp-controls button { font: inherit; font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface-2); color: var(--ink); cursor: pointer; }
+.cmp-groups { display: flex; flex-direction: column; gap: 10px; }
+/* nhóm nhánh kiểm thu gọn (05/10): tiêu đề là nút mở/đóng */
+.fold-btn { all: unset; box-sizing: border-box; display: flex; width: 100%; align-items: baseline; gap: 8px; cursor: pointer; font: inherit; color: inherit; }
+.fold-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.fold-btn .caret { display: inline-block; transition: transform .15s; color: var(--muted); }
+.fold-btn[aria-expanded="true"] .caret { transform: rotate(90deg); }
+.fold-btn .hint { font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .fold-btn .caret { transition: none; } }
+details.cmp-group > summary { cursor: pointer; list-style: none; }
+details.cmp-group > summary::-webkit-details-marker { display: none; }
+details.cmp-group > summary h4 { display: inline; }
+details.cmp-group > summary::before { content: "▸ "; color: var(--muted); }
+details.cmp-group[open] > summary::before { content: "▾ "; }
+.cmp-group h4 { font-family: var(--f-display); font-size: 13px; font-weight: 600; margin: 0 0 6px; color: var(--muted); }
+.cmp-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmp-opt { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); border-radius: 999px; padding: 3px 10px 3px 7px; font-size: 12.5px; cursor: pointer; background: var(--surface); }
+.cmp-opt:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+.cmp-opt input { accent-color: var(--accent); margin: 0; }
+.cmp-opt .nf { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.cmp-opt:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+table.cmp { border-collapse: collapse; min-width: 980px; width: 100%; }
+.cmp th, .cmp td { padding: 6px 8px; border-bottom: 1px solid var(--rule); text-align: right; font-variant-numeric: tabular-nums; font-family: var(--f-mono); font-size: 12.5px; vertical-align: top; white-space: nowrap; }
+.cmp th { font-size: 11px; color: var(--muted); font-weight: 500; background: var(--surface-2); }
+.cmp thead tr.grp th { font-family: var(--f-display); font-size: 12px; color: var(--ink); font-weight: 600; text-align: center; border-left: 1px solid var(--rule); }
+.cmp th:first-child, .cmp td:first-child { text-align: left; font-family: var(--f-body); white-space: normal; min-width: 210px; position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.cmp thead th:first-child { background: var(--surface-2); }
+.cmp td.gs, .cmp th.gs { border-left: 1px solid var(--rule); }
+.cmp tr.ref td { background: var(--accent-soft); }
+.cmp td .sd { display: block; font-size: 10.5px; color: var(--muted); }
+.cmp td .dl { display: block; font-size: 10.5px; }
+.cmp td .dl.pos { color: var(--ok); } .cmp td .dl.neg { color: var(--crit); } .cmp td .dl.tie { color: var(--muted); }
+.cmp td .best { font-weight: 700; }
+.cmp td .low { color: var(--crit); }
+.cmp td.name .sub { display: block; font-size: 11.5px; color: var(--muted); }
+
+/* Tab nhận định: văn bản dài, đọc như một ghi chú phân tích */
+.insight { display: flex; flex-direction: column; gap: 14px; max-width: 78ch; }
+.insight + .insight { border-top: 1px solid var(--rule); padding-top: 18px; margin-top: 6px; }
+.insight h2 { font-size: 21px; text-wrap: balance; }
+.insight .imeta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.insight .conf { font-family: var(--f-mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.insight .conf.low { color: var(--crit); background: var(--crit-soft); }
+.insight .conf.mid { color: var(--warn); background: var(--warn-soft); }
+.insight .conf.high { color: var(--ok); background: var(--ok-soft); }
+.insight blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--rule); color: var(--muted); font-size: 13.5px; }
+.insight .verdict { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--ink); line-height: 1.55; }
+.insight .verdict b { display: block; font-family: var(--f-display); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-bottom: 4px; }
+.insight h3 { font-size: 16px; margin-top: 4px; }
+.insight p, .insight li { line-height: 1.6; font-size: 14.5px; }
+.insight p { margin: 0; }
+.insight ul, .insight ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.insight .itable { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; max-width: 100%; }
+.insight .itable table { border-collapse: collapse; width: 100%; }
+.insight .itable th, .insight .itable td { padding: 5px 9px; border-bottom: 1px solid var(--rule); text-align: left; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.insight .itable th { background: var(--surface-2); color: var(--muted); font-weight: 600; }
+.insight .srcs li { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.insight .empty { color: var(--muted); font-size: 14px; }
+.insight figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.insight figure img { max-width: 100%; height: auto; background: #ffffff; border: 1px solid var(--rule); border-radius: 8px; padding: 6px; }
+.insight figcaption { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.insight figcaption .cap-en { display: block; font-style: italic; font-size: 12px; margin-top: 2px; }
+
+/* Pha 1 theo nguồn: biểu đồ + bảng epoch */
+.p1group { font-family: var(--f-display); font-size: 15px; font-weight: 600; margin: 4px 0 0; }
+.p1panel { border: 1px solid var(--rule); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
+.p1panel .ph { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.p1panel .ph h3 { font-size: 15px; }
+.p1panel .ph .meta { font-size: 12px; color: var(--muted); font-family: var(--f-mono); }
+.p1body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.eptbl { max-height: 260px; overflow: auto; border: 1px solid var(--rule); border-radius: 8px; }
+.eptbl table { width: 100%; border-collapse: collapse; }
+.eptbl th, .eptbl td { padding: 4px 8px; border-bottom: 1px solid var(--rule); text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
+.eptbl th { position: sticky; top: 0; background: var(--surface-2); color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.eptbl th:first-child, .eptbl td:first-child { text-align: left; }
+.eptbl tr.best td { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.eptbl .empty { padding: 14px; color: var(--muted); font-size: 12.5px; }
+
+/* Chi tiết một fold: thanh bên phải (người dùng 05/10: "khi click vào từng fold thì mở sidebar thay vì scroll xuống") */
+#detail { position: fixed; top: 0; right: 0; bottom: 0; width: min(640px, 100vw); z-index: 40; overflow-y: auto; border-radius: 0;
+  border-width: 0 0 0 1px; box-shadow: -12px 0 32px rgba(0, 0, 0, .18); padding: 18px; }
+#detail .detail-grid { grid-template-columns: 1fr; }
+#detail:focus { outline: none; }
+#drawer-backdrop { position: fixed; inset: 0; z-index: 35; background: rgba(10, 16, 24, .35); }
+body.drawer-open { overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  #detail:not([hidden]) { animation: slidein .18s ease-out; }
+  @keyframes slidein { from { transform: translateX(24px); opacity: .6; } }
+}
+
+@media (max-width: 860px) {
+  .p1body { grid-template-columns: 1fr; }
+  header.top { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  h1 { font-size: 25px; }
+  .machines { grid-template-columns: 1fr; }
+  .alertbar li { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chip.running { animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 3px var(--run-soft); } }
+}
+</style>
+
+<div class="wrap">
+  <section class="alertbar" id="alertbar" hidden role="dialog" aria-label="Cảnh báo chưa xem">
+    <div class="ab-head">
+      <span class="ab-title" id="ab-title">Cảnh báo</span>
+      <span class="ro" id="ab-ro" hidden>Bạn chỉ có quyền xem nên không đánh dấu được.</span>
+      <button type="button" class="ab-close" id="ab-close">Đóng</button>
+    </div>
+    <ul id="ab-list"></ul>
+  </section>
+  <button type="button" class="alert-fab" id="alert-fab" aria-controls="alertbar" aria-expanded="false" aria-live="polite" aria-label="0 cảnh báo chưa xem">0</button>
+
+  <header class="top">
+    <div class="title-block">
+      <span class="eyebrow" id="tier">Khối mwonly5 · bậc 2 - xác nhận (n=5, seed 42)</span>
+      <h1>MW-only n=5</h1>
+      <p class="lede">Chuyển giao hai pha trên kiến trúc multi-window (không đồ thị), đích SVEN Python 5 fold. 9 nguồn Pha 1 (full / common / 4CWE × chỉ JS, JS + C/C++, chỉ C/C++) × 4 cách tinh chỉnh Pha 2, cộng baseline CodeBERT 512 và MW không Pha 1. Mỗi ô Pha 2: ROC-AUC test trung bình trên các fold đã xong (số lớn), F1@0.5 trung bình (chữ nhỏ, mờ); giá trị cao nhất cả ma trận của mỗi chỉ số in đậm. So sánh luôn ghép cặp theo fold.</p>
+      <dl class="setting" id="setting">
+        <dt>Mã</dt><dd>src_mwonly = GraphTransferVD refactor @ab094cf + tất định / TF32</dd>
+        <dt>Pha 1</dt><dd>AdamW, không pair loss, 16 epoch, warmup 0,25, min_epochs 10, patience 8, chọn val ROC</dd>
+        <dt>Pha 2</dt><dd>30 epoch, không warmup, min_epochs 10, patience 8, chọn val ROC</dd>
+      </dl>
+    </div>
+    <div class="status-block">
+      <div class="progress">
+        <div class="sec-head"><h3>Tiến độ</h3><span class="muted num" id="prog-total">0/204 ô</span></div>
+        <div class="bar" id="prog-bar" role="img" aria-label="Tiến độ khối"></div>
+        <div class="counts" id="prog-counts"></div>
+        <span class="muted num" id="prog-updated" style="font-size:12px"></span>
+      </div>
+      <div class="machines" id="machines"></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Chọn trang">
+    <button type="button" role="tab" id="tab-results" data-tab="results" aria-selected="true">Kết quả</button>
+    <button type="button" role="tab" id="tab-paper" data-tab="paper" aria-selected="false">Kết quả paper</button>
+    <button type="button" role="tab" id="tab-p1" data-tab="p1" aria-selected="false">Pha 1 theo nguồn</button>
+    <button type="button" role="tab" id="tab-notes" data-tab="notes" aria-selected="false">Nhận định</button>
+    <button type="button" role="tab" id="tab-compare" data-tab="compare" aria-selected="false">So sánh</button>
+  </nav>
+
+  <section class="card" id="paper-card" data-pane="paper">
+    <div class="sec-head"><h2>Kết quả paper</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 2 cột chính RecAdam + ASAM</span></div>
+    <p class="note">Tab riêng cho số liệu đưa vào bài (người dùng 07/10). Mỗi cấu hình Pha 1 = JS (common / 4CWE / full) + Python SVEN train fold k theo tỉ lệ 4:1, rút ngẫu nhiên cân nhãn bằng Random(seed của lượt); checkpoint Pha 1 chọn theo ROC trên val CHỈ JS; Pha 2 fold k nạp Pha 1 cùng fold. Ô seed 42 của baseline, common và full dùng lại kết quả đã có; còn lại chạy mới và KHÔNG hiện ở tab Kết quả. Ô = trung bình trên các ô đã xong (n ghi bên dưới), chữ nhỏ là độ lệch chuẩn. Δ so với baseline ghép cặp theo (seed, fold), +k/-k là số cặp dương / âm (hoà khi |Δ| ≤ 0,001) - không lấy hiệu hai trung bình. In đậm = cao nhất trong cột (bảng) hoặc cao nhất giữa các cấu hình ở cùng seed và fold (lưới). Chữ đỏ ở lưới = ROC dưới 0,75 (sập).</p>
+    <div class="scroll"><table class="ptbl" id="paper-table"></table></div>
+    <h3 style="margin:14px 0 8px">Theo CWE</h3>
+    <p class="note">ROC-AUC và F1@0,5 tính riêng trên các hàm test của từng CWE trong fold (mỗi fold chỉ ~8-45 hàm một CWE, CWE-022 và CWE-079 rất ít nên dao động lớn). Ô = TB ± SD trên các ô đã xong; dòng nhỏ là Δ ghép cặp (seed, fold) với baseline và số cặp dương / âm.</p>
+    <div class="scroll"><table class="ptbl" id="paper-cwe"></table></div>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; di chuột để xem PR, F1, epoch chọn, val ROC Pha 1)</h3>
+    <div class="pgrid" id="paper-grid"></div>
+  </section>
+
+  <section class="card" id="compare-card" data-pane="compare">
+    <div class="sec-head"><h2>So sánh config</h2><span class="eyebrow">tích config để đưa vào bảng · mỗi config là một run 5 fold</span></div>
+    <p class="note">Mỗi ô: trung bình trên các fold đã xong (chữ lớn), độ lệch chuẩn theo fold (chữ nhỏ). Bật "Δ so với mốc" để thêm hiệu ghép cặp theo fold với config mốc và số fold dương (+k/n, hoà khi |Δ| ≤ 0.001) - không lấy hiệu hai trung bình. Theo CWE: F1 và ROC của từng nhóm CWE trên tập test của fold; CWE-079 chỉ ~13 mẫu/fold nên dao động lớn. In đậm = cao nhất trong các config đang chọn; chữ đỏ = ROC dưới 0.75 (sập).</p>
+    <div class="cmp-controls" id="cmp-controls"></div>
+    <div class="cmp-groups" id="cmp-groups"></div>
+    <div class="scroll"><table class="cmp" id="cmp-table"></table></div>
+  </section>
+
+  <section class="card" id="notes-card" data-pane="notes">
+    <div class="sec-head"><h2>Nhận định</h2><span class="eyebrow">phân tích theo câu hỏi của người dùng</span></div>
+    <div id="notes"></div>
+  </section>
+
+  <section class="card" id="p1-card" data-pane="p1">
+    <div class="sec-head"><h2>Pha 1 theo nguồn</h2><span class="eyebrow">train loss và val ROC từng epoch</span></div>
+    <p class="note">Mỗi nguồn một khung: biểu đồ train loss (trục trái) và val ROC-AUC (trục phải, từ 0,3) theo epoch, bên cạnh là bảng từng epoch. Dòng tô xanh là epoch được chọn (val ROC cao nhất, file best.pt). Val Pha 1 chia ngẫu nhiên theo hàm trên dữ liệu cặp nên nửa kia của nhiều cặp nằm ở train với nhãn ngược - val ROC thấp hoặc giảm khi học là đặc điểm của phép chia, không tự nó là dấu hiệu kẹt.</p>
+    <div id="p1grid" style="display:flex;flex-direction:column;gap:12px"></div>
+  </section>
+
+  <section class="card" id="matrix-card" data-pane="results">
+    <div class="mstack">
+    <div class="mtop" id="mtop">
+    <div class="sec-head" id="matrix-head">
+      <h2>Ma trận kết quả</h2>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--pend)"></span>chưa chạy</span>
+        <span><span class="dot" style="background:var(--run)"></span>đang chạy (epoch k/N)</span>
+        <span><span class="dot" style="background:var(--ok)"></span>xong (ROC test)</span>
+        <span><span class="dot" style="background:var(--crit)"></span>sập (ROC &lt; 0,75) hoặc lỗi</span>
+        <span><span class="dot" style="background:var(--warn)"></span>có cảnh báo</span>
+      </div>
+    </div>
+    <div class="mhead-wrap" id="mhead-wrap"><table class="matrix mhead" id="mhead" aria-hidden="true"></table></div>
+    </div>
+    <div class="scroll" id="matrix-scroll"><table class="matrix" id="matrix"></table></div>
+    </div>
+    <p class="note">Bấm một ô fold hoặc ô Pha 1 để mở thanh bên: lịch sử epoch, kiểm tham số và chỉ số theo CWE (đóng bằng nút Đóng, bấm ra ngoài hoặc phím Esc).</p>
+  </section>
+
+  <div id="drawer-backdrop" hidden></div>
+  <section class="card" id="detail" hidden role="dialog" aria-modal="true" aria-labelledby="d-title" tabindex="-1">
+    <div class="sec-head"><h2 id="d-title">Chi tiết</h2><button class="closebtn" id="d-close" type="button">Đóng</button></div>
+    <div class="detail-grid">
+      <div>
+        <svg class="chart" id="d-chart" viewBox="0 0 640 240" role="img" aria-label="Lịch sử epoch"></svg>
+        <div class="legend" style="margin-top:6px">
+          <span><span class="dot" style="background:var(--loss)"></span>train loss (trục trái)</span>
+          <span><span class="dot" style="background:var(--accent)"></span>val ROC-AUC (trục phải)</span>
+          <span><span class="dot" style="background:var(--ok)"></span>epoch được chọn</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <dl class="kv" id="d-kv"></dl>
+        <div class="scroll" id="d-cwe"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="paired-card" data-pane="results">
+    <div class="sec-head">
+      <h2>So sánh ghép cặp theo fold</h2>
+      <span class="eyebrow">bậc 2, n=5</span>
+    </div>
+    <p class="note">Mỗi ô: trung bình Δ ghép cặp trên các fold cả hai bên đều xong, kèm (+k/n) = số fold Δ &gt; 0,001 trên số fold ghép được; hoà (|Δ| ≤ 0,001) ghi thêm "=t". Không lấy hiệu hai trung bình. Ô sập vẫn được tính, nên một ô sập kéo trung bình mạnh mà chỉ đổi một fold trong đếm dấu.</p>
+    <div class="scroll"><table class="paired" id="paired"></table></div>
+  </section>
+
+  <section class="card">
+    <details id="setting-full">
+      <summary><h2 style="display:inline">Setting đầy đủ</h2></summary>
+      <dl class="kv" id="block-kv" style="margin-top:12px"></dl>
+    </details>
+    <div id="checks-box"></div>
+  </section>
+
+  <footer id="foot">Đang kết nối dữ liệu…</footer>
+</div>
+
+<script>
+// Cấu trúc khối: cố định theo scripts/runs.json (48 run, 204 ô; 05/10 thêm 2 run MW không Pha 1 và 3 nguồn chỉ C/C++)
+const SOURCES = [
+  { key: "full_jsonly", lvl: "full", type: "js" },
+  { key: "common_jsonly", lvl: "common", type: "js" },
+  { key: "4cwe_jsonly", lvl: "4CWE", type: "js" },
+  { key: "full_jscpp", lvl: "full", type: "jscpp" },
+  { key: "common_jscpp", lvl: "common", type: "jscpp" },
+  { key: "4cwe_jscpp", lvl: "4CWE", type: "jscpp" },
+  // 05/10 người dùng: "sau bộ các task chính, chạy thêm nguồn CCPP"
+  { key: "full_ccpp", lvl: "full", type: "ccpp" },
+  { key: "common_ccpp", lvl: "common", type: "ccpp" },
+  { key: "4cwe_ccpp", lvl: "4CWE", type: "ccpp" },
+  // 05/10 người dùng: "chạy thêm nguồn java + js common" (Java không có CWE nên phần Java của common = full)
+  { key: "common_jsjava", lvl: "common", type: "jsjava" },
+];
+const TYPES = { js: "Chỉ JS", jscpp: "JS + C/C++", ccpp: "Chỉ C/C++", jsjava: "Java + JS" };
+const VARIANTS = [
+  { p: "rasam", t: "RecAdam + ASAM", role: "chính" },
+  { p: "noras", t: "AdamW (noRAS)", role: "phụ" },
+  { p: "asamonly", t: "Chỉ ASAM", role: "phụ" },
+  { p: "raonly", t: "Chỉ RecAdam", role: "phụ" },
+];
+const FOLDS = [1, 2, 3, 4, 5];
+// máy đang dùng; vast đã huỷ (paper_mw, paper_mw2 - 05/10 13:1x) không hiện nữa (người dùng 05/10 17:4x). Ô đã chạy trên đó vẫn giữ tên máy trong chi tiết.
+const HOSTS = ["161", "158", "paper_night"];   // 07/10 03:3x: paper_night (54537908) cho tab Kết quả paper; 06/10 23:00: paper_mw4 destroy
+const METRICS = [
+  { k: "f1_05", t: "F1@0.5" },
+  { k: "f1_val", t: "F1@val" },
+  { k: "roc", t: "ROC-AUC" },
+  { k: "pr", t: "PR-AUC" },
+];
+const COLLAPSE = 0.75;
+const TIE = 1e-3;
+
+// Máy dự kiến của từng run (cùng kế hoạch đã ghi vào planned_host lúc seed)
+function plannedHost(run) {
+  if (run === "baseline" || run.startsWith("nop1_")) return "paper_mw";
+  if (!/^(p1|rasam)_/.test(run)) return "hoãn";
+  const src = run.replace(/^(p1|rasam)_/, "");
+  if (src === "full_jscpp") return "161";
+  if (src === "common_jscpp") return "158";
+  if (src === "4cwe_jscpp" || src === "4cwe_ccpp") return "paper_mw";
+  if (src === "full_ccpp") return "158";
+  if (src === "common_ccpp") return "paper_mw2";
+  if (src === "common_jsjava") return "158";
+  return "paper_mw2";
+}
+function allCells() {
+  const out = [];
+  SOURCES.forEach(s => out.push({ run: "p1_" + s.key, fold: 1 }));
+  FOLDS.forEach(f => out.push({ run: "baseline", fold: f }));
+  ["nop1_adamw", "nop1_asamonly"].forEach(r => FOLDS.forEach(f => out.push({ run: r, fold: f })));   // MW không Pha 1 (người dùng 05/10)
+  SOURCES.forEach(s => VARIANTS.forEach(v => FOLDS.forEach(f => out.push({ run: v.p + "_" + s.key, fold: f }))));
+  return out;
+}
+// run phụ hiện trong bảng chính (nhóm "Biến thể phụ"), thẻ máy và tab So sánh
+const SIDE_RUNS = [
+  // 06/10 Pha 1 trộn JS + Python (SVEN train fold k), val Pha 1 = JS val + SVEN val fold k; Pha 2 fold k nạp Pha 1 fold k.
+  // 18:1x (người dùng: "pha 1 trộn nên sắp xếp thứ tự đúng, full với common ra riêng"): hai nhóm common / full; mỗi tỉ lệ MỘT dòng,
+  // các biến thể Pha 2 cùng Pha 1 nằm ở cột tương ứng (cols)
+  { run: "rasam_jspy41_4cwe", src: null, col: "rasam", host: "158", group: "Pha 1 trộn JS:Py theo fold · 4CWE (06/10, bậc 2 n=5) - so với cùng cột của 4CWE chỉ JS", p1run: "p1_jspy41_4cwe",
+    lvl: "4CWE · JS:Py 4:1", note: "Pha 1: 500 JS + 125 Py (SVEN train fold k), val = 88 JS val + SVEN val fold k · Pha 2 nạp Pha 1 cùng fold" },
+  { run: "rasam_jspy41_common", src: null, col: "rasam", cols: { rasam: "rasam_jspy41_common", raonly: "raonly_jspy41_common", asamonly: "asamonly_jspy41_common" }, host: "161", group: "Pha 1 trộn JS:Py theo fold · common (06/10, bậc 2 n=5) - so với cùng cột của common chỉ JS", p1run: "p1_jspy41_common",
+    lvl: "common · JS:Py 4:1", note: "Pha 1: 842 JS + 211 Py (SVEN train fold k), val = JS val + SVEN val fold k · Pha 2 nạp Pha 1 cùng fold" },
+  { run: "rasam_jspy31_common", src: null, col: "rasam", host: "161", group: "Pha 1 trộn JS:Py theo fold · common (06/10, bậc 2 n=5) - so với cùng cột của common chỉ JS", p1run: "p1_jspy31_common",
+    lvl: "common · JS:Py 3:1", note: "Pha 1: 842 JS + 281 Py (SVEN train fold k), val như 4:1 · Pha 2 nạp Pha 1 cùng fold" },
+  { run: "rasam_jspy41pair_common", src: null, col: "rasam", host: "paper_mw4", group: "Pha 1 trộn JS:Py theo fold · common (06/10, bậc 2 n=5) - so với cùng cột của common chỉ JS", p1run: "p1_jspy41pair_common",
+    lvl: "common · JS:Py 4:1 theo cặp, val Pha 1 chỉ JS", note: "Pha 1: 842 JS + 105 cặp SVEN (hàm lỗi + bản vá, 210 hàm, cả hai nửa ở SVEN train fold k), val = CHỈ 148 JS val ⇒ checkpoint chọn theo ROC trên JS · Pha 2 nạp Pha 1 cùng fold (paper_mw4 f1/f3, 161 f2/f4, 158 f5)" },
+  { run: "rasam_jspy41jsval_common", src: null, col: "rasam", host: "161", group: "Pha 1 trộn JS:Py theo fold · common (06/10, bậc 2 n=5) - so với cùng cột của common chỉ JS", p1run: "p1_jspy41jsval_common",
+    lvl: "common · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS", note: "Pha 1: train TRÙNG 4:1 ngẫu nhiên (842 JS + 211 Py cân nhãn), val = CHỈ 148 JS val ⇒ checkpoint chọn theo ROC trên JS · Pha 2 nạp Pha 1 cùng fold (161 f1/f3/f5, 158 f2/f4)" },
+  { run: "rasam_jspy41_full", src: null, col: "rasam", cols: { rasam: "rasam_jspy41_full", raonly: "raonly_jspy41_full", asamonly: "asamonly_jspy41_full" }, host: "161", group: "Pha 1 trộn JS:Py theo fold · full (06/10, bậc 2 n=5) - so với cùng cột của full chỉ JS", p1run: "p1_jspy41_full",
+    lvl: "full · JS:Py 4:1", note: "Pha 1: 1 066 JS + 267 Py (SVEN train fold k), val = JS val + SVEN val fold k · Pha 2 nạp Pha 1 cùng fold" },
+  { run: "rasam_jspy31_full", src: null, col: "rasam", host: "paper_mw4", group: "Pha 1 trộn JS:Py theo fold · full (06/10, bậc 2 n=5) - so với cùng cột của full chỉ JS", p1run: "p1_jspy31_full",
+    lvl: "full · JS:Py 3:1", note: "Pha 1: 1 066 JS + 355 Py (SVEN train fold k), val như 4:1 · Pha 2 nạp Pha 1 cùng fold (vast paper_mw4)" },
+  { run: "rasam_jspy41jsval_full", src: null, col: "rasam", host: "161", group: "Pha 1 trộn JS:Py theo fold · full (06/10, bậc 2 n=5) - so với cùng cột của full chỉ JS", p1run: "p1_jspy41jsval_full",
+    lvl: "full · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS", note: "Pha 1: train TRÙNG 4:1 full (1 066 JS + 267 Py cân nhãn), val = CHỈ 188 JS full val ⇒ checkpoint chọn theo ROC trên JS · Pha 2 nạp Pha 1 cùng fold (161 f1/f3/f5, 158 f2/f4)" },
+  { run: "rasamanchor_common_jsonly", src: "common_jsonly", col: "rasam", host: "161", group: "Biến thể phụ",
+    note: "RecAdam neo theo bài gốc (Chen 2020): γ 5000, k 0,05, t0 100 bước, head không neo + ASAM" },
+  // 05/10 17:0x kiểm mục 2.3 (PHA2_SUA_THEO_BANG_CHUNG_0510.md): nhiễu ε của ASAM trên bias + LayerNorm, bậc 1 (f1-f3)
+  { run: "asamblnex_common_jsonly", src: "common_jsonly", hide: "không hơn chỉ ASAM ở n=5", col: "asamonly", host: "161", group: "Biến thể phụ",
+    note: "Chỉ ASAM, KHÔNG nhiễu bias + LayerNorm (kiểm 2.3, bậc 2: n=5)" },
+  { run: "asamblnsh_common_jsonly", src: "common_jsonly", hide: "không hơn chỉ ASAM ở n=5", col: "asamonly", host: "161", group: "Biến thể phụ",
+    note: "Chỉ ASAM, T của bias + LayerNorm ×0,1 (kiểm 2.3, bậc 2: n=5)" },
+  // 05/10 19:0x một pha TRỘN nguồn (MW không đồ thị, AdamW, không Pha 1): train = 990 hàm JS common + SVEN train của fold
+  { run: "mix1p_adamw_common_jsonly", src: null, col: "noras", host: "158", group: "Biến thể phụ",
+    lvl: "common · Chỉ JS (trộn, 1 pha)", note: "MW một pha, train = 990 hàm JS common + SVEN train, AdamW, không Pha 1 - so với MW không Pha 1 AdamW" },
+  // 05/10 23:5x hướng A bước 1 (HUONG_DI_LN_VA_TRAN_JS_0510.md): 5 ô kẹt của chỉ ASAM trên JS + C/C++ × full / mask / exclude
+  { run: "asamAfull_4cwe_jscpp", src: "4cwe_jscpp", hide: "chạy lại, trùng bit ô gốc", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1],
+    lvl: "4CWE · JS + C/C++", note: "full - chạy lại ô gốc (phải trùng bit)" },
+  { run: "asamAmask_4cwe_jscpp", src: "4cwe_jscpp", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1],
+    lvl: "4CWE · JS + C/C++", note: "mask - ε = 0 trên bias/LN, ε weight như full" },
+  { run: "asamAexcl_4cwe_jscpp", src: "4cwe_jscpp", hide: "≈ mask, tài liệu khuyên không dùng", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1],
+    lvl: "4CWE · JS + C/C++", note: "exclude - bỏ bias/LN, ρ dồn cho weight" },
+  { run: "asamAfull_common_jscpp", src: "common_jscpp", hide: "chạy lại, trùng bit ô gốc", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1, 3, 4],
+    lvl: "common · JS + C/C++", note: "full - chạy lại ô gốc (phải trùng bit)" },
+  { run: "asamAmask_common_jscpp", src: "common_jscpp", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1, 2, 3, 4, 5],
+    lvl: "common · JS + C/C++", note: "mask - ε = 0 trên bias/LN, ε weight như full" },
+  { run: "asamAexcl_common_jscpp", src: "common_jscpp", hide: "≈ mask, tài liệu khuyên không dùng", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1, 2, 3, 4, 5],
+    lvl: "common · JS + C/C++", note: "exclude - bỏ bias/LN, ρ dồn cho weight" },
+  { run: "asamAfull_full_jscpp", src: "full_jscpp", hide: "chạy lại, trùng bit ô gốc", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [4],
+    lvl: "full · JS + C/C++", note: "full - chạy lại ô gốc (phải trùng bit)" },
+  { run: "asamAmask_full_jscpp", src: "full_jscpp", col: "asamonly", host: "paper_mw3", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [1, 2, 3, 4, 5],
+    lvl: "full · JS + C/C++", note: "mask - ε = 0 trên bias/LN, ε weight như full" },
+  { run: "asamAexcl_full_jscpp", src: "full_jscpp", hide: "≈ mask, tài liệu khuyên không dùng", col: "asamonly", host: "158", group: "Hướng A bước 1 - tắt nhiễu ASAM trên bias/LN (mask) ở ô kẹt JS + C/C++ (bậc 1, kiểm cơ chế; nhận định ở tab Nhận định)", folds: [4],
+    lvl: "full · JS + C/C++", note: "exclude - bỏ bias/LN, ρ dồn cho weight" },
+  // 05/10 22:0x trộn naive JS full + SVEN, MW một pha AdamW; chạy lại ô sập trộn common f5 với min_epochs 30
+  { run: "mix1p_adamw_full_jsonly", src: null, col: "noras", host: "161", group: "Biến thể phụ",
+    lvl: "full · Chỉ JS (trộn, 1 pha)", note: "MW một pha, train = 1 254 hàm JS full + SVEN train, AdamW, không Pha 1" },
+  { run: "mix1p_adamw_common_jsonly_me30", src: null, col: "noras", host: "161", group: "Biến thể phụ", folds: [5],
+    lvl: "common · Chỉ JS (trộn) - chạy lại", note: "Ô sập f5 của trộn common chạy lại với min_epochs 30" },
+  // 05/10 22:0x MW không Pha 1 AdamW trên ĐÍCH JS (đối chứng MW, không transfer); chạy lại ô sập SVEN → JS f4 với min_epochs 30
+  { run: "nop1_adamw_tojsfull", src: null, col: "noras", host: "paper_mw3", group: "Đích JS full (nguồn SVEN Python) - đích khác, không so với các dòng trên",
+    lvl: "MW không Pha 1 · đích JS full", note: "MW, AdamW, không Pha 1 (đối chứng MW, không transfer)" },
+  { run: "rasam_sven_python_tojsfull_me30", src: "sven_python", col: "rasam", host: "158", group: "Đích JS full (nguồn SVEN Python) - đích khác, không so với các dòng trên", folds: [4],
+    lvl: "SVEN Python → JS full - chạy lại", note: "Ô sập f4 chạy lại với min_epochs 30" },
+  // 05/10 18:5x baseline CodeBERT 512 trên ĐÍCH JS full - đối chứng cho dòng SVEN → JS ngay dưới
+  { run: "baseline_tojsfull", src: null, col: "all", host: "paper_mw3", group: "Đích JS full (nguồn SVEN Python) - đích khác, không so với các dòng trên",
+    lvl: "Baseline · đích JS full", note: "CodeBERT 512 thuần, không Pha 1 (đối chứng), 5 fold 6:2:2" },
+  // 05/10 16:4x nguồn SVEN Python, ĐÍCH JS full (5 fold 6:2:2) - đích khác, không so với các dòng đích SVEN
+  { run: "rasam_sven_python_tojsfull", src: "sven_python", col: "rasam", host: "paper_mw3", group: "Đích JS full (nguồn SVEN Python) - đích khác, không so với các dòng trên",
+    lvl: "SVEN Python → JS full", note: "Pha 1 trên 760 hàm SVEN, Pha 2 trên JS full 1 254 hàm, 5 fold 6:2:2 (752/251/251)", p1: true },
+];
+const CELLS = allCells();
+// nhóm nguồn chỉ là NHÁNH KIỂM (người dùng 05/10 17:3x): mặc định thu gọn, bấm tiêu đề mới mở; nhớ theo người xem (localStorage)
+// 06/10 14:3x (người dùng: "các phần khác không mặc định collapse nhưng vẫn có thể click collapse nếu cần"): MỌI nhóm thu gọn được;
+// chỉ hai nhóm nhánh kiểm thu gọn sẵn. Trạng thái theo người xem: { khoá: true = thu gọn }, khoá = loại nguồn / "g:<nhóm phụ>" / "p:<phần ghép cặp>" / "c:<nhóm so sánh>"
+const DEFAULT_FOLDED = new Set(["jscpp", "ccpp"]);
+const FOLDED_TYPES = [...DEFAULT_FOLDED];
+const SRC_TYPES = ["js", "jscpp", "ccpp", "jsjava"];
+let FOLD_STATE = {};
+try { FOLD_STATE = JSON.parse(localStorage.getItem("mwonly5_fold_state") || "{}") || {}; } catch (e) { FOLD_STATE = {}; }
+try { (JSON.parse(localStorage.getItem("mwonly5_open_types") || "[]") || []).forEach(t => { if (!(t in FOLD_STATE)) FOLD_STATE[t] = false; }); } catch (e) { /* bỏ qua */ }
+const isFolded = k => Object.prototype.hasOwnProperty.call(FOLD_STATE, k) ? !!FOLD_STATE[k] : DEFAULT_FOLDED.has(k);
+function setFold(k, v) { FOLD_STATE[k] = v; try { localStorage.setItem("mwonly5_fold_state", JSON.stringify(FOLD_STATE)); } catch (e) { /* bỏ qua */ } }
+const typeOfSrc = key => (SOURCES.find(s => s.key === key) || {}).type;
+function toggleType(t) {
+  setFold(t, !isFolded(t));
+  renderMatrix(); renderPaired(); CMP.sig = ""; renderCompare();
+}
+function foldRow(key, label, cols, hint) {
+  const open = !isFolded(key);
+  return `<tr class="group"><th colspan="${cols}"><button type="button" class="fold-btn" data-fold="${esc(key)}" aria-expanded="${open}"><span class="caret">▸</span><span>${esc(label)}</span><span class="hint">${hint ? esc(hint) + " · " : ""}${open ? "bấm để thu gọn" : "bấm để mở"}</span></button></th></tr>`;
+}
+function foldHeader(t, cols, extra) {
+  const n = SOURCES.filter(s => s.type === t).length;
+  return foldRow(t, TYPES[t] + (DEFAULT_FOLDED.has(t) ? " · nhánh kiểm" : ""), cols, `${n} nguồn${extra || ""}`);
+}
+const SIDE_CELLS = SIDE_RUNS.flatMap(x => [...new Set([x.run, ...Object.values(x.cols || {})])]
+  .flatMap(r => (x.folds || FOLDS).map(f => ({ run: r, fold: f })))
+  .concat(x.p1 ? [{ run: "p1_" + x.src, fold: 1 }] : []).concat(x.p1run ? FOLDS.map(f => ({ run: x.p1run, fold: f })) : []));
+// fold của một run (run phụ bậc 1 chỉ có f1-f3); đích khác SVEN (tên chứa "_tojs") không dùng ngưỡng sập 0,75 của đích SVEN
+const foldsOf = run => (SIDE_RUNS.find(x => x.run === run) || {}).folds || FOLDS;
+const otherTarget = run => /_tojs/.test(String(run));
+
+const state = { folds: new Map(), paper: new Map(), alerts: [], insights: [], block: null, checks: null, sel: null, canWrite: true, connected: false, alertOpen: false };
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (v, d = 3) => (v == null || Number.isNaN(v)) ? "-" : Number(v).toFixed(d);
+const fmtSigned = (v, d = 3) => (v == null || Number.isNaN(v)) ? "-" : (v > 0 ? "+" : v < 0 ? "-" : "±") + Math.abs(v).toFixed(d);
+const nowStr = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date());
+const docId = (run, fold) => run + "__f" + fold;
+const row = (run, fold) => state.folds.get(docId(run, fold)) || { run, fold, status: "pending" };
+const srcTitle = key => { const s = SOURCES.find(x => x.key === key); return s ? s.lvl + " - " + TYPES[s.type] : key; };
+function runTitle(run) {
+  if (run === "baseline") return "Baseline CodeBERT 512";
+  if (run === "nop1_adamw") return "MW không Pha 1 - AdamW";
+  if (run === "nop1_asamonly") return "MW không Pha 1 - chỉ ASAM";
+  if (run.startsWith("p1_")) return "Pha 1 - " + srcTitle(run.slice(3));
+  // 05/10: RecAdam neo theo bài gốc (gamma 5000, k 0,05, t0 100 bước, head không neo) + ASAM
+  if (run.startsWith("rasamanchor_")) return "RecAdam neo (Chen 2020) + ASAM - " + srcTitle(run.slice("rasamanchor_".length));
+  if (run.startsWith("asamblnex_")) return "Chỉ ASAM, không nhiễu bias/LN - " + srcTitle(run.slice("asamblnex_".length));
+  if (run.startsWith("asamblnsh_")) return "Chỉ ASAM, T bias/LN ×0,1 - " + srcTitle(run.slice("asamblnsh_".length));
+  if (run === "p1_sven_python") return "Pha 1 - SVEN Python (nguồn cho đích JS)";
+  if (run === "rasam_sven_python_tojsfull") return "RecAdam + ASAM - SVEN Python → ĐÍCH JS full";
+  if (run === "baseline_tojsfull") return "Baseline CodeBERT 512 - ĐÍCH JS full";
+  if (run === "mix1p_adamw_common_jsonly") return "MW một pha trộn JS common + SVEN - AdamW";
+  if (run === "mix1p_adamw_full_jsonly") return "MW một pha trộn JS full + SVEN - AdamW";
+  if (run === "nop1_adamw_tojsfull") return "MW không Pha 1 - AdamW - ĐÍCH JS full";
+  const mA = run.match(/^asamA(full|mask|excl)_(.+)$/);
+  if (mA) return "Hướng A - chỉ ASAM, bias/LN " + ({ full: "full (chạy lại)", mask: "mask", excl: "exclude" })[mA[1]] + " - " + srcTitle(mA[2]);
+  const v = VARIANTS.find(x => run.startsWith(x.p + "_"));
+  return v ? v.t + " - " + srcTitle(run.slice(v.p.length + 1)) : run;
+}
+function cellClass(r) {
+  if (r.status === "done") return (r.roc != null && r.roc < COLLAPSE && !String(r.run).startsWith("p1_") && !otherTarget(r.run)) ? "collapse" : "done";
+  return ["running", "failed", "stopped"].includes(r.status) ? r.status : "pending";
+}
+function secs(s) { if (s == null) return "-"; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h ? h + " h " + m + " ph" : m + " ph"; }
+
+// ---------- dải cảnh báo ----------
+// dưới mỗi cảnh báo: kết cục (outcome) + các dòng cập nhật (updates: [{at, text}]) - người dùng 05/10: "nếu cảnh báo sai hãy bổ sung
+// thông tin dưới cảnh báo, ví dụ nghi sập nhưng sau vẫn thoát"
+const OUTCOME = { "chờ kết quả": "pend", "báo nhầm": "warn", "sập thật": "bad", "đã xử lý": "ok" };
+// cảnh báo nhầm (người dùng 05/10: "nếu cảnh báo nhầm thì đổi sang màu vàng, kể cả trong lịch sử")
+const isFalseAlarm = d => d.outcome === "báo nhầm";
+function alertFollow(d) {
+  const ups = Array.isArray(d.updates) ? d.updates : [];
+  if (!d.outcome && !ups.length) return "";
+  const pill = d.outcome ? `<span class="outcome ${OUTCOME[d.outcome] || "pend"}">${esc(d.outcome)}</span>` : "";
+  return `<div class="follow">${pill}${ups.map(u => `<div class="up"><span class="mono">${esc(u.at || "")}</span> ${esc(u.text || "")}</div>`).join("")}</div>`;
+}
+function renderAlerts() {
+  const open = state.alerts.filter(a => !a.data.acked).sort((a, b) => String(b.data.at).localeCompare(String(a.data.at)));
+  const seen = state.alerts.filter(a => a.data.acked).sort((a, b) => String(b.data.acked_at || b.data.at).localeCompare(String(a.data.acked_at || a.data.at)));
+  const bar = $("alertbar");
+  const nFalse = open.filter(a => isFalseAlarm(a.data)).length;
+  // nút tròn: đỏ = còn cảnh báo thật / chưa rõ kết cục; vàng = mọi cảnh báo chưa xem đều là báo nhầm; xanh = 0
+  const level = open.length === 0 ? "ok" : nFalse === open.length ? "warn" : "crit";
+  const fab = $("alert-fab");
+  fab.textContent = String(open.length);
+  fab.className = "alert-fab " + level;
+  fab.setAttribute("aria-label", open.length ? `${open.length} cảnh báo chưa xem${nFalse ? `, ${nFalse} báo nhầm` : ""} - bấm để xem` : "Không có cảnh báo chưa xem");
+  fab.title = fab.getAttribute("aria-label");
+  bar.hidden = !state.alertOpen;
+  fab.setAttribute("aria-expanded", String(!!state.alertOpen));
+  bar.classList.toggle("allfalse", level === "warn");
+  bar.classList.toggle("none", level === "ok");
+  $("ab-title").textContent = open.length ? open.length + " cảnh báo chưa xem" + (nFalse ? ` (${nFalse} báo nhầm)` : "") : "Không có cảnh báo chưa xem";
+  $("ab-ro").hidden = state.canWrite;
+  $("ab-list").innerHTML = open.map(a => {
+    const d = a.data;
+    return `<li class="${isFalseAlarm(d) ? "false" : ""}"><span class="kind">${esc(d.kind || "khác")}</span>
+      <span class="msg"><b>${esc(d.run || "")}${d.fold != null ? " f" + esc(d.fold) : ""}</b>${d.host ? " · " + esc(d.host) : ""} · ${esc(d.at || "")}<br>${esc(d.message || "")}${alertFollow(d)}</span>
+      <button class="ack" type="button" data-id="${esc(a.id)}" ${state.canWrite ? "" : "disabled"}>Đã xem</button></li>`;
+  }).join("");
+  const hist = $("ack-hist");
+  const html = seen.length ? `<details class="hist" id="ack-hist"><summary>Cảnh báo đã xem (${seen.length})</summary><ul>${seen.map(a => {
+    const d = a.data; return `<li class="${isFalseAlarm(d) ? "false" : d.outcome === "sập thật" ? "real" : ""}"><span class="mono">${esc(d.at || "")}</span> · <b>${esc(d.kind || "")}</b> · ${esc(d.run || "")}${d.fold != null ? " f" + esc(d.fold) : ""} - ${esc(d.message || "")} <span class="muted">(đã xem ${esc(d.acked_at || "")})</span>${alertFollow(d)}</li>`;
+  }).join("")}</ul></details>` : "";
+  const wasOpen = hist && hist.open;
+  const box = $("ack-box");
+  box.innerHTML = html;
+  if (wasOpen && $("ack-hist")) $("ack-hist").open = true;
+}
+async function ack(id, btn) {
+  if (!state.db) return;
+  btn.disabled = true; btn.textContent = "Đang lưu…";
+  try {
+    await state.db.doc("alerts/" + id).update({ acked: true, acked_at: nowStr() });
+  } catch (e) {
+    if (e && (e.code === "invalid_argument" || e.code === "transform_error")) { state.canWrite = false; renderAlerts(); return; }
+    btn.disabled = false; btn.textContent = "Thử lại";
+  }
+}
+
+// ---------- đầu trang ----------
+// giờ cập nhật: trường `updated` dạng "YYYY-MM-DD HH:MM" theo giờ Việt Nam (UTC+7)
+function upTime(u) {
+  if (!u) return "";
+  const t = Date.parse(String(u).replace(" ", "T") + ":00+07:00");
+  if (isNaN(t)) return esc(String(u));
+  const m = Math.round((Date.now() - t) / 60000);
+  const ago = m < 1 ? "vừa xong" : m < 60 ? m + " phút trước" : Math.floor(m / 60) + " giờ " + (m % 60) + " phút trước";
+  return esc(String(u).slice(11, 16)) + " (" + ago + ")";
+}
+// ETA của ô đang chạy: "xong ~HH:MM" hoặc khoảng "HH:MM - HH:MM" (sớm nhất nếu dừng sớm - muộn nhất nếu chạy đủ epoch)
+function etaText(r) {
+  if (!r || !r.eta_max) return "";
+  const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);   // ngày hôm nay theo giờ VN
+  const t = u => { const d = String(u).slice(0, 10), hm = String(u).slice(11, 16); return d === today ? hm : d.slice(8, 10) + "/" + d.slice(5, 7) + " " + hm; };
+  const a = r.eta_min && r.eta_min !== r.eta_max ? t(r.eta_min) + " - " : "";
+  return "xong ~" + esc(a + t(r.eta_max));
+}
+function renderHeader() {
+  const c = { done: 0, collapse: 0, running: 0, pending: 0, failed: 0, stopped: 0 };
+  CELLS.forEach(x => { c[cellClass(row(x.run, x.fold))]++; });
+  const total = CELLS.length;
+  $("prog-total").textContent = (c.done + c.collapse) + "/" + total + " ô xong";
+  const seg = [["done", "var(--ok)"], ["collapse", "var(--crit)"], ["failed", "var(--crit)"], ["running", "var(--run)"], ["stopped", "var(--pend)"]];
+  $("prog-bar").innerHTML = seg.map(([k, col]) => c[k] ? `<span style="width:${(100 * c[k] / total).toFixed(2)}%;background:${col}"></span>` : "").join("");
+  const lab = { done: "xong", collapse: "sập", running: "đang chạy", pending: "chưa chạy", failed: "lỗi", stopped: "dừng" };
+  const col = { done: "var(--ok)", collapse: "var(--crit)", running: "var(--run)", pending: "var(--pend)", failed: "var(--crit)", stopped: "var(--pend)" };
+  $("prog-counts").innerHTML = Object.keys(lab).filter(k => c[k] || ["done", "running", "pending"].includes(k))
+    .map(k => `<span><span class="dot" style="background:${col[k]}"></span><span class="k">${c[k]}</span>${lab[k]}</span>`).join("");
+  const ups = CELLS.map(x => row(x.run, x.fold).updated).concat(state.block ? [state.block.updated] : []).filter(Boolean).sort();
+  $("prog-updated").innerHTML = ups.length ? "Cập nhật gần nhất: " + upTime(ups[ups.length - 1]) : "";
+  const desc = {};
+  (state.block && Array.isArray(state.block.machines) ? state.block.machines : []).forEach(m => { desc[m.host] = m.desc; });
+  $("machines").innerHTML = HOSTS.map(h => {
+    const mine = CELLS.concat(SIDE_CELLS).map(x => row(x.run, x.fold)).filter(r => (r.host || r.planned_host || plannedHost(r.run)) === h);
+    const run = mine.filter(r => r.status === "running").concat([...state.paper.values()].filter(r => r.status === "running" && (r.host || r.planned_host) === h));
+    const done = mine.filter(r => r.status === "done").length;
+    const bad = mine.filter(r => r.status === "failed" || cellClass(r) === "collapse").length;
+    const pill = run.length ? `<span class="pill run">đang chạy</span>` : done === mine.length && mine.length ? `<span class="pill done">xong</span>` : `<span class="pill idle">${done ? "rảnh" : "chưa bắt đầu"}</span>`;
+    const now = run.map(r => `${esc(r.run)} f${r.fold} · ep ${r.epoch || 0}/${r.epochs || "?"}${r.eta_max ? " · xong ~" + esc(String(r.eta_max).slice(11)) : ""}${r.updated ? `<br><span class="muted" style="font-size:11px">cập nhật ${upTime(r.updated)}</span>` : ""}`).join("<br>");
+    return `<div class="mach"><div class="mh"><span class="name">${esc(h)}</span>${pill}</div>
+      <span class="muted" style="font-size:12px">${esc(desc[h] || "")}</span>
+      <span class="now">${now || '<span class="muted">không có ô đang chạy</span>'}</span>
+      <span class="num" style="font-size:12px">${done}/${mine.length} ô xong${bad ? ` · <span style="color:var(--crit)">${bad} sập/lỗi</span>` : ""}</span></div>`;
+  }).join("");
+  const b = state.block;
+  if (b) {
+    if (b.tier) $("tier").textContent = "Khối mwonly5 · " + b.tier;
+    const rows = [["Mã", b.code], ["Pha 1", b.p1], ["Pha 2", b.p2], ["Tất định", b.determinism], ["Bắt đầu", b.started_at]].filter(x => x[1]);
+    $("setting").innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+    const full = [["Bậc", b.tier], ["Mã", b.code], ["Tất định", b.determinism], ["Seed", b.seeds], ["Dữ liệu nguồn", b.data], ["Đích", b.target],
+      ["Pha 1", b.p1], ["Pha 2 chung", b.p2], ["Biến thể Pha 2", b.variants], ["Baseline", b.baseline], ["Cảnh báo", b.alerts_rule],
+      ["Yêu cầu", b.requested], ["Bắt đầu", b.started_at], ["Cập nhật", b.updated]].filter(x => x[1]);
+    let html = full.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+    if (Array.isArray(b.plan)) html += `<dt>Phân máy</dt><dd>${b.plan.map(p => `<span class="mono">${esc(p.host)}</span>: ${esc(p.items)}`).join("<br>")}</dd>`;
+    $("block-kv").innerHTML = html;
+  }
+  const ch = state.checks;
+  $("checks-box").innerHTML = ch && (ch.items || ch.text) ? `<h3>Kiểm và dự đoán</h3>${ch.text ? `<p class="note">${esc(ch.text)}</p>` : ""}${Array.isArray(ch.items) ? `<ul class="note">${ch.items.map(i => `<li>${esc(typeof i === "string" ? i : (i.title ? i.title + ": " : "") + (i.summary || ""))}</li>`).join("")}</ul>` : ""}${ch.updated ? `<p class="note">Cập nhật ${esc(ch.updated)}</p>` : ""}` : "";
+}
+
+// số nhãn của nguồn (meta/sources): "1 254 hàm · 627 lỗi / 627 sạch"; nguồn ghép thêm từng ngôn ngữ và train/val
+const nfmt = v => v == null ? "?" : String(v).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+const LANG = { js: "JS", ccpp: "C/C++", java: "Java", python: "Python" };
+function srcCounts(key, long) {
+  const c = state.sources && state.sources[key];
+  if (!c) return "";
+  let h = `${nfmt(c.n)} hàm · ${nfmt(c.pos)} lỗi / ${nfmt(c.neg)} sạch`;
+  const ls = Object.entries(c.langs || {});
+  if (ls.length > 1) h += "<br>" + ls.map(([k, v]) => `${LANG[k] || k} ${nfmt(v.pos)}/${nfmt(v.neg)}`).join(" · ");
+  if (long && c.train != null) h += `<br>train ${nfmt(c.train)} · val ${nfmt(c.val)}${c.test != null ? " · test " + nfmt(c.test) : ""}`;
+  return `<div class="cnt">${h}</div>`;
+}
+
+// ---------- ma trận ----------
+function chip(r) {
+  const cls = cellClass(r);
+  let label = "·";
+  if (cls === "running") label = (r.epoch || 0) + "/" + (r.epochs || "?");
+  else if (cls === "done" || cls === "collapse") label = r.roc != null ? fmt(r.roc, 3).replace(/^0/, "") : "xong";
+  else if (cls === "failed") label = "lỗi";
+  else if (cls === "stopped") label = "dừng";
+  const id = docId(r.run, r.fold);
+  const tip = `${runTitle(r.run)} · fold ${r.fold} · ${cls}${cls === "running" && r.eta_max ? " · " + etaText(r) : ""}${r.alert ? " · " + r.alert : ""}`;
+  return `<button type="button" class="chip ${cls}${r.alert ? " alerted" : ""}${state.sel === id ? " sel" : ""}" data-id="${esc(id)}" title="${esc(tip)}"><span class="f">f${r.fold}</span>${esc(label)}</button>`;
+}
+// trung bình ROC và F1@0.5 trên các fold đã xong của một run (mỗi ô ma trận)
+function runMeans(run) {
+  const done = foldsOf(run).map(f => row(run, f)).filter(r => r.status === "done" && r.roc != null);
+  const avg = k => { const v = done.map(r => r[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  return { roc: avg("roc"), f1: avg("f1_05"), n: done.length };
+}
+// ô có ROC / F1@0.5 trung bình cao nhất trong cả ma trận (để in đậm); tính lại mỗi lần vẽ
+let BEST = { roc: null, f1: null };
+function computeBest() {
+  const runs = ["baseline", "nop1_adamw", "nop1_asamonly"];
+  SOURCES.forEach(s => VARIANTS.forEach(v => runs.push(v.p + "_" + s.key)));
+  const ms = runs.map(runMeans).filter(m => m.n > 0);
+  BEST = { roc: ms.length ? Math.max(...ms.map(m => m.roc)) : null, f1: ms.filter(m => m.f1 != null).length ? Math.max(...ms.filter(m => m.f1 != null).map(m => m.f1)) : null };
+}
+function meanCell(run) {
+  const rs = foldsOf(run).map(f => row(run, f));
+  const done = rs.filter(r => r.status === "done" && r.roc != null);
+  const mm = runMeans(run), m = mm.roc, mf = mm.f1;
+  const isBest = (v, b) => v != null && b != null && Math.abs(v - b) < 1e-12;
+  const anyCol = !otherTarget(run) && done.some(r => r.roc < COLLAPSE);
+  const etas = rs.filter(r => cellClass(r) === "running" && r.eta_max).map(r => `f${r.fold} ${etaText(r)}`).join(" · ");
+  return `<div class="cellwrap"><div class="mean"><span class="v${anyCol ? " collapse" : ""}${isBest(m, BEST.roc) ? " best" : ""}" title="ROC-AUC trung bình">${m == null ? "-" : fmt(m, 3)}</span>${mf != null ? `<span class="f1${isBest(mf, BEST.f1) ? " best" : ""}" title="F1@0.5 trung bình">F1 ${fmt(mf, 3)}</span>` : ""}<span class="n">n=${done.length}/${rs.length}${anyCol ? " · " + done.filter(r => r.roc < COLLAPSE).length + " sập" : ""}</span></div><div class="chips">${rs.map(chip).join("")}</div>${etas ? `<span class="muted num" style="font-size:11px">${etas}</span>` : ""}</div>`;
+}
+// Pha 1 theo fold (06/10, người dùng: "phần trộn, pha 1 và 2 cùng nội dung có thể gộp tiêu đề"): ô Pha 1 của dòng gộp
+function p1FoldsCell(run) {
+  const rs = foldsOf(run).map(f => row(run, f));
+  const done = rs.filter(r => r.status === "done" && r.roc != null);
+  const runn = rs.filter(r => cellClass(r) === "running");
+  const m = done.length ? done.reduce((a, r) => a + r.roc, 0) / done.length : null;
+  const pill = runn.length ? `<span class="pill run">f${runn.map(r => r.fold).join(",")} ep ${runn[0].epoch || 0}/${runn[0].epochs || 16}</span>`
+    : `<span class="pill ${done.length === rs.length ? "done" : "idle"}">${done.length}/${rs.length} fold</span>`;
+  return `<div class="p1multi"><span class="st">${pill}</span><span class="num" title="ROC trên val Pha 1 (JS val + SVEN val fold k), trung bình các fold xong">val ROC TB ${m == null ? "-" : fmt(m, 3)}</span><div class="chips">${rs.map(chip).join("")}</div></div>`;
+}
+function p1Cell(key) {
+  const r = row("p1_" + key, 1);
+  const cls = cellClass(r);
+  const st = { pending: "chưa chạy", running: `ep ${r.epoch || 0}/${r.epochs || 16}`, done: "xong", failed: "lỗi", stopped: "dừng", collapse: "xong" }[cls];
+  const pill = cls === "running" ? "run" : cls === "done" ? "done" : cls === "failed" ? "crit" : "idle";
+  const id = docId("p1_" + key, 1);
+  return `<button type="button" class="p1cell${state.sel === id ? " sel" : ""}" data-id="${esc(id)}">
+    <span class="st"><span class="pill ${pill}">${esc(st)}</span>${r.host ? `<span class="muted mono" style="font-size:11px">${esc(r.host)}</span>` : ""}</span>
+    <span class="num">val ROC ${fmt(r.best_val_roc, 3)}${r.best_epoch ? ` <span class="muted">(ep ${r.best_epoch})</span>` : ""}</span>
+    ${r.status === "done" && r.roc != null ? `<span class="num muted" style="font-size:12px">test ROC ${fmt(r.roc, 3)}</span>` : ""}
+    ${cls === "running" && r.eta_max ? `<span class="muted num" style="font-size:11px">${etaText(r)}</span>` : ""}
+    ${r.alert ? `<span class="alert-line">${esc(r.alert)}</span>` : ""}</button>`;
+}
+function renderMatrix() {
+  computeBest();
+  const head = `<thead><tr><th>Nguồn</th><th>Pha 1</th>${VARIANTS.map(v => `<th class="${v.role === "chính" ? "main" : ""}">${esc(v.t)}${v.role === "chính" ? " · chính" : ""}</th>`).join("")}</tr></thead>`;
+  let body = `<tbody><tr class="base-row"><td class="src"><div class="lvl">Baseline</div><div class="sub">CodeBERT 512, không Pha 1</div>${srcCounts("_target", true) ? srcCounts("_target", true).replace('<div class="cnt">', '<div class="cnt">Đích SVEN: ') : ""}</td><td class="p1col"><span class="muted">-</span></td><td colspan="4">${meanCell("baseline")}</td></tr>`;
+  body += `<tr class="base-row"><td class="src"><div class="lvl">MW không Pha 1</div><div class="sub">chỉ Pha 2, CodeBERT gốc + head mới</div>${srcCounts("_target", true) ? srcCounts("_target", true).replace('<div class="cnt">', '<div class="cnt">Đích SVEN: ') : ""}</td><td class="p1col"><span class="muted">-</span></td>${VARIANTS.map(v => v.p === "noras" ? `<td>${meanCell("nop1_adamw")}</td>` : v.p === "asamonly" ? `<td>${meanCell("nop1_asamonly")}</td>` : `<td class="${v.role === "chính" ? "main" : ""}"><span class="muted">-</span></td>`).join("")}</tr>`;
+  SRC_TYPES.forEach(t => {
+    const done = SOURCES.filter(s => s.type === t).reduce((a, s) => a + VARIANTS.reduce((b, v) => b + runMeans(v.p + "_" + s.key).n, 0), 0);
+    body += foldHeader(t, 6, ` · ${done} ô xong`);
+    if (isFolded(t)) return;
+    SOURCES.filter(s => s.type === t).forEach(s => {
+      body += `<tr><td class="src"><div class="lvl">${esc(s.lvl)}</div><div class="sub">${esc(TYPES[t])}</div>${srcCounts(s.key, true)}</td><td class="p1col">${p1Cell(s.key)}</td>${VARIANTS.map(v => `<td class="${v.role === "chính" ? "main" : ""}">${meanCell(v.p + "_" + s.key)}</td>`).join("")}</tr>`;
+    });
+  });
+  // biến thể phụ (05/10): cùng Pha 1 và mọi cờ với run gốc, chỉ đổi phần ghi ở dòng phụ; ô đặt dưới cột của run gốc
+  // biến thể có `hide` (06/10, người dùng: "kết quả không tốt có thể ẩn khỏi kết quả chính luôn"): bỏ khỏi bảng này, vẫn ở tab So sánh
+  const shownSide = SIDE_RUNS.filter(x => !x.hide), hiddenSide = SIDE_RUNS.filter(x => x.hide);
+  [...new Set(shownSide.map(x => x.group))].forEach(g => {
+    const rows = shownSide.filter(x => x.group === g);
+    body += foldRow("g:" + g, g, 6, `${rows.length} dòng`);
+    if (isFolded("g:" + g)) return;
+    rows.forEach(x => {
+      const s = SOURCES.find(y => y.key === x.src) || { lvl: x.src, type: "" };
+      const lvl = x.lvl || `${s.lvl} · ${TYPES[s.type] || ""}`;
+      const p1 = x.p1run ? p1FoldsCell(x.p1run) : x.src ? p1Cell(x.src) : '<span class="muted">-</span>';
+      const cols = x.cols || { [x.col]: x.run };
+      const cells = x.col === "all" ? `<td colspan="4">${meanCell(x.run)}</td>`
+        : VARIANTS.map(v => `<td class="${v.role === "chính" ? "main" : ""}">${cols[v.p] ? meanCell(cols[v.p]) : '<span class="muted">-</span>'}</td>`).join("");
+      body += `<tr${x.col === "all" ? ' class="base-row"' : ""}><td class="src"><div class="lvl">${esc(lvl)}</div><div class="sub">${esc(x.note)}</div></td><td class="p1col">${p1}</td>${cells}</tr>`;
+    });
+  });
+  if (hiddenSide.length) body += `<tr class="group"><th colspan="6"><span class="muted" style="font-weight:400">Đã ẩn ${hiddenSide.length} biến thể không tốt khỏi bảng này (vẫn xem ở tab So sánh, lý do ở tab Nhận định): ${hiddenSide.map(x => esc(runTitle(x.run)) + (x.hide === true ? "" : " - " + esc(x.hide))).join(" · ")}</span></th></tr>`;
+  $("matrix").innerHTML = head.replace("<thead>", '<thead class="ghost">') + body + "</tbody>";
+  $("mhead").innerHTML = head;
+  syncMatrixHead();
+}
+
+// ---------- ghép cặp ----------
+function pairStat(runA, runB, k) {
+  const ds = [];
+  FOLDS.forEach(f => {
+    const a = row(runA, f), b = row(runB, f);
+    if (a.status === "done" && b.status === "done" && a[k] != null && b[k] != null) ds.push(a[k] - b[k]);
+  });
+  if (!ds.length) return null;
+  return { n: ds.length, mean: ds.reduce((x, y) => x + y, 0) / ds.length, pos: ds.filter(d => d > TIE).length, tie: ds.filter(d => Math.abs(d) <= TIE).length };
+}
+function pairCells(runA, runB) {
+  let n = 0;
+  const cells = METRICS.map(m => {
+    const s = pairStat(runA, runB, m.k);
+    if (!s) return `<td class="d muted">-</td>`;
+    n = Math.max(n, s.n);
+    const cls = s.mean > TIE ? "pos" : s.mean < -TIE ? "neg" : "";
+    return `<td class="d ${cls}">${fmtSigned(s.mean)} <span class="k">(+${s.pos}/${s.n}${s.tie ? " =" + s.tie : ""})</span></td>`;
+  }).join("");
+  return { n, cells };
+}
+function renderPaired() {
+  const head = `<thead><tr><th>Nguồn</th><th>Biến thể</th><th>n</th>${METRICS.map(m => `<th>${m.t}</th>`).join("")}</tr></thead>`;
+  let body = "<tbody>" + foldRow("p:noras", "So với AdamW (noRAS) cùng nguồn - phần đóng góp của RecAdam / ASAM", 7, "");
+  const shown = SOURCES.filter(s => !isFolded(s.type));
+  if (!isFolded("p:noras")) shown.forEach(s => VARIANTS.filter(v => v.p !== "noras").forEach(v => {
+    const pc = pairCells(v.p + "_" + s.key, "noras_" + s.key);
+    body += `<tr><td>${esc(srcTitle(s.key))}</td><td>${esc(v.t)}</td><td class="num">${pc.n}</td>${pc.cells}</tr>`;
+  }));
+  body += foldRow("p:nop1", "So với MW không Pha 1 - phần lợi của Pha 1 (chuyển giao)", 7, "");
+  if (!isFolded("p:nop1")) shown.forEach(s => [["rasam", "nop1_adamw", "RecAdam + ASAM - không Pha 1 AdamW"], ["noras", "nop1_adamw", "AdamW - không Pha 1 AdamW"],
+                        ["asamonly", "nop1_asamonly", "chỉ ASAM - không Pha 1 chỉ ASAM"]].forEach(([a, b, t]) => {
+    const pc = pairCells(a + "_" + s.key, b);
+    body += `<tr><td>${esc(srcTitle(s.key))}</td><td>${esc(t)}</td><td class="num">${pc.n}</td>${pc.cells}</tr>`;
+  }));
+  if (!isFolded("p:nop1")) ["nop1_adamw", "nop1_asamonly"].forEach(r => {
+    const pc = pairCells(r, "baseline");
+    body += `<tr><td>MW không Pha 1</td><td>${esc(r === "nop1_adamw" ? "AdamW - baseline" : "chỉ ASAM - baseline")}</td><td class="num">${pc.n}</td>${pc.cells}</tr>`;
+  });
+  body += foldRow("p:base", "So với baseline CodeBERT 512 - phần lợi của cả quy trình (kiến trúc MW + chuyển giao)", 7, "");
+  if (!isFolded("p:base")) shown.forEach(s => VARIANTS.forEach(v => {
+    const pc = pairCells(v.p + "_" + s.key, "baseline");
+    body += `<tr><td>${esc(srcTitle(s.key))}</td><td>${esc(v.t)}</td><td class="num">${pc.n}</td>${pc.cells}</tr>`;
+  }));
+  const hidden = SRC_TYPES.filter(isFolded);
+  if (hidden.length) body += `<tr class="group"><th colspan="7"><span class="muted" style="font-weight:400">Đang ẩn nhóm nguồn: ${hidden.map(t => `<button type="button" class="fold-btn" style="display:inline-flex;width:auto" data-fold="${esc(t)}" aria-expanded="false"><span class="caret">▸</span>${esc(TYPES[t])}</button>`).join(" · ")}</span></th></tr>`;
+  $("paired").innerHTML = head + body + "</tbody>";
+}
+
+// ---------- chi tiết ----------
+function chartSvg(hist, bestEp, epochs, rocMin) {
+  const W = 640, H = 240, L = 44, R = 44, T = 14, B = 30;
+  if (!hist || !hist.length) return `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Chưa có epoch nào</text>`;
+  const n = Math.max(epochs || 0, hist[hist.length - 1].ep, 2);
+  const x = e => L + (W - L - R) * (e - 1) / (n - 1);
+  const losses = hist.map(h => h.train_loss).filter(v => v != null);
+  const lmax = Math.max(0.8, Math.ceil(Math.max(...losses, 0) * 10) / 10);
+  const yl = v => T + (H - T - B) * (1 - v / lmax);
+  const rmin = rocMin != null ? rocMin : 0.4, rmax = 1.0;
+  const yr = v => T + (H - T - B) * (1 - (Math.max(rmin, Math.min(rmax, v)) - rmin) / (rmax - rmin));
+  let s = "";
+  [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].filter(v => v >= rmin - 1e-9).forEach(v => {
+    s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yr(v)}" y2="${yr(v)}"/><text x="${W - R + 6}" y="${yr(v) + 3.5}">${v.toFixed(1)}</text>`;
+  });
+  const lt = [0, lmax / 2, lmax];
+  lt.forEach(v => { s += `<text x="${L - 6}" y="${yl(v) + 3.5}" text-anchor="end">${v.toFixed(2)}</text>`; });
+  const step = n > 20 ? 5 : n > 10 ? 2 : 1;
+  for (let e = 1; e <= n; e += step) s += `<text x="${x(e)}" y="${H - B + 16}" text-anchor="middle">${e}</text>`;
+  s += `<line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>`;
+  if (bestEp) s += `<line class="best" x1="${x(bestEp)}" x2="${x(bestEp)}" y1="${T}" y2="${H - B}"/>`;
+  const lp = hist.filter(h => h.train_loss != null).map(h => `${x(h.ep).toFixed(1)},${yl(h.train_loss).toFixed(1)}`);
+  const rp = hist.filter(h => h.val_roc != null).map(h => `${x(h.ep).toFixed(1)},${yr(h.val_roc).toFixed(1)}`);
+  if (lp.length) s += `<polyline class="l-loss" points="${lp.join(" ")}"/>`;
+  if (rp.length) s += `<polyline class="l-roc" points="${rp.join(" ")}"/>`;
+  const last = hist[hist.length - 1];
+  if (last.val_roc != null) s += `<circle class="pt-roc" cx="${x(last.ep)}" cy="${yr(last.val_roc)}" r="3.5"/>`;
+  if (last.train_loss != null) s += `<circle class="pt-loss" cx="${x(last.ep)}" cy="${yl(last.train_loss)}" r="3.5"/>`;
+  s += `<text x="${L}" y="${H - 4}">epoch</text>`;
+  return s;
+}
+function renderDetail() {
+  const box = $("detail");
+  $("drawer-backdrop").hidden = !state.sel;
+  document.body.classList.toggle("drawer-open", !!state.sel);
+  if (!state.sel) { box.hidden = true; return; }
+  const [run, f] = state.sel.split("__f");
+  const r = row(run, Number(f));
+  box.hidden = false;
+  $("d-title").textContent = runTitle(run) + (run.startsWith("p1_") ? "" : " · fold " + f);
+  $("d-chart").innerHTML = chartSvg(r.history, r.best_epoch, r.epochs);
+  const kv = [
+    ["Run", `<span class="mono">${esc(run)}</span>`],
+    ["Trạng thái", esc(r.status || "pending") + (cellClass(r) === "collapse" ? ' · <b style="color:var(--crit)">sập</b>' : "")],
+    ["Máy", esc(r.host || "-") + ` <span class="muted">(dự kiến ${esc(r.planned_host || plannedHost(run))})</span>`],
+    ["Bắt đầu", esc(r.started || "-")],
+    ["Xong", esc(r.finished || (r.eta_min ? `ước ${r.eta_min} - ${r.eta_max}` : "-"))],
+    ["Thời gian", secs(r.seconds)],
+    ["Epoch", r.epoch != null || r.history ? `${r.epoch || (r.history ? r.history.length : 0)}/${r.epochs || "?"}` : "-"],
+    ["Epoch chọn", r.best_epoch != null ? `${r.best_epoch} (val ROC ${fmt(r.best_val_roc, 4)})` : "-"],
+    ["Test", r.status === "done" ? `ROC ${fmt(r.roc, 4)} · PR ${fmt(r.pr, 4)} · F1@0.5 ${fmt(r.f1_05, 4)} · F1@val ${fmt(r.f1_val, 4)}` : "-"],
+    ["Kiểm tham số", esc(r.hparam_check || "-")],
+    ["Ghi chú", esc([r.phase_note, r.note].filter(Boolean).join(" · ") || "-")],
+    ["Cảnh báo", r.alert ? `<span style="color:var(--warn)">${esc(r.alert)}</span>` : "-"],
+    ["Cập nhật", esc(r.updated || "-")],
+  ];
+  $("d-kv").innerHTML = kv.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  const cwe = r.cwe ? Object.entries(r.cwe).sort((a, b) => a[0].localeCompare(b[0])) : [];
+  $("d-cwe").innerHTML = cwe.length ? `<table class="cwe"><thead><tr><th>CWE</th><th>n</th><th>lỗi</th><th>ROC</th><th>F1</th></tr></thead><tbody>${cwe.map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="num">${v.n ?? "-"}</td><td class="num">${v.pos ?? "-"}</td><td class="num">${fmt(v.roc, 3)}</td><td class="num">${fmt(v.f1, 3)}</td></tr>`).join("")}</tbody></table>` : "";
+}
+
+// ---------- tab Pha 1 theo nguồn ----------
+function renderP1Tab() {
+  const f = (v, d) => v == null ? "-" : fmt(v, d);
+  let html = "";
+  ["js", "jscpp", "ccpp", "jsjava"].forEach(t => {
+    html += `<h3 class="p1group">${esc(TYPES[t])}</h3>`;
+    SOURCES.filter(x => x.type === t).forEach(src => {
+      const r = row("p1_" + src.key, 1);
+      const cls = cellClass(r);
+      const hist = Array.isArray(r.history) ? r.history : [];
+      const st = { pending: "chưa chạy", running: `đang chạy · ep ${r.epoch || 0}/${r.epochs || 16}`, done: "xong", failed: "lỗi", stopped: "dừng", collapse: "xong" }[cls];
+      const pill = cls === "running" ? "run" : cls === "done" ? "done" : cls === "failed" ? "crit" : "idle";
+      const meta = [r.host || r.planned_host || "", cls === "running" && r.eta_max ? etaText(r) : "",
+        r.best_epoch ? `chọn ep ${r.best_epoch} (val ROC ${f(r.best_val_roc, 4)})` : "", r.status === "done" && r.roc != null ? `test ROC ${f(r.roc, 4)}` : ""].filter(Boolean).join(" · ");
+      const rows = hist.slice().reverse().map(h => `<tr class="${h.ep === r.best_epoch ? "best" : ""}"><td>${h.ep}</td><td>${f(h.train_loss, 4)}</td><td>${f(h.val_loss, 4)}</td><td>${f(h.val_roc, 4)}</td><td>${f(h.val_f1, 4)}</td></tr>`).join("");
+      html += `<div class="p1panel">
+        <div class="ph"><h3>${esc(src.lvl)} · ${esc(TYPES[t])}</h3>${srcCounts(src.key, true).replace(/<br>/g, " · ").replace('class="cnt"', 'class="cnt meta"')}<span class="pill ${pill}">${esc(st)}</span><span class="meta">${meta}</span>${r.alert ? `<span class="alert-line" style="font-size:12px;color:var(--warn)">${esc(r.alert)}</span>` : ""}</div>
+        <div class="p1body">
+          <div><svg class="chart" viewBox="0 0 640 240" role="img" aria-label="Pha 1 ${esc(src.lvl)} ${esc(TYPES[t])}: train loss và val ROC theo epoch">${chartSvg(hist, r.best_epoch, r.epochs || 16, 0.3)}</svg></div>
+          <div class="eptbl">${hist.length ? `<table><thead><tr><th>ep</th><th>train loss</th><th>val loss</th><th>val ROC</th><th>val F1</th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">Chưa có epoch nào.</div>`}</div>
+        </div></div>`;
+    });
+  });
+  html += `<div class="legend"><span><span class="dot" style="background:var(--loss)"></span>train loss (trục trái)</span><span><span class="dot" style="background:var(--accent)"></span>val ROC-AUC (trục phải)</span><span><span class="dot" style="background:var(--ok)"></span>epoch được chọn</span></div>`;
+  $("p1grid").innerHTML = html;
+}
+// ---------- tab Kết quả paper (07/10, người dùng: "tạo thêm 1 tab kết quả nữa ... chạy lên n = 15 ... không cập nhật kết quả vào tab kết quả gốc") ----------
+const PAPER_SEEDS = [42, 1234, 7];
+// mỗi cấu hình: (seed) -> [collection, run Pha 2, run Pha 1]; ô seed 42 đã có nằm ở folds, mọi ô chạy mới ở paper_folds
+const PAPER_CFGS = [
+  { key: "baseline", title: "Baseline CodeBERT 512 (không Pha 1)", cell: s => s === 42 ? ["folds", "baseline", null] : ["paper", "baseline_s" + s, null] },
+  { key: "common", title: "common · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS",
+    cell: s => s === 42 ? ["folds", "rasam_jspy41jsval_common", "p1_jspy41jsval_common"] : ["paper", "rasam_jspy41jsval_common_s" + s, "p1_jspy41jsval_common_s" + s] },
+  { key: "4cwe", title: "4CWE · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS",
+    cell: s => s === 42 ? ["paper", "rasam_jspy41jsval_4cwe", "p1_jspy41jsval_4cwe"] : ["paper", "rasam_jspy41jsval_4cwe_s" + s, "p1_jspy41jsval_4cwe_s" + s] },
+  { key: "full", title: "full · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS",
+    cell: s => s === 42 ? ["folds", "rasam_jspy41jsval_full", "p1_jspy41jsval_full"] : ["paper", "rasam_jspy41jsval_full_s" + s, "p1_jspy41jsval_full_s" + s] },
+];
+// người dùng 07/10 02:1x: "bỏ F1@ngưỡng val ra ..., thay vì đó là CWE" - bảng chính 3 chỉ số, thêm bảng theo CWE
+const PAPER_M = [["roc", "ROC-AUC"], ["pr", "PR-AUC"], ["f1_05", "F1@0,5"]];
+const PAPER_CWE = ["CWE-022", "CWE-078", "CWE-079", "CWE-089"];
+const prow = (coll, run, fold) => (coll === "folds" ? state.folds : state.paper).get(docId(run, fold)) || { run, fold, status: "pending" };
+const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+const sdev = a => a.length < 2 ? null : Math.sqrt(a.reduce((x, y) => x + (y - mean(a)) ** 2, 0) / (a.length - 1));
+function paperCells(cfg) {
+  const out = [];
+  PAPER_SEEDS.forEach(s => { const [c, run, p1] = cfg.cell(s); for (let k = 1; k <= 5; k++) out.push({ seed: s, fold: k, r: prow(c, run, k), p1: p1 ? prow(c, p1, k) : null }); });
+  return out;
+}
+function renderPaper() {
+  // người dùng 07/10 02:2x: "tô đậm các con số tốt nhất trong bảng kết quả paper" - mỗi cột in đậm giá trị cao nhất giữa các cấu hình
+  // (so sau khi làm tròn đúng số chữ số hiển thị, hoà thì đậm cả); lưới seed × fold: đậm cấu hình cao nhất ở cùng (seed, fold)
+  const done = r => r.status === "done" && r.roc != null;
+  const base = new Map(paperCells(PAPER_CFGS[0]).map(x => [x.seed + ":" + x.fold, x.r]));
+  const rnd = (v, d) => v == null ? null : Number(v.toFixed(d));
+  const bestOf = (vals, d) => { const r = vals.map(v => rnd(v, d)).filter(v => v != null); return r.length ? Math.max(...r) : null; };
+  const B = (v, best, d, txt) => v != null && best != null && rnd(v, d) === best ? `<strong>${txt}</strong>` : txt;
+  // lượt 1: thống kê từng cấu hình
+  const S = PAPER_CFGS.map(cfg => {
+    const cells = paperCells(cfg), ok = cells.filter(x => done(x.r));
+    const st = { cfg, cells, ok, run: cells.filter(x => x.r.status === "running").length, avg: {}, sd: {}, d: {} };
+    PAPER_M.forEach(([m]) => {
+      const v = ok.map(x => x.r[m]).filter(v => v != null);
+      st.avg[m] = v.length ? mean(v) : null; st.sd[m] = sdev(v);
+      if (cfg.key !== "baseline") {
+        const d = ok.map(x => { const b = base.get(x.seed + ":" + x.fold); return b && done(b) && x.r[m] != null && b[m] != null ? x.r[m] - b[m] : null; }).filter(v => v != null);
+        st.d[m] = d.length ? { md: mean(d), pos: d.filter(v => v > 0.001).length, neg: d.filter(v => v < -0.001).length, n: d.length } : null;
+      }
+    });
+    return st;
+  });
+  const bestAvg = {}, bestD = {};
+  PAPER_M.forEach(([m]) => { bestAvg[m] = bestOf(S.map(x => x.avg[m]), 4); bestD[m] = bestOf(S.map(x => x.d[m] ? x.d[m].md : null), 4); });
+  let head = `<thead><tr class="grp"><th rowspan="2">Cấu hình</th><th rowspan="2" class="gs">xong</th><th colspan="3" class="gs">Trung bình (độ lệch chuẩn)</th><th colspan="3" class="gs">Δ so với baseline, ghép cặp (seed, fold)</th></tr><tr>`;
+  head += PAPER_M.map(([, l], i) => `<th${i === 0 ? ' class="gs"' : ""}>${esc(l)}</th>`).join("") + PAPER_M.map(([, l], i) => `<th${i === 0 ? ' class="gs"' : ""}>${esc(l)}</th>`).join("") + `</tr></thead>`;
+  const body = S.map(st => {
+    const avg = PAPER_M.map(([m], i) => `<td${i === 0 ? ' class="gs"' : ""}>${st.avg[m] != null ? B(st.avg[m], bestAvg[m], 4, fmt(st.avg[m], 4)) + `<span class="sd">± ${st.sd[m] == null ? "-" : fmt(st.sd[m], 4)}</span>` : "-"}</td>`).join("");
+    const dl = PAPER_M.map(([m], i) => {
+      const gs = i === 0 ? ' class="gs"' : "";
+      if (st.cfg.key === "baseline") return `<td${gs}><span class="muted">mốc</span></td>`;
+      const d = st.d[m];
+      if (!d) return `<td${gs}>-</td>`;
+      return `<td${gs}><span class="${d.md > 0.001 ? "pos" : d.md < -0.001 ? "neg" : ""}">${B(d.md, bestD[m], 4, fmtSigned(d.md, 4))}</span><span class="k">+${d.pos}/-${d.neg} · n ${d.n}</span></td>`;
+    }).join("");
+    return `<tr><td>${esc(st.cfg.title)}</td><td class="gs">${st.ok.length}/15${st.run ? `<span class="k">${st.run} đang chạy</span>` : ""}</td>${avg}${dl}</tr>`;
+  }).join("");
+  $("paper-table").innerHTML = head + `<tbody>${body}</tbody>`;
+  // theo CWE: ROC và F1@0,5 của từng nhóm CWE trên test của fold (trường cwe của bản ghi), TB ± SD trên các ô đã xong; Δ ghép cặp với baseline
+  const cv = (r, c, m) => r.cwe && r.cwe[c] && r.cwe[c][m] != null ? r.cwe[c][m] : null;
+  const CM = [["roc", " gs"], ["f1", ""]];
+  const C = S.map(st => {
+    const o = {};
+    PAPER_CWE.forEach(c => CM.forEach(([m]) => {
+      const v = st.ok.map(x => cv(x.r, c, m)).filter(v => v != null);
+      let d = null;
+      if (st.cfg.key !== "baseline") {
+        const dd = st.ok.map(x => { const b = base.get(x.seed + ":" + x.fold); const a = cv(x.r, c, m), bb = b && done(b) ? cv(b, c, m) : null; return a != null && bb != null ? a - bb : null; }).filter(v => v != null);
+        if (dd.length) d = { md: mean(dd), pos: dd.filter(v => v > 0.001).length, neg: dd.filter(v => v < -0.001).length };
+      }
+      o[c + m] = { v, avg: v.length ? mean(v) : null, d };
+    }));
+    return o;
+  });
+  const bestC = {};
+  PAPER_CWE.forEach(c => CM.forEach(([m]) => { bestC[c + m] = bestOf(C.map(o => o[c + m].avg), 3); }));
+  let chead = `<thead><tr class="grp"><th rowspan="2">Cấu hình</th>` + PAPER_CWE.map(c => `<th colspan="2" class="gs">${esc(c)}</th>`).join("") + `</tr><tr>`
+    + PAPER_CWE.map(() => `<th class="gs">ROC-AUC</th><th>F1@0,5</th>`).join("") + `</tr></thead>`;
+  const cbody = S.map((st, i) => {
+    const tds = PAPER_CWE.map(c => CM.map(([m, gs]) => {
+      const x = C[i][c + m];
+      if (!x.v.length) return `<td class="${gs.trim()}">-</td>`;
+      let extra = `<span class="sd">± ${sdev(x.v) == null ? "-" : fmt(sdev(x.v), 3)} · n ${x.v.length}</span>`;
+      if (x.d) extra += `<span class="k"><span class="${x.d.md > 0.001 ? "pos" : x.d.md < -0.001 ? "neg" : ""}">Δ ${fmtSigned(x.d.md, 3)}</span> +${x.d.pos}/-${x.d.neg}</span>`;
+      return `<td class="${gs.trim()}">${B(x.avg, bestC[c + m], 3, fmt(x.avg, 3))}${extra}</td>`;
+    }).join("")).join("");
+    return `<tr><td>${esc(st.cfg.title)}</td>${tds}</tr>`;
+  }).join("");
+  $("paper-cwe").innerHTML = chead + `<tbody>${cbody}</tbody>`;
+  // lưới: đậm ROC cao nhất giữa các cấu hình ở cùng (seed, fold) và TB seed cao nhất
+  const bestCell = {}, bestSeed = {};
+  PAPER_SEEDS.forEach(s => {
+    for (let k = 1; k <= 5; k++) bestCell[s + ":" + k] = bestOf(S.map(st => { const x = st.cells.find(y => y.seed === s && y.fold === k); return x && done(x.r) ? x.r.roc : null; }), 3);
+    bestSeed[s] = bestOf(S.map(st => { const v = st.ok.filter(x => x.seed === s).map(x => x.r.roc); return v.length === 5 ? mean(v) : null; }), 3);
+  });
+  $("paper-grid").innerHTML = S.map(st => {
+    const rows = PAPER_SEEDS.map(s => {
+      const mine = st.cells.filter(x => x.seed === s);
+      const tds = mine.map(x => {
+        const r = x.r, cls = cellClass(r);
+        const txt = cls === "done" || cls === "collapse" ? B(r.roc, bestCell[s + ":" + x.fold], 3, fmt(r.roc, 3)) : cls === "running" ? `ep ${r.epoch || 0}/${r.epochs || "?"}` : cls === "failed" ? "lỗi" : "·";
+        const p1v = x.p1 && x.p1.status === "done" ? x.p1.roc : null;
+        const tip = cls === "done" || cls === "collapse" ? `PR ${fmt(r.pr, 4)} · F1@0,5 ${fmt(r.f1_05, 4)} · chọn ep ${r.best_epoch ?? "-"}${p1v != null ? " · val ROC Pha 1 " + fmt(p1v, 4) : ""} · ${r.host || ""}`
+          : cls === "running" ? `đang chạy trên ${r.host || r.planned_host || "?"}` : `chưa chạy · dự kiến ${r.planned_host || "?"}${x.p1 && x.p1.status === "running" ? " · Pha 1 đang chạy" : ""}`;
+        return `<td class="pc-${cls === "done" ? "done" : cls === "collapse" ? "collapse" : cls === "running" || (x.p1 && x.p1.status === "running") ? "run" : cls === "failed" ? "failed" : "pend"}" title="${esc(tip)}">${x.p1 && x.p1.status === "running" && cls === "pending" ? "Pha 1" : txt}</td>`;
+      }).join("");
+      const v = mine.filter(x => done(x.r)).map(x => x.r.roc);
+      const tb = v.length ? (v.length === 5 ? B(mean(v), bestSeed[s], 3, fmt(mean(v), 3)) : fmt(mean(v), 3) + ` <span class="muted">(${v.length})</span>`) : "-";
+      return `<tr><td>${s}</td>${tds}<td>${tb}</td></tr>`;
+    }).join("");
+    return `<div class="pbox"><h3>${esc(st.cfg.title)}</h3><table><thead><tr><th>seed</th><th>f1</th><th>f2</th><th>f3</th><th>f4</th><th>f5</th><th>TB</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join("");
+}
+function setTab(t) {
+  document.body.dataset.tab = t;
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  try { localStorage.setItem("mwonly5_tab", t); } catch (e) { /* trình duyệt chặn bộ nhớ: bỏ qua */ }
+}
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+(() => { let t = "results"; try { t = localStorage.getItem("mwonly5_tab") || "results"; } catch (e) { /* bỏ qua */ } setTab(["p1", "notes", "compare", "paper"].includes(t) ? t : "results"); })();
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = String(text); return e; }
+function renderNotes() {
+  const box = $("notes"); if (!box) return;
+  box.replaceChildren();
+  const docs = [...state.insights].sort((a, b) => String(b.data.updated || "").localeCompare(String(a.data.updated || "")));
+  if (!docs.length) { box.append(el("p", "empty", state.connected ? "Chưa có nhận định nào. Phân tích đang chạy sẽ hiện ở đây khi xong." : "Chưa đọc được dữ liệu.")); return; }
+  for (const { data: d } of docs) {
+    const art = el("article", "insight");
+    art.append(el("h2", null, d.title || "Nhận định"));
+    const meta = el("div", "imeta");
+    if (d.updated) meta.append(el("span", "num", "cập nhật " + d.updated));
+    if (d.confidence) { const c = String(d.confidence); meta.append(el("span", "conf " + (c.startsWith("cao") ? "high" : c.startsWith("trung") ? "mid" : "low"), "mức tin: " + c)); }
+    if (d.tier) meta.append(el("span", null, d.tier));
+    art.append(meta);
+    if (d.question) art.append(el("blockquote", null, d.question));
+    if (d.verdict) { const v = el("p", "verdict"); v.append(el("b", null, "Kết luận"), document.createTextNode(d.verdict)); art.append(v); }
+    for (const sec of d.sections || []) {
+      if (sec.heading) art.append(el("h3", null, sec.heading));
+      for (const para of sec.paras || []) art.append(el("p", null, para));
+      if ((sec.bullets || []).length) { const ul = el("ul"); sec.bullets.forEach(x => ul.append(el("li", null, x))); art.append(ul); }
+      // hình: chỉ nạp tên file an toàn trong thư mục của nhận định (file đăng kèm artifact)
+      if (sec.figure && /^[\w.-]+\.(svg|png)$/.test(String(sec.figure.file || "")) && /^[\w/-]*$/.test(String(d.fig_base || ""))) {
+        const fig = el("figure"), img = el("img");
+        img.src = (d.fig_base || "") + sec.figure.file; img.alt = sec.figure.caption || sec.figure.file; img.loading = "lazy";
+        fig.append(img);
+        if (sec.figure.caption || sec.figure.caption_en) {
+          const cap = el("figcaption", null, sec.figure.caption || "");
+          if (sec.figure.caption_en) cap.append(el("span", "cap-en", sec.figure.caption_en));
+          fig.append(cap);
+        }
+        art.append(fig);
+      }
+      if (sec.table && (sec.table.rows || []).length) {
+        const wrap = el("div", "itable"), t = el("table"), hr = el("tr");
+        (sec.table.head || []).forEach(h => hr.append(el("th", null, h)));
+        const th = el("thead"); th.append(hr); t.append(th);
+        const tb = el("tbody"); sec.table.rows.forEach(r => { const tr = el("tr"); r.forEach(c => tr.append(el("td", null, c))); tb.append(tr); }); t.append(tb);
+        wrap.append(t); art.append(wrap);
+      }
+    }
+    if ((d.next || []).length) { art.append(el("h3", null, "Đề xuất kiểm tiếp (cần duyệt trước khi chạy)")); const ol = el("ol"); d.next.forEach(x => ol.append(el("li", null, x))); art.append(ol); }
+    if ((d.sources || []).length) { art.append(el("h3", null, "Nguồn")); const ul = el("ul", "srcs"); d.sources.forEach(x => ul.append(el("li", null, x))); art.append(ul); }
+    box.append(art);
+  }
+}
+
+// ---------- tab So sánh (người dùng 05/10: "cho chọn từng config (5 fold) khi tích thì tạo bảng so sánh đủ các độ đo F1, ROC, PR, từng CWE") ----------
+const CMP = { sel: [], ref: null, delta: true, sig: "" };
+(() => { try { const v = JSON.parse(localStorage.getItem("mwonly5_cmp") || "null"); if (v && Array.isArray(v.sel)) Object.assign(CMP, { sel: v.sel, ref: v.ref || null, delta: v.delta !== false }); } catch (e) { /* bỏ qua */ } })();
+if (!CMP.sel.length) CMP.sel = ["baseline", "nop1_adamw", "noras_common_jsonly", "raonly_common_jsonly", "asamonly_common_jsonly", "rasam_common_jsonly"];
+const saveCmp = () => { try { localStorage.setItem("mwonly5_cmp", JSON.stringify({ sel: CMP.sel, ref: CMP.ref, delta: CMP.delta })); } catch (e) { /* bỏ qua */ } };
+function cmpTitle(run) {
+  const m = run.match(/^(.*)_me30$/);
+  return m ? runTitle(m[1]) + " - chạy lại min_epochs 30" : runTitle(run);
+}
+function cmpRuns() {
+  // mọi run Pha 2 có ít nhất một fold xong (bỏ Pha 1: test của Pha 1 là bản chép val nguồn)
+  const runs = new Set();
+  for (const [id, r] of state.folds) { if (r && r.status === "done" && r.roc != null && !String(id).startsWith("p1_")) runs.add(String(id).replace(/__f\d+$/, "")); }
+  const groups = [
+    { t: "Đối chứng", f: r => r === "baseline" || r.startsWith("nop1_") && !r.endsWith("_me30") },
+    { t: "Chỉ JS", f: r => /_jsonly$/.test(r), fold: "js" },
+    { t: "Pha 1 trộn JS:Py (4:1, 3:1, val chỉ JS)", f: r => /_jspy(41|31)(pair|jsval)?_/.test(r) },
+    { t: "JS + C/C++", f: r => /_jscpp$/.test(r), fold: "jscpp" },
+    { t: "Chỉ C/C++", f: r => /_ccpp$/.test(r), fold: "ccpp" },
+    { t: "Java + JS", f: r => /_jsjava$/.test(r), fold: "jsjava" },
+    { t: "Chạy lại (min_epochs 30)", f: r => r.endsWith("_me30") },
+    { t: "Đích JS full (nguồn SVEN) - đích khác, Δ chỉ tính trong cùng đích", f: r => otherTarget(r) },
+  ];
+  const order = r => { const v = VARIANTS.findIndex(x => r.startsWith(x.p + "_")); const s = SOURCES.findIndex(x => r.endsWith("_" + x.key)); return (s < 0 ? 0 : s) * 10 + (v < 0 ? 0 : v); };
+  return groups.map(g => ({ t: g.t, fold: g.fold, runs: [...runs].filter(g.f).sort((a, b) => order(a) - order(b) || a.localeCompare(b)) })).filter(g => g.runs.length);
+}
+function cmpFolds(run) { return foldsOf(run).map(f => row(run, f)).filter(r => r.status === "done" && r.roc != null); }
+function cmpVal(r, m) { if (m.cwe) { const c = (r.cwe || {})[m.cwe]; const v = c ? c[m.k] : null; return (v == null || Number.isNaN(v)) ? null : v; } const v = r[m.k]; return (v == null || Number.isNaN(v)) ? null : v; }
+function cmpStats(run, m) {
+  const v = cmpFolds(run).map(r => cmpVal(r, m)).filter(x => x != null);
+  if (!v.length) return { mean: null, sd: null, n: 0 };
+  const mean = v.reduce((a, b) => a + b, 0) / v.length;
+  const sd = v.length > 1 ? Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / (v.length - 1)) : null;
+  return { mean, sd, n: v.length };
+}
+function cmpDelta(run, ref, m) {
+  // hiệu ghép cặp theo fold (chỉ fold cả hai cùng có giá trị); hai đích khác nhau thì fold k không cùng dữ liệu ⇒ không ghép
+  if (otherTarget(run) !== otherTarget(ref)) return null;
+  const d = [];
+  FOLDS.forEach(f => { const a = row(run, f), b = row(ref, f); if (a.status !== "done" || b.status !== "done") return; const x = cmpVal(a, m), y = cmpVal(b, m); if (x != null && y != null) d.push(x - y); });
+  if (!d.length) return null;
+  return { mean: d.reduce((p, q) => p + q, 0) / d.length, pos: d.filter(x => x > TIE).length, neg: d.filter(x => x < -TIE).length, n: d.length };
+}
+function renderCompare() {
+  const groupsBox = $("cmp-groups"); if (!groupsBox) return;
+  const groups = cmpRuns();
+  const all = groups.flatMap(g => g.runs);
+  const sel = CMP.sel.filter(r => all.includes(r));
+  if (!sel.includes(CMP.ref)) CMP.ref = sel[0] || null;
+  // ô chọn: chỉ dựng lại khi danh sách config đổi (giữ tiêu điểm bàn phím)
+  const sig = all.join("|") + "#" + all.map(r => cmpFolds(r).length).join("");
+  if (sig !== CMP.sig) {
+    CMP.sig = sig;
+    const opts = g => `<div class="cmp-opts">${g.runs.map(r =>
+      `<label class="cmp-opt"><input type="checkbox" data-cmp="${esc(r)}"${CMP.sel.includes(r) ? " checked" : ""}><span>${esc(cmpTitle(r))}</span><span class="nf">${cmpFolds(r).length}f</span></label>`).join("")}</div>`;
+    groupsBox.innerHTML = groups.map(g => {
+      const key = g.fold || "c:" + g.t;
+      return `<details class="cmp-group" data-fold="${esc(key)}"${isFolded(key) ? "" : " open"}><summary><h4>${esc(g.t)}${DEFAULT_FOLDED.has(key) ? " · nhánh kiểm" : ""}</h4></summary>${opts(g)}</details>`;
+    }).join("");
+  } else {
+    groupsBox.querySelectorAll("input[data-cmp]").forEach(i => { i.checked = CMP.sel.includes(i.dataset.cmp); });
+  }
+  $("cmp-controls").innerHTML = `<span class="muted">${sel.length} config đang chọn</span>`
+    + `<label>Mốc so sánh <select id="cmp-ref"${sel.length ? "" : " disabled"}>${sel.map(r => `<option value="${esc(r)}"${r === CMP.ref ? " selected" : ""}>${esc(cmpTitle(r))}</option>`).join("")}</select></label>`
+    + `<label><input type="checkbox" id="cmp-delta"${CMP.delta ? " checked" : ""}> Δ so với mốc (ghép cặp theo fold)</label>`
+    + `<button type="button" id="cmp-clear">Bỏ chọn tất cả</button>`;
+  // các độ đo: 4 độ đo tổng + F1 / ROC từng CWE có trong dữ liệu của các config đang chọn
+  const cwes = [...new Set(sel.flatMap(r => cmpFolds(r).flatMap(x => Object.keys(x.cwe || {}))))].sort();
+  const cols = METRICS.map(m => ({ ...m, g: "Tổng" }));
+  cwes.forEach(c => { cols.push({ k: "f1", cwe: c, t: "F1", g: c }); cols.push({ k: "roc", cwe: c, t: "ROC", g: c }); });
+  const tbl = $("cmp-table");
+  if (!sel.length) { tbl.innerHTML = `<tbody><tr><td class="name">Chưa chọn config nào. Tích ở trên để thêm vào bảng.</td></tr></tbody>`; return; }
+  const stats = sel.map(r => cols.map(m => cmpStats(r, m)));
+  const best = cols.map((_, j) => { const v = stats.map(s => s[j].mean).filter(x => x != null); return v.length ? Math.max(...v) : null; });
+  const grpHead = [`<th rowspan="2">Config</th>`, `<th rowspan="2" class="gs">fold</th>`];
+  let i = 0; while (i < cols.length) { const g = cols[i].g; let j = i; while (j < cols.length && cols[j].g === g) j++; grpHead.push(`<th colspan="${j - i}">${esc(g)}</th>`); i = j; }
+  const subHead = cols.map((m, j) => `<th class="${j === 0 || cols[j - 1].g !== m.g ? "gs" : ""}">${esc(m.t)}</th>`).join("");
+  const body = sel.map((r, a) => {
+    const isRef = CMP.delta && r === CMP.ref;
+    const nf = cmpFolds(r).length;
+    const cells = cols.map((m, j) => {
+      const st = stats[a][j];
+      const cls = j === 0 || cols[j - 1].g !== m.g ? "gs" : "";
+      if (st.mean == null) return `<td class="${cls}">-</td>`;
+      const low = m.k === "roc" && !m.cwe && st.mean < COLLAPSE && !otherTarget(r);
+      const b = best[j] != null && Math.abs(st.mean - best[j]) < 1e-12 && sel.length > 1;
+      let html = `<span class="${b ? "best" : ""}${low ? " low" : ""}">${fmt(st.mean, 3)}</span><span class="sd">${st.sd == null ? "" : "± " + fmt(st.sd, 3)}${m.cwe && st.n < nf ? " · " + st.n + "f" : ""}</span>`;
+      if (CMP.delta && CMP.ref && r !== CMP.ref) {
+        const d = cmpDelta(r, CMP.ref, m);
+        if (d) { const c = d.mean > TIE ? "pos" : d.mean < -TIE ? "neg" : "tie"; html += `<span class="dl ${c}">Δ ${fmtSigned(d.mean, 3)} · ${d.pos}/${d.n}</span>`; }
+      }
+      return `<td class="${cls}">${html}</td>`;
+    }).join("");
+    return `<tr class="${isRef ? "ref" : ""}"><td class="name">${esc(cmpTitle(r))}${isRef ? `<span class="sub">mốc so sánh</span>` : ""}</td><td class="gs">${nf}/${r.endsWith("_me30") ? 1 : foldsOf(r).length}</td>${cells}</tr>`;
+  }).join("");
+  tbl.innerHTML = `<thead><tr class="grp">${grpHead.join("")}</tr><tr>${subHead}</tr></thead><tbody>${body}</tbody>`;
+}
+document.addEventListener("change", ev => {
+  const t = ev.target;
+  if (t.matches && t.matches("input[data-cmp]")) {
+    const r = t.dataset.cmp;
+    CMP.sel = t.checked ? [...CMP.sel.filter(x => x !== r), r] : CMP.sel.filter(x => x !== r);
+    saveCmp(); renderCompare(); return;
+  }
+  if (t.id === "cmp-ref") { CMP.ref = t.value; saveCmp(); renderCompare(); return; }
+  if (t.id === "cmp-delta") { CMP.delta = t.checked; saveCmp(); renderCompare(); }
+});
+// mở / đóng nhóm nhánh kiểm ở tab So sánh thì nhớ chung với bảng chính
+document.addEventListener("toggle", ev => {
+  const d = ev.target;
+  if (!(d instanceof HTMLDetailsElement) || !d.dataset.fold) return;
+  if (d.open === !isFolded(d.dataset.fold)) return;
+  setFold(d.dataset.fold, !d.open);
+  renderMatrix(); renderPaired();
+}, true);
+document.addEventListener("click", ev => { if (ev.target && ev.target.id === "cmp-clear") { CMP.sel = []; CMP.ref = null; saveCmp(); renderCompare(); } });
+
+function renderAll() {
+  renderAlerts(); renderHeader(); renderMatrix(); renderPaired(); renderDetail(); renderP1Tab(); renderNotes(); renderCompare(); renderPaper();
+  $("foot").textContent = state.connected ? `Dữ liệu trực tiếp · ${state.folds.size} bản ghi fold · ${state.alerts.length} cảnh báo · xem lúc ${nowStr()}` : "Chưa đọc được dữ liệu khối. Trang hiển thị khung trống theo kế hoạch.";
+}
+
+// Sự kiện: chọn ô, đóng chi tiết, đánh dấu đã xem
+document.addEventListener("click", ev => {
+  const fb = ev.target.closest(".fold-btn");
+  if (fb && fb.dataset.fold) { toggleType(fb.dataset.fold); return; }
+  const a = ev.target.closest(".ack");
+  if (a) { ack(a.dataset.id, a); return; }
+  const c = ev.target.closest(".chip, .p1cell");
+  if (c && c.dataset.id) { state.sel = state.sel === c.dataset.id ? null : c.dataset.id; renderMatrix(); renderDetail(); if (state.sel) $("detail").focus({ preventScroll: true }); }
+});
+// đóng thanh bên: nút Đóng, bấm nền mờ, hoặc phím Esc
+const closeDrawer = () => { state.sel = null; renderMatrix(); renderDetail(); };
+$("d-close").addEventListener("click", closeDrawer);
+$("drawer-backdrop").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", ev => {
+  if (ev.key !== "Escape") return;
+  if (state.alertOpen) { state.alertOpen = false; renderAlerts(); $("alert-fab").focus(); return; }
+  if (state.sel) closeDrawer();
+});
+// nút tròn cảnh báo: bấm để mở / đóng bảng danh sách
+$("alert-fab").addEventListener("click", () => { state.alertOpen = !state.alertOpen; renderAlerts(); });
+$("ab-close").addEventListener("click", () => { state.alertOpen = false; renderAlerts(); $("alert-fab").focus(); });
+
+// khung lịch sử cảnh báo đã xem nằm ngay dưới ma trận tiêu đề
+(() => { const box = document.createElement("div"); box.id = "ack-box"; $("matrix-card").before(box); })();
+// bản sao hàng tên cột: bề rộng từng cột theo bảng thật, kéo bảng thật lên để hàng tên cột thật (ẩn) nằm ngay dưới bản sao
+function syncMatrixHead() {
+  const real = $("matrix"), clone = $("mhead"), sc = $("matrix-scroll");
+  const rth = real.querySelectorAll("thead th"), cth = clone.querySelectorAll("thead th");
+  if (!rth.length || rth.length !== cth.length) return;
+  clone.style.width = real.getBoundingClientRect().width + "px";
+  rth.forEach((th, i) => { const w = th.getBoundingClientRect().width + "px"; cth[i].style.width = w; cth[i].style.minWidth = w; cth[i].style.maxWidth = w; });
+  sc.style.marginTop = -real.querySelector("thead").getBoundingClientRect().height + "px";
+  $("mhead-wrap").scrollLeft = sc.scrollLeft;
+}
+(() => {
+  const sc = $("matrix-scroll");
+  sc.addEventListener("scroll", () => { $("mhead-wrap").scrollLeft = sc.scrollLeft; }, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(() => syncMatrixHead()).observe($("matrix"));
+  window.addEventListener("resize", syncMatrixHead);
+})();
+
+renderAll();
+// "x phút trước" của giờ cập nhật tự làm mới mỗi phút
+setInterval(renderAll, 60000);
+(async () => {
+  let db = null;
+  try { db = await window.claude?.use?.("db"); } catch (e) { db = null; }
+  if (!db) { renderAll(); return; }
+  state.db = db;
+  const fail = () => { state.connected = false; renderAll(); };
+  db.collection("folds").limit(1000).onSnapshot(snap => {
+    state.folds = new Map(snap.docs.map(d => [d.id, d.data()]));
+    state.connected = true; renderAll();
+  }, fail);
+  db.collection("paper_folds").limit(1000).onSnapshot(snap => {
+    state.paper = new Map(snap.docs.map(d => [d.id, d.data()]));
+    renderPaper(); renderHeader();
+  }, () => {});
+  db.collection("alerts").limit(500).onSnapshot(snap => {
+    state.alerts = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+    renderAll();
+  }, () => {});
+  db.collection("insights").limit(50).onSnapshot(snap => {
+    state.insights = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+    renderNotes();
+  }, () => {});
+  db.collection("meta").onSnapshot(snap => {
+    snap.docs.forEach(d => { if (d.id === "block") state.block = d.data(); if (d.id === "checks") state.checks = d.data(); if (d.id === "sources") state.sources = d.data(); });
+    renderAll();
+  }, () => {});
+})();
+</script>

@@ -338,15 +338,15 @@ def subset_common(recs, metas, lang, xml_path, target="Python"):
     keep_flag, why = [], collections.Counter()
     for r, m in zip(recs, metas):
         lbls = m.get("cwe_labels") or [None]
-        bo, ly_do = False, ""
+        drop, reason = False, ""
         for l in lbls:
             k, rule, _ = rules.decide(l if l is not None else "")
             if not k:
-                bo, ly_do = True, "%s [%s]" % (l if l else "(cwe rong)", rule)
+                drop, reason = True, "%s [%s]" % (l if l else "(cwe rong)", rule)
                 break
-        keep_flag.append(not bo)
-        if bo:
-            why[ly_do] += 1
+        keep_flag.append(not drop)
+        if drop:
+            why[reason] += 1
     n_orphan = 0
     groups = collections.defaultdict(list)
     for i, m in enumerate(metas):

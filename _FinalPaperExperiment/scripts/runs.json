@@ -1,0 +1,3244 @@
+{
+ "block": {
+  "name": "mwonly5",
+  "created": "2026-10-04",
+  "seed": 42,
+  "target_folds": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "tier": "bậc 2 - xác nhận (n=5, seed 42)",
+  "code": "src_mwonly = GraphTransferVD nhánh refactor @ab094cf (refactorMWG/) + tất định / TF32 (src_mwonly/SOURCE.md); baseline: src_final/train_baseline.py",
+  "data": "data/mwonly5_sources (HF LyanDumpling/MultiDataSource4VD @387d9dff, merged_undersampled lọc theo lang, val 15 % seed 42, test = val; tools/build_hf_pools.py); đích sven_python_folds_nocomment (trùng byte bản HF)",
+  "determinism": "train.py --deterministic 1 (use_deterministic_algorithms không warn_only, CUBLAS_WORKSPACE_CONFIG=:4096:8, PYTHONHASHSEED=42, cudnn.deterministic, benchmark tắt) + det_launch.py; TF32 bật (--tf32 1, FPE_TF32=1)",
+  "requested": "người dùng 04/10 20:4x: chỉ MW (không đồ thị), mã refactor, n=5 seed 42, TF32, tái lập từng bit; Pha 1 warmup 0,25, lr 2e-5, 16 epoch, patience 8, chọn val ROC, min_epochs 10; Pha 2 30 epoch, patience 8, min_epochs 10; 6 nguồn; baseline CodeBERT 512 thuần + TF32; chính RecAdam + ASAM (bản thường), phụ noRAS / chỉ ASAM / chỉ RecAdam; 21:1x-21:3x: KHÔNG pair loss, nguồn chia random như thường (val 15 %, xuất file cố định), dùng merged_undersampled trên HF lọc theo lang; 21:3x: ưu tiên xong cột chính (rasam) rồi mới chạy config khác; Pha 2 KHÔNG warmup; 21:5x: dừng và chạy lại toàn bộ với batch gấp đôi, đủ bộ nhớ thì lên thẳng 16 kể cả MW (đo theo ca nặng nhất) ⇒ batch 16 mọi thí nghiệm (đo 161: MW RA + ASAM 16 hàm × 8 cửa sổ đỉnh 6,4 GB; baseline 512 đỉnh 7,0 GB); 21:5x: \"Nếu để 32 không tràn để luôn 32\" ⇒ batch 32 mọi thí nghiệm (đo 161, ca nặng nhất: MW RA + ASAM 32 hàm × 8 cửa sổ đỉnh 9,4 GB; baseline 512 đỉnh 11,7 GB / 16 GB); cổng VRAM trước mỗi ô 12 500 MiB; 22:1x: \"tăng lr theo batch, chạy lại toàn bộ\" (quy tắc căn bậc hai: MW 2e-5 × √8 = 5,66e-5, baseline 2e-5 × √4 = 4e-5); \"trong khi pha 1 chưa giảm train loss > 2% thì lấy checkpoint theo train loss, sau đó mới lấy theo val ROC\" (mốc: train loss epoch 1; --select_after_drop 0.02); 05/10 00:4x: thêm MW không Pha 1 (chỉ Pha 2) với AdamW và chỉ ASAM (nop1_adamw, nop1_asamonly, 10 ô, xếp sau cột chính của paper_mw); 05/10 02:3x: \"sau bộ các task chính, chạy thêm nguồn CCPP\" - thêm full/common/4CWE chỉ C/C++ (merged_undersampled lọc lang ccpp), Pha 1 + cột chính",
+  "metrics": [
+   "test_roc_auc",
+   "test_macro_f1_at_0.5",
+   "test_macro_f1_at_valcal",
+   "test_pr_auc"
+  ],
+  "target_data": {
+   "name": "sven_python_folds_nocomment",
+   "n": 760,
+   "pos": 380,
+   "neg": 380,
+   "train": 456,
+   "val": 152,
+   "test": 152,
+   "desc": "SVEN Python, 5 fold chia ngẫu nhiên (cùng fold và thứ tự với sven_python_folds_norm), đã xoá comment # và docstring."
+  }
+ },
+ "hosts": {
+  "161": {
+   "root": "/drive1/cuongtm/ntat/MultiVD",
+   "python": "/home/ntat/miniconda3/envs/vdenv/bin/python",
+   "model": "/drive1/cuongtm/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/drive1/cuongtm/ntat/MultiVD/_FinalPaperExperiment",
+   "ckpt": "/drive1/cuongtm/ntat/MultiVD/model/mwonly5",
+   "hostname": "flink-jm"
+  },
+  "158": {
+   "root": "/data/ntat/MultiVD",
+   "python": "/data/ntat/envs/vdenv/bin/python",
+   "model": "/data/ntat/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/data/ntat/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/data/ntat/MultiVD/model/mwonly5",
+   "ssh": "tranmanhcuong@112.137.129.158",
+   "hostname": "flink-tm"
+  },
+  "paper_mw": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@202.122.49.242",
+   "port": 39308,
+   "hostname": "dadaddd0d25a",
+   "instance": 54059221,
+   "label": "paper_mw",
+   "specs": "RTX A4000 16 GB (sm 8.6), driver 595.71.05, image vastai/pytorch:cuda-12.8.1-auto, RAM 251 GB, 4 vCPU, đĩa 22 GB (sau dựng: dùng 8,9 GB, còn 14 GB), 0,091 $/h. Người dùng thuê 04/10 cho tab MW-only. venv311 = Python 3.11.14 (uv) + torch 2.9.1+cu128, cuDNN 91002, transformers 4.57.1, numpy 2.3.4, scikit-learn 1.7.2, scipy 1.16.3, tokenizers 0.22.1, safetensors 0.6.2, networkx 3.5 - trùng vdenv 161 (17 wheel torch/nvidia tải bằng curl -C - + sha256 theo wheels.txt của máy paper, cài hardlink). Mã src_final, scripts, dữ liệu (11 thư mục nguồn + sven + phase1_4cwe_withjava), CodeBERT-base và ckpt p1_mw_common_jsonly trùng md5 với 161. det_launch: tất định, TF32 tắt mặc định. Thử khói 04/10 03:33-03:51 chk_vast_repro_noRAS_jsonly f1 (FP32): test ROC 0.9090592940358199, PR, F1@0,5, F1@val, best_epoch 10 và xác suất từng mẫu TRÙNG BIT với mw_assemble_noRAS_jsonly f1 của 161/158; 18/18 dòng epoch trùng; ~60 s/epoch (161: ~58 s). Script dựng: state/vast_papermw54059221/."
+  },
+  "paper_mw2": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@202.122.49.242",
+   "port": 42861,
+   "hostname": "97046a0c81c2",
+   "instance": 54113977,
+   "label": "paper_mw2",
+   "specs": "RTX A4000 16 GB, driver 595.71.05, image vastai/pytorch:cuda-12.8.1-auto, 4 vCPU, đĩa 23 GB, 0,091 $/h. Người dùng thuê 04/10 13:2x. venv311 = Python 3.11.14 + torch 2.9.1+cu128, cuDNN 91002, transformers 4.57.1, numpy 2.3.4, sklearn 1.7.2 (trùng vdenv 161; dựng bằng setup của paper_mw). md5 40/40 file (src_final, sven_python_folds_nocomment, CodeBERT, ckpt p1_mw_common_jsonly) trùng 161. Thử khói chk_vast2_repro_noRAS_jsonly f1 FP32: test ROC 0.9090592940358199, 18/18 dòng epoch và xác suất từng mẫu trùng bit với mw_assemble_noRAS_jsonly f1 của 161."
+  },
+  "paper_mw3": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@202.122.49.242",
+   "port": 42920,
+   "hostname": "79b8a74360ec",
+   "instance": 54437777,
+   "label": "paper_mw3",
+   "specs": "RTX A4000 16 GB, driver 595.71.05, image vastai/pytorch:cuda-12.8.1-auto, 4 vCPU, đĩa 23 GB, 0,091 $/h, Nhật. Người dùng thuê lại 06/10 ~13:0x (nhãn paper_mw3, máy cũ 54294215 đã destroy 02:4x) cho hướng A mask full JS + C/C++ đủ 5 fold. Môi trường dựng bằng state/vast_papermw3_54294215/setup_papermw3.sh.",
+   "old_hostnames": [
+    "31c24a2f1c4b"
+   ]
+  },
+  "paper_mw4": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@172.97.225.87",
+   "port": 40995,
+   "hostname": "53d6b312584e",
+   "instance": 54468293,
+   "label": "paper_mw4",
+   "specs": "RTX A4000 16 GB, driver 580.82.09, image vastai/pytorch:cuda-12.8.1-auto, 13 vCPU, đĩa 19 GB, 0,086 $/h, Quebec. Người dùng thuê 06/10 ~17:4x cho trộn JS:Py 3:1 full. Môi trường: state/vast_papermw3_54294215/setup_papermw3.sh."
+  },
+  "paper_night": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@202.122.49.242",
+   "port": 42446,
+   "hostname": "353f204c13e9",
+   "instance": 54537908,
+   "label": "paper_night",
+   "specs": "RTX A4000 16 GB, driver 595.71.05, image vastai/pytorch:cuda-12.8.1-auto, 4 vCPU, đĩa 23 GB, 0,091 $/h, Nhật (cùng máy chủ với paper_mw3 cũ). Người dùng thuê 07/10 ~03:3x để chia việc tab Kết quả paper (\"nhắc tôi tắt sau khi chạy xong việc\"). Môi trường: state/vast_papermw3_54294215/setup_papermw3.sh."
+  }
+ },
+ "sources": [
+  {
+   "key": "full_jsonly",
+   "data": "mwonly5_sources/js_full",
+   "title": "full - chỉ JS"
+  },
+  {
+   "key": "common_jsonly",
+   "data": "mwonly5_sources/js_common",
+   "title": "common - chỉ JS"
+  },
+  {
+   "key": "4cwe_jsonly",
+   "data": "mwonly5_sources/js_4cwe",
+   "title": "4CWE - chỉ JS"
+  },
+  {
+   "key": "full_jscpp",
+   "data": "mwonly5_sources/jsccpp_full",
+   "title": "full - JS + C/C++"
+  },
+  {
+   "key": "common_jscpp",
+   "data": "mwonly5_sources/jsccpp_common",
+   "title": "common - JS + C/C++"
+  },
+  {
+   "key": "4cwe_jscpp",
+   "data": "mwonly5_sources/jsccpp_4cwe",
+   "title": "4CWE - JS + C/C++"
+  },
+  {
+   "key": "full_ccpp",
+   "data": "mwonly5_sources/ccpp_full",
+   "title": "full - chỉ C/C++"
+  },
+  {
+   "key": "common_ccpp",
+   "data": "mwonly5_sources/ccpp_common",
+   "title": "common - chỉ C/C++"
+  },
+  {
+   "key": "4cwe_ccpp",
+   "data": "mwonly5_sources/ccpp_4cwe",
+   "title": "4CWE - chỉ C/C++"
+  },
+  {
+   "key": "common_jsjava",
+   "data": "mwonly5_sources/jsjava_common",
+   "title": "common - Java + JS"
+  },
+  {
+   "key": "sven_python",
+   "data": "mwonly5_sources/sven_python",
+   "title": "SVEN Python (toàn bộ 760 hàm) - nguồn cho đích JS"
+  }
+ ],
+ "variants": [
+  {
+   "prefix": "rasam",
+   "title": "RecAdam + ASAM",
+   "role": "chính"
+  },
+  {
+   "prefix": "noras",
+   "title": "AdamW (noRAS)",
+   "role": "phụ"
+  },
+  {
+   "prefix": "asamonly",
+   "title": "chỉ ASAM",
+   "role": "phụ"
+  },
+  {
+   "prefix": "raonly",
+   "title": "chỉ RecAdam",
+   "role": "phụ"
+  }
+ ],
+ "flag_sets": {
+  "mw_common": {
+   "--seed": 42,
+   "--window": 510,
+   "--stride": 384,
+   "--max_windows": 8,
+   "--max_length": 512,
+   "--agg": "mean",
+   "--pooling": "cls",
+   "--batch_size": 32,
+   "--eval_batch_size": 8,
+   "--micro": 16,
+   "--learning_rate": "5.66e-5",
+   "--graph_lr": "5.66e-5",
+   "--weight_decay": 0.01,
+   "--max_grad_norm": 1.0,
+   "--min_epochs": 10,
+   "--patience": 8,
+   "--selection_metric": "roc_auc",
+   "--num_workers": 0,
+   "--grad_checkpoint": 1,
+   "--deterministic": 1,
+   "--tf32": 1
+  },
+  "no_graph": {
+   "--graph": "typed",
+   "--drop_bracket": 1,
+   "--co_mode": "chain",
+   "--fusion": "mw",
+   "--max_lines": 150,
+   "--line_enc": "codebert"
+  },
+  "phase1": {
+   "--epochs": 16,
+   "--warmup_ratio": 0.25,
+   "--pair_loss": 0.0,
+   "--sam_rho": 0,
+   "--stuck_epoch": 0,
+   "--also_select": "train_loss",
+   "--select_after_drop": 0.02
+  },
+  "phase2_target": {
+   "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+   "--target_lang": "python",
+   "--epochs": 30,
+   "--warmup_ratio": 0.0,
+   "--init": "all"
+  },
+  "recadam_asam": {
+   "--recadam": 1,
+   "--pretrain_cof": 500,
+   "--anneal_fun": "sigmoid",
+   "--anneal_k": 0.05,
+   "--anneal_t0_ratio": 0.01,
+   "--sam_variant": "asam",
+   "--sam_rho": 0.5,
+   "--sam_eta": 0.01
+  },
+  "plain_adamw": {
+   "--recadam": 0,
+   "--sam_rho": 0
+  },
+  "asam_only": {
+   "--recadam": 0,
+   "--sam_variant": "asam",
+   "--sam_rho": 0.5,
+   "--sam_eta": 0.01
+  },
+  "recadam_only": {
+   "--recadam": 1,
+   "--pretrain_cof": 500,
+   "--anneal_fun": "sigmoid",
+   "--anneal_k": 0.05,
+   "--anneal_t0_ratio": 0.01,
+   "--sam_rho": 0
+  }
+ },
+ "runs": [
+  {
+   "id": "p1_full_jsonly",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "full_jsonly",
+   "title": "Pha 1 MW - full - chỉ JS",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_full"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_common_jsonly",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "common_jsonly",
+   "title": "Pha 1 MW - common - chỉ JS",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_common"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_4cwe_jsonly",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "4cwe_jsonly",
+   "title": "Pha 1 MW - 4CWE - chỉ JS",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_4cwe"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_full_jscpp",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "full_jscpp",
+   "title": "Pha 1 MW - full - JS + C/C++",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/jsccpp_full"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_common_jscpp",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "common_jscpp",
+   "title": "Pha 1 MW - common - JS + C/C++",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/jsccpp_common"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_4cwe_jscpp",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "4cwe_jscpp",
+   "title": "Pha 1 MW - 4CWE - JS + C/C++",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/jsccpp_4cwe"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "baseline",
+   "family": "baseline",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "CodeBERT 512 thuần (TF32)",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+    "--target_lang": "python",
+    "--seed": 42,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0,
+    "--epochs": 30,
+    "--min_epochs": 3,
+    "--patience": 8,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "baseline_tojsfull",
+   "family": "baseline_tojs",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "CodeBERT 512 thuần (TF32) - ĐÍCH JS full",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/js_full_folds_622",
+    "--target_lang": "js",
+    "--seed": 42,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0,
+    "--epochs": 30,
+    "--min_epochs": 3,
+    "--patience": 8,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "desc": "Người dùng 05/10 18:4x: \"lên lịch chạy thêm baseline js\". Đối chứng cho rasam_sven_python_tojsfull: mọi cờ như baseline của khối, chỉ đổi đích sang data/final_experiment_data/js_full_folds_622 (5 fold 6:2:2, 752/251/251) và --target_lang js."
+  },
+  {
+   "id": "rasam_full_jsonly",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jsonly",
+   "src": "full_jsonly",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - full - chỉ JS",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_full_jsonly",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jsonly",
+   "src": "full_jsonly",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - full - chỉ JS",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_full_jsonly",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jsonly",
+   "src": "full_jsonly",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - full - chỉ JS",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_full_jsonly",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jsonly",
+   "src": "full_jsonly",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - full - chỉ JS",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_common_jsonly",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - common - chỉ JS",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_sven_python",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "sven_python",
+   "title": "Pha 1 MW - SVEN Python (nguồn cho đích JS)",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/sven_python"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "desc": "Người dùng 05/10 16:4x: \"lên lịch chạy task nguồn SVEN, đích JS\". Pool = toàn bộ 760 hàm SVEN Python đã xoá comment (HF sven_python_folds_nocomment/data.jsonl), chia 85/15 seed 42 như mọi nguồn (646/114, test = val). Mọi cờ Pha 1 giữ như khối."
+  },
+  {
+   "id": "rasam_sven_python_tojsfull",
+   "family": "rasam_tojs",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_sven_python",
+   "src": "sven_python",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - nguồn SVEN Python, ĐÍCH JS full",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "flags": {
+    "--data_root": "data/final_experiment_data/js_full_folds_622",
+    "--target_lang": "js"
+   },
+   "desc": "Người dùng 05/10 16:4x: nguồn SVEN, đích JS chia lại 5 fold 6:2:2; chọn JS full (1 254 hàm), chỉ cột chính, xoá checkpoint Pha 2 như khối. Đích = data/final_experiment_data/js_full_folds_622 (tools/build_target_folds.py: xoay vòng như SVEN, seed 42, 752/251/251). Mọi cờ khác giữ rasam_common_jsonly (RecAdam γ 500 k 0,05 t0 1 % + ASAM ρ 0,5)."
+  },
+  {
+   "id": "rasam_sven_python_tojsfull_me30",
+   "family": "rerun_me30",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_sven_python",
+   "src": "sven_python",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - nguồn SVEN Python, ĐÍCH JS full - chạy lại min_epochs 30",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "flags": {
+    "--data_root": "data/final_experiment_data/js_full_folds_622",
+    "--target_lang": "js",
+    "--min_epochs": 30
+   },
+   "desc": "Người dùng 05/10 21:0x: \"Chạy lại 2 ô sập\" - ô rasam_sven_python_tojsfull f4 sập (kẹt ln2, checkpoint ep1); chạy lại với --min_epochs 30 (tắt dừng sớm trước ep30, --epochs giữ 30 nên lịch LR không đổi) để biết bình nguyên tạm thời hay vĩnh viễn. Mọi cờ khác giữ nguyên.",
+   "folds": [
+    4
+   ]
+  },
+  {
+   "id": "rasamanchor_common_jsonly",
+   "family": "rasam_anchor",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "rasamanchor",
+   "role": "phụ",
+   "title": "RecAdam neo theo bài gốc + ASAM - common - chỉ JS",
+   "optimizer": "RecAdam (gamma 5000, k 0,05, t0 100 bước, head tự do) + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "desc": "Người dùng 05/10 15:2x: cột chính nhưng RecAdam neo đúng như bài gốc (Chen et al. 2020): gamma 5000 (mặc định mã gốc), sigmoid k 0,05 và t0 100 bước (đều trong lưới §4.1 của bài; t0 250 mặc định sẽ khoá backbone tới epoch 16 và cắt 80% ngân sách LR ở 450 bước), head mới không neo (anneal_w=0 như run_glue_with_RecAdam.py). ASAM và mọi cờ khác giữ nguyên rasam_common_jsonly, cùng checkpoint Pha 1.",
+   "flags": {
+    "--pretrain_cof": 5000,
+    "--anneal_k": 0.05,
+    "--anneal_t0_steps": 100,
+    "--recadam_free_head": 1
+   }
+  },
+  {
+   "id": "noras_common_jsonly",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - common - chỉ JS",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_common_jsonly",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - common - chỉ JS",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamblnex_common_jsonly",
+   "family": "check_biasln",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "asamblnex",
+   "role": "phụ",
+   "title": "Chỉ ASAM, KHÔNG nhiễu bias + LayerNorm - common - chỉ JS",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "flags": {
+    "--sam_bias_ln": "exclude"
+   },
+   "desc": "Người dùng 05/10 16:5x: \"local test thêm cho tôi theo tham khảo mục 2.3 /drive1/cuongtm/metaProject/MAML/multiBABEL/audits/PHA2_SUA_THEO_BANG_CHUNG_0510.md\" (giảm hoặc loại nhiễu ε của ASAM trên bias/LayerNorm); chọn: cả hai biến thể, công thức chỉ ASAM, chỉ common chỉ JS, f1-f3 (bậc 1). Ghép cặp với asamonly_common_jsonly (cùng checkpoint Pha 1, mọi cờ khác giữ nguyên). Mã: --sam_bias_ln (src_mwonly/mwg/optim.py SAMStep, mặc định full = như cũ, trùng bit). 05/10 18:0x người dùng: \"đẩy lên n=5\" ⇒ thêm f4-f5 (bậc 2)."
+  },
+  {
+   "id": "asamblnsh_common_jsonly",
+   "family": "check_biasln",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "asamblnsh",
+   "role": "phụ",
+   "title": "Chỉ ASAM, T của bias + LayerNorm ×0,1 - common - chỉ JS",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "flags": {
+    "--sam_bias_ln": "shrink",
+    "--sam_bias_ln_scale": 0.1
+   },
+   "desc": "Người dùng 05/10 16:5x: \"local test thêm cho tôi theo tham khảo mục 2.3 /drive1/cuongtm/metaProject/MAML/multiBABEL/audits/PHA2_SUA_THEO_BANG_CHUNG_0510.md\" (giảm hoặc loại nhiễu ε của ASAM trên bias/LayerNorm); chọn: cả hai biến thể, công thức chỉ ASAM, chỉ common chỉ JS, f1-f3 (bậc 1). Ghép cặp với asamonly_common_jsonly (cùng checkpoint Pha 1, mọi cờ khác giữ nguyên). Mã: --sam_bias_ln (src_mwonly/mwg/optim.py SAMStep, mặc định full = như cũ, trùng bit). 05/10 18:0x người dùng: \"đẩy lên n=5\" ⇒ thêm f4-f5 (bậc 2)."
+  },
+  {
+   "id": "raonly_common_jsonly",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsonly",
+   "src": "common_jsonly",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - common - chỉ JS",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_4cwe_jsonly",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jsonly",
+   "src": "4cwe_jsonly",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - 4CWE - chỉ JS",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_4cwe_jsonly",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jsonly",
+   "src": "4cwe_jsonly",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - 4CWE - chỉ JS",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_4cwe_jsonly",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jsonly",
+   "src": "4cwe_jsonly",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - 4CWE - chỉ JS",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_4cwe_jsonly",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jsonly",
+   "src": "4cwe_jsonly",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - 4CWE - chỉ JS",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_full_jscpp",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - full - JS + C/C++",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_full_jscpp",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - full - JS + C/C++",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_full_jscpp",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - full - JS + C/C++",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamAfull_4cwe_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "asamAfull",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln full - 4cwe_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_4cwe_jscpp.",
+   "flags": {
+    "--sam_bias_ln": "full",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAmask_4cwe_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "asamAmask",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln mask - 4cwe_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_4cwe_jscpp.",
+   "flags": {
+    "--sam_bias_ln": "mask",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAexcl_4cwe_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "asamAexcl",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln exclude - 4cwe_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_4cwe_jscpp.",
+   "flags": {
+    "--sam_bias_ln": "exclude",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAfull_common_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "asamAfull",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln full - common_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1,
+    3,
+    4
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_common_jscpp.",
+   "flags": {
+    "--sam_bias_ln": "full",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAmask_common_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "asamAmask",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln mask - common_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_common_jscpp. 06/10 02:1x: thêm f2, f5 (158 rảnh; đề xuất P1 dạng mask) để nguồn common đủ 5/5 fold không chọn lọc; nhánh full của f2/f5 = ô gốc asamonly_common_jscpp (trùng bit đã kiểm 5/5).",
+   "flags": {
+    "--sam_bias_ln": "mask",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAexcl_common_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "asamAexcl",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln exclude - common_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_common_jscpp. 06/10 02:1x: thêm f2, f5 (158 rảnh; đề xuất P1 dạng mask) để nguồn common đủ 5/5 fold không chọn lọc; nhánh full của f2/f5 = ô gốc asamonly_common_jscpp (trùng bit đã kiểm 5/5).",
+   "flags": {
+    "--sam_bias_ln": "exclude",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAfull_full_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "asamAfull",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln full - full_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    4
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_full_jscpp.",
+   "flags": {
+    "--sam_bias_ln": "full",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAmask_full_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "asamAmask",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln mask - full_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_full_jscpp. 06/10 13:0x (người dùng: \"trông có vẻ ổn, chạy thử đủ 5 fold xem\"): folds [4] → [1..5] trên paper_mw3 mới; f4 chạy lại trước để kiểm trùng bit với 161.",
+   "flags": {
+    "--sam_bias_ln": "mask",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "asamAexcl_full_jscpp",
+   "family": "check_dirA",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "asamAexcl",
+   "role": "phụ",
+   "title": "Hướng A bước 1 - chỉ ASAM, --sam_bias_ln exclude - full_jscpp",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "folds": [
+    4
+   ],
+   "desc": "Người dùng 05/10 23:5x: \"Tham khảo multiBABEL/audits/HUONG_DI_LN_VA_TRAN_JS_0510.md triển hướng A xem sao\". Bước 1 (cơ chế, bậc 1, một seed): ô kẹt / bình nguyên dài của chỉ ASAM trên JS + C/C++, nhánh full (chạy lại, phải trùng bit ô gốc), mask (ε = 0 trên bias/LN, ε weight trùng full), exclude (ρ dồn cho weight); --sam_log_share 1 ghi tỉ lệ ‖g·T‖² theo nhóm mỗi epoch. Mọi cờ khác = asamonly_full_jscpp.",
+   "flags": {
+    "--sam_bias_ln": "exclude",
+    "--sam_log_share": 1
+   }
+  },
+  {
+   "id": "raonly_full_jscpp",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_jscpp",
+   "src": "full_jscpp",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - full - JS + C/C++",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_common_jscpp",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - common - JS + C/C++",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_common_jscpp",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - common - JS + C/C++",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_common_jscpp",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - common - JS + C/C++",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_common_jscpp",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - common - JS + C/C++",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_4cwe_jscpp",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - 4CWE - JS + C/C++",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_4cwe_jscpp",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - 4CWE - JS + C/C++",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_4cwe_jscpp",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - 4CWE - JS + C/C++",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_4cwe_jscpp",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - 4CWE - JS + C/C++",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "nop1_adamw",
+   "family": "nop1",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "nop1_adamw",
+   "title": "MW không Pha 1 - AdamW",
+   "optimizer": "AdamW, KHÔNG Pha 1",
+   "desc": "Người dùng 05/10 00:4x: \"MW only (chỉ phase 2) dùng AdamW và ASAM only\" - cùng cờ Pha 2 của khối (batch 32, lr 5,66e-5, không warmup, min 10, patience 8) nhưng --init none (CodeBERT gốc + head mới). Mốc để đo phần lợi của Pha 1 cùng optimizer.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--init": "none"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "nop1_adamw_tojsfull",
+   "family": "nop1_tojs",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "nop1_adamw",
+   "title": "MW không Pha 1 - AdamW - ĐÍCH JS full",
+   "optimizer": "AdamW, KHÔNG Pha 1",
+   "desc": "Người dùng 05/10 21:0x: \"Chạy thêm mw adamw js thuần (không transfer)\". = nop1_adamw (MW, AdamW, --init none) nhưng đích JS full (js_full_folds_622, --target_lang js). Đối chứng MW cho rasam_sven_python_tojsfull, cạnh baseline_tojsfull.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--init": "none",
+    "--data_root": "data/final_experiment_data/js_full_folds_622",
+    "--target_lang": "js"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "mix1p_adamw_common_jsonly",
+   "family": "mix1p",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "mix1p_adamw",
+   "role": "phụ",
+   "title": "MW một pha TRỘN nguồn common chỉ JS + SVEN train - AdamW",
+   "optimizer": "AdamW, KHÔNG Pha 1, train trộn",
+   "desc": "Người dùng 05/10 18:5x: \"trộn nguồn sau đó train 1 pha kiểu baseline nhưng trộn nguồn khác, cái này sẽ không dùng graph. Chạy thêm vào n=5\"; chọn MW không đồ thị, nguồn common chỉ JS, AdamW. = nop1_adamw nhưng train = 990 hàm JS common + SVEN train của fold (data/final_experiment_data/mixsrc_jsonly_common, tools/build_mixsrc_folds.py); val/test = SVEN. Bỏ --target_lang vì train có cả js và python.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--data_root": "data/final_experiment_data/mixsrc_jsonly_common",
+    "--epochs": 30,
+    "--warmup_ratio": 0.0,
+    "--init": "none"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "mix1p_adamw_common_jsonly_me30",
+   "family": "rerun_me30",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "mix1p_adamw",
+   "role": "phụ",
+   "title": "MW một pha TRỘN nguồn common chỉ JS + SVEN train - AdamW - chạy lại min_epochs 30",
+   "optimizer": "AdamW, KHÔNG Pha 1, train trộn",
+   "desc": "Người dùng 05/10 21:0x: \"Chạy lại 2 ô sập\" - ô mix1p_adamw_common_jsonly f5 sập (kẹt ln2, checkpoint ep1); chạy lại với --min_epochs 30 (tắt dừng sớm trước ep30, --epochs giữ 30 nên lịch LR không đổi) để biết bình nguyên tạm thời hay vĩnh viễn. Mọi cờ khác giữ nguyên.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--data_root": "data/final_experiment_data/mixsrc_jsonly_common",
+    "--epochs": 30,
+    "--warmup_ratio": 0.0,
+    "--init": "none",
+    "--min_epochs": 30
+   },
+   "folds": [
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "mix1p_adamw_full_jsonly",
+   "family": "mix1p",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "mix1p_adamw",
+   "role": "phụ",
+   "title": "MW một pha TRỘN naive JS full + SVEN train - AdamW",
+   "optimizer": "AdamW, KHÔNG Pha 1, train trộn",
+   "desc": "Người dùng 05/10 21:0x: \"Chạy thêm trộn naive JS full + sven rồi val và test trên sven (naive merge)\". = mix1p_adamw_common_jsonly nhưng pool JS full (1 254 hàm, mwonly5_sources/js_full) ⇒ data/final_experiment_data/mixsrc_jsfull (tools/build_mixsrc_folds.py), train 1 710 hàm/fold, val/test = SVEN.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--data_root": "data/final_experiment_data/mixsrc_jsfull",
+    "--epochs": 30,
+    "--warmup_ratio": 0.0,
+    "--init": "none"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "nop1_asamonly",
+   "family": "nop1",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "nop1_asamonly",
+   "title": "MW không Pha 1 - chỉ ASAM",
+   "optimizer": "chỉ ASAM, KHÔNG Pha 1",
+   "desc": "Người dùng 05/10 00:4x: \"MW only (chỉ phase 2) dùng AdamW và ASAM only\" - cùng cờ Pha 2 của khối (batch 32, lr 5,66e-5, không warmup, min 10, patience 8) nhưng --init none (CodeBERT gốc + head mới). Mốc để đo phần lợi của Pha 1 cùng optimizer.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "flags": {
+    "--init": "none"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_full_ccpp",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "full_ccpp",
+   "title": "Pha 1 MW - full - chỉ C/C++",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/ccpp_full"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_full_ccpp",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_ccpp",
+   "src": "full_ccpp",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - full - chỉ C/C++",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_full_ccpp",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_ccpp",
+   "src": "full_ccpp",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - full - chỉ C/C++",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_full_ccpp",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_ccpp",
+   "src": "full_ccpp",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - full - chỉ C/C++",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_full_ccpp",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_full_ccpp",
+   "src": "full_ccpp",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - full - chỉ C/C++",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_common_ccpp",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "common_ccpp",
+   "title": "Pha 1 MW - common - chỉ C/C++",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/ccpp_common"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_common_ccpp",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_ccpp",
+   "src": "common_ccpp",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - common - chỉ C/C++",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_common_ccpp",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_ccpp",
+   "src": "common_ccpp",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - common - chỉ C/C++",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_common_ccpp",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_ccpp",
+   "src": "common_ccpp",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - common - chỉ C/C++",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_common_ccpp",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_ccpp",
+   "src": "common_ccpp",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - common - chỉ C/C++",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "p1_4cwe_ccpp",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "4cwe_ccpp",
+   "title": "Pha 1 MW - 4CWE - chỉ C/C++",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/ccpp_4cwe"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "rasam_4cwe_ccpp",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_ccpp",
+   "src": "4cwe_ccpp",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - 4CWE - chỉ C/C++",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "noras_4cwe_ccpp",
+   "family": "noras",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_ccpp",
+   "src": "4cwe_ccpp",
+   "variant": "noras",
+   "role": "phụ",
+   "title": "AdamW (noRAS) - 4CWE - chỉ C/C++",
+   "optimizer": "AdamW (noRAS)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_4cwe_ccpp",
+   "family": "asamonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_ccpp",
+   "src": "4cwe_ccpp",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "chỉ ASAM - 4CWE - chỉ C/C++",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "raonly_4cwe_ccpp",
+   "family": "raonly",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_ccpp",
+   "src": "4cwe_ccpp",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "chỉ RecAdam - 4CWE - chỉ C/C++",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "nop1_asamonly_me30",
+   "family": "rerun_me30",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "nop1_asamonly",
+   "title": "MW không Pha 1 - chỉ ASAM - chạy lại min_epochs 30",
+   "optimizer": "chỉ ASAM, KHÔNG Pha 1",
+   "desc": "Người dùng 05/10 14:0x: chạy lại ô sập nop1_asamonly f4 với --min_epochs 30 (tắt dừng sớm trước epoch 30) để biết bình nguyên tạm thời hay vĩnh viễn. Mọi cờ khác giữ nguyên ô gốc.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "flags": {
+    "--init": "none",
+    "--min_epochs": 30
+   },
+   "folds": [
+    4
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "id": "asamonly_4cwe_jscpp_me30",
+   "family": "rerun_me30",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_4cwe_jscpp",
+   "src": "4cwe_jscpp",
+   "variant": "asamonly",
+   "title": "chỉ ASAM - 4CWE - JS + C/C++ - chạy lại min_epochs 30",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "desc": "Người dùng 05/10 14:0x: chạy lại ô sập asamonly_4cwe_jscpp f1 với --min_epochs 30 (tắt dừng sớm trước epoch 30) để biết bình nguyên tạm thời hay vĩnh viễn. Mọi cờ khác giữ nguyên ô gốc.",
+   "flags": {
+    "--min_epochs": 30
+   },
+   "folds": [
+    1
+   ]
+  },
+  {
+   "id": "asamonly_common_jscpp_me30",
+   "family": "rerun_me30",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jscpp",
+   "src": "common_jscpp",
+   "variant": "asamonly",
+   "title": "chỉ ASAM - common - JS + C/C++ - chạy lại min_epochs 30",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "desc": "Người dùng 05/10 14:0x: chạy lại ô sập asamonly_common_jscpp f3 với --min_epochs 30 (tắt dừng sớm trước epoch 30) để biết bình nguyên tạm thời hay vĩnh viễn. Mọi cờ khác giữ nguyên ô gốc.",
+   "flags": {
+    "--min_epochs": 30
+   },
+   "folds": [
+    3
+   ]
+  },
+  {
+   "id": "p1_common_jsjava",
+   "family": "phase1",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "folds": [
+    1
+   ],
+   "src": "common_jsjava",
+   "title": "Pha 1 MW - common - Java + JS",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "flags": {
+    "--data_root": "data/mwonly5_sources/jsjava_common"
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "desc": "Người dùng 05/10 14:5x: \"chạy thêm nguồn java + js common\". Pool = common.jsonl của HF lọc lang {js, java}: Java đủ 5 184 hàm (Java không có CWE nên common = full), JS 990 hàm common."
+  },
+  {
+   "id": "rasam_common_jsjava",
+   "family": "rasam",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_common_jsjava",
+   "src": "common_jsjava",
+   "variant": "rasam",
+   "role": "chính",
+   "title": "RecAdam + ASAM - common - Java + JS",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41_common",
+   "src": "jspy41_common",
+   "title": "Pha 1 trộn JS:Py 4:1 theo fold - common",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41_common"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 11:5x: \"trộn phase 1 cho model transfer tỷ lệ js:py là 4:1 với cả bộ full và common, val sẽ bằng cả js 15% là python của fold đó. Chạy thử 5 fold\"; chọn: Python lấy mẫu cân nhãn từ SVEN train fold k, val Pha 1 = JS val 15 % + SVEN val fold k, Pha 2 chỉ cột chính. Pha 1 = p1_common_jsonly nhưng train = 842 JS + 211 Python (SVEN train fold k), val = JS val + SVEN val fold k; mỗi fold một checkpoint."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41_common",
+   "src": "jspy41_common",
+   "init_from": "p1_jspy41_common",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 - common",
+   "desc": "Người dùng 06/10 11:5x: \"trộn phase 1 cho model transfer tỷ lệ js:py là 4:1 với cả bộ full và common, val sẽ bằng cả js 15% là python của fold đó. Chạy thử 5 fold\"; chọn: Python lấy mẫu cân nhãn từ SVEN train fold k, val Pha 1 = JS val 15 % + SVEN val fold k, Pha 2 chỉ cột chính. Pha 2 = rasam_common_jsonly (cột chính), fold k nạp checkpoint Pha 1 fold k (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41_full",
+   "src": "jspy41_full",
+   "title": "Pha 1 trộn JS:Py 4:1 theo fold - full",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41_full"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 11:5x: \"trộn phase 1 cho model transfer tỷ lệ js:py là 4:1 với cả bộ full và common, val sẽ bằng cả js 15% là python của fold đó. Chạy thử 5 fold\"; chọn: Python lấy mẫu cân nhãn từ SVEN train fold k, val Pha 1 = JS val 15 % + SVEN val fold k, Pha 2 chỉ cột chính. Pha 1 = p1_full_jsonly nhưng train = 1066 JS + 267 Python (SVEN train fold k), val = JS val + SVEN val fold k; mỗi fold một checkpoint."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41_full",
+   "src": "jspy41_full",
+   "init_from": "p1_jspy41_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 - full",
+   "desc": "Người dùng 06/10 11:5x: \"trộn phase 1 cho model transfer tỷ lệ js:py là 4:1 với cả bộ full và common, val sẽ bằng cả js 15% là python của fold đó. Chạy thử 5 fold\"; chọn: Python lấy mẫu cân nhãn từ SVEN train fold k, val Pha 1 = JS val 15 % + SVEN val fold k, Pha 2 chỉ cột chính. Pha 2 = rasam_full_jsonly (cột chính), fold k nạp checkpoint Pha 1 fold k (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy31_common",
+   "src": "jspy31_common",
+   "title": "Pha 1 trộn JS:Py 3:1 theo fold - common",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py31_common"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 16:0x: \"thử với common, train tỷ lệ 3:1 để kiểm tra tác động tỷ lệ nguồn và đích cho hướng này\". = p1_jspy41_common nhưng train = 842 JS + 281 Python (SVEN train fold k, Random(42), cân nhãn 141/140); val như cũ."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy31_common",
+   "src": "jspy31_common",
+   "init_from": "p1_jspy31_common",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 3:1 - common",
+   "desc": "Người dùng 06/10 16:0x: \"thử với common, train tỷ lệ 3:1 để kiểm tra tác động tỷ lệ nguồn và đích cho hướng này\". = rasam_jspy41_common nhưng nạp Pha 1 trộn 3:1 cùng fold (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy31_full",
+   "src": "jspy31_full",
+   "title": "Pha 1 trộn JS:Py 3:1 theo fold - full",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py31_full"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 17:4x: \"tôi đã thuê thêm paper_mw4 trên vast chạy 3:1 trên full nhé\". = p1_jspy41_full nhưng train = 1 066 JS + 355 Python (Random(42), cân nhãn 178/177)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy31_full",
+   "src": "jspy31_full",
+   "init_from": "p1_jspy31_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 3:1 - full",
+   "desc": "Người dùng 06/10 17:4x: \"tôi đã thuê thêm paper_mw4 trên vast chạy 3:1 trên full nhé\". = rasam_jspy41_full nhưng nạp Pha 1 3:1 cùng fold."
+  },
+  {
+   "family": "check_machine",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "chk_p1_jspy41_full",
+   "src": "jspy41_full",
+   "title": "Pha 1 trộn JS:Py 4:1 theo fold - full",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41_full"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Kiểm máy mới paper_mw4 (thử khói + trùng bit): = p1_jspy41_full f1, chỉ chạy vài epoch đầu rồi dừng, so dòng Epoch với log 161. KHÔNG phải kết quả."
+  },
+  {
+   "family": "check_machine",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "chk_p1_jspy41_4cwe",
+   "src": "jspy41_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 theo fold - 4cwe",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41_4cwe"
+   },
+   "folds": [
+    4
+   ],
+   "desc": "Kiểm máy paper_night (07/10 03:4x): = p1_jspy41_4cwe fold 4 (đã chạy trên 161), chạy vài epoch rồi so dòng Epoch với log 161; tên riêng để không đè."
+  },
+  {
+   "id": "asamonly_jspy41_common",
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_jspy41_common",
+   "src": "jspy41_common",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "Chỉ ASAM, Pha 1 trộn JS:Py 4:1 - common",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "init_same_fold": true,
+   "desc": "Người dùng 06/10 17:4x: \"khi 2 máy dưới xong thì chạy thêm 4:1 chỉ ASAM\". = asamonly_common_jsonly (chỉ ASAM) nhưng nạp Pha 1 trộn 4:1 cùng fold (init_same_fold)."
+  },
+  {
+   "id": "asamonly_jspy41_full",
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_jspy41_full",
+   "src": "jspy41_full",
+   "variant": "asamonly",
+   "role": "phụ",
+   "title": "Chỉ ASAM, Pha 1 trộn JS:Py 4:1 - full",
+   "optimizer": "chỉ ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "asam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "init_same_fold": true,
+   "desc": "Người dùng 06/10 17:4x: \"khi 2 máy dưới xong thì chạy thêm 4:1 chỉ ASAM\". = asamonly_full_jsonly (chỉ ASAM) nhưng nạp Pha 1 trộn 4:1 cùng fold (init_same_fold)."
+  },
+  {
+   "id": "raonly_jspy41_common",
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_jspy41_common",
+   "src": "jspy41_common",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "Chỉ RecAdam, Pha 1 trộn JS:Py 4:1 - common",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "init_same_fold": true,
+   "desc": "Người dùng 06/10 20:0x: \"thử thêm các nhánh ASAM only và recadam only của nhánh trộn pha 1\" (21:0x: ưu tiên bản theo cặp / val chỉ JS trước). Phần chung của mọi phương án phạm vi (chỉ ASAM 4:1 đã có). = raonly_common_jsonly (chỉ RecAdam) nhưng nạp Pha 1 trộn 4:1 cùng fold (init_same_fold)."
+  },
+  {
+   "id": "raonly_jspy41_full",
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "init_from": "p1_jspy41_full",
+   "src": "jspy41_full",
+   "variant": "raonly",
+   "role": "phụ",
+   "title": "Chỉ RecAdam, Pha 1 trộn JS:Py 4:1 - full",
+   "optimizer": "chỉ RecAdam",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_only"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "init_same_fold": true,
+   "desc": "Người dùng 06/10 20:0x: \"thử thêm các nhánh ASAM only và recadam only của nhánh trộn pha 1\" (21:0x: ưu tiên bản theo cặp / val chỉ JS trước). Phần chung của mọi phương án phạm vi (chỉ ASAM 4:1 đã có). = raonly_full_jsonly (chỉ RecAdam) nhưng nạp Pha 1 trộn 4:1 cùng fold (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41_4cwe",
+   "src": "jspy41_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 theo fold - 4cwe",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41_4cwe"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 18:2x: \"158 chạy 4CWE pha 1 trộn đi\" (tỷ lệ 4:1 như khối trộn chính, Pha 2 cột chính). = p1_4cwe_jsonly nhưng train = 500 JS + 125 Python (SVEN train fold k, Random(42), cân nhãn 63/62), val = 88 JS val + SVEN val fold k."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41_4cwe",
+   "src": "jspy41_4cwe",
+   "init_from": "p1_jspy41_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 - 4cwe",
+   "desc": "Người dùng 06/10 18:2x: \"158 chạy 4CWE pha 1 trộn đi\" (tỷ lệ 4:1 như khối trộn chính, Pha 2 cột chính). = rasam_4cwe_jsonly nhưng nạp Pha 1 trộn 4:1 cùng fold."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41pair_common",
+   "src": "jspy41pair_common",
+   "title": "Pha 1 trộn JS:Py 4:1 rút theo cặp, val chỉ JS - common",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41pair_common"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 21:0x: \"chạy thêm 1 bản JS common + 1/4 số lượng của JS hàm SVEN train_k (rút theo cặp). pha 1 dùng best roc js. Ưu tiên trước khi asam và recadam only\". = p1_common_jsonly nhưng train = 842 JS + 105 cặp SVEN (hàm lỗi + bản vá, cả hai nửa ở SVEN train fold k, Random(42)) = 210 hàm; val = CHỈ 148 JS val (như p1_common_jsonly) ⇒ checkpoint chọn theo ROC trên JS. tools/build_p1_mixpy_pairs.py."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41pair_common",
+   "src": "jspy41pair_common",
+   "init_from": "p1_jspy41pair_common",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 rút theo cặp, val chỉ JS - common",
+   "desc": "Người dùng 06/10 21:0x: \"chạy thêm 1 bản JS common + 1/4 số lượng của JS hàm SVEN train_k (rút theo cặp). pha 1 dùng best roc js. Ưu tiên trước khi asam và recadam only\". Pha 2 = rasam_common_jsonly (cột chính), fold k nạp checkpoint Pha 1 fold k (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_common",
+   "src": "jspy41jsval_common",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 06/10 22:0x: \"thêm 1 nhánh pha 1 trộn ngẫu nhiên 4:1 lấy val js nữa\". Train TRÙNG BYTE p1_jspy41_common (842 JS + 211 Python lấy mẫu cân nhãn từ SVEN train fold k, Random(42)); val = CHỈ 148 JS val (như p1_common_jsonly) ⇒ checkpoint chọn theo ROC trên JS. tools/build_p1_mixpy.py --val js."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_common",
+   "src": "jspy41jsval_common",
+   "init_from": "p1_jspy41jsval_common",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common",
+   "desc": "Người dùng 06/10 22:0x: \"thêm 1 nhánh pha 1 trộn ngẫu nhiên 4:1 lấy val js nữa\". Pha 2 = rasam_common_jsonly (cột chính), fold k nạp checkpoint Pha 1 fold k (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:2x: \"thêm nhánh JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS nhưng bộ JS full\". Train TRÙNG BYTE p1_jspy41_full (1 066 JS + 267 Python lấy mẫu cân nhãn từ SVEN train fold k, Random(42)); val = CHỈ 188 JS full val ⇒ checkpoint chọn theo ROC trên JS. tools/build_p1_mixpy.py --val js."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_jspy41jsval_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full",
+   "desc": "Người dùng 07/10 01:2x: \"thêm nhánh JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS nhưng bộ JS full\". Pha 2 = rasam_full_jsonly (cột chính), fold k nạp checkpoint Pha 1 fold k (init_same_fold)."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_uncommon_strict",
+   "src": "jspy41jsval_uncommon_strict",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - uncommon chặt",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_uncommon_strict"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 15:0x: \"tab chung, chạy thêm uncommon 4:1, val Pha 1 chỉ JS. (phương pháp này chốt là SOTA, nguồn pha 1 là tuỳ chọn)\"; chọn bản CHẶT. Pool js_uncommon_strict (tools/build_js_uncommon_strict_pool.py: 120 hàm JS = 60 cặp, CWE-1321 56 + CWE-843 4, chia Random(42) val 15 %: train 102 / val 18). Train = 102 JS + 26 Python cân nhãn (SVEN train fold k, Random(42)); val = CHỈ 18 JS val. tools/build_p1_mixpy.py --val js."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_uncommon_strict",
+   "src": "jspy41jsval_uncommon_strict",
+   "init_from": "p1_jspy41jsval_uncommon_strict",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - uncommon chặt",
+   "desc": "Người dùng 07/10 15:0x (uncommon chặt, tab chung). Pha 2 = cột chính RecAdam + ASAM như rasam_jspy41jsval_common, fold k nạp checkpoint Pha 1 fold k."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS 4cwe + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(42) (tools/build_p1_mixpy.py --val js --seed 42); val = CHỈ JS val.",
+   "seed": 42,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_jspy41jsval_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_4cwe fold k (init_same_fold), seed 42.",
+   "seed": 42,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_common_s1234",
+   "src": "jspy41jsval_common",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_s1234"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS common + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(1234) (tools/build_p1_mixpy.py --val js --seed 1234); val = CHỈ JS val.",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_common_s1234",
+   "src": "jspy41jsval_common",
+   "init_from": "p1_jspy41jsval_common_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common - seed 1234",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_common_s1234 fold k (init_same_fold), seed 1234.",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS 4cwe + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(1234) (tools/build_p1_mixpy.py --val js --seed 1234); val = CHỈ JS val.",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 1234",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_4cwe_s1234 fold k (init_same_fold), seed 1234.",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS full + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(1234) (tools/build_p1_mixpy.py --val js --seed 1234); val = CHỈ JS val.",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 1234",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_full_s1234 fold k (init_same_fold), seed 1234.",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_common_s7",
+   "src": "jspy41jsval_common",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_s7"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS common + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(7) (tools/build_p1_mixpy.py --val js --seed 7); val = CHỈ JS val.",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_common_s7",
+   "src": "jspy41jsval_common",
+   "init_from": "p1_jspy41jsval_common_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common - seed 7",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_common_s7 fold k (init_same_fold), seed 7.",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s7"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS 4cwe + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(7) (tools/build_p1_mixpy.py --val js --seed 7); val = CHỈ JS val.",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_jspy41jsval_4cwe_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 7",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_4cwe_s7 fold k (init_same_fold), seed 7.",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s7"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Train = JS full + Python SVEN train fold k lấy mẫu cân nhãn bằng Random(7) (tools/build_p1_mixpy.py --val js --seed 7); val = CHỈ JS val.",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_jspy41jsval_full_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 7",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. Pha 2 cột chính, fold k nạp p1_jspy41jsval_full_s7 fold k (init_same_fold), seed 7.",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "id": "baseline_s1234",
+   "family": "baseline",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "CodeBERT 512 thuần (TF32) - seed 1234",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+    "--target_lang": "python",
+    "--seed": 1234,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0,
+    "--epochs": 30,
+    "--min_epochs": 3,
+    "--patience": 8,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 1234,
+   "tab": "paper",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. = baseline (seed 42 của khối) nhưng --seed 1234."
+  },
+  {
+   "id": "baseline_s7",
+   "family": "baseline",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "CodeBERT 512 thuần (TF32) - seed 7",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+    "--target_lang": "python",
+    "--seed": 7,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0,
+    "--epochs": 30,
+    "--min_epochs": 3,
+    "--patience": 8,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 7,
+   "tab": "paper",
+   "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. = baseline (seed 42 của khối) nhưng --seed 7."
+  }
+ ]
+}

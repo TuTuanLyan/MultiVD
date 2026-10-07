@@ -38,9 +38,10 @@ from sklearn.metrics import roc_auc_score, average_precision_score, f1_score  # 
 class WindowDataset(Dataset):
     """Moi ham -> [K, max_length] input_ids/attention_mask + mat na cua so [K]."""
 
-    def __init__(self, records, tokenizer, window, stride, max_windows, max_length=512):
+    def __init__(self, records, tokenizer, window, stride, max_windows, max_length=512, mode="slide"):
         self.records, self.tok = records, tokenizer
         self.window, self.stride, self.K, self.max_length = window, stride, max_windows, max_length
+        self.mode = mode                 # slide = cua so truot | hmt = mot cua so head_middle_tail
         self.pad = tokenizer.pad_token_id
 
     def __len__(self):
@@ -50,12 +51,26 @@ class WindowDataset(Dataset):
         r = self.records[i]
         ids = self.tok(r["code"], add_special_tokens=False, truncation=False,
                        return_attention_mask=False, verbose=False)["input_ids"]
-        if len(ids) <= self.window:
-            starts = [0]
+        if self.mode == "hmt":
+            # MOT cua so duy nhat, nhung cat kieu head_middle_tail GIONG HET src/dataset.py:
+            # 1/3 dau + 1/3 giua + 1/3 cuoi. Day la doi chung dung voi baseline cua repo.
+            # `K=1` o che do `slide` chi lay 510 token DAU (cat dau thuan) — mot doi chung
+            # YEU HON baseline that, nen `mwK8 - mwK1` co the thoi phong gia tri cua MW.
+            if len(ids) <= self.window:
+                wins, starts = [ids], [0]
+            else:
+                b = self.window
+                head = b // 3 + b % 3; mid = b // 3; tail = b // 3
+                ms = (len(ids) - mid) // 2
+                wins = [ids[:head] + ids[ms: ms + mid] + ids[-tail:]]
+                starts = [0]
         else:
-            starts = list(range(0, len(ids) - self.window + self.stride, self.stride))
-        starts = starts[: self.K]
-        wins = [ids[s: s + self.window] for s in starts]
+            if len(ids) <= self.window:
+                starts = [0]
+            else:
+                starts = list(range(0, len(ids) - self.window + self.stride, self.stride))
+            starts = starts[: self.K]
+            wins = [ids[s: s + self.window] for s in starts]
         input_ids = torch.full((self.K, self.max_length), self.pad, dtype=torch.long)
         attn = torch.zeros((self.K, self.max_length), dtype=torch.long)
         wmask = torch.zeros(self.K, dtype=torch.bool)
@@ -154,6 +169,8 @@ def main():
     ap.add_argument("--max_windows", type=int, default=8)
     ap.add_argument("--max_length", type=int, default=512)
     ap.add_argument("--agg", default="mean", choices=("mean", "transformer"))
+    ap.add_argument("--window_mode", default="slide", choices=("slide", "hmt"),
+                    help="slide = cua so truot (de xuat) | hmt = MOT cua so cat head_middle_tail")
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--eval_batch_size", type=int, default=8)
     ap.add_argument("--micro", type=int, default=16)
@@ -167,6 +184,8 @@ def main():
     ap.add_argument("--sam_rho", type=float, default=0.02)
     ap.add_argument("--max_grad_norm", type=float, default=1.0)
     ap.add_argument("--num_workers", type=int, default=0)
+    ap.add_argument("--init_ckpt", default=None,
+                    help="khoi tao backbone tu checkpoint Pha 1 (model B / TR cua De xuat 1)")
     ap.add_argument("--max_train_samples", type=int)
     ap.add_argument("--output_dir", default=None)
     a = ap.parse_args()
@@ -177,19 +196,43 @@ def main():
     model = MultiWindowModel(build_backbone(a.model_name), a.max_windows,
                              agg=a.agg, pooling=a.pooling).to(dev)
 
+    # --- model B (TR): khoi tao backbone tu Pha 1 ---------------------------------------
+    # `init_from(parts="backbone")` cua §B.3. Ta dung checkpoint Pha 1 THUONG (khong MW) nen
+    # chi chuyen duoc `backbone.*`; win_pos_emb / rel_pos / agg giu nguyen khoi tao ngau nhien.
+    # IN RO missing/unexpected: `strict=False` nuot ca khoa THIEU, va mot lan nap hut se doc
+    # thanh "phuong phap khong an gi" (bai hoc da ghi memory).
+    if a.init_ckpt:
+        blob = torch.load(a.init_ckpt, map_location="cpu", weights_only=False)
+        sd = blob.get("model_state_dict", blob)
+        keep = {k: v for k, v in sd.items() if k.startswith("backbone.")}
+        if not keep:
+            raise SystemExit(f"{a.init_ckpt}: khong co khoa `backbone.` nao")
+        tgt = {k for k in model.state_dict() if k.startswith("backbone.")}
+        miss = sorted(tgt - set(keep)); extra = sorted(set(keep) - tgt)
+        model.load_state_dict(keep, strict=False)
+        model.to(dev)
+        print(f"[mw] nap Pha 1 tu {a.init_ckpt}: chuyen {len(keep)} khoa backbone | "
+              f"thieu {len(miss)} | thua {len(extra)}", flush=True)
+        if miss:  print(f"[mw]   vd thieu: {miss[:4]}", flush=True)
+        if extra: print(f"[mw]   vd thua : {extra[:4]}", flush=True)
+        # Chan truong hop nap hut: pooler khong co trong checkpoint la BINH THUONG, con
+        # thieu hang tram khoa thi la sai kien truc.
+        if len(miss) > 8:
+            raise SystemExit(f"nap hut {len(miss)} khoa backbone — kiem lai checkpoint")
+
     tr = load_split(a.data_root, a.fold, "train")
     if a.max_train_samples:
         tr = tr[: a.max_train_samples]
     va = load_split(a.data_root, a.fold, "val")
     te = load_split(a.data_root, a.fold, "test")
-    mk = lambda rows: WindowDataset(rows, tok, a.window, a.stride, a.max_windows, a.max_length)
+    mk = lambda rows: WindowDataset(rows, tok, a.window, a.stride, a.max_windows, a.max_length, a.window_mode)
     dtr = DataLoader(mk(tr), batch_size=a.batch_size, shuffle=True, num_workers=a.num_workers, drop_last=False)
     dva = DataLoader(mk(va), batch_size=a.eval_batch_size, shuffle=False, num_workers=a.num_workers)
     dte = DataLoader(mk(te), batch_size=a.eval_batch_size, shuffle=False, num_workers=a.num_workers)
 
-    nw = [len(WindowDataset([r], tok, a.window, a.stride, a.max_windows, a.max_length)[0]["window_mask"].nonzero())
+    nw = [len(WindowDataset([r], tok, a.window, a.stride, a.max_windows, a.max_length, a.window_mode)[0]["window_mask"].nonzero())
           for r in te[:80]]
-    print(f"[mw] K={a.max_windows} window={a.window} stride={a.stride} | "
+    print(f"[mw] mode={a.window_mode} K={a.max_windows} window={a.window} stride={a.stride} | "
           f"cua so/ham tren 80 hang test: TB {np.mean(nw):.2f}, >1 cua so: {100*np.mean(np.array(nw)>1):.1f}%", flush=True)
 
     opt = torch.optim.AdamW(model.parameters(), lr=a.learning_rate, weight_decay=a.weight_decay)

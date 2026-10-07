@@ -12,6 +12,29 @@
 - Luôn cài monitor nền khi có job chạy trên vast: theo dõi driver/GPU/tiến độ, báo khi xong fold hoặc khi hỏng, và kéo kết quả về + đối chiếu từng byte trước khi huỷ máy.
 
 
+> **CẬP NHẬT 28/09/2026 (người dùng):** "vast tên tôi tưởng của người khác, của chúng ta là con a4000". **51144271 (nhãn `cuongtm`)
+> hiện là máy của đồng nghiệp — KHÔNG huỷ, KHÔNG đổi nhãn về ntat, KHÔNG phóng job, KHÔNG xoá gì.** Máy của nhóm mình ở khối final là
+> A4000 `final_paper` (52805338), đã kéo kết quả + đối chiếu + huỷ 27/09 10:28. Lệnh "huỷ khi xong" của người dùng chỉ áp cho máy của mình;
+> nếu máy được nhắc đã không còn thì HỎI, không suy ra máy khác. Mục dưới là lịch sử 17–19/09.
+
+## INSTANCE ĐANG DÙNG — tra theo **ID**, không tra theo nhãn (19/09/2026)
+
+| | |
+|---|---|
+| **ID** | **`51144271`** |
+| loại | RTX 5060 Ti 16 GB |
+| SSH | `ssh -p 56599 root@115.73.216.179` (khoá `~/.ssh/id_ed25519`) |
+| thư mục | `/workspace/MultiVD`, python `/venv/main/bin/python`, model `/workspace/models/codebert-base` |
+| nhãn | đặt `ntat` từ 17/09 (máy vốn của `cuongtm`) |
+
+**KHÔNG HUỶ MÁY NÀY** — người dùng dặn 17/09, đè lên mọi quy tắc destroy ở dưới.
+
+**Nhãn có thể bị đổi khỏi `ntat` sau 13:00 VN 19/09** khi đồng nghiệp mượn. Lần sau quay lại
+phải **tra theo ID `51144271`** rồi đổi nhãn về `ntat`; tra theo nhãn sẽ không thấy và dễ
+tưởng máy đã mất. Không xoá gì trên đó khi bàn giao — đĩa còn đủ, họ tự xoá `model/` nếu cần.
+
+Kết quả và log của mọi khối đã kéo về `results_mwab_vast/` (đối chiếu từng byte).
+
 ## Huỷ máy — DESTROY, không bao giờ STOP (người dùng nêu 08/09/2026)
 
 ## HẾT VIỆC + NGƯỜI DÙNG KHÔNG CÓ MẶT ⇒ HUỶ NGAY, KHÔNG CHỜ HỎI

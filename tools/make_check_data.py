@@ -13,7 +13,7 @@ OUT = "data/check_data"
 BOS = [("ccpp_primevul_from-paired", "ccpp", "c"),
        ("java_cleanvul_3-4", "java", "java"),
        ("js_cleanvul_3-4", "js", "js")]
-GIAI_THICH = {
+REASON_NOTES = {
  "L1_mot_dong":              "Mã THÔ (trước khi xoá comment) chỉ có một dòng. Tiêu chí 1 của bộ lọc đồng tác giả (GraphTransferVD@d45c913 build_jsc.py), áp nguyên văn, chỉ cho JS. Người dùng chốt 23/09. Sau mọi tầng khác chỉ còn 1 cặp lọt: sending_profiles.min.js trong static/js/dist/.",
  "L1_duong_dan_build":       "Đường dẫn file nằm trong thư mục BUILD/VENDOR (dist/, build/, out/, node_modules/, bower_components/, vendor/, third_party/) hoặc tên *.min.js / *.bundle.js — mã do webpack/uglify sinh ra.",
  "L1_ten_ham_1-2_ky_tu":     "Hàm mở đầu bằng `function` + tên chỉ 1–2 ký tự (function t(, function ab(, function $a(). Với hàm ngắn kiểu này, lỗ hổng thường nằm ở HÀM NÓ GỌI BÊN TRONG chứ không nằm tại chỗ, nên đọc riêng nó cũng không học được gì. Loại hẳn, chấp nhận mất vài mẫu thật: đo 23/09 có 258 cặp dính mẫu này, 256 đã bị tầng khác bắt, chỉ còn 2 — một là mã nén thật đang lọt lưới, một là mã người viết (function at(target, path, update)).",
@@ -35,7 +35,7 @@ GIAI_THICH = {
  "L4_trung_sau_chuan_hoa":   "Sau khi phi-ngữ-nghĩa-hoá (định danh → ID1, ID2…; số → N; chuỗi → S) thì trùng NGUYÊN VĂN với một cặp đã giữ. Đây là clone sao-chép, ví dụ do_siocgstamp và do_siocgstampns — so nguyên văn không bắt được.",
 }
 
-TEN_HIEN = {
+REASON_LABELS = {
  "L1_duong_dan_build":       "L1 · đường dẫn build",
  "L1_noi_dung_mangle":       "L1 · nội dung đã minify",
  "L1_ten_ham_1-2_ky_tu":     "L1 · tên hàm 1–2 ký tự",
@@ -55,7 +55,7 @@ TEN_HIEN = {
  "L3b_nua_cap_da_xuat_hien": "L3b · nửa cặp đã xuất hiện",
  "L4_trung_sau_chuan_hoa":   "L4 · trùng sau chuẩn hoá",
 }
-def ten(w): return TEN_HIEN.get(w, w)
+def reason_label(w): return REASON_LABELS.get(w, w)
 
 def esc(s): return html.escape(s or "")
 
@@ -201,7 +201,7 @@ def block(pair, why, note=""):
     if why == "giu":
         badge = '<span class="rs k">GIỮ LẠI</span>'
     else:
-        badge = '<span class="rs x">loại bởi: %s</span>' % esc(ten(why))
+        badge = '<span class="rs x">loại bởi: %s</span>' % esc(reason_label(why))
     return ('<div class="pair"><div class="meta">%s</div><div class="cols">'
             '<div class="col"><div class="tag"><span>bản lỗi · label 1</span>%s</div><pre>%s</pre></div>'
             '<div class="col"><div class="tag"><span>bản vá · label 0</span>%s</div><pre>%s</pre></div>'
@@ -229,8 +229,8 @@ def main():
                 fh.write(json.dumps({
                     "pair_id": p, "lang": lang, "ket_qua": "loai" if why else "giu",
                     "tang": (why or "").split("_")[0] or None,
-                    "ly_do": why, "ten_hien": ten(why) if why else None,
-                    "giai_thich": GIAI_THICH.get(why, ""),
+                    "ly_do": why, "ten_hien": reason_label(why) if why else None,
+                    "giai_thich": REASON_NOTES.get(why, ""),
                     "file_name": rows[0].get("file_name"), "cwe": rows[0].get("cwe"),
                     "so_nua": len(rows),
                     "code_ban_loi": next((r["code"] for r in rows if r["label"] == 1), None),
@@ -250,8 +250,8 @@ def main():
             with open(os.path.join(d, "bi_loc", fn + ".jsonl"), "w", encoding="utf-8") as fh:
                 for p in ps:
                     for r in by[p]:
-                        fh.write(json.dumps(dict(r, ly_do=why, ten_hien=ten(why),
-                                                 giai_thich=GIAI_THICH.get(why, "")),
+                        fh.write(json.dumps(dict(r, ly_do=why, ten_hien=reason_label(why),
+                                                 giai_thich=REASON_NOTES.get(why, "")),
                                             ensure_ascii=False) + "\n")
 
         # ---- trang html
@@ -259,10 +259,10 @@ def main():
         secs, nav = [], []
         for why in sorted(per, key=lambda w: -len(per[w])):
             aid = why.replace(" ", "_").replace("(", "").replace(")", "").replace("<", "d")
-            nav.append('<a href="#%s">%s <b>%d</b></a>' % (aid, esc(ten(why)), len(per[why])))
+            nav.append('<a href="#%s">%s <b>%d</b></a>' % (aid, esc(reason_label(why)), len(per[why])))
             secs.append('<section class="drop" id="%s"><h2>%s <span class="n">· %d cặp bị loại</span></h2>'
                         '<p class="why">%s</p>%s</section>'
-                        % (aid, esc(ten(why)), len(per[why]), esc(GIAI_THICH.get(why, "")),
+                        % (aid, esc(reason_label(why)), len(per[why]), esc(REASON_NOTES.get(why, "")),
                            "".join(block(by[p], why) for p in per[why])))
         ks = sorted(keep)[:NS]
         nav.append('<a href="#giu">giữ lại <b>%d</b></a>' % len(keep))

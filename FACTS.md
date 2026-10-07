@@ -5970,3 +5970,1913 @@ Pha 1**, chỉ khác hạt giống Pha 2 — lệch **0.0607 ROC** trên codeber
 - n=3 fold, **một** cặp hạt giống, **một** backbone (t5p), một máy. Ước lượng thô.
 - Ba fold cho |Δ| rất lệch nhau (0.018 / 0.021 / 0.083) — trung bình 0.0408 chịu ảnh hưởng nặng
   của fold 3. Muốn con số chắc thì cần nhiều cặp hạt giống hơn.
+
+---
+
+## §66 — MW SẬP 1/5 FOLD, và cả `transfer` lẫn `ghép muộn` đều là **BẢO HIỂM** chứ không phải đòn bẩy (17/09, 2 ô GPU mới + 14 ô cũ, 161 A4000 + vast 5060 Ti)
+
+**Khối**: `results/mw_assemble_codebert`, seed 42, **n=5 fold**, backbone codebert.
+Fold 1–3 của `mwK8`/`mwTR` chạy trên vast 5060 Ti (16/09); **fold 4–5 của `mwTR` chạy trên
+161 A4000** (17/09) — người dùng chấp nhận khác máy để tiết kiệm thời gian. Sàn nhiễu giữa
+hai loại GPU là 0.028, phải nhớ khi đọc biên độ.
+
+**Baseline KHÔNG chạy lại.** Kho local có 20 cây codebert đủ 5 fold, seed 42, cùng chữ ký
+siêu tham số. Luật chọn **chốt trước khi nhìn Δ** (xem `CURRENT_RUN.md`): loại cây `sz*`,
+khử trùng lặp, đối chứng = **trung vị theo từng fold** của các cây còn lại. Sau khi thêm
+điều kiện "phải có `val_probabilities`" thì còn **6 cây**.
+
+### Ba nhánh, khác nhau ở đúng một chỗ mỗi lần
+
+| nhánh | khác nhánh trên ở chỗ nào |
+|---|---|
+| `mwK1` | multi-window với **K=1** — tức chỉ còn batch 4 + SAM 0.02 + chọn theo ROC |
+| `mwK8` (**MW**) | `--max_windows 8` |
+| `mwTR` (**MW+TR**) | thêm **đúng** `--init_ckpt` Pha 1 (199 khoá, thiếu 0, thừa 0) |
+| `assemble` | không huấn luyện: `p = (1−g)·p_mwK8 + g·p_mwTR`, ba mức cổng |
+
+### PHÁT HIỆN 1 — `mwK8` sập ở fold 4, và Pha 1 chặn được cú sập đó
+
+| ROC | f1 | f2 | f3 | **f4** | f5 |
+|---|---|---|---|---|---|
+| baseline (trung vị) | 0.8529 | 0.8717 | 0.8593 | **0.9178** | 0.8569 |
+| `mwK1` | 0.8845 | 0.8911 | 0.8654 | 0.9278 | 0.9040 |
+| `mwK8` | 0.9101 | 0.9059 | 0.9024 | **0.6564** | 0.8791 |
+| `mwTR` | 0.8900 | 0.8843 | 0.8753 | **0.8967** | 0.9155 |
+| `assemble` logreg | 0.9120 | 0.9099 | 0.9089 | **0.8937** | 0.9098 |
+
+`mwK8` fold 4 dừng ở **epoch 3** (F1@0.5 0.4119, PR 0.5129) — kẹt, không thoát. `mwTR`
+cùng fold đạt epoch 10 và ROC 0.8967.
+
+**Dự đoán đã ghi TRƯỚC khi đo** (`CURRENT_RUN.md`, 09:12 UTC, lúc ô còn đang chạy): ba mức
+≥0.87 / 0.70–0.87 / <0.70. Kết quả rơi vào **mức cao nhất**.
+
+| `mwTR − mwK8` theo fold (ROC) | f1 | f2 | f3 | f4 | f5 |
+|---|---|---|---|---|---|
+| | −0.0201 | −0.0217 | −0.0272 | **+0.2404** | +0.0364 |
+
+Ba fold lành: transfer **làm tệ đi** đều đặn ~0.023 ROC. Fold sập: cứu **+0.240**.
+Đây là phát biểu **về phương sai**, cùng dạng với giá trị duy nhất còn đứng của head phụ
+(CLAUDE.md mục 7). **CẢNH BÁO: mới MỘT lần sập** — chưa biết tần suất, chưa phải kết luận.
+
+### PHÁT HIỆN 2 — cổng `logreg` là nhánh DUY NHẤT thắng MW ở mọi fold
+
+| phép so | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| `asm_logreg − mwK8` | +0.0837 3/5 | +0.0152 3/5 | **+0.0561 5/5 p=0.0625** | **+0.0759 5/5 p=0.0625** |
+| `asm_const − mwK8` | +0.0859 4/5 | +0.0284 3/5 | +0.0455 3/5 | +0.0465 3/5 |
+| `asm_g05 − mwK8` | +0.0886 3/5 | +0.0367 5/5 | +0.0371 2/5 | +0.0334 2/5 |
+| `mwTR − mwK8` | +0.0830 4/5 | +0.0265 3/5 | +0.0416 2/5 | +0.0590 2/5 |
+
+**Bỏ fold 4 ra** (n=4) thì `asm_logreg − mwK8` vẫn **4/4 trên ROC (+0.0108) và PR (+0.0068)**
+— nhất quán nhưng biên độ **dưới sàn nhiễu hạt giống 0.041** (§65). Thứ đứng vững là
+**đếm dấu**, không phải con số +0.056. Trung bình +0.056 do **một fold** kéo.
+
+### PHÁT HIỆN 3 — cửa sổ KHÔNG phải đòn bẩy; batch 4 + SAM mới là
+
+`mwK1` (một cửa sổ) là nhánh **duy nhất trong bảng đạt 5/5 so với baseline**:
+**+0.0228 ROC 5/5** và **+0.0245 PR 5/5** (p=0.0625). Thêm cửa sổ (`mwK8`) biến nó thành
+**−0.0209 ROC** vì cú sập. Bỏ fold 4 thì `mwK8 − mwK1 = +0.0131 ROC 3/4`, +0.0311 F1@0.5 4/4.
+
+Khớp đúng ghi chú của chính `DE_XUAT_1_LATE_FUSION.md` dòng 449: *hiệu ứng cửa sổ thuần
+~0 (§131); phần tăng của MW target-only đến từ batch 4 (+2,8) và SAM (+1,9)*.
+
+### Δ so với baseline, cả bốn chỉ số
+
+| nhánh | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| `mwK1` | +0.0040 3/5 | +0.0101 3/5 | **+0.0228 5/5** | **+0.0245 5/5** |
+| `mwK8` | −0.0479 4/5 | +0.0029 4/5 | −0.0209 4/5 | −0.0390 4/5 |
+| `mwTR` | +0.0351 4/5 | +0.0294 4/5 | +0.0206 4/5 | +0.0200 4/5 |
+| `asm_g05` | +0.0406 4/5 | +0.0396 4/5 | +0.0162 4/5 | −0.0056 4/5 |
+| `asm_const` | +0.0380 4/5 | +0.0314 4/5 | +0.0245 4/5 | +0.0075 4/5 |
+| `asm_logreg` | +0.0357 4/5 | +0.0181 3/5 | +0.0351 4/5 | +0.0369 4/5 |
+
+Fold duy nhất mọi nhánh MW thua baseline là **fold 4** — cũng là fold baseline mạnh nhất
+(0.9178). Đổi cây đối chứng làm Δ ROC của `asm_g05` dịch trong **+0.0137…+0.0178**, tức
+không đổi dấu: kết luận không phụ thuộc việc chọn đối chứng.
+
+### Điều này giải thích §61
+
+§61 kết luận *"ghép muộn phần lớn là ensemble"* ở n=3. Đúng — vì **n=3 không có fold nào
+sập**. Ghép muộn chỉ đáng giá ở đúng những fold mà một trong hai model hỏng, và ở n=3 thì
+không có fold nào như vậy để nó thể hiện.
+
+**Công cụ**: `tools/mw_n5_table.py` (mới) — bốn chỉ số, đếm dấu, và in kèm **khoảng Δ khi
+đổi cây đối chứng**, vì kho có 20 cây baseline và chọn một cây là tự quyết kết luận (§61).
+
+---
+
+## §67 — BABEL (đồ thị đồng nhất trên DÒNG LỆNH, không parser) **KHÔNG hơn multi-window**; và Pha 1 chặn sập lần thứ ba (17/09, 10 ô, vast RTX 5060 Ti)
+
+**Nguồn**: [BABEL: A Novel Software Vulnerability Detection Framework for Breaking Language
+Barriers](https://ieeexplore.ieee.org/document/10795082/), ICSME 2024, `github.com/gdufsnlp/BABEL`.
+Cùng bài toán với dự án này: train một ngôn ngữ, phát hiện lỗ hổng ở ngôn ngữ khác.
+
+### Cách BABEL chống rào cản ngôn ngữ: bỏ hẳn code parser
+
+Parser (Joern/tree-sitter) mới là thứ khoá chặt vào một ngôn ngữ. BABEL thay bằng ba bước
+thuần từ vựng: (1) `clang-format` ColumnLimit lớn → mỗi câu lệnh một dòng; (2) `clean_gadget`
+symbol hoá định danh; (3) dựng **hai đồ thị ĐỒNG NHẤT trên các DÒNG**:
+
+| đồ thị | luật nối cạnh | tính chất |
+|---|---|---|
+| `data_matrix` | hai dòng **dùng chung một định danh** | **đối xứng**, không chuẩn hoá |
+| `control_matrix` | từ **độ thụt lề**, ngăn xếp nối cha→con và anh em cùng bậc | **bất đối xứng** |
+
+Đã tra hết 6 file trong `model/`: tất cả chỉ nhập `GraphConvolution` (Kipf & Welling **đồng nhất**).
+Repo **có** `layer/RGCN.py` (`RelationalGraphConvLayer`, dị thể) nhưng **không model nào nhập** —
+mã chết, đúng kiểu `LoRALinear` trong repo này.
+
+**"Confusion" trong tên file KHÔNG phải adversarial**: không gradient reversal, không domain
+classifier. Nó là cross-attention hợp nhất văn bản↔đồ thị. Encoder của họ là **bảng nhúng
+TĨNH + Conv1d(k=5)**, không có transformer tiền huấn luyện nào.
+
+**Hai lỗi trong mã phát hành** (đọc verbatim): `sent_gcn_attn_confusion.py` khai
+`lstm(input_size = sentence_hidden + graph_hidden)` nhưng đưa vào `cat` ba phần =
+`sentence_hidden + 2×graph_hidden` → **lệch chiều**; và nhánh control gọi
+`text_graph_confusion(sentence_output, …)` trong khi nhánh data gọi
+`(data_output2, …)` → **không đối xứng**. File chạy được là `sent_twogcn_concat.py`.
+
+### Bản cài ở đây (`src/babel_graph.py`, `src/train_babel.py`)
+
+Giữ nguyên luật dựng đồ thị của BABEL; thay encoder tĩnh bằng CodeBERT. **`--symbolize none`
+là mặc định** (đồ thị vẫn dùng định danh để nối cạnh, chỉ văn bản vào encoder là giữ tên thật),
+vì với LM đã tiền huấn luyện thì tên định danh chính là tín hiệu.
+
+Đo trên 760 hàm đích trước khi tốn GPU: **19.9 dòng/hàm** (p90 42, 0.3% chạm trần 150);
+bậc đồ thị data **2.75** cạnh/đỉnh, control **1.49**; `max_line_tokens=48` giữ nguyên vẹn
+**97.7%** số dòng.
+
+### Kết quả — n=5, codebert, seed 42
+
+| nhánh | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| baseline (trung vị 6 cây local) | 0.7695 | 0.7716 | **0.8717** | 0.8753 |
+| `babel` | 0.6862 | 0.6636 | 0.8048 | 0.8113 |
+| `babelTR` | 0.8009 | 0.7970 | 0.8739 | 0.8802 |
+| `asm_g05` | 0.8116 | 0.8169 | 0.8850 | 0.8798 |
+| `asm_logreg` | 0.8091 | 0.8042 | **0.8910** | **0.8932** |
+
+Δ so với baseline, nhánh tốt nhất: **+0.0396 F1@0.5 4/5**, **+0.0193 ROC 4/5**,
+**+0.0179 PR 4/5**. **Không dòng nào đạt 5/5 trên ROC.**
+
+### Đặt cạnh multi-window trên ĐÚNG tập đích, ĐÚNG backbone, ĐÚNG cách tính
+
+| khối | ROC tốt nhất |
+|---|---|
+| baseline | 0.8717 |
+| **BABEL** (`asm_logreg`) | **0.8910** |
+| **MW** (`asm_logreg`, §66) | **0.9069** |
+
+⇒ **Đổi từ cửa sổ 510 token sang dòng lệnh + đồ thị làm MẤT 0.016 ROC.** Cách đọc: BABEL
+thiết kế cho encoder là bảng nhúng tĩnh, nơi đồ thị phải gánh toàn bộ ngữ cảnh. Khi encoder
+đã là LM tiền huấn luyện, **cắt ngữ cảnh xuống một dòng ~20 token để lấy đồ thị là đổi chác
+không lời** — LM mất cái nó giỏi, hai tầng GCN không mua lại đủ.
+
+### Pha 1 chặn sập — lần thứ BA, trên kiến trúc thứ ba
+
+| | ô sập | ô cứu | chênh |
+|---|---|---|---|
+| MW codebert (§66) | `mwK8` f4: đỉnh@3, ROC 0.6564 | `mwTR` f4: **0.8967** | **+0.2404** |
+| BABEL | `babel` f2: đỉnh@2, ROC 0.5729 | `babelTR` f2: **0.8486** | **+0.2757** |
+
+`babel` f2 giữ loss ở **0.6935–0.6980 suốt 10 epoch** (ln2 = 0.6931) — chưa bao giờ rời khởi
+tạo; `mF1@cal = 0.3448` cố định là giá trị đoán một lớp. `babelTR` cùng fold thoát ngay epoch 1.
+
+`babelTR − babel`: **+0.1148 F1@0.5 5/5**, **+0.0691 ROC 5/5** (p=0.0625). Nhưng phần lớn
+biên độ do cú sập — đây là phát biểu về **phương sai**, không phải trung bình.
+
+### Ghép muộn có HAI vai trò, và khối này tách được chúng
+
+| fold | `babel` | `babelTR` | `asm_logreg` | vai trò |
+|---|---|---|---|---|
+| 2 (một bên sập) | 0.5729 | 0.8486 | 0.8488 | **bảo hiểm** — chỉ không bị kéo xuống |
+| 4 (cả hai khoẻ) | 0.8936 | 0.9081 | **0.9410** | **bù trừ** — vượt cả hai, **+0.0329** |
+
+Ở §61 (n=3) chỉ thấy vế bù trừ rất yếu vì không fold nào sập; ở §66 (n=5) chỉ thấy vế bảo
+hiểm vì fold 4 sập quá nặng. Khối này cho thấy **cả hai cạnh nhau trong cùng một khối**.
+
+**Mã**: `src/babel_graph.py` (dựng đồ thị, có cổng chặn lệch hàng), `src/train_babel.py`
+(2 nhóm learning rate: backbone 2e-5, đồ thị+head **5e-4** — module mới ở lr backbone sẽ
+không rời khởi tạo), `run/babel.sh`, `scripts/provision_babel.sh`.
+
+---
+
+## §68 — CHỈ SỐ TỔNG HỢP GIẤU MẤT ĐỘ BẤT ĐỒNG Ở MỨC MẪU: đổi card làm **19/152 hàng đổi hẳn nhãn** (18/09, **0 GPU thêm**, đọc lại 2 ô trùng nhau)
+
+**Cơ hội đo**: ô `babelmw` fold 3 bị chạy **hai lần** — một trên 161 (A4000), một trên vast
+(RTX 5060 Ti) — **cùng mã, cùng seed 42, cùng fold, cùng mọi siêu tham số**. Khác đúng một
+thứ: card. (Lý do có hai bản: tôi lỡ giết ô `babelmwTR` fold 3 trên 161 bằng một lệnh lọc
+tiến trình tự khớp chính nó, nên phải chạy lại **trọn fold 3** trên máy kia.)
+
+### Ở mức CHỈ SỐ, hai bản gần như trùng
+
+| GPU | F1@0.5 | F1@val | ROC | PR | epoch tốt nhất |
+|---|---|---|---|---|---|
+| A4000 | 0.7697 | 0.8047 | 0.8755 | 0.8794 | 7 |
+| 5060 Ti | 0.7628 | 0.7831 | 0.8611 | 0.8578 | 5 |
+| **\|hiệu\|** | **0.0069** | **0.0216** | **0.0144** | **0.0216** | |
+
+Khớp với sàn nhiễu giữa các loại GPU đã biết (**0.028**), thậm chí thấp hơn — nên nếu chỉ
+nhìn bảng thì kết luận là "đổi card gần như không ảnh hưởng".
+
+### Ở mức MẪU, hai bản bất đồng rất nhiều
+
+```
+tương quan xác suất từng hàng : 0.9164
+lệch tuyệt đối trung bình     : 0.1117
+số hàng ĐỔI PHÍA so với 0.5   : 19/152  =  12.5%
+```
+
+**Hai mô hình giống hệt nhau về mọi thứ trừ card đã cho 19 trên 152 hàng test một nhãn dự
+đoán khác hẳn.** Chỉ số tổng hợp chỉ lệch 0.014 vì các thay đổi **triệt tiêu lẫn nhau**, chứ
+không phải vì chúng không tồn tại.
+
+### Hệ quả bắt buộc
+
+Mọi phân tích **theo nhóm nhỏ** đứng trên nền yếu hơn nhiều so với vẻ ngoài của Δ tổng hợp:
+
+| phân tích | cỡ nhóm | số hàng kỳ vọng đổi phía chỉ vì đổi card |
+|---|---|---|
+| nhóm rò rỉ `test` (§58) | ~9 hàng/fold | ~1 hàng |
+| nhóm rò rỉ `train` (§58) | ~23 hàng/fold | ~3 hàng |
+| per-CWE hiếm (022, 079) | vài hàng | 1 hàng đủ lật dấu |
+
+⇒ **Một phát biểu per-nhóm hay per-CWE chỉ đứng được nếu nó lặp lại trên phần cứng khác**,
+không phải chỉ trên fold khác. Đây là điều kiện chặt hơn quy tắc hiện có ở CLAUDE.md mục 2
+(vốn chỉ đòi lặp trên phần cứng khác cho phát biểu **tổng hợp**).
+
+**Cách kiểm rẻ cho lần sau**: giữ lại ô trùng bất cứ khi nào một ô phải chạy lại trên máy
+khác, rồi so `test_probabilities` từng hàng — không tốn thêm một giây GPU nào.
+Dữ liệu: `results/_xgpu_babelmw/babelmw_fold3_{A4000,5060Ti}.json`.
+
+---
+
+## §69 — PHA 1 MUA ĐƯỢC BIÊN ĐỘ LEARNING RATE: lr cao làm `mwK8` **xấu đi** nhưng làm `mwTR` **tốt lên** (17–18/09, 18 ô t5p, 161 + vast)
+
+**Câu hỏi khởi nguồn.** §66/§67 cho thấy Pha 1 chủ yếu **rút ngắn cao nguyên ln2** ở đầu
+huấn luyện. Nếu vậy thì **tăng learning rate là cách chữa rẻ hơn transfer rất nhiều**, và
+phần công đang gán cho Pha 1 phải chia lại. Người dùng cho chạy đúng đối chứng đó.
+
+**Thiết kế.** t5p, multi-window cơ chuẩn §B.3, n=3 fold, seed 42, ba mức lr, mỗi mức một cây
+riêng để ghép cặp nằm trong cây. Mọi thứ khác **giữ nguyên tuyệt đối**.
+
+### Cao nguyên ĐÚNG LÀ rút ngắn theo lr — 9/9 ô, không lệch lần nào
+
+| nhánh @ lr | epoch đầu tiên val ROC ≥ 0.60 (f1, f2, f3) |
+|---|---|
+| `mwK8` @ 2e-5 | 5, 4, 4 |
+| `mwK8` @ 5e-5 | **3, 3, 3** |
+| `mwK8` @ 1e-4 | **3, 3, 3** |
+| `mwTR` @ 2e-5 | 2, 2, 2 |
+| `mwTR` @ 5e-5 | **1, 1, 1** |
+| `mwTR` @ 1e-4 | **1, 1, 1** |
+
+### NHƯNG điểm thì đi ngược nhau giữa hai nhánh
+
+| nhánh @ lr | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| `mwK8` @ 2e-5 | 0.7938 | 0.7933 | **0.9085** | 0.9183 |
+| `mwK8` @ 5e-5 | 0.8063 | 0.7965 | 0.8911 | 0.8966 |
+| `mwK8` @ 1e-4 | 0.7924 | 0.7767 | **0.8649** | 0.8695 |
+| `mwTR` @ 2e-5 | 0.8572 | 0.8595 | 0.9226 | 0.9323 |
+| `mwTR` @ 5e-5 | 0.8552 | 0.8529 | 0.9325 | 0.9393 |
+| `mwTR` @ 1e-4 | **0.8614** | 0.8362 | **0.9382** | **0.9427** |
+
+`mwK8` (khởi tạo thô): ROC **0.9085 → 0.8911 → 0.8649**, đơn điệu **giảm**.
+`mwTR` (khởi tạo từ Pha 1): ROC **0.9226 → 0.9325 → 0.9382**, đơn điệu **tăng**.
+
+### Khoảng cách giữa hai nhánh GIÃN RA theo lr
+
+| | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| `mwTR − mwK8` @ 2e-5 | +0.0634 3/3 | +0.0662 3/3 | +0.0141 2/3 | +0.0140 2/3 |
+| `mwTR − mwK8` @ 5e-5 | +0.0489 3/3 | +0.0564 3/3 | +0.0415 2/3 | +0.0427 2/3 |
+| `mwTR − mwK8` @ 1e-4 | +0.0690 3/3 | +0.0595 3/3 | **+0.0733 3/3** | **+0.0732 3/3** |
+
+### Kết luận — và nó BÁC BỎ nỗi lo ban đầu
+
+Tăng lr **không** thay được transfer. Nó là thứ **chỉ transfer mới dùng được**: khởi tạo từ
+Pha 1 đặt mô hình ở vùng chịu được bước lớn, còn khởi tạo thô thì bước lớn làm hỏng.
+
+Đây là phát biểu **mạnh hơn** "Pha 1 là bảo hiểm" của §66: nó nói Pha 1 **mở ra một vùng siêu
+tham số** mà không có nó thì không vào được. Và nó giải thích vì sao ở lr mặc định 2e-5 thì
+Δ ROC chỉ +0.0141 (2/3, yếu) — **cơ chuẩn đang đo transfer ở đúng chỗ nó ít lộ nhất**.
+
+### Giới hạn phải ghi kèm
+
+- **n=3, MỘT backbone (t5p), MỘT hạt giống.** Đang lặp trên codebert (`mw_asm_cb_lr1e4`).
+- Biên độ +0.0733 ROC **vượt** sàn nhiễu hạt giống 0.041, nhưng +0.0141 và +0.0415 thì không.
+- Một ô (`mwTR` fold 2 @ 5e-5) phải chạy lại trên vast sau khi OOM trên 161; cùng loại
+  GPU (5060 Ti) với các ô khác của mức đó thì không, nên mức 5e-5 **trộn hai loại card**.
+  Mức 2e-5 và 1e-4 thì đồng nhất.
+
+---
+
+## §70 — KHỐI BABEL CỦA TA HỎI SAI CÂU: đồ thị phải **CỘNG** lên cửa sổ, không phải **THAY** cửa sổ (18/09, **0 GPU**, đọc mã `GraphTransferVD@multibabel`)
+
+**Nguồn**: repo riêng `maytinhdibo/GraphTransferVD`, nhánh `multibabel` (mã + nhật ký của
+đồng nghiệp). Truy cập bằng SSH GitHub của tài khoản `TuTuanLyan`; `WebFetch` không vào được
+repo riêng. Mã tham chiếu chép vào `src_mwg/` (cây riêng, không trộn với `src/`).
+
+### Loại trừ trước hai nghi can dễ đổ lỗi
+
+| nghi can | kết luận |
+|---|---|
+| **dữ liệu đích khác nhau** | **KHÔNG.** md5 lệch cả 15 file, nhưng chỉ lệch **siêu dữ liệu** (`cwe_class`/`cwe_id` của ta so với `CWE_ID`/`original_CWE_ID` của họ). Nội dung trùng khít: 456/152/152 hàng, **cùng thứ tự**, giao 456/456 và 152/152 ở mọi fold, không hàng nào riêng của bên nào |
+| **mã multi-window khác nhau** | **KHÔNG.** `MultiWindowModel` hai bên trùng khít logic: cùng `win_pos_emb`, `rel_pos`, mean-pool có mặt nạ, `vul_head=Linear(H,2)`, cùng cách cắt cửa sổ, cùng `build_inputs_with_special_tokens` mỗi cửa sổ |
+
+### Chỗ khác thật: cách dùng đồ thị
+
+`train_mwg.py::MWGraphModel.line_states` — *"Gộp token → dòng: mean các trạng thái token của
+mỗi dòng (qua mọi cửa sổ chứa nó)"*. Vector của mỗi **đỉnh-dòng** lấy từ **chính lượt forward
+của cửa sổ 510 token**, nên đỉnh vẫn mang đủ ngữ cảnh cửa sổ. Rồi `fusion="cat"`:
+
+```
+z = cat([z_mw, z_g])        vul_head = Linear(2H, 2)
+```
+
+Hai nhánh **song song, dùng chung một encoder**. Còn `src/train_babel.py` của ta mã hoá từng
+khúc 96 token **độc lập** và **không có nhánh `z_mw` nào** — tức đã vứt bỏ ngữ cảnh cửa sổ
+để đổi lấy đồ thị.
+
+| cùng một đồ thị, hai cách dùng | ROC (3 fold đầu) |
+|---|---|
+| họ, MW thuần | 0.8900 |
+| họ, MW **+ đồ thị** (cộng vào) | **0.9128** → **+0.023** |
+| ta, MW thuần | 0.9061 |
+| ta, khúc + đồ thị (**thay** cửa sổ) | 0.8714 → **−0.035** |
+
+**Chênh lệch giữa hai cách dùng cùng một đồ thị là 0.058 ROC** — lớn hơn mọi hiệu ứng dự án
+đang đo, và lớn hơn mọi sàn nhiễu. ⇒ Kết luận của §67 (*"BABEL không hơn multi-window"*) và
+của artifact "Cửa sổ hay đồ thị" **so sai cặp**: phép so đúng là *cửa sổ* với *cửa sổ + đồ thị*,
+không phải *cửa sổ* với *khúc + đồ thị*.
+
+### Hai khác biệt cấu hình, không phải lỗi nhưng làm số không so trực tiếp được
+
+`qg.sh` của họ đặt `--sam_rho ${SAM:-0}` (**SAM tắt mặc định**) và `SEED=36`; ta dùng
+**SAM 0.02, seed 42**. Đó là lý do MW thuần của ta (0.9061) cao hơn của họ (0.8900) — hai
+cấu hình khác nhau, không phải bên nào làm tốt hơn.
+
+Và baseline của họ (`b4_sven`, CodeBERT thuần 512, **batch 4**) = **0.8934**, còn baseline của
+ta là **batch 16** = 0.8717. Ô `mwK1` của ta (một cửa sổ, batch 4 + SAM) = 0.8946, gần trùng
+`b4_sven`. ⇒ **Baseline đúng cho lớp phương pháp này là batch 4**; mọi Δ của ta đo với baseline
+batch 16 đang bị thổi lên khoảng **+0.022 ROC**.
+
+### Ghi chú lấy mã của họ về chạy
+
+`code_snapshot/src/` **thiếu `train.py`** (mà `train_transfer.py` import) — phải lấp từ `src/`
+của dự án gốc. Cổng nạp model phải đặt **trước vòng lặp fold**: lần phóng đầu mất cả 3 fold
+trong 16 giây vì lỗi nạp offline chỉ lộ ra ở từng fold.
+
+**Đang chạy**: tái lập `mwgU_b_sven` bằng mã của họ, trên vast, seed 36, SAM 0 — đối chiếu
+với số họ công bố **0.8936 / 0.9440 / 0.9009**.
+
+---
+
+## §71 — BẬC THANG TÁCH PHẦN ĐÓNG GÓP, ĐO TRÊN 33 Ô CÓ SẴN CỦA ĐỒNG NGHIỆP: **đồ thị ăn, cửa sổ không ăn** (18/09, **0 GPU thêm**, đọc `backup_cuongtm_51144271`)
+
+Backup tôi giữ lại từ instance 51144271 chứa **kết quả gốc đầy đủ** của họ — mỗi ô có
+`fold*.json` **và** `fold*.probs.npz`, nên bốn chỉ số được **tính lại bằng đúng một hàm**
+(`tools/mwg_table.py` → `late_fusion_gate.four`), không phải đọc số họ đã in. Ghép cặp
+theo fold, không bao giờ lấy hiệu hai trung bình.
+
+**Tên hiển thị dùng trong mục này** (người dùng nêu 18/09): `baseline` = `b4_sven`;
+`mw` = `mw_b_sven_mean`; `mw_babel` = `mwgU_b_sven`; **`mw_assemble_babel`** =
+`mwgU_xAsRl_jsCjv2sven` (Pha 1 `mwgp1U_jsCjv`). Tên phải lộ thành phần — xem memory
+`use-mw-assemble-babel-block-name`.
+
+### Bậc thang (ROC-AUC, Δ ghép cặp từng fold)
+
+| bước | thêm cái gì | n | ROC-AUC | F1@0.5 |
+|---|---|---|---|---|
+| `baseline` → `mw` | **multi-window** | 3 | **−0.0028  1/3** | +0.0053 1/3 |
+| `mw` → `mw_babel` | **đồ thị BABEL** | 3 | **+0.0228  3/3** | +0.0179 3/3 |
+| `mw_babel` → `mw_assemble_babel` | **transfer 2 pha** | 3 | **+0.0167  2/3** | +0.0589 3/3 |
+| **`baseline` → `mw_assemble_babel`** | | **5** | **+0.0407  5/5** | **+0.0734  5/5** |
+
+Cộng ba bước rời: −0.0028 + 0.0228 + 0.0167 = **+0.0367**, so với tổng đo trực tiếp
+**+0.0407** — cộng tính khớp trong sàn nhiễu. Đối chứng độc lập ở n=5: `mwg_b_sven − b4_sven`
+(cửa sổ + đồ thị, không transfer) = **+0.0173 ROC 5/5**, khớp với tổng hai bước đầu (+0.0200).
+
+### Khối gộp đủ ba so với baseline — **bốn chỉ số, n=5, 5/5 fold**
+
+```
+                              F1@0.5   F1@val     ROC      PR
+mw_assemble_babel             0.8616   0.8615   0.9341   0.9398
+baseline                      0.7882   0.7910   0.8934   0.9039
+Δ ghép cặp                    +0.0734  +0.0705  +0.0407  +0.0360
+đếm dấu                         5/5      5/5      5/5      5/5      p=0.0625 (SÀN của n=5)
+từng fold (ROC)               +0.0436 +0.0140 +0.0523 +0.0327 +0.0609
+```
+
+Biên độ ROC nhỏ nhất **+0.0140** vẫn trên sàn nhiễu cùng-loại-card (0.010), nhưng **dưới**
+sàn khác-loại-card (0.028) — nên phát biểu chỉ đứng trong phạm vi một loại phần cứng.
+
+### Điều này SỬA §70 và sửa luôn kết luận của trang "Cửa sổ hay đồ thị"
+
+§70 mới chỉ nói ta **hỏi sai câu** (đồ thị phải cộng lên cửa sổ). Số ở đây trả lời câu đúng:
+**cửa sổ một mình không mua được gì** (−0.0028, 1/3), **đồ thị cộng lên cửa sổ mới là chỗ ăn**
+(+0.0228, 3/3). Trang artifact đang kết luận ngược — phải sửa.
+
+### Chất lượng Pha 1 KHÔNG dự đoán được lợi ích Pha 2 — ngược dấu
+
+Hai nhánh cùng mã, cùng cờ, chỉ khác nguồn Pha 1, đo trên **cùng 3 fold**, cùng đối chứng
+`mwgU_b_sven`:
+
+| nhánh | ROC Pha 1 (nguồn) | Δ ROC Pha 2 | Δ F1@0.5 |
+|---|---|---|---|
+| `…jsCjv2sven` | **0.7099** | +0.0167 2/3 | +0.0589 3/3 |
+| `…jsCjvR2sven` | **0.5564** ← gần ngẫu nhiên | **+0.0255 2/3** | **+0.0766 3/3** |
+
+Checkpoint Pha 1 **yếu hơn hẳn** lại cho Δ **cao hơn** ở cả hai chỉ số. Trên toàn bộ 6 nguồn
+Pha 1 họ chạy (0.5564 → 0.7507), trung bình Pha 2 nằm gọn trong 0.9146–0.9341 — **dải 0.019**,
+trong khi dải chất lượng Pha 1 là **0.194**. Hệ quả vận hành: **không được bỏ một ô vì Pha 1
+của nó yếu** (đúng CLAUDE.md §3), và không được lấy val Pha 1 làm cổng chọn nguồn.
+
+### Một trùng hợp đáng ghi để không đọc nhầm lần sau
+
+`…jsCjv2sven` fold 1 và `…jsCjvR2sven` fold 1 cho ROC **trùng 16 chữ số**: `0.9304468788036863`
+— dù là hai lần chạy khác hẳn nhau (best epoch 5 vs 6, val 0.9499 vs 0.9548, F1@0.5 0.8549 vs
+0.8682, ngưỡng 0.23 vs 0.26). ROC-AUC là thống kê **thứ hạng** trên 152 hàng test nên chỉ nhận
+được hữu hạn giá trị; hai lần chạy khác nhau **đụng cùng một giá trị** là chuyện có thể xảy ra.
+Đừng đọc nó thành "`--init_ckpt` không nạp" — mọi chỉ số còn lại đều khác.
+
+### Cách tái hiện (không tốn GPU)
+
+```
+PY=/home/ntat/miniconda3/envs/vdenv/bin/python
+R=/drive1/cuongtm/ntat/backup_cuongtm_51144271/MultiVD/results
+$PY tools/mwg_table.py --a mwgU_xAsRl_jsCjv2sven --b b4_sven --root $R
+```
+
+---
+
+## §72 — PHA 1 CỦA KHỐI `mw_assemble_babel` CÓ THỂ **KẸT NGHIỆM TẦM THƯỜNG**, và đó là hiện tượng đã biết của chính tác giả mã (18/09, vast 5060 Ti + repo `maytinhdibo/GraphTransferVD@multibabel`)
+
+### Hiện tượng
+
+Chạy lại Pha 1 `mwgp1U_jsCjv` bằng đúng mã, đúng cờ, đúng dữ liệu, đúng card của họ:
+
+| epoch | họ 16/09 (val / train loss) | ta 18/09 (val / train loss) |
+|---|---|---|
+| 1 | 0.5297 / **1.9740** | 0.5265 / **1.9791** |
+| 2 | 0.6746 / 1.8214 | 0.5283 / 1.9672 |
+| 3 | 0.7082 / 1.5068 | 0.5312 / 1.9504 |
+| 8 | **0.7099** / 0.7397 | 0.5339 / 1.9438 |
+
+Tổng thời gian train **4644 s ở cả hai** — trùng từng giây, tức cùng số bước. Epoch 1 trùng tới
+chữ số thứ ba rồi rẽ. Pha 2 nối tiếp cũng kẹt: fold 1 val ROC **0.4494 → 0.4395** qua 7 epoch,
+train loss dính ở ~0.71 ≈ ln2 (của họ fold này best val **0.9499**).
+
+### Không phải lỗi cấu hình — đã đóng TOÀN BỘ biến
+
+| biến | cách kiểm | kết quả |
+|---|---|---|
+| dữ liệu | md5 `data/mwsrc_jsCjv/fold1/*.jsonl` | **trùng** (`b831b147…`) |
+| dữ liệu (repo git của họ) | md5 toàn bộ 65 file `*.jsonl` | **42 file chung trùng byte, 0 lệch** |
+| mã | md5 **mọi** `*.py` **kể cả gói `babel/`** | 7 module thực thi **trùng**; xem CLAUDE.md §13 |
+| import bắc cầu | `train_transfer.py:34` kéo `train.py` | `train.py` chỉ có docstring + `logger` ở cấp module ⇒ vô hại |
+| cờ | so từng ký tự với `qp9.sh` | **trùng** |
+| model | 199 tensor, `/drive1/cuongtm/models/codebert-base` vs `microsoft/codebert-base` | **lệch lớn nhất 0.000e+00**, config + tokenizer trùng |
+| thư viện | ngày cài trong `site-packages` | torch/numpy 21/08, transformers/sklearn 15/09 — **trước** lần chạy 16/09 của họ |
+| card | log của họ ghi thiết bị | **cùng RTX 5060 Ti** |
+| máy hỏng? | `mw_babel` (`mwgU_b_sven`) tái hiện cùng buổi | **0.8783 / 0.9321 / 0.9169** — máy chạy tốt |
+
+### Tác giả mã đã gặp đúng thế này và xử lý bằng WATCHDOG
+
+`scripts/qp19_local.sh` dòng 4 của họ, nguyên văn:
+
+> *"P1 chain seed 36; watchdog: neu sau epoch 3 val < 0,60 (**ket nghiem tam thuong nhu tren
+> 158**) -> giet, doi seed +1 (toi da 3 lan)."*
+
+Khối watchdog (dòng 10–19) thử seed **36 → 37 → 38**, giết ngay sau epoch 3 nếu val < 0.60.
+**Cách dùng đúng**: ghép nguyên văn khối đó vào `qp9.sh` nguyên văn ⇒ `qp9_n5_wd.sh`. Chi phí
+một lần bốc xấu tụt từ **80 phút xuống ~30 phút**.
+
+> **Hệ quả cho §71**: phát biểu *"chất lượng Pha 1 không dự đoán được lợi ích Pha 2"* chỉ đúng
+> **trong dải 0.5564–0.7507** mà họ đo. Dưới ngưỡng ~0.60 là **chế độ khác** — nghiệm tầm
+> thường — và nó kéo sập luôn Pha 2. Ngưỡng 0.60 của watchdog chính là ranh giới đó.
+
+### Comment: khối đạt 0.93 chạy trên dữ liệu **CÒN NGUYÊN comment**
+
+- `babel/clean_gadget` **không** gọi `remove_comments` (import kèm `# noqa: F401`, cố ý bỏ không).
+  Comment chỉ bị cắt tạm để **dò định danh**; dòng trả về vẫn còn comment, và chữ trong comment
+  **bị đổi thành `VARk`** (`// FIXED:` → `// VAR3:`) nên tham gia tạo cạnh chia sẻ định danh.
+- `--norm_text 0` ⇒ CodeBERT đọc thẳng `code` thô. Node là dòng comment thuần: **1.8% (ccpp)**,
+  **0.0% (js/java)**.
+- Repo của họ **có** bản `data/sven_python_folds_nocmt` (đủ 5 fold, `DATA.md` + §16.6): xoá
+  comment/docstring bằng `babel/strip_comments`, **73% hàm đổi, số dòng −17.1%**. Đo lại fold 1
+  test: **113/152 hàng đổi**, 112 trong đó đổi số dòng. Họ đang chạy nhánh này ở local 18/09.
+- `remove_comments` của họ **an toàn** với `https://` trong và ngoài chuỗi, `<!-- -->` trong HTML,
+  `//` trong regex literal. Một khiếm khuyết tiềm ẩn: block comment nhiều dòng làm **mất một dòng**
+  (đúng bẫy chính họ cảnh báo ở `clean_gadget.py:220`) — nhưng hàm này không bao giờ được gọi.
+
+### ⚠ `strip_noise` của TA thì HỎNG — ảnh hưởng §67
+
+`src/babel_graph.py:strip_noise` cắt ngay tại `//` bên trong URL:
+
+```
+const u = "https://ex.com/a"; // comment   ->   const u = "https:
+fetch("https://ex.com/x")                  ->   fetch("https:
+const s = "/* khong phai comment */";      ->   const s =  "" ;
+```
+
+Tỷ lệ hàm có ít nhất một URL: **python(sven) 3.2%**, js 3.4%, java 2.2%, ccpp 0.8%.
+Khối BABEL riêng ở **§67** chạy trên mã này ⇒ kết luận *"BABEL dòng-lệnh không hơn multi-window"*
+**phải xem lại** trước khi dùng.
+
+---
+
+## §73 — `mw_assemble_babel` vs `baseline`, **n=5, khối của TA**, lặp lại độc lập khối của họ (18/09, vast 51144271 RTX 5060 Ti)
+
+Chạy bằng **script của chính họ** (`qp9.sh` + khối watchdog nguyên văn từ `qp19_local.sh`,
+`FOLDS="1 2 3 4 5"` theo mẫu `qp11.sh`), `src/` thật của họ, `$M=/workspace/models/codebert-base`
+của họ. Pha 1 `mwgp1U_jsCjv` seed 36, best epoch 7, **val/test ROC 0.7189** (của họ 0.7099).
+
+### Khối của TA — 10 ô, cùng máy cùng phiên, ghép cặp theo fold
+
+```
+nhanh                       F1@0.5   F1@val      ROC       PR   epoch tot nhat
+mw_assemble_babel           0.8445   0.8458   0.9234   0.9307   17,13,7,16,12
+baseline                    0.7875   0.7875   0.8996   0.9086   15,10,16,5,14
+
+chi so     Delta TB   dem dau      p   tung fold
+F1@0.5      +0.0570      5/5   0.062   +0.0661 +0.0526 +0.0662 +0.0207 +0.0792
+F1@val      +0.0584      5/5   0.062   +0.0528 +0.0395 +0.0530 +0.0409 +0.1058
+ROC         +0.0237      4/5   0.375   +0.0285 +0.0111 +0.0153 -0.0044 +0.0682
+PR          +0.0221      4/5   0.375   +0.0257 +0.0265 +0.0180 -0.0037 +0.0442
+```
+
+### Đặt cạnh khối của họ (cùng máy, 16/09) — hai lần chạy ĐỘC LẬP
+
+| chỉ số | TA | HỌ |
+|---|---|---|
+| F1@0.5 | **+0.0570  5/5** | **+0.0734  5/5** |
+| F1@val | **+0.0584  5/5** | **+0.0705  5/5** |
+| ROC | +0.0237  **4/5** | +0.0407  5/5 |
+| PR | +0.0221  **4/5** | +0.0360  5/5 |
+
+**Lặp lại được về hướng và về đếm dấu ở hai chỉ số F1 (5/5 ở cả hai lần).** ROC/PR của ta hụt
+một fold: fold 4 cho **−0.0044** (ROC) và **−0.0037** (PR) — cả hai **dưới sàn nhiễu 0.010**,
+tức không phân biệt được với chạy lại đúng một thứ.
+
+### Vì sao Δ của ta nhỏ hơn — cả hai đầu cùng ép vào
+
+| | TA | HỌ |
+|---|---|---|
+| `mw_assemble_babel` ROC | 0.9234 | 0.9341 |
+| `baseline` ROC | **0.8996** | 0.8934 |
+
+Nhánh chính của ta thấp hơn 0.0107 **và** baseline của ta cao hơn 0.0062 ⇒ Δ co lại 0.0170.
+Bài học vận hành: **so Δ với Δ, không so số tuyệt đối với số tuyệt đối** — biến động của
+baseline đóng góp vào khoảng cách y như biến động của nhánh chính.
+
+### Dấu vết cơ chế: khác biệt nằm ở NGƯỠNG, không ở thứ hạng
+
+```
+         fold1  fold2  fold3  fold4  fold5
+ep ta      17     13      7     16     12      (ho: 5, 9, 8, 8, 7)
+thr ta   0.89   0.86   0.71   0.69   0.05      (ho: 0.23, 0.29, 0.20, 0.87, 0.05)
+```
+
+Pha 1 của ta **mạnh hơn** (0.7189 vs 0.7099) nhưng Pha 2 hội tụ **muộn hơn** ở 4/5 fold và để
+lại xác suất dồn về phía cao. Fold 5 là fold duy nhất hai bên cùng ngưỡng 0.05 — và là fold duy
+nhất ta **thắng cả bốn chỉ số**. Nhất quán với §2b: F1@0.5 và AUC đo hai thứ khác nhau.
+
+### Giới hạn phát biểu
+
+Hai lần chạy này **cùng một máy vật lý** (vast 51144271). Theo CLAUDE.md §2 và **FACTS §52.1**,
+n=5 trên một máy **chưa đủ để viết vào bài** — phải lặp trên phần cứng khác. Cái đã có: hiệu ứng
+tồn tại và lặp được qua hai lần bốc Pha 1 độc lập, biên độ ROC trong khoảng **+0.024 … +0.041**.
+
+Kết quả ở `results_mwab_vast/` (đối chiếu 22 file, đúng từng byte). Máy **KHÔNG huỷ** theo dặn dò.
+
+---
+
+## §74 — BỘ XOÁ COMMENT CỦA ĐỒNG NGHIỆP **XOÁ MẤT CHÍNH LỖ HỔNG**; đã viết bản đúng bằng `ast`+`tokenize` (18/09, **0 GPU**, 3 800 hàng)
+
+### Hỏng ở đâu
+
+`data/sven_python_folds_nocmt` của họ dựng bằng `babel/strip_comments.remove_comments`, mà hàm
+đó coi **mọi chuỗi ba nháy là docstring**. Với bộ SVEN Python thì đó là xoá mất nhãn dương:
+
+```
+hàng 185 fold1/train, nhãn=1, CWE-089
+  norm :  query = '''select * from usr where email like\'''' + email + '\''
+  nocmt:  query = ""' + email + '\''          ← câu SQL gây injection biến mất, cú pháp vỡ
+
+hàng 152 fold1/train, CWE-089
+  norm :  query = '''SELECT to_char(log_errors.date, 'Mon DD YYYY'), ...
+  nocmt:  query = ""
+```
+
+Đếm trên 5 fold × {train,val,test} = **3 800 hàng**: **230** chuỗi ba nháy gán cho biến bị xoá,
+**85** URL trong mã/chuỗi biến mất, **2 735** hàng đổi số dòng. Các chuỗi bị xoá gồm cả template
+HTML `'<option value="%s">%s</option>' % (wikiutil.escape(page), …)` — tức mẫu XSS.
+
+> Nghịch lý: bộ `remove_comments` của họ **an toàn** với `//` trong URL, `<!-- -->` trong HTML,
+> `//` trong regex literal (đã thử cả bốn ca). Chỗ hỏng không phải regex URL mà là **giả định
+> chuỗi ba nháy = docstring**.
+
+### Bản đúng: `tools/strip_comments_py.py`
+
+| cơ chế | tác dụng |
+|---|---|
+| `tokenize` → token `COMMENT` | chỉ bắt `#` THẬT; `#` trong chuỗi không bao giờ dính |
+| `ast` → chuỗi đứng một mình làm câu lệnh đầu của Module/Function/Class | docstring thật; chuỗi gán cho biến **không** phải |
+| `textwrap.dedent` rồi trả thụt lại | hàm trích từ trong class làm `ast` hỏng — parse hỏng **54.7% → 1.6%** |
+| đường lui khi vẫn không parse | chuỗi ba nháy **mở đầu dòng** mới là docstring; có `=` phía trước là giá trị. **Phải nhảy qua cả nháy đóng** của chuỗi giá trị, nếu không nháy đóng nằm đầu dòng bị đọc nhầm thành nháy mở |
+| xoá bằng thay khoảng trắng | **giữ nguyên số dòng** ⇒ đồ thị BABEL vẫn khớp hàng |
+
+### Đối chiếu trên 3 800 hàng
+
+| | bản của TA | bản của HỌ |
+|---|---|---|
+| đổi số dòng | **0** | 2 735 |
+| chuỗi ba nháy gán biến bị xoá | **0** | **230** |
+| URL trong mã bị mất | **0** | 85 |
+| URL trong comment bị xoá (đúng) | 30 | 25 |
+| hàm còn comment rò rỉ (`fix`/`sanitize`/`CVE`/`XSS`/`SQLi`…) | 165 → **0** | 165 → 0 |
+| nhãn đổi | 0 | 0 |
+
+15 hàm bị bộ dò rò rỉ của tôi báo là "còn sót" đều là **dương tính giả**: dòng đóng của chuỗi
+HTML nhiều dòng, chữ `escape` ở đó là lời gọi hàm thật chứ không phải comment.
+
+Dữ liệu ở `data/sven_python_folds_nocmt2`, đăng ký trong `qg.sh` dưới `TGT=svennc2`.
+
+### Bẫy đo lường gặp trong lúc kiểm — ghi để không lặp
+
+- Bộ dò "cắt giữa URL" đầu tiên dùng `\w+:\s*$` ⇒ bắt luôn `try:`, `except Exception:`,
+  `for x in y:` — **7 885 dương tính giả**. Regex kết thúc dòng bằng `từ:` là vô dụng với Python.
+- Bộ phân loại "URL nằm trong comment hay trong mã" chỉ xét dòng có mở đầu bằng `#` ⇒ xếp nhầm
+  **10** URL ở **dòng tiếp** của docstring thành "trong mã". Phải xét cả thân docstring.
+
+---
+
+## §75 — PHA 1 **16 EPOCH** THAY VÌ 8: nâng chất lượng nguồn **+0.021 ROC** nhưng ở đích chỉ **+0.0030 (4/5)** — dưới sàn nhiễu; cái thật sự đổi là **ĐỘ ỔN ĐỊNH** (18–19/09, vast 51144271, 10 ô)
+
+Chạy bằng đúng `qp9.sh` của họ, chỉ đổi `--epochs 8` → `--epochs 16` và tag. Cùng máy,
+cùng phiên, cùng `baseline` n=5 (`b4_sven`, ROC 0.8996).
+
+### Pha 1: trần 16 epoch VẪN bị chạm
+
+`mwgp1U_jsCjv_e16`: best epoch = **16** (epoch cuối), `patience 0/8`, val/test **0.7395**.
+So với 8 epoch: best ep 7, **0.7188**. Của họ: best ep 8, **0.7099**.
+
+Train loss rơi 1.9824 → **0.2455** trong khi **val ROC vẫn tăng** tới epoch cuối. Chú thích
+trong runner của họ ghi *"--epochs 8 cắt cứng vì Pha 1 overfit từ epoch 5"* — **đọc overfit
+từ train loss là sai** với cấu hình này; theo val thì chưa hề bão hoà ở cả 8 lẫn 16 epoch.
+
+### Đích: so với `baseline`, n=5 — **cả bốn chỉ số 5/5**
+
+```
+                              F1@0.5   F1@val      ROC       PR   epoch tot nhat
+mw_assemble_babel(P1 16ep)    0.8577   0.8538   0.9264   0.9274   9,6,6,8,8
+baseline                      0.7875   0.7875   0.8996   0.9086   15,10,16,5,14
+Delta                        +0.0701  +0.0663  +0.0267  +0.0189
+dem dau                         5/5      5/5      5/5      5/5     p=0.0625 (san)
+```
+
+So với khối Pha 1 8 epoch (**§73**): ROC +0.0237 **4/5**, PR +0.0221 **4/5**. Nới epoch làm
+**đếm dấu lên đủ 5/5 ở cả bốn chỉ số**.
+
+### Nhưng ghép cặp TRỰC TIẾP hai khối thì hiệu ứng **biến mất**
+
+```
+mw_assemble_babel(P1 16ep) − mw_assemble_babel(P1 8ep), ghep cap tung fold
+F1@0.5  +0.0132  3/5   +0.0270 -0.0002 +0.0129 +0.0327 -0.0067
+F1@val  +0.0080  3/5   +0.0400 -0.0001 +0.0134 +0.0264 -0.0399
+ROC     +0.0030  4/5   +0.0123 +0.0175 +0.0045 +0.0138 -0.0332
+PR      -0.0033  3/5   +0.0125 +0.0077 -0.0164 +0.0039 -0.0241
+```
+
+**+0.0030 ROC nằm dưới sàn nhiễu 0.010**; PR còn **âm**. Pha 1 tốt hơn **+0.0207 ROC ở nguồn**
+chỉ đổi được **+0.0030 ở đích** — hệ số truyền ~1/7, và không phân biệt được với chạy lại.
+
+> **Tôi đã đọc vội ở fold 1.** Fold 1 cho +0.0123 ROC và +0.0270 F1@0.5, tôi báo là "thắng cả
+> bốn chỉ số"; tới n=5 thì còn +0.0030 và 3/5. Đây là **lần thứ tám** một mẫu hình co lại khi
+> thêm fold trong dự án này (DEAD_ENDS §E). n=1 chỉ để phát hiện, không để phát biểu.
+
+### Cái thật sự đổi: hội tụ và hiệu chỉnh ngưỡng
+
+| | P1 8 epoch | P1 16 epoch |
+|---|---|---|
+| epoch tốt nhất của Pha 2 | 17, 13, 7, 16, 12 | **9, 6, 6, 8, 8** |
+| ngưỡng hiệu chỉnh (fold 1–3) | 0.89, 0.86, 0.71 | **0.14, …** |
+| đếm dấu ROC/PR so baseline | 4/5 | **5/5** |
+
+Chuỗi nhân quả khớp với §73: Pha 1 yếu → Pha 2 hội tụ chậm → xác suất dồn lệch → ngưỡng cao
+→ F1@0.5 bị phạt. Pha 1 mạnh gỡ cả ba. Phát biểu đúng là về **phương sai**, không phải trung
+bình: 16 epoch cho khối **ổn định hơn** (5/5 cả bốn) với cùng mức trung bình.
+
+**Khuyến nghị vận hành**: dùng 16 epoch cho Pha 1 vì nó rẻ (77 phút) và làm Pha 2 **nhanh hơn**
+(15 phút/fold thay vì 25) — lợi ích là thời gian và độ ổn định, **đừng quảng cáo là tăng điểm**.
+
+---
+
+## §76 — ĐỔI NGUỒN/ĐÍCH: lợi ích của `mw_assemble_babel` **KHÔNG tổng quát** sang cặp ngôn ngữ khác; C/C++ (PrimeVul) **không học được** ở cấu hình này (18–19/09, vast 51144271, bậc 1 n=1 fold, 4 ô + 2 Pha 1)
+
+Bộ ba {ccpp, js, python}: đích là một ngôn ngữ, nguồn là **hai cái còn lại**. Mỗi khối 1 fold
+và **baseline chạy trên chính tập đích đó** (không mượn baseline của tập khác). Cùng máy,
+cùng phiên, cùng mã của họ.
+
+### Pha 1 — thành phần C/C++ là chỗ hỏng
+
+| pool nguồn | thành phần | best ep | val/test ROC |
+|---|---|---|---|
+| `mwsrc_jsCpy` | js + python | 4 | **0.8645** |
+| `mwsrc_jsCjv` | js + java | 16 | **0.7395** |
+| `mwsrc_ccpp_sven` | **ccpp** + python | 2 | **0.5403** ← không học |
+
+`ccpp_sven`: train loss rơi đều 1.90 → 0.98 nhưng **val ĐI XUỐNG** 0.5403 → 0.4204. Học thuộc,
+không có tín hiệu chuyển giao được.
+
+### Pha 2 — hai khối, ghép cặp với baseline cùng đích
+
+```
+KHOI A — dich C/C++ (pr_prime_ccpp_folds, test n=593, 52.8% duong)
+                                       F1@0.5   F1@val      ROC       PR   ep
+mw_assemble_babel(js+python -> C/C++)  0.5126   0.5032   0.5201   0.5387    1
+baseline(dich C/C++)                   0.4481   0.5056   0.5219   0.5547    1
+Delta                                 +0.0645  -0.0024  -0.0019  -0.0160
+
+KHOI B — dich JS (pr_jsc_folds, test n=253, 49.8% duong)
+                                       F1@0.5   F1@val      ROC       PR   ep
+mw_assemble_babel(ccpp+python -> JS)   0.5285   0.5279   0.5533   0.5323    7
+baseline(dich JS)                      0.5791   0.5859   0.6250   0.6075    5
+Delta                                 -0.0506  -0.0580  -0.0716  -0.0752
+```
+
+### Ba kết luận
+
+1. **Đích C/C++ không dùng để đo chuyển giao được.** CẢ HAI nhánh `best_epoch = 1` và ROC ~0.52
+   trên tập cân bằng nhãn — không nhánh nào học được gì. Mọi Δ đo trên tập này là nhiễu quanh
+   0.5. Δ F1@0.5 **+0.0645** trông đẹp nhưng vô nghĩa: khi cả hai ở mức ngẫu nhiên, F1@0.5 chỉ
+   nói nhánh nào đoán lệch về lớp đông hơn (§2b, lần này ở phía vô nghĩa).
+2. **Chuyển giao từ Pha 1 sập thì LÀM HẠI, không phải vô ích.** Đích JS học được thật
+   (baseline 0.6250, trên hẳn ngẫu nhiên), nhưng nhánh transfer từ checkpoint 0.5403 tụt
+   **−0.0716 ROC**, âm ở **cả bốn** chỉ số. Lượng hoá lại §72: checkpoint dưới ~0.60 không
+   trung tính mà kéo tụt.
+3. **Lợi ích ở §73/§75 là ĐẶC THÙ cho cặp (nguồn js+java → đích python)**, không phải tính chất
+   chung của kiến trúc. Phải viết kèm phạm vi này; đừng phát biểu "chuyển giao đa ngôn ngữ".
+
+### Giới hạn
+
+n=1 fold mỗi khối (**bậc 1 — KIỂM CHỨNG**, CLAUDE.md §1): đủ để **dừng**, không đủ để **kết
+luận**. Nhưng biên độ −0.0716 lớn gấp 7 lần sàn nhiễu cùng card (0.010) và cơ chế khớp §72,
+nên hướng đã đủ rõ để không mở rộng hai cặp này.
+
+---
+
+## §77 — XOÁ COMMENT KHỎI TẬP ĐÍCH **KHÔNG làm thay đổi kết quả**: comment **không phải nguồn rò rỉ nhãn** (19/09, vast 51144271, 10 ô, cùng checkpoint Pha 1)
+
+Phép so chỉ đổi **một** biến: cùng checkpoint Pha 1 (`mwgp1U_jsCjv_e16`, val 0.7395), cùng mã,
+cùng máy, cùng phiên, cùng 5 fold — chỉ khác tập đích có comment hay không. Tập xoá comment
+dựng bằng `tools/strip_comments_py.py` (§74), **không** dùng bản `nocmt` hỏng của đồng nghiệp.
+
+```
+                              F1@0.5   F1@val      ROC       PR   epoch tot nhat
+dich XOA COMMENT              0.8617   0.8643   0.9331   0.9370   19,8,7,8,11
+dich SVEN GOC                 0.8577   0.8538   0.9264   0.9274   9,6,6,8,8
+
+Delta (xoa comment - goc), ghep cap tung fold
+F1@0.5  +0.0040  4/5   -0.0264 +0.0195 +0.0068 +0.0004 +0.0198
+F1@val  +0.0105  4/5   -0.0069 +0.0261 +0.0132 +0.0002 +0.0201
+ROC     +0.0067  4/5   -0.0214 +0.0234 +0.0049 +0.0120 +0.0148
+PR      +0.0095  4/5   -0.0162 +0.0213 +0.0083 +0.0175 +0.0167
+```
+
+**Cả bốn Δ đều dương nhưng nằm quanh/dưới sàn nhiễu 0.010, đếm dấu 4/5 (p=0.375).** Đọc đúng:
+xoá comment **không làm giảm** và cũng **không làm tăng** — kết quả không phân biệt được.
+
+### Hệ quả: lo ngại rò rỉ qua comment KHÔNG thành hiện thực
+
+Nếu comment kiểu `# FIXED: sanitize input` rò rỉ nhãn thì bỏ chúng phải làm điểm **tụt rõ**.
+Không tụt. Trên `sven_python_folds_norm` có **165/3800 hàm** chứa comment mang từ khoá rò rỉ
+(fix/sanitize/CVE/XSS/SQLi…) — bỏ hết vẫn cho cùng kết quả. Nên **con số ở §73/§75 không bị
+thổi lên bởi comment**, và không cần chạy lại khối chính trên tập đã xoá comment.
+
+### Fold 1 lại đánh lừa — lần thứ hai trong một đêm
+
+Fold 1 cho **−0.0214 ROC** (xoá comment có vẻ làm hại rõ); n=5 cho **+0.0067 4/5**. Fold 1 là
+fold duy nhất âm và là ngoại lệ ở cả bốn chỉ số. Cùng đêm, §75 cũng có fold 1 cho +0.0123 rồi
+co về +0.0030. **Hai lần trong một đêm** — ghi lại để khỏi phải học lần thứ ba.
+
+### Ghi nhận phụ: hội tụ chậm hơn nhưng không thua điểm
+
+```
+dich SVEN goc    epoch hoi tu [9, 6, 6, 8, 8]    nguong [0.14, 0.05, 0.05, 0.05, 0.05]
+dich XOA COMMENT epoch hoi tu [19, 8, 7, 8, 11]  nguong [0.05, 0.06, 0.51, 0.08, 0.05]
+```
+
+Bỏ comment làm bài toán khó hơn về mặt tối ưu (cần thêm epoch) nhưng **không khó hơn về mặt
+phân biệt** — điểm cuối như nhau. Tức comment là **văn bản thừa giúp hội tụ**, không phải
+**tín hiệu nhãn**.
+
+### Bổ sung §77 — trên tập đã xoá comment, Δ so baseline còn **LỚN HƠN**
+
+Baseline chạy trên **chính tập đã xoá comment** (`b4_svenNC2`, 5 fold, cùng máy cùng phiên):
+
+```
+                              F1@0.5   F1@val      ROC       PR   epoch tot nhat
+mw_assemble_babel (xoa cmt)   0.8617   0.8643   0.9331   0.9370   19,8,7,8,11
+baseline      (xoa cmt)       0.8020   0.8021   0.8972   0.8948   27,19,12,13,11
+Delta                        +0.0597  +0.0623  +0.0359  +0.0422    5/5 ca bon
+
+de doi chieu, tren tap GOC:  +0.0701  +0.0663  +0.0267  +0.0189    5/5 ca bon
+```
+
+**ROC: +0.0359 (xoá comment) so với +0.0267 (gốc)** — khoảng cách **rộng ra 0.0092**, PR rộng
+ra 0.0233. Tách ra thì thấy vì sao: nhánh chính gần như không đổi (0.9331 vs 0.9264) còn
+baseline hơi tụt (0.8972 vs 0.8996). Từng thành phần đều trong sàn nhiễu, nhưng hướng nhất quán.
+
+Thêm một dấu hiệu cùng chiều: **baseline cần nhiều epoch hơn hẳn khi mất comment**
+(27, 19, 12, 13, 11 so với 15, 10, 16, 5, 14), trong khi nhánh chính chỉ tăng nhẹ. Nghĩa là
+CodeBERT thuần dựa vào comment nhiều hơn so với khối có multi-window + đồ thị.
+
+**Kết luận gộp**: lợi ích của `mw_assemble_babel` **không đến từ comment**, và đo trên tập sạch
+comment thì còn rõ hơn. Có thể báo cáo số trên tập gốc mà không sợ phản biện rò rỉ comment —
+kèm bảng này làm bằng chứng.
+
+---
+
+## §78 — **BẬC 3 (n=15)**: `mw_assemble_babel` vs `baseline` — **F1 15/15, ROC 14/15** (19/09, vast 51144271, 30 ô)
+
+5 fold × 3 seed (36, 37, 38), Pha 1 16 epoch dùng chung cho cả ba seed (đổi seed chỉ ảnh hưởng
+Pha 2 — CLAUDE.md §5). Cùng máy, cùng phiên, mã của đồng nghiệp, ghép cặp theo `(fold, seed)`.
+
+```
+seed        F1@0.5          F1@val            ROC             PR
+ 36     +0.0701 5/5     +0.0663 5/5     +0.0267 5/5     +0.0189 5/5
+ 37     +0.0698 5/5     +0.0642 5/5     +0.0341 5/5     +0.0314 5/5
+ 38     +0.0552 5/5     +0.0567 5/5     +0.0203 4/5     +0.0123 4/5
+
+GOP     +0.0651 15/15   +0.0624 15/15   +0.0270 14/15   +0.0209 14/15
+
+muc tuyet doi   nhanh    F1@0.5 0.8444  F1@val 0.8419  ROC 0.9209  PR 0.9233
+                baseline F1@0.5 0.7793  F1@val 0.7795  ROC 0.8939  PR 0.9025
+
+bien do tung o  F1@0.5 +0.0200..+0.1185   ROC -0.0054..+0.0594
+```
+
+**Hai chỉ số F1 dương ở TOÀN BỘ 15 ô.** ROC và PR mỗi cái hụt đúng một ô, và ô âm đó
+(−0.0054 ROC, −0.0121 PR) **dưới sàn nhiễu 0.010** — không phân biệt được với chạy lại.
+
+Đọc thống kê cho đúng: 15 ô **không độc lập** (5 cách chia dữ liệu dùng lại ở 3 seed). Phát
+biểu chắc chắn nhất là **ba seed độc lập, mỗi seed cho 5/5 trên F1, p=0.0625 mỗi lần** — và
+hiệu ứng lặp lại ở cả ba. Đây là thứ n=5 một seed không thể cho.
+
+### Giới hạn CHƯA gỡ được
+
+Toàn bộ 30 ô trên **một máy vật lý**. CLAUDE.md §2 + **FACTS §52.1** (khối `fusft` đi từ
++0.0397 5/5 xuống −0.0005 3/5 chỉ vì đổi card) yêu cầu **lặp trên phần cứng khác** trước khi
+viết. Và **§76**: lợi ích chỉ đúng cho cặp (nguồn js+java → đích python).
+
+### Hiện vật
+
+`results_mwab_vast/` — **53 ô kết quả + log đầy đủ**, đối chiếu **106 file đúng từng byte** với
+vast lúc 05:37 UTC. Kèm script đã chạy (`qp9_e16.sh`, `qp9_e16_nc2.sh`, `qp9_n5_wd.sh`,
+`qb4s.sh`) để tái lập không cần máy.
+
+---
+
+## §79 — TÁCH THEO NHÓM RÒ RỈ trên macro-F1: lợi ích nằm ở nhóm **KHÔNG có bản đối nghịch** (phạm vi bị thu hẹp ở §80.1 — chỉ đúng cho F1, không đúng cho ROC) (20/09, **0 GPU**, 53 ô đã có)
+
+> ⚠️ **ĐÃ ĐƯỢC SỬA PHẠM VI Ở §80.1** — con số `none` +0.0421 15/15 dưới đây là **macro-F1@0.5**.
+> Cùng 15 ô đó trên **ROC-AUC** chỉ cho **+0.0121 12/15**, sát sàn nhiễu. Hiệu ứng là
+> **chất lượng quyết định**, KHÔNG phải **thứ hạng**. Đọc §79 phải đọc kèm §80.1.
+
+Cổng 3 của `NEXT_CONTRIBUTION.md`. Nhóm `train` = hàng test **có bản đối nghịch gần trùng
+nằm trong train** (đoán đúng ở đó = phân biệt được lỗi/vá); nhóm `none` = **không có** bản
+đối nghịch, tức khái quát hoá thông thường; `test` = bản đối nghịch nằm trong test (ít hàng).
+
+```
+mw_assemble_babel(P1 16ep) − baseline           n=15 o
+nhom      so hang TB   n o        Δ macro-F1@0.5
+train           23.4    15      +0.0903  11/15  p=0.118
+test             7.6    15      +0.0858  10/15  p=0.302
+none           111.2    15      +0.0421  15/15  p=0.000   <-- 73% so hang
+TAT CA         152.0    15      +0.0651  15/15  p=0.000
+```
+
+Lặp lại ở hai khối còn lại, **cùng một hướng**:
+
+| khối | n | nhóm `none` |
+|---|---|---|
+| `mw_assemble_babel`(P1 16ep) − `baseline` | 15 | **+0.0421  15/15  p=0.000** |
+| `mw_assemble_babel`(P1 8ep) − `baseline` | 5 | **+0.0466  5/5  p=0.062** |
+| trên đích **xoá comment**, vs baseline của chính nó | 5 | **+0.0521  5/5  p=0.062** |
+
+### Vì sao đây là kết quả mạnh nhất của cả khối
+
+Nhóm `none` chiếm **111/152 hàng (73%)** và là nhóm **không thể ăn may bằng ghi nhớ** — không
+có hàm gần trùng nào trong train để đối chiếu. Hiệu ứng ở đó **dương 15/15, p=0.000**, tức
+**mạnh hơn** cả phép đếm trên điểm tổng. Đây là phản bác trực tiếp cho lo ngại "0.92 ROC chỉ
+nhờ 54.6% hàng test có bản gần trùng trong train" (đo ở §78).
+
+Khớp với **§50** đo độc lập trước đó: trên 73% hàng sạch, +0.0459 với 14/15 fold, p=0.001.
+Nay +0.0421 với **15/15**, p=0.000 — cùng biên độ, đếm dấu còn chặt hơn.
+
+> Ngược đời nhưng đúng: biên độ **lớn nhất** ở nhóm `train` (+0.0903) nhưng **đếm dấu yếu
+> nhất** (11/15, p=0.118) vì nhóm đó chỉ 23 hàng nên phương sai lớn. Nhóm `test` 7.6 hàng thì
+> đừng đọc. Chỉ nhóm `none` vừa đủ hàng vừa đủ ô để kết luận.
+
+### Bẫy công cụ gặp khi chạy
+
+`tools/leak_groups_pair.py` đòi bố cục `<root>/<nhánh>/seed_X/foldY.json` và trường
+`test_probabilities` **nằm trong JSON**; khối chạy bằng mã của đồng nghiệp lại để xác suất ở
+sidecar `.probs.npz` và có thêm một tầng thư mục. Chạy thẳng cho **"0 cặp ô"** — nhìn y hệt
+"chưa có dữ liệu", **không báo lỗi gì**. Phải dựng cây tương thích `results_mwab_leak/` trước.
+Đây là lần thứ ba trong dự án một công cụ báo cáo trả bảng rỗng thay vì báo lỗi.
+
+---
+
+## §80 — CỔNG 2 (lặp trên backbone thứ hai): **mw_assemble_babel trên codet5p CHỈ LẶP MỘT NỬA** (20/09, 158, n=5 seed 42)
+
+Cổng 2 của `NEXT_CONTRIBUTION.md` yêu cầu mẫu hình phải lặp trên **cả hai** backbone.
+Chạy đúng khối `mw_assemble_babel` (transfer + đồ thị BABEL + đa cửa sổ) và `baseline`
+của nó trên `codet5p-220m-bimodal`, cùng máy 158, cùng seed 42, 5 fold ghép cặp.
+
+```
+### mw_assemble_babel (t5p)  vs  baseline (t5p)   | seed 42 | 5 fold: [1,2,3,4,5]
+nhanh                        F1@0.5   F1@val      ROC       PR    epoch tot nhat
+mw_assemble_babel (t5p)      0.8392   0.8391   0.9241   0.9305   6,10,7,7,14
+baseline (t5p)               0.8127   0.8143   0.9128   0.9079   21,30,6,22,17
+
+chi so     Delta TB   dem dau      p   tung fold
+F1@0.5      +0.0265       4/5  0.375   -0.0209 +0.0395 +0.0610 +0.0001 +0.0527
+F1@val      +0.0249       3/5  1.000   -0.0147 +0.0197 +0.0666 -0.0066 +0.0593
+ROC         +0.0114       4/5  0.375   +0.0009 +0.0279 +0.0264 +0.0096 -0.0078
+PR          +0.0226       4/5  0.375   +0.0087 +0.0541 +0.0168 +0.0418 -0.0085
+```
+
+Pha 1 t5p là `mwgp1U_jsCjv_t5p`, epoch tốt nhất 14, val/test ROC **0.7649** — **cao hơn**
+codebert (ep 16, 0.7395). Nên Pha 1 **không** phải chỗ yếu.
+
+### So thẳng với codebert cùng cấu hình (E16), cùng n=5, cùng seed đơn
+
+| | ROC nhánh | ROC baseline | **Δ ROC** | Δ F1@0.5 |
+|---|---|---|---|---|
+| codebert E16, seed 36 | 0.9206 | 0.8939 | **+0.0267 5/5** | +0.0701 5/5 |
+| **codet5p, seed 42** | **0.9241** | **0.9128** | **+0.0114 4/5** | +0.0265 4/5 |
+
+**Nhánh t5p CAO HƠN nhánh codebert** (0.9241 > 0.9206). Toàn bộ phần co lại đến từ
+**baseline t5p mạnh hơn 0.0189**. Đây là hiệu ứng "kẹp hai đầu": backbone mã mạnh hơn thì
+finetune thuần đã tự bắt được phần lớn những gì transfer + đồ thị + đa cửa sổ mang lại.
+
+Một cơ chế đã đo trước khi chạy (`measure-the-mechanism-first`): tokenizer T5 cho
+**median 232 token**, chỉ **23.5%** hàm vượt một cửa sổ; codebert median **424**, **43.1%**
+vượt. Đa cửa sổ có **ít hơn một nửa** số hàm để phát huy trên t5p.
+
+Cảnh báo kèm: **baseline t5p hội tụ rất muộn** (21, 30, 6, 22, 17), fold 2 **chạm trần 30
+epoch**. Baseline có thể chưa hội tụ xong ⇒ Δ thật còn có thể nhỏ hơn nữa.
+
+### §80.1 — Tách theo nhóm rò rỉ: hiệu ứng là **CHẤT LƯỢNG QUYẾT ĐỊNH**, không phải **THỨ HẠNG**
+
+Chạy lại `tools/leak_groups_auc.py` + `leak_groups_pair.py` trên cả hai backbone, **cùng n=5**:
+
+```
+nhom (hang/fold)      codebert E16 s36        t5p s42
+                      ROC        F1@0.5       ROC        F1@0.5
+train  (23)        +0.0697 4/5  +0.1227 4/5  +0.0360 5/5  +0.0626 4/5
+test   ( 8)        +0.1337 3/4  +0.1192 4/5  +0.0174 1/4  -0.0381 2/5
+none   (112)       +0.0084 4/5  +0.0395 5/5  +0.0070 4/5  +0.0217 3/5
+TAT CA (152)       +0.0267 5/5  +0.0701 5/5  +0.0114 4/5  +0.0265 4/5
+```
+
+Trên nhóm `none` (**73% số hàng**, khái quát hoá thật) **cả hai backbone** cho ROC chỉ
+**+0.008 / +0.007** — **ở hoặc dưới sàn nhiễu 0.010**. Nhưng F1 thì **+0.040 / +0.022**.
+
+Đã kiểm xem chênh lệch đó có phải chỉ là **hiệu chuẩn ngưỡng** không, bằng cách cho **mỗi
+nhánh dùng ngưỡng TỐT NHẤT CỦA CHÍNH NÓ** trên nhóm `none` (quét 0.05→0.95):
+
+| nhóm `none` | codebert E16 (n=5) | t5p (n=5) |
+|---|---|---|
+| ROC-AUC (thứ hạng) | +0.0084 4/5 | +0.0070 4/5 |
+| F1@0.5 (ngưỡng cố định) | +0.0395 5/5 | +0.0217 3/5 |
+| F1@ngưỡng hiệu chuẩn val | +0.0343 5/5 | +0.0205 3/5 |
+| **F1@ngưỡng tốt nhất của mỗi nhánh** | **+0.0305 5/5** | **+0.0235 4/5** |
+
+Lợi ích **sống sót** khi bỏ hết lợi thế hiệu chuẩn ⇒ **không phải** hiệu ứng ngưỡng.
+Nhưng nó cũng **không** là hiệu ứng thứ hạng toàn cục. Đọc đúng: nhánh **làm sắc vùng
+quyết định** mà **không sắp xếp lại** toàn bộ thứ tự điểm. Lặp trên **cả hai** backbone,
+t5p bằng ~75% biên độ của codebert.
+
+> **SỬA §79.** §79 ghi nhóm `none` **+0.0421 15/15 p=0.000** — đó là **macro-F1@0.5**.
+> Cùng 15 ô đó trên **ROC-AUC** chỉ cho **+0.0121 12/15 p=0.035**, sát sàn nhiễu. Câu
+> *"khái quát hoá thật"* ở §79 **quá rộng**: đúng cho quyết định ở ngưỡng, **không** đúng
+> cho thứ hạng. Đây là lỗi **đối xứng với lỗi "ASAM null"** ở CLAUDE.md §2b — lần đó một
+> chỉ số giấu mất hiệu ứng, lần này một chỉ số thổi phồng nó.
+
+### Kết luận cho cổng 2
+
+**Chưa qua sạch.** Dấu **cùng chiều** trên cả bốn chỉ số và cả hai backbone — nhưng trên
+t5p biên độ rơi còn **~42% (ROC) / ~38% (F1)** và đếm dấu rớt từ 5/5 xuống 4/5, 3/5.
+Phát biểu an toàn nhất viết được hiện nay:
+
+> Khối gộp cải thiện **chất lượng quyết định** trên tập đích Python, biên độ **phụ thuộc
+> độ mạnh của backbone nền** — càng mạnh thì càng ít chỗ để cải thiện. Trên codebert
+> +0.0651 F1 (15/15, n=15); trên codet5p +0.0265 (4/5, n=5).
+
+Việc còn thiếu để qua cổng 2 hẳn: t5p mới **n=5 một seed một máy**. Theo CLAUDE.md §2
+(FACTS §52.1) điều đó **chưa đủ để viết** — cần lặp trên phần cứng khác.
+
+**Hiện vật**: `results_mwab_leak_t5p/` (cây tương thích, đã đối chiếu ROC tính lại từ
+`.probs.npz` khớp `test_roc_auc` trong json ở **cả 10/10 ô**).
+
+### §80.2 — Hiệu ứng **khu trú ở hàm DÀI**: trên codebert Δ ROC **+0.1058, 15/15, p=0.000** (20/09, **0 GPU**)
+
+`train_mwg.py:530` lưu sẵn **`n_tokens` từng hàng** vào `.probs.npz`, nên tách được Δ theo
+độ dài hàm **không tốn GPU**. Ngưỡng một cửa sổ = **510 token** (đúng `coverage()`:
+`pct_gt_window = 100*(nt > window).mean()`).
+
+```
+### codebert E16 (n=15 o ghep cap)
+nhom                      hang TB   n o |      Δ macro-F1@0.5      |        Δ ROC-AUC
+<=510 (VUA mot cua so)      107.6    15 |  +0.0352  13/15 p=0.007  |  +0.0059  10/15 p=0.302
+>510  (VUOT mot cua so)      44.4    15 |  +0.1353  14/15 p=0.001  |  +0.1058  15/15 p=0.000
+TAT CA                      152.0    15 |  +0.0651  15/15 p=0.000  |  +0.0270  14/15 p=0.001
+```
+
+**Trên nhóm vừa một cửa sổ, Δ ROC chỉ +0.0059 (10/15) — dưới sàn nhiễu.** Toàn bộ lợi ích
+thứ hạng nằm ở **29% số hàng vượt 510 token**. Đây đúng là chỗ `baseline` **không thể nhìn
+thấy cả hàm**: nó chạy `--max_length 512 --truncation_strategy head_middle_tail`, còn nhánh
+đọc tới **K=8** cửa sổ. Cơ chế khớp kiến trúc, và là số đo **mạnh nhất** của cả khối:
+15/15 fold, p=0.000.
+
+### §80.3 — Vì sao t5p co lại: tokenizer T5 **nén 0.668**, 58% hàm-dài-với-codebert hết dài
+
+Thứ tự hàng **trùng** giữa hai backbone ở cả 5 fold (đã kiểm bằng nhãn), nên chia nhóm theo
+**số token của codebert** rồi áp cho cả hai:
+
+```
+nhom (CUNG tap hang)              hang TB | codebert E16 (n=15)      | t5p (n=5)
+ngan (<=510 tok codebert)           107.6 | ROC +0.0059  10/15       | ROC +0.0052  4/5
+DAI  (>510 tok codebert)             44.4 | ROC +0.1058  15/15 ***   | ROC +0.0197  3/5
+```
+
+Đếm chéo hai tokenizer trên đúng các hàng đó:
+
+| fold | >510 token codebert | >510 token t5p | dài với **cả hai** | dài với codebert **nhưng ngắn với t5p** |
+|---|---|---|---|---|
+| 1–5 | 44 37 53 50 38 | 19 14 20 25 16 | 19 14 20 25 16 | 25 23 33 25 22 |
+| **TB** | **44.4** | **18.8** | **18.8** | **25.6** |
+
+Tập `>510 t5p` là **tập con TOÀN PHẦN** của `>510 codebert` ở mọi fold. Tỉ lệ nén token
+t5p/codebert (trung vị) = **0.668**. Nghĩa là **25.6 / 44.4 = 58%** số hàm mà codebert buộc
+phải cắt thì **T5 nhìn trọn trong cùng ngân sách 512** — đa cửa sổ **không còn gì để cứu** ở đó.
+Đó là lý do định lượng cho §80: khối mất phần lớn số hàng nơi hiệu ứng sống.
+
+> **CẢNH BÁO — phần còn lại KHÔNG đọc được.** Tách tiếp nhóm dài-theo-codebert của t5p:
+> `vẫn dài với T5` (18.8 hàng) cho ROC **−0.0095 3/5**; `ngắn với T5` (25.6 hàng) cho
+> **+0.0292 3/5**. Đó là **ngược** với cơ chế. Nhưng n=5 với ~19–26 hàng/nhóm thì **mọi**
+> đếm dấu đều là 3/5–4/5 = vô nghĩa. Không kết luận gì về cơ chế trên t5p từ các ô này;
+> cần n lớn hơn. Phần đứng vững là **0.668 và 58%** — hai con số đếm được, không phải suy ra.
+
+### §80.4 — KHÔNG tách được cửa-sổ khỏi đồ-thị bằng hiện vật đang có
+
+Câu hỏi đúng tiếp theo: trong +0.1058 ở hàm dài, bao nhiêu là **đa cửa sổ** và bao nhiêu là
+**đồ thị BABEL**? Trả lời được nếu tách theo độ dài trên các bậc của thang §71
+(`mw` và `mw_babel`) — nhưng **các ô đó không có `.probs.npz`**:
+
+| nhánh | ô | npz |
+|---|---|---|
+| `mw_assemble_codebert/mwK1` và `/mwK8` (đúng phép cắt K=1 vs K=8!) | 5+5 | **0** |
+| `mw_assemble_babelmw/babelmw` | 5 | **0** |
+| `mwgU_b_sven` (`mw_babel`) | 3 (fold 1–3 seed 36) | 3 — nhưng **không có** `b4_sven` cùng cây để ghép cặp |
+
+Đúng cái bẫy ở memory `log-per-sample-predictions-not-just-metrics`. Chạy lại `mwK1`/`mwK8`
+bằng `train_mwg.py` hiện tại (nó tự ghi npz) sẽ trả lời — **chưa xếp hàng, phải hỏi trước**.
+
+> **Và `mwK1`/`mwK8` hiện có KHÔNG thay thế được** — đã tra rồi, đừng tra lại:
+> (a) chúng là **mã CŨ của ta** (`architecture = codebert_multi*`, `babel_line_two*`,
+> `babel_chunk_tw*`), **khác họ** với `MWGraph` của đồng nghiệp mà §80 đo — trộn hai họ là
+> đổi hai biến; (b) FACTS §~5979 đã ghi **fold 4–5 của `mwTR` chạy máy khác** fold 1–3, nên
+> ghép cặp bị nhiễm chéo phần cứng; (c) `mwTR` khác `mwK8` ở **hai** chỗ (`init_ckpt` *và*
+> `window_mode=slide`), không phải một. Cặp duy nhất sạch về cấu hình là `mwK1` vs `mwK8`
+> (chỉ khác `max_windows` 1 vs 8) — nhưng vẫn là mã cũ và `mwK8` fold 4 đã sập (0.6564).
+
+### §80.5 — Trên t5p, hiệu ứng ROC **biến mất** khi baseline được lịch LR tốt hơn (20/09, 158)
+
+Vì `--epochs` đổi luôn lịch LR (xem CLAUDE.md §13), chạy lại baseline t5p ở trần 60,
+seed 42, 5 fold. **Không phải** phép kiểm hội tụ — là baseline ở **lịch LR khác**.
+
+```
+fold  best_ep@30  best_ep@60 |  ROC@30   ROC@60   Δ baseline
+  1       21          21      | 0.9160   0.9125    -0.0035
+  2       30 (TRAN)    17     | 0.8926   0.9103    +0.0177
+  3        6          26      | 0.9095   0.9502    +0.0406
+  4       22          16      | 0.9389   0.9516    +0.0127
+  5       17          23      | 0.9068   0.9054    -0.0014
+TB                            | 0.9128   0.9260    +0.0132  3/5
+```
+
+**best_epoch GIẢM ở fold 2 và 4** (30→17, 22→16) ⇒ baseline không thiếu **bước**, nó thiếu
+**lịch LR tốt**. Fold 3 rõ nhất: trần 30 dừng ở epoch 6 (patience 8 ⇒ bỏ cuộc ở 14), trần 60
+tìm được epoch 26 và **+0.0406** — lịch dài giữ LR cao lâu hơn nên thoát được bình nguyên sớm.
+
+**Ghép cặp `mw_assemble_babel(t5p)@30` − `baseline@60`** (LỆCH ngân sách, đọc có điều kiện):
+
+```
+chi so     Δ TB    dem dau   tung fold
+F1@0.5   +0.0117     4/5     +0.0058 +0.0264 -0.0195 +0.0198 +0.0263
+F1@val   +0.0103     4/5     +0.0119 +0.0132 -0.0194 +0.0131 +0.0329
+ROC      -0.0018     2/5     +0.0043 +0.0102 -0.0142 -0.0031 -0.0064
+PR       -0.0015     1/5     -0.0021 +0.0180 -0.0064 -0.0051 -0.0118
+```
+
+Trung bình ROC của **baseline@60 (0.9260) CAO HƠN nhánh@30 (0.9241)**. Toàn bộ lợi ích
+thứ hạng trên t5p biến mất.
+
+### §80.6 — **CODEBERT KHÔNG dính lỗi này** (đã kiểm, 0 GPU)
+
+Nghi vấn tự nhiên: ngân sách 30 epoch có thiên vị nhánh không? Nhánh khởi tạo từ checkpoint
+Pha 1 nên hội tụ sớm, baseline khởi tạo từ mô hình gốc nên cần lịch dài hơn. Tra `best_epoch`
+của **cả 30 ô** codebert (trần 30, patience 8):
+
+| nhánh | best_epoch (15 ô, đã sắp) | chạm trần | sát trần (best+8 ≥ 30) | TB |
+|---|---|---|---|---|
+| `baseline` | 5 5 5 6 9 9 10 10 12 12 14 15 16 17 **18** | **0/15** | **0/15** | 10.9 |
+| `mw_assemble_babel(P1 16ep)` | 4 5 6 6 6 6 8 8 8 9 10 12 14 14 **19** | **0/15** | **0/15** | 9.0 |
+
+Cao nhất là **18** (baseline) và **19** (nhánh) — cách trần 30 rất xa, và cách cả mốc
+`best+patience` (26, 27). **Không ô nào bị cắt.** Nên **§78 (+0.0270 ROC 14/15,
++0.0651 F1 15/15) KHÔNG có lỗi ngân sách**, và §80.2 (khu trú ở hàm dài, +0.1058 15/15)
+cũng vậy.
+
+Lỗi này **riêng của t5p**: codet5p cần 16–26 epoch cho baseline, codebert chỉ cần 5–18.
+
+### Kết luận cập nhật cho CỔNG 2
+
+**Trượt, không phải "qua một nửa".** §80 viết "qua một nửa" dựa trên Δ ROC +0.0114 — con số
+đó đo với baseline ở lịch LR làm nó yếu đi. Phát biểu đúng hiện nay:
+
+> Trên **codebert** hiệu ứng là thật, không có lỗi ngân sách, và khu trú ở hàm dài (15/15,
+> p=0.000). Trên **codet5p**, phần lớn Δ ROC là **hiện vật của lịch learning rate**; với
+> baseline được lịch tốt hơn thì Δ ROC về **−0.0018 (2/5)**.
+
+**Còn thiếu**: nhánh ở đúng trần 60 (`mwgU_xAsRl_jsCjv_t5pE60_2sven`, đang chạy 17:35 UTC)
+để có bảng **đối xứng** `@60 vs @60`. Chỉ bảng đó mới chốt được, vì nhánh cũng có thể mạnh lên.
+
+> ### ⚠️ CẬP NHẬT 18:21 UTC — fold đầu của bảng đối xứng đi NGƯỢC kết luận trên
+>
+> ```
+> fold | nhanh@30  nhanh@60 | base@30  base@60 |   Δ@30     Δ@60
+>   2  | 0.9205    0.9399   | 0.8926   0.9103  | +0.0279  +0.0296
+> ```
+>
+> **Nhánh cũng mạnh lên** ở lịch 60 (+0.0194), nên khoảng cách **giữ nguyên**.
+> `best_epoch` của nhánh vẫn = 10 ở cả hai trần ⇒ lại là **lịch LR**, không phải số bước.
+>
+> Nghĩa là câu *"cổng 2 TRƯỢT"* ở trên viết trên bảng **lệch ngân sách** và **có thể sai**.
+> **n=1, không kết luận.** Đợi đủ 5 fold `@60 vs @60` rồi mới sửa mục này.
+> (Trong phiên 20/09 đã BA lần fold đầu nói ngược với n=5 — §75, §77, và khối sweep.)
+
+### §80.7 — ~~BẢNG ĐỐI XỨNG ĐỦ 5/5~~ **MỤC NÀY SAI — XEM §80.8**: trên t5p mất **thứ hạng**, giữ **quyết định**, và **cơ chế thì LẶP** (21/09, 158)
+
+> # ⛔ §80.7 SAI TOÀN BỘ PHẦN "ĐỐI XỨNG". ĐỌC §80.8 TRƯỚC.
+>
+> Nhánh `mwgU_xAsRl_jsCjv_t5pE60_2sven` **KHÔNG** chạy ở trần 60 — nó chạy ở **trần 30**.
+> `hyperparameters.epochs = 30` ở **cả 5 fold** (baseline cùng cây ghi 60); log nhánh in
+> `Epoch k/30` và `t0=34/3420` y hệt lần chạy @30 trước đó. Nên bảng dưới đây là
+> **nhánh@30 (chạy lần hai) − baseline@60** — **đúng cái lệch ngân sách** mà §80.5 cảnh báo,
+> chứ không phải phép so đối xứng. **Phép so @60 vs @60 CHƯA BAO GIỜ ĐƯỢC CHẠY.**
+> Mọi câu "CHỐT cổng 2" ở cuối mục này **không có bằng chứng**.
+> Phát hiện bởi một phiên Claude khác (MultiVD-AQ), đã tự kiểm lại và xác nhận.
+
+
+
+Cả nhánh lẫn baseline chạy ở **cùng trần 60**, seed 42, 5 fold, cùng máy cùng phiên.
+
+```
+                              F1@0.5   F1@val      ROC       PR   epoch tot nhat
+mw_assemble_babel t5p @60     0.8447   0.8446   0.9253   0.9339   7,10,7,7,10
+baseline t5p       @60        0.8275   0.8288   0.9260   0.9320   21,17,26,16,23
+
+chi so    Δ@60      dem dau  |  Δ@30      dem dau     (de so)
+F1@0.5   +0.0172     4/5     | +0.0265     4/5
+F1@val   +0.0158     4/5     | +0.0249     3/5
+ROC      -0.0007     2/5     | +0.0114     4/5
+PR       +0.0020     2/5     | +0.0226     4/5
+```
+
+Ở ngân sách khớp và tốt hơn, **ROC và PR về 0** (−0.0007 và +0.0020, đều 2/5); chỉ còn
+**F1 +0.0172 (4/5, p=0.375)**. Khớp §80.1: hiệu ứng là **chất lượng quyết định**, không phải
+**thứ hạng** — và trên t5p phần thứ hạng bằng 0 tuyệt đối.
+
+**Cả hai nhánh đều mạnh lên** ở lịch 60 (nhánh ROC 0.9241→0.9253, baseline 0.9128→0.9260),
+nên Δ co lại là do **baseline mạnh lên nhiều hơn**, không phải nhánh yếu đi.
+
+#### Nhưng tách nhóm thì CƠ CHẾ LẶP trên cả hai backbone
+
+```
+t5p @60 vs @60              hang TB |        Δ F1@0.5        |         Δ ROC
+ngan (<=510 tok codebert)     107.6 |  -0.0056  2/5          |  -0.0082  1/5
+DAI  (>510 tok codebert)       44.4 |  +0.0676  4/5          |  +0.0145  4/5
+ro ri: train                   23.4 |  +0.0292  3/5          |  +0.0044  1/5
+ro ri: none                   111.2 |  +0.0089  3/5          |  -0.0065  1/5
+TAT CA                        152.0 |  +0.0172  4/5          |  -0.0007  2/5
+```
+
+**Nhóm DUY NHẤT dương trên cả hai chỉ số là hàm DÀI** — đúng nhóm mang toàn bộ hiệu ứng
+trên codebert (§80.2: ROC +0.1058 **15/15 p=0.000**). Tổng ROC t5p bằng 0 vì lợi ở 29% hàng
+dài (+0.0145) bị 71% hàng ngắn (−0.0082) triệt tiêu.
+
+> **Mức tin cậy phải nói rõ.** codebert hàm dài: **15/15, p=0.000 — đã lập**.
+> t5p hàm dài: **4/5, p=0.375 — GỢI Ý, chưa lập**. Ở n=5 thì 4/5 không phân biệt được với
+> may mắn (CLAUDE.md §2b). Cái nói được là **cùng chiều và cùng chỗ**, không phải "đã lặp lại".
+
+#### Kết luận CHỐT cho cổng 2 — thay cả hai phát biểu trước
+
+Phát biểu *"qua một nửa"* (§80) sai vì đo với baseline ở lịch LR yếu. Phát biểu *"TRƯỢT"*
+(§80.6) cũng chưa đủ đúng vì đọc trên bảng lệch ngân sách. Phát biểu đúng:
+
+> **Hiệu ứng TỔNG không lặp trên codet5p** (ROC −0.0007 2/5 ở ngân sách khớp; F1 +0.0172 4/5
+> chưa đạt ngưỡng). **Cơ chế thì cùng chiều**: trên **cả hai** backbone, nhóm hàm vượt một
+> cửa sổ là nhóm duy nhất có lợi ích. Trên codebert nhóm đó đủ lớn và đủ mạnh để kéo tổng
+> (+0.0270 ROC 14/15); trên codet5p nó vừa **ít hàng hơn** (tokenizer nén 0.668, §80.3) vừa
+> **yếu hơn**, nên bị phần còn lại triệt tiêu.
+
+Hệ quả cho bài: **không viết được "phương pháp cải thiện trên cả hai backbone"**. Viết được
+*"cải thiện khu trú ở hàm vượt ngữ cảnh, biên độ tỉ lệ với số hàm như vậy mà tokenizer tạo ra"*
+— nhưng vế t5p mới là **gợi ý ở n=5**, cần n lớn hơn mới thành bằng chứng.
+
+**Hiện vật**: `results_mwab_leak_t5pE60/` (đã dựng, 10 ô).
+
+
+### §80.8 — VÌ SAO §80.7 SAI: `qge.sh` không bao giờ nhận biến `EPOCHS`, và phép kiểm của tôi **RỖNG** (21/09)
+
+**Lỗi gốc.** Tôi dựng `qge.sh` từ `qg.sh` bằng lệnh chạy qua ssh:
+
+```bash
+ssh $H 'cd ... && sed "s|--epochs 30 --min_epochs 3|--epochs ${EPOCHS:-30} --min_epochs 3|" qg.sh > qge.sh'
+```
+
+Chuỗi thay thế của `sed` nằm trong **nháy KÉP** trên shell ở máy đích ⇒ shell đó **nở**
+`${EPOCHS:-30}` thành `30` **trước khi** `sed` nhìn thấy. `qge.sh` nhận một số `30` **nguyên
+văn**; biến không bao giờ được chèn vào. `qge.sh` ≡ `qg.sh`.
+
+**Phép kiểm của tôi sai ở chỗ nào — đây mới là phần đáng học.** Tôi "chứng minh" bản vá an toàn bằng:
+
+```bash
+diff <(sed "s/\${EPOCHS:-30}/30/" qge.sh) qg.sh && echo "qge.sh voi mac dinh = qg.sh TUNG KY TU"
+```
+
+`qge.sh` **đã** chứa `30` nên lệnh `sed` đó là **no-op**, `diff` rỗng, cổng **báo ĐẠT**.
+Tôi đọc "giống hệt `qg.sh`" thành *"bản vá an toàn"* — trong khi nó thật ra là bằng chứng
+*"bản vá KHÔNG hề được áp"*. **Một phép kiểm đúng theo nghĩa đen nhưng rỗng về nội dung.**
+
+Và tôi **chỉ thử chiều mặc định** (`EPOCHS` không đặt ⇒ 30), **không** thử chiều `EPOCHS=60` —
+đúng thứ mà chính quy tắc của dự án bắt phải làm. Sau khi sửa, thử đủ:
+
+```
+qge.sh (da sua)   EPOCHS=<khong dat>  train --epochs 30  test --epochs 30
+                  EPOCHS=60           train --epochs 60  test --epochs 60
+                  EPOCHS=45           train --epochs 45  test --epochs 45
+qg.sh  (goc)      EPOCHS=60           train --epochs 30   <- goc khong bi anh huong
+```
+
+**Bài học chung** (đã vào memory): một cổng xác minh mà **đầu vào đã thoả sẵn điều kiện**
+thì nó không kiểm gì cả. Phải dựng **trường hợp LỆCH** và bắt cổng **kêu**, không chỉ dựng
+trường hợp khớp và thấy nó im.
+
+### §80.9 — Món quà không mong đợi: **NHIỄU CHẠY LẠI đo trực tiếp trên t5p**
+
+Vì lỗi trên, nhánh t5p đã chạy **hai lần với ĐÚNG một cấu hình** (trần 30, seed 42, cùng máy
+158, cùng ngày, chỉ khác tên thư mục). Đó là phép đo **nhiễu chạy lại** sạch nhất dự án có:
+
+```
+fold    F1@0.5    F1@val       ROC        PR   best_ep lan1 -> lan2
+   1   +0.0276   +0.0075   +0.0017   +0.0052    6 -> 7
+   2   +0.0066   +0.0198   +0.0194   +0.0131   10 -> 10
+   3   +0.0000   +0.0000   -0.0047   -0.0009    7 -> 7
+   4   -0.0068   +0.0000   -0.0005   -0.0003    7 -> 7
+   5   +0.0000   -0.0001   -0.0102   -0.0001   14 -> 10
+
+chi so    TB        |max|     so fold |Δ|>0.010
+F1@0.5  +0.0055    0.0276          1/5
+F1@val  +0.0054    0.0198          1/5
+ROC     +0.0011    0.0194          2/5
+PR      +0.0034    0.0131          1/5
+```
+
+**Nhiễu ROC chạm 0.0194 và vượt 0.010 ở 2/5 fold** — cao hơn hẳn sàn 0.010 vẫn dùng.
+Nguyên nhân khớp cơ chế đã biết: `set_seed(seed, strict=False)` (nhánh strict không bao giờ
+chạy) + `index_add_` atomicAdd + dừng sớm khuếch đại sai lệch 1e-7; thấy rõ ở fold 5
+`best_epoch 14 → 10`.
+
+**Hệ quả cho cổng 2 — phát biểu đúng hiện nay:**
+
+> Phép so **đối xứng** duy nhất có thật trên t5p là **@30 vs @30** (§80): Δ ROC **+0.0114, 4/5**.
+> Nhưng nhiễu chạy lại trên chính t5p chạm **0.0194** ROC — **lớn hơn hiệu ứng**. Nên
+> **không kết luận được gì** về cổng 2 trên t5p từ n=5, theo **cả hai** chiều: không nói được
+> "có lặp", cũng không nói được "không lặp".
+>
+> Baseline t5p **mạnh lên +0.0132 (3/5)** khi đổi từ lịch LR 30 sang 60 — điều này **đúng**
+> và độc lập với lỗi trên, vì baseline thật sự có chạy ở hai trần khác nhau.
+>
+> Muốn chốt thì cần chạy nhánh t5p ở **đúng trần 60** (`qge.sh` đã sửa, đã thử đủ chiều).
+> **Chưa xếp hàng** — 158 đang chạy việc tách đóng góp mà người dùng ưu tiên.
+
+**Không ảnh hưởng codebert.** §78, §80.2, §80.6 dùng `qg.sh` gốc với trần 30 cho **cả hai**
+nhánh, không đụng `qge.sh`, và đã tra `best_epoch` là 0/15 chạm trần.
+
+---
+
+## §81 — KHỐI TÁCH ĐÓNG GÓP trên 158 (codebert, seed 42): thiết kế, và **giới hạn của phép suy luận** — ghi TRƯỚC khi có n=3 (21/09)
+
+Ba nhánh, khác nhau **đúng một cờ**, cùng máy cùng Pha 1 (`mwgp1U_jsCjv_e16`, kéo từ vast
+51144271, đối chiếu 536 499 642 byte). Không chạy baseline: cả hai phép so đều là nhánh–nhánh.
+
+| nhánh | cờ | phép so | đo cái gì |
+|---|---|---|---|
+| `mwabE16_K8` | `--max_windows 8` | mốc chung | |
+| `mwabE16_K1` | `--max_windows 1` | **K8 − K1** | phần riêng của **đa cửa sổ** |
+| `mwabE16_shufG` | `--shuffle_graph 1` | **K8 − shufG** | phần riêng của **cấu trúc đồ thị** |
+
+### §81.1 — Xáo cạnh làm gì, và **KHÔNG** làm gì (đọc mã, xác minh 21/09)
+
+Hoán vị nhãn đỉnh `rel[:, p][:, :, p]`, `p` cố định theo mẫu (băm md5 của code). Giữ **y
+nguyên** 9.45M tham số R-GCN, số cạnh, bậc từng đỉnh và self-loop. Đã thử 7 chiều: cờ tắt ⇒
+0/40 mẫu khác bản chưa vá; cờ bật ⇒ 40/40 đồ thị đổi, 40/40 giữ tổng cạnh + đa tập bậc +
+self-loop; hoán vị ổn định khi dựng lại; mọi trường ngoài `rel` y nguyên.
+
+**Nhưng `shufG` VẪN GIỮ bốn thứ** (`LineGraphBranch.forward`: `H = ln(H + drop(relu(g(H,A))))`
+→ LSTM → masked max-pool):
+
+1. **Bộ mã hoá từng dòng** `BabelWordAttNet` — không bị đụng.
+2. **Đường residual** `H + gcn(...)` — đặc trưng dòng đi thẳng qua kể cả khi đầu ra GCN là rác.
+3. **Self-loop**: `co_use` dựng bằng `np.eye` nên có đường chéo, và `RGCNLayer` **không có số
+   hạng self-loop riêng** (`sum_r norm(A_r) H W_r + b`) ⇒ đường chéo là **lối duy nhất** để một
+   dòng thấy lại chính nó, và phép hoán vị **giữ nguyên đường chéo**.
+4. **LSTM** quét tuần tự qua các dòng.
+
+Thứ duy nhất bị phá là **dòng nào tổng hợp từ dòng nào**.
+
+> **Phát biểu tối đa mà `K8 − shufG` chống đỡ được:**
+> *"**Cấu trúc phụ thuộc cụ thể** — dòng nào nối dòng nào — không mang lợi ích."*
+> **KHÔNG** được viết thành *"nhánh đồ thị BABEL vô dụng"*: bộ mã hoá dòng, residual, self-loop
+> và LSTM vẫn nguyên trong nhánh xáo. Muốn tách nốt phần đó cần một nhánh nữa: để `A` **chỉ còn
+> đường chéo** (tắt hẳn truyền tin giữa các dòng) để đo riêng bộ mã hoá dòng. **Chưa xếp.**
+
+Dù vậy, `K8 − shufG` **vẫn trả lời đúng câu của cổng 1** ("sức chứa hay cấu trúc?"): số tham
+số, độ sâu, mật độ truyền tin giữ y nguyên ở cả hai nhánh.
+
+### §81.2 — Hai ô đầu (n=1 mỗi phép so, **chưa kết luận**)
+
+```
+===== FOLD 2 — du ca ba nhanh =====
+                            F1@0.5   F1@val      ROC       PR   ep
+K8    do thi THAT, 8 cua so 0.8552   0.8552   0.9168   0.9325    9
+K1    do thi THAT, 1 cua so 0.8092   0.8092   0.9340   0.9414   15
+shufG do thi XAO,  8 cua so 0.8750   0.8816   0.9373   0.9479   11
+
+VIEC 1  K8-K1     +0.0460  +0.0460  -0.0172  -0.0089
+VIEC 2  K8-shufG  -0.0198  -0.0263  -0.0204  -0.0154
+
+===== FOLD 1 (thieu K1) =====
+VIEC 2  K8-shufG  -0.0607  -0.0541  -0.0629  -0.0843
+```
+
+**Ô `K8` fold 1 (ROC 0.8741, dừng ở epoch 5) là ô ĐÁNG NGỜ, không dùng làm bằng chứng.**
+Đường val của nó **phẳng** từ epoch 4→13 (0.9319 → 0.9432) và đỉnh ở epoch 5 (**val 0.9560**)
+lại **cao hơn** đỉnh của `shufG` (0.9489) — trong khi **test** thì thấp hơn hẳn. Tức đây là
+**nhiễu chọn checkpoint** trên val chỉ 152 hàng, không phải tín hiệu về đồ thị. `K8` fold 2
+cho 0.9168, bình thường.
+
+### §81.3 — Mẫu hình cần theo dõi (ghi TRƯỚC khi có số, để không chọn cách đọc sau khi thấy số)
+
+- **Việc 1**: nếu `K8 − K1` giữ mẫu **F1 dương / ROC âm** qua 3 fold thì nó **giải được mâu
+  thuẫn giữa §71 và §80.2**: đa cửa sổ cải thiện **quyết định ở ngưỡng** trên hàm dài, **không**
+  cải thiện **thứ hạng**. §71 đo ROC nên thấy "cửa sổ không ăn"; §80.2 đo cả hai nên thấy hiệu
+  ứng ở hàm dài.
+- **Việc 2**: nếu `K8 − shufG` giữ **âm** qua 3 fold thì **cổng 1 trượt** theo nghĩa §81.1 —
+  cấu trúc phụ thuộc không mang lợi ích, và mạch "đồ thị là đóng góp" phải viết lại.
+- **Mối đe doạ chung**: mọi ô trong khối chọn checkpoint bằng argmax val trên **152 hàng**.
+  Fold 1 của `K8` cho thấy nó đủ sức đảo một ô. Phải đo riêng: so val-peak với test của
+  **từng** epoch khi đủ dữ liệu.
+
+### §81.4 — BẬC 1 (SÀNG LỌC, n=3) cho việc 2: **đồ thị THẬT THUA đồ thị XÁO, 3/3 fold** (21/09)
+
+```
+K8 - shufG  (do thi THAT - do thi XAO)     n=3 fold [1,2,3]
+F1@0.5   -0.0358   0/3    -0.0607 -0.0198 -0.0270
+F1@val   -0.0336   0/3    -0.0541 -0.0263 -0.0204
+ROC      -0.0302   0/3    -0.0629 -0.0204 -0.0072
+PR       -0.0332   1/3    -0.0843 -0.0154 +0.0001
+
+BO fold 1 (o K8 dang ngo) — chi fold 2,3:
+F1@0.5   -0.0234   0/2    | F1@val -0.0234  0/2 | ROC -0.0138  0/2 | PR -0.0076  1/2
+```
+
+Dấu **giữ nguyên** kể cả khi bỏ ô đáng ngờ. Và ô fold 1 đã có lời giải thích sạch — **đối
+chiếu đỉnh val với test**:
+
+| | best_ep | đỉnh val | test ROC |
+|---|---|---|---|
+| fold1 `K8` | 5 | **0.8944** | 0.8741 |
+| fold1 `shufG` | 7 | 0.8880 | **0.9371** |
+| fold3 `K8` | 6 | **0.9078** | 0.9227 |
+| fold3 `shufG` | 8 | 0.8882 | **0.9299** |
+
+`K8` thắng ở **val** nhưng thua ở **test** ở cả hai fold ⇒ nhiễu chọn checkpoint trên val
+152 hàng, không phải tín hiệu về đồ thị.
+
+**Đọc đúng**: đây **không** phải *"cấu trúc đồ thị không giúp gì"* mà là ***"cấu trúc đồ thị
+thật LÀM HẠI"*** so với cùng chừng ấy cạnh nối ngẫu nhiên — mạnh hơn và lạ hơn giả thuyết ban
+đầu. Giả thuyết cơ chế khớp với thứ đã biết: đồ thị dựng **không cần parser**, `def_use`/`co_use`
+bắt bằng regex tên biến (`VAR_RE`, `FUN_RE`); nếu heuristic sai đủ thường xuyên thì cạnh thật
+**tệ hơn cạnh ngẫu nhiên**, còn xáo cạnh hoạt động như **phép trộn ngẫu nhiên có tính chính
+quy hoá**. **Chưa kiểm giả thuyết này.**
+
+**KHÔNG viết vào bài ở mức này.** CLAUDE.md §1: n=3 là bậc **sàng lọc**; `p=0.25` là **sàn**
+ở n=3 nên "0/3" là kết quả tốt nhất có thể đạt và không phân biệt được với may mắn. Biên độ
+ROC ở fold 2–3 (−0.0138) còn nằm trong dải nhiễu chạy lại đã đo (§80.9: ~0.019 trên t5p;
+trên codebert **chưa đo**). Khối tự lên n=5 trong vài giờ.
+
+### §81.5 — Việc 1 ở n=2 (chưa đủ bậc nào)
+
+```
+K8 - K1 (rieng DA CUA SO)   n=2 fold [2,3]
+F1@0.5  +0.0293  2/2   +0.0460 +0.0126
+F1@val  +0.0293  2/2   +0.0460 +0.0126
+ROC     -0.0019  1/2   -0.0172 +0.0133
+PR      +0.0055  1/2   -0.0089 +0.0200
+```
+
+Khớp mẫu hình đã ghi trước ở §81.3: đa cửa sổ ăn ở **quyết định**, không ăn ở **thứ hạng**.
+
+### §81.6 — BẬC 2 (XÁC NHẬN, n=5): mẫu hình n=3 **CO LẠI**, không kết luận được câu nào (21/09)
+
+Lần thứ **sáu** trong dự án một mẫu hình sạch ở n=3 co lại ở n=5 (`DEAD_ENDS.md` §E).
+
+```
+VIEC 2  K8 - shufG (rieng CAU TRUC do thi)   n=5, seed 42
+chi so    Δ TB    dem dau      p      tung fold
+F1@0.5  -0.0240    1/5     0.375   -0.0607 -0.0198 -0.0270 -0.0192 +0.0068
+F1@val  -0.0201    1/5     0.375   -0.0541 -0.0263 -0.0204 -0.0061 +0.0066
+ROC     -0.0129    2/5     1.000   -0.0629 -0.0204 -0.0072 +0.0152 +0.0109
+PR      -0.0152    3/5     1.000   -0.0843 -0.0154 +0.0001 +0.0169 +0.0067
+
+VIEC 1  K8 - K1 (rieng DA CUA SO)            n=4 (thieu fold 1, dang o luot bu)
+F1@0.5  +0.0262    3/4             +0.0460 +0.0126 +0.0527 -0.0065
+F1@val  +0.0278    3/4             +0.0460 +0.0126 +0.0593 -0.0065
+ROC     +0.0064    2/4             -0.0172 +0.0133 +0.0312 -0.0017
+PR      +0.0122    3/4             -0.0089 +0.0200 +0.0363 +0.0013
+```
+
+Ở n=3 việc 2 là **0/3 trên ba chỉ số**; thêm fold 4 và 5 thì ROC đảo dấu (+0.0152, +0.0109)
+và đếm dấu thành **2/5**. Việc 1 từ 3/3 xuống 3/4.
+
+**Điểm trung bình từng nhánh (4 fold có đủ cả ba):**
+
+| nhánh | F1@0.5 | ROC |
+|---|---|---|
+| `K8` 8 cửa sổ, đồ thị THẬT | 0.8436 | 0.9260 |
+| `K1` 1 cửa sổ, đồ thị THẬT | 0.8174 | 0.9196 |
+| `shufG` 8 cửa sổ, đồ thị XÁO | **0.8584** | **0.9263** |
+
+Thứ tự **`shufG` ≥ `K8` > `K1`** nhất quán trên cả hai chỉ số.
+
+**Phát biểu thận trọng nhất viết được:**
+
+> **Cấu trúc phụ thuộc không đóng góp gì DƯƠNG.** Không chứng minh được nó *làm hại*
+> (ROC 2/5, PR 3/5), nhưng không có chỗ nào cho thấy nó *có ích*: trung bình **âm trên cả bốn**
+> chỉ số, và trên F1@0.5 đồ thị **xáo** thắng đồ thị **thật** ở **4/5** fold.
+> **Đa cửa sổ** nhỉnh hơn ở F1 (+0.0262, 3/4) nhưng không ở ROC (+0.0064, 2/4).
+> **Cả hai đều CHƯA đạt ngưỡng** — sàn ở n=5 là p=0.0625, tức phải 5/5.
+
+**Hệ quả cho §71.** Bậc thang cũ (n=3, đo trên ô có sẵn) kết luận *"đồ thị ăn, cửa sổ không
+ăn"* (cửa sổ −0.0028 1/3; đồ thị +0.0228 3/3). Phép cắt trực tiếp ở đây, trên **chính kiến
+trúc của đồng nghiệp**, cho **hướng ngược lại** ở cả hai vế. Cả hai đều ở n nhỏ nên
+**không vế nào đứng**; điều §81 chốt được là **§71 KHÔNG còn là căn cứ** cho câu
+"đồ thị là đóng góp".
+
+**Muốn chốt**: n=15 (thêm seed 1234 và 7), ~10 giờ GPU trên 158. **Chưa xếp, phải hỏi.**
+
+---
+
+## §82 — `ft_babel_mix_lang`: TRỘN đa ngôn ngữ rồi finetune MỘT LẦN, so `baseline` chỉ tune python (21/09, 161, **n=2 — người dùng chốt dừng ở 2 fold**)
+
+Đối chứng quan trọng cho mạch transfer hai pha. Thay vì Pha 1 trên js+java rồi Pha 2 trên
+python, **trộn thẳng** vào một tập train rồi finetune **một lần**. Kiến trúc **giữ nguyên**
+(đa cửa sổ K=8 + đồ thị BABEL, `--drop_bracket 1 --co_mode chain`, SAM 0.02); khác biệt duy
+nhất là **cách huấn luyện**: `INIT=none` (không nạp checkpoint Pha 1) và **không RecAdam**
+(không có neo để ghi).
+
+**Dữ liệu** `data/mix_jsCjv_sven`, mỗi fold: train **trộn** js 670 + java 4 906 + python 456
+= **6 032** hàng (nhãn 3005/3027); **val và test CHỈ python**, đúng fold đó (152/152).
+Đối chứng `b4_sven42` cùng máy cùng seed 42, đã có sẵn — **không chạy lại**.
+
+```
+fold  nhanh                        F1@0.5   F1@val      ROC       PR   ep
+  1   ft_babel_mix_lang            0.7958   0.7928   0.9033   0.9227    5
+  1   baseline (chi tune python)   0.7565   0.7672   0.8696   0.8921    5
+      >>> Delta                   +0.0393  +0.0256  +0.0337  +0.0306
+
+  2   ft_babel_mix_lang            0.8947   0.8678   0.9499   0.9576    5
+  2   baseline (chi tune python)   0.7824   0.7828   0.9042   0.9073    8
+      >>> Delta                   +0.1123  +0.0850  +0.0457  +0.0503
+
+n=2:  F1@0.5 +0.0758 2/2 | F1@val +0.0553 2/2 | ROC +0.0397 2/2 | PR +0.0405 2/2
+```
+
+**n=2 — KHÔNG đủ bậc nào** (bậc 1 cần 3 fold). Không viết vào bài. Nhưng biên độ đáng chú ý:
+F1@0.5 **+0.0758** ở n=2 so với **+0.0651** của khối transfer hai pha ở **n=15** (§78) —
+tức trộn thẳng **ít nhất không kém**, trong khi **đơn giản hơn hẳn**: không Pha 1, không
+RecAdam, không checkpoint trung gian, một lần huấn luyện.
+
+**Chi phí đo được** (vì sao dừng): **310 ms/hàng** × 6 032 hàng ⇒ **29 phút/epoch khi chạy một
+mình**, **79 phút/epoch khi chia GPU** với `cuongtm` + `anhnd_02`. So với `baseline` 59 ms/hàng
+và nhánh transfer 222 ms/hàng trên 456 hàng. Fold 1 mất 6h47, fold 2 tương tự.
+
+**Người dùng dừng ở 2 fold (21/09) để nhường GPU 161.** Dừng đúng job của mình theo **PID**
+(trên máy có **hai** tiến trình tên `bash qg.sh` — một của `ntat`, một của `cuongtm`, nên khớp
+theo chuỗi là thảm hoạ); đã xác nhận sau khi dừng: 0 tiến trình python của `ntat`,
+VRAM 11 539 → 7 492 MiB, và `cuongtm` (4 534) + `anhnd_02` (2 950) **còn nguyên**.
+Nếu chạy tiếp thì chuyển sang **158** (đang trống).
+
+---
+
+## §83 — **NHIỄU CHẠY LẠI TRÊN CÙNG MỘT MÁY**: trung bình 5 fold vững, nhưng TỪNG Ô thì không (21/09, vast 51144271, 2×5 ô + 4 ô thử + 1 phép kiểm RNG)
+
+### Bối cảnh
+
+Người dùng yêu cầu một mốc baseline **duy nhất**: codebert, 5 fold python, seed 42,
+lr 2e-5, epoch 30, **không warmup không decay**. Chạy xong lượt 1, rồi chạy lại lượt 2
+(thêm log tài nguyên) — **cùng seed, cùng máy, cùng card, cùng script**. Hai lượt ra khác nhau.
+
+### Số đo
+
+| | TB lượt 1 | TB lượt 2 | hiệu TB | sd của Δ theo fold | \|Δ\| max | fold lệch >0,010 |
+|---|---:|---:|---:|---:|---:|---:|
+| F1@0.5 | 0,7970 | 0,7968 | **−0,0002** | 0,0159 | 0,0245 | 2/5 |
+| F1@val | 0,7958 | 0,8024 | +0,0066 | 0,0153 | 0,0209 | 4/5 |
+| ROC | 0,9065 | 0,9068 | **+0,0003** | 0,0136 | 0,0226 | 2/5 |
+| PR | 0,9183 | 0,9164 | −0,0018 | 0,0114 | 0,0186 | 3/5 |
+
+`best_epoch` đổi hẳn: fold2 **19 → 6**, fold4 **16 → 8** (fold1 13→13, fold3 3→3, fold5 15→17).
+
+Sai số chuẩn suy ra cho **một** lần chạy (sd/√2 rồi chia √n):
+
+| | n=5 (**đã chạy**) | n=15 (**DỰ BÁO, CHƯA CHẠY**) |
+|---|---:|---:|
+| F1@0.5 | 0,0050 | 0,0029 |
+| ROC | 0,0043 | 0,0025 |
+
+> **Khối này toàn bộ là BẬC 2: n=5, seed 42. CHƯA có n=15 nào** (người dùng nêu 21/09).
+> Cột n=15 ở trên là phép ngoại suy từ chính sd đo được, không phải số đã chạy.
+
+### Nguyên nhân — đã loại trừ bản vá bằng ba phép, không suy đoán
+
+Lượt 2 có thêm bản vá ghi log tài nguyên, nên nghi vấn đầu tiên là bản vá làm lệch RNG.
+
+1. **Bốn ô, 1 epoch, fold 1, seed 42, cấu hình y hệt** (`determinism_probe.sh`, xếp sau
+   `flock` không có `-n` nên không bao giờ hai job một GPU):
+
+   ```
+   A1 0.710174   A2 0.709010    <- bản ĐÃ VÁ
+   B1 0.707109   B2 0.707803    <- bản CHƯA VÁ
+   ```
+
+   **Cả hai bản đều bất định.** `A1 ≠ A2` đủ để nói bản vá không phải nguyên nhân của
+   chênh lệch lớn; `B1 ≠ B2` nói repo vốn đã bất định từ trước.
+
+2. **Phép kiểm RNG, chạy trên CPU**: băm trạng thái `torch`/`random`/`numpy` sau
+   `loaders(...)` so với sau `loaders(...) + _token_budget(...)` — **trùng khít**
+   (`53e67739bf31fcf4`). Và khởi tạo mô hình ở hai đường cho **trọng số trùng từng bit**.
+   Tức bản vá **không thể** làm đổi khởi tạo.
+
+3. Chênh lệch biểu kiến ~0,0012 giữa cụm A và cụm B ở epoch 1 **không tách được khỏi
+   nhiễu** ở n=2 mỗi cụm (biên độ trong cụm 0,0007–0,0012), và nằm dưới nhiễu mà đường
+   chạy vốn đã mang.
+
+### Cơ chế
+
+`train_baseline.py:493` gọi `set_seed(args.seed)` tức **`strict=False`**: chỉ đặt
+`cudnn.deterministic=True` và `benchmark=False`, **không** gọi
+`torch.use_deterministic_algorithms`. Chính docstring của `set_seed`
+(`train_transfer.py:49-67`) đã ghi là như vậy chưa đủ — *"cudnn.deterministic does not
+cover the non-cuDNN reductions that produce that drift"* — và nêu đúng cơ chế khuếch đại:
+**early stopping biến một trôi dạt cỡ 1e-7 thành một quyết định dừng khác hẳn**. Quan sát
+ở đây khớp: trôi dạt epoch 1 cỡ **1e-3**, `best_epoch` nhảy 19→6.
+
+Nguồn sơ cấp cho phần cứng: cuBLAS chỉ đảm bảo *"the same bit-wise results … on GPUs with
+**the same architecture and the same number of SMs**"* — nên bất định trong một máy đến từ
+thứ tự rút gọn không xác định, còn sàn **0,028** giữa các card thì đến từ chính mệnh đề đó.
+
+### Hệ quả cho cách đọc kết quả — **quan trọng**
+
+* **Trung bình 5 fold vững**: hai lượt độc lập lệch 0,0002 (F1) và 0,0003 (ROC).
+* **Từng ô KHÔNG lặp lại được**: sai số chuẩn một ô ≈ **0,010**, \|Δ\| max chạm **0,0245**.
+* Do đó **Δ ghép cặp theo từng fold mang sẵn ~0,01–0,02 nhiễu thuần**, và **đếm số fold
+  cùng dấu cũng bị nhiễu này ăn vào** — 2/5 đến 4/5 ô vượt sàn 0,010 chỉ vì chạy lại.
+* Mọi hiệu ứng dưới ~0,02 ở mức **một ô** không phân biệt được với chạy lại. Ở mức
+  **trung bình n=5** thì ngưỡng đọc được là ~0,010 (≈2 SE), n=15 là ~0,006.
+
+### Hai đường đi tiếp (chưa chọn)
+
+| | được gì | mất gì |
+|---|---|---|
+| **A. Bật `strict_determinism`** cho `train_baseline.py` (cờ này `train_transfer.py:1752` đã có, `train_baseline.py` thì chưa) | một lần rút thăm **lặp lại được**, ai cũng dựng lại đúng con số | đổi kết quả so với **mọi** ô đã ghi trước đây; vài kernel chậm hơn; **và không làm giảm phương sai giữa các lần rút thăm khác nhau** — chỉ làm một lần rút thăm lặp lại được |
+| **B. Giữ nguyên, báo kèm nhiễu chạy lại** | không phải chạy lại gì | mỗi ô vẫn mang ~0,01–0,02 nhiễu; phải luôn đọc theo trung bình nhiều fold |
+
+Docstring của `set_seed` nói thẳng điều dễ nhầm nhất: *"determinism is not the same thing
+as low variance — it makes one draw repeatable, while the spread across draws stays real
+and still has to be averaged over."*
+
+### Hiện vật
+
+`clean/results/` (lượt 1) · `clean/results_run2/` (lượt 2, kèm `*.resource.json`) ·
+`clean/logs*/` · `clean/scripts/qb4_clean.sh` · `/workspace/probe.log` trên vast.
+Cả hai lượt đã đối chiếu từng byte với máy chạy (10 và 20 file, khớp 100%), và cả 5 ô mỗi
+lượt dùng **một** cấu hình, log in `LR: 2.00e-05` từ epoch đầu tới epoch cuối, 0 dòng
+`Warmup bat`.
+
+---
+
+## §84 — **PHA 1 KẸT**: loại trừ pool, mã, và bản vá bằng ba phép kiểm; chế độ hỏng phụ thuộc **SEED *VÀ* KÍCH THƯỚC POOL** (21/09, vast 51144271)
+
+### Triệu chứng
+
+Pha 1 `train_mwg.py` trên pool nguồn không học: train loss đứng yên quanh mức bình nguyên,
+val ROC-AUC ~0.50 qua nhiều epoch. Gặp ở **cả hai** pool thử:
+
+```
+v2common (9 302 hang), graph_lr 1e-4:  1.7573/0.5009  1.7414/0.4860  1.7482/0.5096
+v2common (9 302 hang), graph_lr 2e-5:  1.7600/0.4945
+jsCjv    (5 576 hang), graph_lr 2e-5:  1.9654/0.5327  1.9481/0.5325  1.9488/0.5321
+```
+
+Mức bình nguyên khớp công thức `CE ln2 (0,69) + softplus(margin) (1,31) × tỉ lệ hàng
+nằm trong cặp`: v2common có 79,6 % hàng trong cặp ⇒ dự báo **1,73**, đo **1,75–1,76**.
+jsCjv có 95,5 % ⇒ dự báo **1,94**, đo **1,95–1,97**. Trùng ở cả hai pool.
+
+### Ba phép kiểm đã LOẠI TRỪ phía ta
+
+| nghi vấn | phép kiểm | kết quả |
+|---|---|---|
+| pool `jsCjv` ta dùng khác pool họ dùng? | so dòng `PAIR LOSS` và `DO PHU` với log của họ | **giống hệt**: `2662 cặp / 252 mẫu lẻ`, tiền xử lý `46s` |
+| mã trên vast cũ hơn bản của họ? | md5 `code_snapshot/src/*` của `GraphTransferVD@fix` vs vast | **trùng khít 8/8 file**, kể cả `train_mwg.py` = `a9fb786e632193a2fa610c9e8b18f7f8` |
+| bản vá log tài nguyên làm lệch RNG? | băm trạng thái `torch`/`random`/`numpy` sau `set_seed(42)` có và không có bản vá | **trùng khít** `7d463793def038d7`; 0 luồng nền |
+
+### Đối chứng dương là phép quyết định
+
+`mwsrc_jsCjv` là pool **đã biết là học được** với đúng mã đó. Đặt cạnh bảng §16.8b của
+đồng tác giả trên **cùng pool ấy**:
+
+| cấu hình | ep1 | ep2 | ep3 | |
+|---|---|---|---|---|
+| họ, `glr1e-4` **seed 36** | 1,959/0,522 | 1,969/0,528 | 1,957/0,531 | kẹt |
+| **ta, `glr2e5` seed 42** | 1,965/0,533 | 1,948/0,533 | 1,949/0,532 | **kẹt** |
+| họ, `glr2e5` **seed 36** | 1,955/0,612 | 1,697/0,668 | 1,392/0,693 | thoát |
+| họ, gốc **seed 38** | 1,953/0,546 | 1,789/0,667 | 1,515/0,701 | thoát |
+
+Đường của ta **trùng khít đường kẹt**, dù đã bật đúng nút (`graph_lr 2e-5`) mà ở seed 36
+cứu được. Pool giống hệt, mã giống hệt, bản vá đã chứng minh trung tính ⇒ **biến còn lại
+duy nhất là seed**.
+
+> ⚠️ **Đừng phát biểu rộng hơn bằng chứng.** Không đúng khi nói "seed 42 luôn kẹt":
+> ô `v2cwe4` (878 hàng) ở **chính seed 42** đã THOÁT khỏi bình nguyên — train loss
+> `1,7676 → 1,7068 → 1,6568 → 1,3721 → … → 0,8374`. Phát biểu đúng là chế độ kẹt phụ
+> thuộc **cả seed lẫn kích thước/thành phần pool**: hai pool lớn (5 576 và 9 302 hàng)
+> kẹt, pool nhỏ (878 hàng) không kẹt.
+
+### Chế độ hỏng này ĐÃ ĐƯỢC BIẾT, và cách xử lý hiện hành là ĐỔI SEED
+
+`qp9_e16.sh` của đồng tác giả có vòng `for SD in 36 37 38` kèm watchdog giết job khi
+epoch 3 val ROC < 0,60. Tức trong sản xuất họ **thử lại seed cho tới khi một seed học
+được**. §16.8b chốt cơ chế: nhánh đồ thị **9,45 M tham số khởi tạo ngẫu nhiên** kéo đầu
+phân loại về **nghiệm hằng số** trong giai đoạn warmup; `nopair` vẫn kẹt nên **không phải**
+do hạng cặp.
+
+> **Đi săn seed là thiên lệch chọn lọc.** Chọn seed nào chạy được rồi báo kết quả của nó
+> là chọn trên chính đại lượng đang đo. Nên khối này **không đổi seed** (người dùng chốt
+> 42) mà tìm một nút **siêu tham số** thoát kẹt, rồi áp **đồng nhất cho mọi nhánh**.
+
+### Một chế độ hỏng THỨ HAI, khác hẳn: pool quá nhỏ thì overfit chứ không kẹt
+
+`v2cwe4` (878 hàng train / 220 val), 8 epoch, seed 42:
+
+```
+ep1 train 1,7676  val 0,8305  ROC 0,3883
+ep2 train 1,7068  val 0,9838  ROC 0,3859
+ep3 train 1,6568  val 0,8764  ROC 0,4549
+ep4 train 1,3721  val 1,1248  ROC 0,5215
+ep6 train 0,8374  val 2,1829  ROC 0,5001
+```
+
+Train loss giảm **một nửa** trong khi val loss **tăng gấp 2,6 lần** — overfit sách giáo
+khoa, không phải bình nguyên hằng số. **Phân biệt hai chế độ bằng TRAIN loss**: kẹt thì
+train loss đứng yên, overfit thì train loss giảm mạnh mà val xấu đi.
+
+Hệ quả thực hành: **`v2cwe4` quá nhỏ để làm nguồn Pha 1** (878 hàng). Nếu vẫn chạy thì
+phải ghi rõ nó hỏng vì overfit, không được đọc chung một nhãn "Pha 1 sập" với hai pool kia.
+
+### NÚT THOÁT — năm ô trên **cùng pool đối chứng**, cùng seed 42, mỗi ô đổi **đúng một biến**
+
+Pool `mwsrc_jsCjv` (5 576 hàng), 3 epoch, `train_mwg.py` md5 trùng bản của họ:
+
+| ô | warmup | graph_lr | margin | ep1 | ep2 | ep3 | |
+|---|---|---|---|---|---|---|---|
+| **A** | 0,10 | 2e-5 | 1,0 | 1,9654/0,5327 | 1,9481/0,5325 | 1,9488/0,5321 | **kẹt** |
+| **E** | **0,25** | 1e-4 | 1,0 | 1,9666/0,5311 | 1,9639/0,5341 | 1,9500/0,5346 | **kẹt** |
+| **C** | **0,25** | **2e-5** | 1,0 | 1,9364/0,6236 | 1,6739/0,6766 | 1,3158/**0,6899** | **thoát** |
+| **D** | 0,10 | 2e-5 | **0,5** | 1,6154/0,6396 | 1,3921/0,6835 | 1,1160/**0,6960** | **thoát** |
+
+**Ở seed 42, KHÔNG nút nào một mình đủ.** Phải có **cả** `warmup 0,25` **lẫn**
+`graph_lr 2e-5` (ô C). Đối chiếu §16.8b ở **seed 36**: ở đó `glr2e5` MỘT MÌNH đã thoát
+(0,612/0,668/0,693) và `warm25` MỘT MÌNH cũng thoát (0,582/0,678/0,703).
+
+> **Khuyến nghị của §16.8b được rút từ MỘT seed và không tổng quát.** Nó đề xuất
+> *"`warmup 0.25` **hoặc** `graph_lr 2e-5`"* — ở seed 42 cả hai vế của chữ "hoặc" đều
+> **thất bại** khi dùng riêng. Đây đúng kiểu lỗi "kết luận từ n=1" mà dự án đã dính nhiều
+> lần; lần này nó làm tôi mất một lần chạy hỏng vì tin khuyến nghị đó mà không đối chứng.
+
+Số của ta khớp §16.8b ở cả hai nút thoát: `warm25` của họ ep3 = 0,703 / của ta 0,690;
+`margin05` của họ 0,694 / của ta 0,696.
+
+### Cấu hình chốt, và vì sao chỉ đổi PHA 1
+
+| | Pha 1 (nguồn) | Pha 2 (đích) |
+|---|---|---|
+| `warmup_ratio` | **0,25** ← đổi | 0,10 **giữ nguyên** |
+| `graph_lr` | **2e-5** ← đổi | 1e-4 **giữ nguyên** |
+| `pair_margin` | 1,0 giữ nguyên | — (Pha 2 không dùng pair loss) |
+
+Lỗi kẹt sinh từ nhánh đồ thị 9,45 M **khởi tạo ngẫu nhiên**. Sang Pha 2 nhánh đó được nạp
+từ checkpoint (`--init all`) nên không còn ngẫu nhiên ⇒ **không có cơ sở đụng vào Pha 2**,
+và giữ nguyên Pha 2 thì còn so được với kết quả đã công bố của họ.
+
+**Không dùng `margin 0,5`** dù nó cũng thoát và ep3 còn nhỉnh hơn (0,696 vs 0,690): nó đổi
+**chính hàm mục tiêu**, tức mô hình tối ưu một thứ khác. Hai nút kia chỉ đổi *cách đi tới*
+nghiệm, không đổi *nghiệm cần tìm*.
+
+### Hiện vật
+
+`clean/diag/log/{A,B,C,D,E}*.log` · `clean/logs/_dung_giua_chung/` (hai lần dừng chủ động
+của `v2common`, kèm `README.txt` ghi rõ **dừng chủ động, không phải sập**) ·
+bảng chẩn đoán chép nguyên vào đầu `clean/scripts/qd1_common.sh`.
+
+---
+
+## §85 — **TÁCH ĐÓNG GÓP TỪNG THÀNH PHẦN** trên nguồn `common`: transfer gánh phần lớn, đồ thị gần như không đóng góp (22/09, vast 51144271, n=5 seed 42, 30 ô)
+
+### Thiết kế
+
+Một máy duy nhất, seed 42, nguồn `mwsrc_v2common` (ccpp 4 620 + java 5 508 + js 1 500),
+đích `sven_python_folds_norm`. Mỗi nhánh đổi **đúng một thứ** so với nhánh đầy đủ:
+
+| nhánh | đổi gì |
+|---|---|
+| đầy đủ `p2_v2common_2sven` | `--init all` + `--fusion cat` + `--sam_rho 0.02` + `--recadam 1` |
+| `abl_noinit` | `--init none` |
+| `abl_nograph` | `--fusion mw` |
+| `abl_norecsam` | `--sam_rho 0 --recadam 0` |
+| `clean_baseline_codebert_py` | codebert thuần 512, không MW, không đồ thị |
+
+### Trung bình 5 fold
+
+| nhánh | F1@0.5 | F1@val | ROC | PR |
+|---|---:|---:|---:|---:|
+| baseline 512 | 0,7970 | 0,7958 | 0,9065 | 0,9183 |
+| **đầy đủ** | **0,8576** | **0,8482** | **0,9221** | **0,9320** |
+| − transfer | 0,8087 | 0,7918 | 0,9115 | 0,9230 |
+| − đồ thị | 0,8524 | 0,8410 | 0,9216 | 0,9268 |
+| − RecAdam+SAM | 0,8548 | 0,8455 | 0,9089 | 0,9056 |
+
+### Phần riêng của từng thành phần (ghép cặp theo fold)
+
+| thành phần | F1@0.5 | F1@val | ROC | PR |
+|---|---|---|---|---|
+| **transfer** | **+0,0489 5/5** | **+0,0565 5/5** | +0,0105 2/5 | +0,0089 2/5 |
+| đa cửa sổ (MW) | +0,0116 4/5 | −0,0041 2/5 | +0,0050 4/5 | +0,0048 4/5 |
+| đồ thị | +0,0052 4/5 | +0,0072 3/5 | +0,0005 2/5 | +0,0051 3/5 |
+| **RecAdam+SAM** | +0,0028 2/5 | +0,0027 3/5 | **+0,0132 4/5** | **+0,0263 4/5** |
+
+Toàn gói so với baseline: **F1@0.5 +0,0606 5/5** (biên độ +0,0266…+0,0831) ·
+F1@val +0,0524 4/5 · ROC +0,0156 **3/5** · PR +0,0137 4/5.
+
+### Ba phát biểu đọc được
+
+1. **Transfer gánh phần lớn, nhưng CHỈ ở ngưỡng quyết định.** +0,049 và +0,057 F1 ở
+   **5/5** fold, trong khi ROC chỉ +0,011 ở **2/5**. Cùng mạch với §80.1.
+2. **RecAdam+SAM thì NGƯỢC LẠI**: cải thiện **thứ hạng** (PR +0,026, ROC +0,013, đều 4/5)
+   nhưng không cải thiện F1 (2/5). Lặp lại độc lập đúng kết luận về ASAM ở CLAUDE.md §2b
+   sau nhiều tháng và trên một kiến trúc khác hẳn.
+3. **Đồ thị gần như không đóng góp**: mọi chỉ số ≤ +0,007, không cái nào đạt 5/5, đều
+   **dưới sàn nhiễu chạy lại 0,010** của §83. Mà nó tốn **9,45 M tham số** và toàn bộ chi
+   phí dựng đồ thị. Chưa đủ để nói "vô dụng" ở n=5, nhưng đủ để nói **nó không phải nguồn
+   đóng góp chính** — ngược với tên gọi `mw_assemble_babel` vốn đặt BABEL làm trung tâm.
+
+> **Đây chính là lý do CLAUDE.md §2b bắt in CẢ BỐN chỉ số.** Chỉ báo F1 ⇒ kết luận
+> RecAdam+SAM vô dụng. Chỉ báo ROC ⇒ kết luận transfer vô dụng. Cả hai đều sai.
+
+### Nghịch lý trung tâm, chưa giải thích được
+
+Checkpoint Pha 1 của `common` có val/test ROC **0,5179** — gần như ngẫu nhiên, và quá
+trình Pha 1 là overfit hoàn toàn (train loss 1,76 → 0,88 trong khi val loss 0,71 → 4,05).
+Vậy mà transfer từ chính checkpoint đó vẫn đáng **+0,05 F1 ở 5/5 fold**.
+
+Củng cố thêm: nguồn `4cwe` còn tệ hơn (val ROC **0,4771**, 878 hàng) nhưng đích ra gần như
+nhau — ghép cặp theo fold giữa hai nguồn cho F1@0.5 +0,0118 (4/5), F1@val −0,0132 (1/5),
+ROC +0,0026 (2/5): **dấu ngược nhau, mọi hiệu số dưới sàn nhiễu**.
+
+Nên thứ được truyền sang **không phải tri thức lỗ hổng** — nguồn có học được đâu mà truyền.
+Giả thuyết đáng kiểm: nó dịch chuyển phân bố logit theo hướng làm ngưỡng 0,5 hợp lý hơn.
+Kiểm được bằng `.probs.npz` đã lưu, **0 GPU**.
+
+### Lỗi tôi mắc trong khối này
+
+Sau fold 1 của `abl_noinit` tôi đã kết luận *"transfer không đóng góp gì"* vì ROC của nhánh
+không-transfer (0,9125) ≈ nhánh có transfer (0,9122). Đúng cho ROC, nhưng tôi **suy rộng
+sang toàn bộ** khi mới có **một** fold. Trên 5 fold thì F1 cho 5/5 rõ ràng. Đây đúng lỗi
+"kết luận từ ô đầu tiên" đã ghi ở `DEAD_ENDS.md`, và tôi vừa mắc lại.
+
+### Hiện vật
+
+`clean/results/{abl_noinit,abl_nograph,abl_norecsam,p2_v2common_2sven,p2_v2cwe4_2sven,
+clean_baseline_codebert_py}/` — 30 ô, kèm `.probs.npz` và `*.resource.json` từng ô,
+đã kéo về 161 và đối chiếu md5.
+
+---
+
+## §86 — **TẤT ĐỊNH STRICT CHO KẾT QUẢ TRÙNG TỪNG BIT GIỮA 161 VÀ 158** (26/09, khối final `_FinalPaperExperiment`)
+
+Cùng lệnh `train_baseline.py` (baseline fold 1, seed 42, SVEN nocomment) chạy qua `scripts/det_launch.py`
+(`use_deterministic_algorithms(True)` không warn_only, `CUBLAS_WORKSPACE_CONFIG=:4096:8`, `PYTHONHASHSEED=42`, cudnn deterministic,
+TF32 tắt) trên **158** (25/09 06:10) và **161** (26/09 10:21, run `repro_baseline`):
+
+| | 158 | 161 |
+|---|---|---|
+| test ROC / F1@0,5 / PR | 0,9067988175969397 / 0,8157 / 0,9274 | **giống hệt** |
+| 152 xác suất test (md5 float32) | `b2b54bf9…` | `b2b54bf9…` (max\|Δ\| = 0) |
+| 152 xác suất val, ngưỡng hiệu chỉnh | — | trùng từng bit |
+| best epoch / dừng sớm | 15 / 23 | 15 / 23 |
+
+Môi trường: cùng Python 3.11.14, torch 2.9.1+cu128, transformers 4.57.1, RTX A4000 16 GB, CodeBERT md5 trùng; **khác driver NVIDIA
+(535 vs 575)** — không ảnh hưởng. Chỉ khác tham số đường dẫn.
+
+**Hệ quả**: trong khối này, sàn nhiễu "khác máy cùng loại GPU 0,010" (CLAUDE.md §2) **KHÔNG áp dụng** — fold chạy ở 158 và 161 ghép
+cặp được như cùng máy. Mới kiểm cho `train_baseline.py`; `train_mwg.py` cùng thư viện và cùng chế độ strict nên kỳ vọng như nhau, nhưng
+**chưa đo** — muốn chắc thì lặp một fold Pha 2 (cần chép checkpoint Pha 1). Lưu ý phân biệt: bằng chứng này là "tái lập được", KHÔNG
+phải "vững với phần cứng khác" — CLAUDE.md §2 (§52.1) nói về khác LOẠI GPU/khác điều kiện, không bị bác bỏ ở đây.
+
+**Đã đo cho `train_mwg.py` (02/10 10:15, `_FinalPaperExperiment`, run kiểm `chk_det_mwg_nop1_adamw`):** chạy lại `mwg_nop1_adamw` f1 trên 158 (bản gốc 161, 02/10 01:53), cùng mọi tham số hiệu lực. 152 xác suất test và 152 xác suất val **trùng từng bit** (md5 float32 `822fc429…` / `9d143159…`, max|Δ| = 0), ngưỡng hiệu chỉnh trùng, ROC / F1@0,5 / F1@val / PR trùng, best epoch 7 / dừng sớm ở epoch 15 ở cả hai; dòng log từng epoch trùng tới chữ số cuối, chỉ khác thời gian. ⇒ trong khối final, fold MWG/MW chạy ở 158 và 161 ghép cặp được như cùng máy (dùng cho fold 5 của MWG / MW không Pha 1 và phép kiểm B f2/f4 ở tab Kiểm K13).
+
+**Lặp thêm lần 3 — vast `final_paper` (27/09 02:41, instance 52805338, RTX A4000, driver 595.84, container):** venv dựng bằng `uv` với
+Python 3.11.14 + cùng phiên bản gói (torch 2.9.1+cu128, cuDNN 91002, transformers 4.57.1, tokenizers 0.22.1, numpy 2.3.4, sklearn 1.7.2).
+`repro_baseline` f1: test ROC 0,9067988175969397, **152 xác suất test + val + ngưỡng trùng từng bit** (md5 `b2b54bf9`/`f746da7d`/`1e525d7c`).
+⇒ Ba máy A4000 (driver 535/575/595) cho kết quả y hệt với train_baseline.py ở chế độ strict. Điều kiện: CÙNG loại GPU + CÙNG phiên bản
+gói (venv sẵn của image vast là py3.10 + numpy 2.2.6 — KHÔNG dùng).
+
+## §87 — **LẶP TRÊN GPU KHÁC (RTX 4070 SUPER) VÀ CÁC Ô SỤP PHA 2** (02/10, khối final; vast `paper` 53831025 + 161 + 158)
+
+**87.1 Lặp 3 run chỉ ASAM nguồn chỉ JS trên 4070S** (cả hai pha train lại; mọi cờ trùng run A4000, `hparam` khớp 48/48 cả 15 ô; bậc 2, n=5, seed 42).
+Δ = 4070S - A4000 ghép cặp theo fold:
+
+| run | ROC | F1@0.5 | F1@val | CWE-022 + 079 |
+|---|---|---|---|---|
+| `mwg_assemble_asamonly_jsonly` (common) | -0,001 (2+/3-) | -0,009 | -0,012 | -0,008 |
+| `mwg_assemble_asamonly_full_jsonly` | -0,002 (2+/2-) | +0,016 (5/5) | +0,014 | +0,108 (5/5) |
+| `mw_assemble_asamonly_jsonly` | -0,006 (1+/4-) | -0,008 | -0,018 | +0,078 (4/5) |
+
+Phép so cùng máy: common - full ROC +0,008 (4070S) / +0,007 (A4000) - lặp được; nhưng **CWE-022 + 079: -0,043 (1/5) / +0,074 (5/5) - ĐẢO DẤU**,
+CWE-macro -0,016 / +0,040 (5/5). MWG - MW: ROC +0,002 / -0,003; 022+079 -0,006 / +0,081. ⇒ **chỉ số tổng lặp qua loại GPU; hiệu ứng theo CWE ở n=5 một
+máy KHÔNG lặp** (lần thứ tám một mẫu hình 5/5 biến mất khi mở rộng - CLAUDE.md §2). Kết quả + ckpt Pha 1 + state ở 161 (`state/vast_paper53831025/`).
+
+**87.2 Mọi ô "sụp" Pha 2 cùng một cơ chế.** 261 ô Pha 2 rà lại: 15 ô sụp (test ROC 0,44-0,62), **cả 15** có train loss không rời ln2 (min > 0,66) và dừng
+sớm ở ep10-11 (`min_epochs 3` + `patience 8` tính từ val ep1-3); 216 ô dừng sớm sau khi học có test thấp nhất 0,854. Phân bố: full bỏ Java 8/15, full chỉ
+C/C++ seed 42 2/5 (seed 1234 cả hai pha 0/5), common chỉ JS **seed 1234 7/8** (seed 42 / 7 / 4070S 0/27), mọi nguồn khác seed 42 0/~200, không Pha 1
+0/25 (kể cả ASAM 0/10), không ASAM 0/77 (nhưng AdamW CHƯA chạy trên nguồn full C/C++ hay seed 1234). ASAM chỉ ở Pha 2 (38 run Pha 1 đều `sam_rho 0`).
+Bằng chứng tự nhiên: `mw_assemble_asamonly_jsonly_s1234` f2 sống nhờ val nhích dần (patience reset), thoát bình nguyên ep13-16 ⇒ test 0,892 (seed 42:
+0,948). ⇒ kết luận 30/09 "nguyên nhân là NGUỒN" QUÁ SỚM: nguồn và seed làm bình nguyên Pha 2 (Pha 1 init + ASAM ρ 0,5) dài ra; luật dừng sớm biến bình
+nguyên dài thành ô sụp. Chưa tách được Pha 1 seed hay Pha 2 seed; chưa kiểm `--min_epochs 15` (chờ người dùng duyệt).
+
+**87.3 Bậc 3 MWG - MW (chỉ ASAM, common chỉ JS), 03/10 02:47.** Seed 1234 sụp 9/10 ô Pha 2 (MWG 5/5, MW 4/5) ⇒ 0 cặp; 10 cặp dùng được (seed 42 + 7).
+Δ MWG - MW: ROC +0,002 (5+/5-, Wilcoxon p 0,63), PR -0,006, F1@0.5 +0,006 (5+/3-), F1@val +0,008 (6+/3-); **CWE-022 + 079 +0,082 (7+/3-, p 0,027)**,
+**CWE-macro +0,038 (7+/3-, p 0,049)**. Đồ thị không đổi chỉ số tổng; có tín hiệu ở cấp CWE trên A4000 qua hai seed, nhưng 87.1 cho thấy chính hiệu MWG - MW
+theo CWE đổi dấu trên 4070S (-0,006) ⇒ phát biểu "đồ thị giúp theo CWE" mới đứng trên MỘT loại GPU.
+
+**87.4 Phép kiểm A với nguồn C/C++ (tương tác đồ thị × transfer), đủ n=5 seed 42, 03/10 03:03** (MWG f1 trên 161, f2-f5 trên 158; ckpt Pha 1 md5 trùng,
+tất định §86). Tương tác = (MWG có Pha 1 - MWG không Pha 1) - (MW có Pha 1 - MW không Pha 1):
+- **AdamW: 25/25 ô dương** - ROC +0,039 (5/5), PR +0,047 (5/5), F1@0.5 +0,054 (5/5), F1@val +0,064 (5/5), 022+079 +0,227 (5/5). Thành phần: MW có Pha 1
+  thua không Pha 1 ở 0/5 fold mọi chỉ số tổng (ROC -0,031); MWG có Pha 1 hơn ở 4/5 (ROC +0,008, F1@0.5 +0,034, 022+079 +0,270 5/5).
+- **ASAM: lẫn lộn** - ROC +0,018 (4/5), PR +0,019 (4/5), F1@0.5 +0,008 (3/5), F1@val -0,009 (2/5), 022+079 -0,093 (2/5).
+So với nguồn chỉ JS (K13 phép kiểm A): AdamW ROC -0,016 (1/4), ASAM +0,010 (4/1). ⇒ với nguồn C/C++ (transfer không đồ thị là ÂM), đồ thị chặn transfer
+âm - rõ nhất ở AdamW; với nguồn JS (transfer dương) đồ thị không thêm gì. Bậc 2, một seed, một loại GPU (A4000).
+
+**87.5 Bảng 2×2 optimizer, MWG, nguồn common chỉ C/C++, n=5 seed 42 (03/10 03:18, đủ 20/20 ô).** TB ROC: RecAdam + ASAM 0,916 · chỉ ASAM 0,918 ·
+chỉ RecAdam 0,911 · AdamW 0,916 (ngang nhau). Theo CWE thì không: **ASAM - AdamW: 022+079 -0,299 (0/5), CWE-macro -0,138 (0/5), F1@0.5 -0,028 (1/5)**,
+ROC +0,002 (2/5); thêm ASAM vào RecAdam: 022+079 -0,244 (0/5), macro -0,114 (0/5). RecAdam - AdamW: ROC -0,006, 022+079 -0,074 (2/5) - nhỏ, lẫn dấu.
+⇒ trên nguồn C/C++, ASAM ρ 0,5 KHÔNG đổi thứ hạng tổng nhưng kéo khả năng xếp hạng CWE-022/079 xuống rất mạnh (0/5 cả hai cách so); cấu hình "SOTA"
+RecAdam + ASAM có CWE-macro thấp nhất (0,601 so với AdamW 0,753). Một seed, một loại GPU - nhưng 0/5 ở hai phép so độc lập cấu hình.
+
+**87.6 Đính chính (03/10, theo 3 phản biện Opus 5.5 - meta/review_pack/).** (a) Số ô Pha 2 sụp là **19** trên ~300 ô (ROC < 0,7, train loss ≥ 0,66 suốt
+10-16 epoch; 18/19 dừng ep10-11), không phải 15 như 87.2 (đếm trước khi thêm run); cả 19 dùng ASAM; không ASAM 0/96. (b) "022+079" ở 87.3 là TRUNG BÌNH hai
+ROC riêng; claims_k13 và tab Nhận định dùng ROC GỘP trên hợp hai CWE - MWG - MW: +0,076 (gộp) so với +0,082 (trung bình). Từ nay dùng ROC gộp.
+(c) p 0,027 / 0,049 ở 87.3 coi 10 cặp (2 seed × 5 fold) là độc lập; tính theo fold (TB hai seed mỗi fold) thì 022+079 4/1, p = 0,125. (d) log
+train_baseline.py in val ROC dưới nhãn "Macro-F1" (chọn checkpoint vẫn theo ROC). (e) Phát hiện mới cả ba phản biện cùng thấy: không Pha 1 xếp
+CWE-022/079 NGƯỢC (ROC gộp 0,29-0,32; baseline 0,48) - 42 % hàm test 022/079 có song sinh train ngược nhãn (Jaccard ≥ 0,8); transfer CleanVul đưa
+lên 0,66-0,74 (+0,34..+0,45, 5/5). Chi tiết: tab Nhận định đóng góp (D0-D6), meta/review_pack/reviewer{1,2,3}_*.md.

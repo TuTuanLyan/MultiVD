@@ -68,6 +68,24 @@ Rút từ chính các thất bại trên. Thiết kế thí nghiệm **trước 
 Và: **n=1 không đủ để mô tả một cơ chế** — §48.2 đo được biến thiên **giữa hai lần chạy cùng
 cấu hình** còn lớn hơn hiệu ứng cần đo trên một fold.
 
+### Trạng thái BA CỔNG cho `mw_assemble_babel` — cập nhật 20/09 (FACTS §78–§80)
+
+| cổng | trạng thái | số đo |
+|---|---|---|
+| 1. đối chứng khớp sức chứa | **CHƯA CHẠY** | thang đóng góp §71 tách được cửa sổ khỏi đồ thị, nhưng chưa có nhánh "cùng tham số, đồ thị XÁO NGẪU NHIÊN" |
+| 2. lặp trên cả hai backbone | **QUA MỘT NỬA** | codebert ROC +0.0270 14/15 (n=15); t5p ROC **+0.0114 4/5** (n=5). Cùng dấu cả bốn chỉ số, nhưng biên độ rơi còn ~42% |
+| 3. tách theo nhóm rò rỉ | **QUA, nhưng KHÔNG như đã nghĩ** | nhóm `none` ROC chỉ +0.008/+0.007 (≈ sàn nhiễu) trên **cả hai** backbone; F1@ngưỡng-tốt-nhất-của-mỗi-nhánh +0.0305/+0.0235 ⇒ hiệu ứng là **chất lượng quyết định**, không phải **thứ hạng** |
+
+**Việc cụ thể còn thiếu để viết được:**
+
+1. **Cổng 1** — nhánh đồ thị xáo: giữ nguyên số tham số R-GCN, hoán vị ngẫu nhiên cạnh
+   (giữ bậc đỉnh). Nếu lợi ích vẫn còn ⇒ là sức chứa, không phải cấu trúc. **Chưa hỏi, chưa xếp.**
+2. **Cổng 2** — t5p mới n=5 **một seed một máy**. Theo CLAUDE.md §2 / FACTS §52.1 điều đó
+   chưa đủ. Cần thêm seed hoặc phần cứng khác.
+3. **Mối đe doạ đang đo (20/09, 158)**: baseline t5p fold 2 dừng **đúng** ở trần 30 epoch
+   ⇒ bị cắt. Bỏ fold đó, Δ ROC 4 fold còn lại chỉ **+0.0073**. Đang chạy `b4_sven_t5pE60`
+   (trần 60) để xem Δ của §80 có phải sửa xuống không.
+
 ## 4. ĐỀ XUẤT A đã BỊ BÁC bằng chính số đo — 14/09, FACTS §53
 
 **Đề xuất A** (căn hướng-vá xuyên ngôn ngữ theo CWE) **đóng**. Lý do, đo bằng
