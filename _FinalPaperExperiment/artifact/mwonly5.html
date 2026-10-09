@@ -257,8 +257,14 @@ body[data-tab="p1"] [data-pane]:not([data-pane="p1"]),
 body[data-tab="notes"] [data-pane]:not([data-pane="notes"]),
 body[data-tab="compare"] [data-pane]:not([data-pane="compare"]),
 body[data-tab="paper"] [data-pane]:not([data-pane="paper"]),
-body:not([data-tab="p1"]):not([data-tab="notes"]):not([data-tab="compare"]):not([data-tab="paper"]) [data-pane]:not([data-pane="results"]) { display: none !important; }
-body[data-tab="notes"] #ack-box, body[data-tab="p1"] #ack-box, body[data-tab="compare"] #ack-box, body[data-tab="paper"] #ack-box { display: none; }
+body[data-tab="paperR"] [data-pane]:not([data-pane="paperR"]),
+body[data-tab="paperE"] [data-pane]:not([data-pane="paperE"]),
+body[data-tab="paperM"] [data-pane]:not([data-pane="paperM"]),
+body[data-tab="paperW"] [data-pane]:not([data-pane="paperW"]),
+body[data-tab="paperA"] [data-pane]:not([data-pane="paperA"]),
+body[data-tab="paperOld"] [data-pane]:not([data-pane="paperOld"]),
+body:not([data-tab="p1"]):not([data-tab="notes"]):not([data-tab="compare"]):not([data-tab="paper"]):not([data-tab="paperR"]):not([data-tab="paperE"]):not([data-tab="paperM"]):not([data-tab="paperW"]):not([data-tab="paperA"]):not([data-tab="paperOld"]) [data-pane]:not([data-pane="results"]) { display: none !important; }
+body[data-tab="notes"] #ack-box, body[data-tab="p1"] #ack-box, body[data-tab="compare"] #ack-box, body[data-tab="paper"] #ack-box, body[data-tab="paperR"] #ack-box, body[data-tab="paperE"] #ack-box, body[data-tab="paperM"] #ack-box, body[data-tab="paperW"] #ack-box, body[data-tab="paperA"] #ack-box, body[data-tab="paperOld"] #ack-box { display: none; }
 
 /* Tab Kết quả paper (07/10): n = 15 = 5 fold × seed 42 / 1234 / 7, đọc collection riêng paper_folds (+ ô seed 42 đã có ở folds) */
 table.ptbl { border-collapse: collapse; min-width: 900px; width: 100%; }
@@ -270,6 +276,8 @@ table.ptbl { border-collapse: collapse; min-width: 900px; width: 100%; }
 .ptbl .sd, .ptbl .k { display: block; font-size: 11px; color: var(--muted); }
 .ptbl .pos { color: var(--ok); } .ptbl .neg { color: var(--crit); }
 .pgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+.ptbl tr.cfg-grp td { background: var(--surface-2); font-family: var(--f-display); font-size: 12px; font-weight: 600; color: var(--ink); text-align: left; letter-spacing: 0.02em; padding: 5px 8px; border-top: 1px solid var(--rule); }
+.pgrid-grp { grid-column: 1 / -1; font-family: var(--f-display); font-size: 12.5px; font-weight: 600; color: var(--ink); padding: 6px 0 2px; border-bottom: 1px solid var(--rule); }
 .pbox { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; background: var(--surface); }
 .pbox h3 { margin: 0 0 6px; font-size: 13.5px; }
 .pbox table { border-collapse: collapse; width: 100%; }
@@ -278,6 +286,16 @@ table.ptbl { border-collapse: collapse; min-width: 900px; width: 100%; }
 .pbox th:first-child, .pbox td:first-child { text-align: left; }
 .ptbl strong, .pbox strong { font-weight: 700; }
 .pc-collapse { color: var(--crit); font-weight: 600; } .pc-run { color: var(--run); } .pc-pend { color: var(--muted); } .pc-failed { color: var(--crit); }
+/* 07/10 người dùng: "cho phần kết quả paper cũng click được xem run như bên kia" - mỗi ô lưới là nút mở ngăn chi tiết */
+.rlog { list-style: none; margin: 4px 0 14px; padding: 0; display: grid; gap: 3px; max-height: 260px; overflow-y: auto; }
+.rlog li { display: grid; grid-template-columns: 92px 1fr; gap: 10px; font-size: 13px; }
+.rlog .t { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+.verdict-ok { color: var(--ok); font-weight: 700; } .verdict-no { color: var(--crit); font-weight: 700; }
+.pcell { border: 0; background: transparent; padding: 1px 3px; margin: -1px -3px; font: inherit; color: inherit; cursor: pointer; border-radius: 4px; }
+.pcell:hover { background: var(--surface-2); text-decoration: underline; }
+.pcell.sel { outline: 2px solid var(--ink); outline-offset: 1px; }
+.pcell:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.linkbtn { border: 1px solid var(--rule); background: var(--surface-2); color: var(--ink); font: inherit; font-size: 12px; padding: 1px 8px; margin: 0; border-radius: 5px; cursor: pointer; }
 
 /* Tab so sánh: chọn config (mỗi config 5 fold), bảng đủ độ đo + từng CWE */
 .cmp-controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
@@ -423,21 +441,92 @@ body.drawer-open { overflow: hidden; }
 
   <nav class="tabs" role="tablist" aria-label="Chọn trang">
     <button type="button" role="tab" id="tab-results" data-tab="results" aria-selected="true">Kết quả</button>
-    <button type="button" role="tab" id="tab-paper" data-tab="paper" aria-selected="false">Kết quả paper</button>
+    <!-- 09/10 người dùng: "đẩy Kết quả paper (warmup 0,2, không patience) làm kết quả paper chính, các tab cũ dồn vào 1 để tham khảo thôi" -->
+    <button type="button" role="tab" id="tab-paperW" data-tab="paperW" aria-selected="false">Kết quả paper</button>
+    <button type="button" role="tab" id="tab-paperA" data-tab="paperA" aria-selected="false">Kết quả paper (Adan)</button>
+    <button type="button" role="tab" id="tab-paperOld" data-tab="paperOld" aria-selected="false">Tham khảo: paper cũ</button>
     <button type="button" role="tab" id="tab-p1" data-tab="p1" aria-selected="false">Pha 1 theo nguồn</button>
     <button type="button" role="tab" id="tab-notes" data-tab="notes" aria-selected="false">Nhận định</button>
     <button type="button" role="tab" id="tab-compare" data-tab="compare" aria-selected="false">So sánh</button>
   </nav>
 
-  <section class="card" id="paper-card" data-pane="paper">
-    <div class="sec-head"><h2>Kết quả paper</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 2 cột chính RecAdam + ASAM</span></div>
-    <p class="note">Tab riêng cho số liệu đưa vào bài (người dùng 07/10). Mỗi cấu hình Pha 1 = JS (common / 4CWE / full) + Python SVEN train fold k theo tỉ lệ 4:1, rút ngẫu nhiên cân nhãn bằng Random(seed của lượt); checkpoint Pha 1 chọn theo ROC trên val CHỈ JS; Pha 2 fold k nạp Pha 1 cùng fold. Ô seed 42 của baseline, common và full dùng lại kết quả đã có; còn lại chạy mới và KHÔNG hiện ở tab Kết quả. Ô = trung bình trên các ô đã xong (n ghi bên dưới), chữ nhỏ là độ lệch chuẩn. Δ so với baseline ghép cặp theo (seed, fold), +k/-k là số cặp dương / âm (hoà khi |Δ| ≤ 0,001) - không lấy hiệu hai trung bình. In đậm = cao nhất trong cột (bảng) hoặc cao nhất giữa các cấu hình ở cùng seed và fold (lưới). Chữ đỏ ở lưới = ROC dưới 0,75 (sập).</p>
+  <section class="card" id="paperOld-intro" data-pane="paperOld">
+    <div class="sec-head"><h2>Tham khảo: các tab paper cũ</h2><span class="eyebrow">chỉ để đối chiếu · kết quả chính ở tab Kết quả paper</span></div>
+    <p class="note">Bốn cấu hình đã chạy trước tab chính (người dùng 09/10: "các tab cũ dồn vào 1 để tham khảo thôi"), giữ nguyên số liệu và cách tính: <b>paper đầu</b> (Pha 1 AdamW warmup 0,25, Pha 2 dừng sớm patience 8), <b>RAdam</b> (Pha 1 RAdam), <b>30 epoch Pha 1</b>, <b>Mosbach</b> (Pha 1 lr 2e-5, val JS + Python). Tab Kết quả paper chính = paper đầu chỉ đổi warmup Pha 1 0,25 → 0,2 và bỏ dừng sớm cả hai pha (FACTS §88, §89).</p>
+  </section>
+
+  <section class="card" id="paper-card" data-pane="paperOld">
+    <div class="sec-head"><h2>Kết quả paper đầu</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 2 cột chính RecAdam + ASAM</span></div>
+    <p class="note">Tab riêng cho số liệu đưa vào bài (người dùng 07/10). Mỗi cấu hình Pha 1 = JS (common / 4CWE / full / common mở rộng: giữ hàm có ≥ 1 nhãn thuộc common hoặc có nhãn unknown) + Python SVEN train fold k theo tỉ lệ 4:1, rút ngẫu nhiên cân nhãn bằng Random(seed của lượt); checkpoint Pha 1 chọn theo ROC trên val CHỈ JS; Pha 2 fold k nạp Pha 1 cùng fold. Ô seed 42 của baseline, common, full và common mở rộng dùng lại kết quả đã có; còn lại chạy mới và KHÔNG hiện ở tab Kết quả. Ô = trung bình trên các ô đã xong (n ghi bên dưới), chữ nhỏ là độ lệch chuẩn. Δ so với baseline ghép cặp theo (seed, fold), +k/-k là số cặp dương / âm (hoà khi |Δ| ≤ 0,001) - không lấy hiệu hai trung bình. In đậm = cao nhất trong cột (bảng) hoặc cao nhất giữa các cấu hình ở cùng seed và fold (lưới). Chữ đỏ ở lưới = ROC dưới 0,75 (sập).</p>
     <div class="scroll"><table class="ptbl" id="paper-table"></table></div>
     <h3 style="margin:14px 0 8px">Theo CWE</h3>
     <p class="note">ROC-AUC và F1@0,5 tính riêng trên các hàm test của từng CWE trong fold (mỗi fold chỉ ~8-45 hàm một CWE, CWE-022 và CWE-079 rất ít nên dao động lớn). Ô = TB ± SD trên các ô đã xong; dòng nhỏ là Δ ghép cặp (seed, fold) với baseline và số cặp dương / âm.</p>
     <div class="scroll"><table class="ptbl" id="paper-cwe"></table></div>
-    <h3 style="margin:14px 0 8px">Từng ô (ROC test; di chuột để xem PR, F1, epoch chọn, val ROC Pha 1)</h3>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; bấm vào ô để xem chi tiết run, di chuột để xem nhanh PR, F1, epoch chọn, val ROC Pha 1)</h3>
     <div class="pgrid" id="paper-grid"></div>
+    <h3 style="margin:14px 0 8px">Ô kiểm: chạy lại ô sập (KHÔNG tính vào bảng n = 15; bấm dòng để xem chi tiết run)</h3>
+    <p class="note">Ô full seed 1234 fold 5 kẹt ở ln2 cả hai pha (test 0,570). Các lần chạy lại dưới đây chỉ để kiểm, bảng và lưới phía trên VẪN dùng ô gốc tới khi người dùng chọn cách xử lý. Cột "Pha 1" là val ROC chỉ JS của checkpoint Pha 1 và epoch được chọn.</p>
+    <div class="scroll"><table class="ptbl" id="paper-checks"></table></div>
+  </section>
+
+  <section class="card" id="paperR-card" data-pane="paperOld">
+    <div class="sec-head"><h2>Paper cũ: Pha 1 RAdam</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 1 RAdam, Pha 2 RecAdam + ASAM</span></div>
+    <h3 style="margin:10px 0 4px">Nhật ký (mới nhất ở trên)</h3>
+    <ul class="rlog" id="paperR-log"><li><span class="t">-</span><span class="muted">chưa có mục nào</span></li></ul>
+    <h3 style="margin:10px 0 4px">Ô kiểm: chữa 3 ô seed 1234 fold 1 kém (bậc 1, n = 1 mỗi nguồn, chỉ sàng lọc; KHÔNG tính vào bảng n = 15)</h3>
+    <p class="note">Người dùng 08/10 02:0x: thử RAdam β2 0,99 (warmup ngầm còn khoảng 200 bước thay vì 2 000); không ổn thì RAdam bỏ warmup 25 %; vẫn không ổn thì quay về AdamW Pha 1 30 epoch, warmup như cũ, ở tab mới "Kết quả paper (30 epoch pha 1)". Điều kiện "ổn" (người dùng 08/10 02:2x): test ROC ≥ 0,88 ở CẢ 3 ô, tương tự các ô không RAdam (AdamW 0,921 / 0,928 / 0,902). Mỗi dòng chỉ khác dòng AdamW ở Pha 1; Pha 2 RecAdam + ASAM như nhau. Cột "Pha 1" = val ROC chỉ JS của checkpoint và epoch được chọn; bấm ô để xem đường học.</p>
+    <div class="scroll"><table class="ptbl" id="paperR-checks"></table></div>
+    <p class="note">Tab riêng (người dùng 08/10): mỗi ô giống hệt ô tương ứng của tab Kết quả paper (trộn JS:Py 4:1 rút ngẫu nhiên theo seed, checkpoint Pha 1 chọn theo ROC trên val CHỈ JS, Pha 2 RecAdam + ASAM nạp Pha 1 cùng fold), CHỈ đổi optimizer Pha 1 từ AdamW sang RAdam (Liu et al. 2019, torch.optim.RAdam, weight decay tách rời; 16 epoch, warmup 25 %, lr giữ nguyên). Nguồn: common MỞ RỘNG, 4CWE, full. Baseline không có Pha 1 nên dùng lại đúng baseline của tab Kết quả paper. Ô full seed 1234 fold 5 là lần chạy RAdam đã có (cấu hình trùng, tất định). Kết quả nằm ở collection riêng, KHÔNG trộn vào hai tab kia. Cách đọc bảng, Δ và in đậm như tab Kết quả paper.</p>
+    <div class="scroll"><table class="ptbl" id="paperR-table"></table></div>
+    <h3 style="margin:14px 0 8px">Theo CWE</h3>
+    <div class="scroll"><table class="ptbl" id="paperR-cwe"></table></div>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; bấm vào ô để xem chi tiết run)</h3>
+    <div class="pgrid" id="paperR-grid"></div>
+  </section>
+
+  <section class="card" id="paperE-card" data-pane="paperOld">
+    <div class="sec-head"><h2>Paper cũ: Pha 1 30 epoch</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 1 AdamW 30 epoch, Pha 2 RecAdam + ASAM</span></div>
+    <p class="note">Tab riêng (người dùng 08/10 02:0x: "Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))"), bước 3 của cây quyết định: chạy vì RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 ở cả 3 ô kiểm (xem nhật ký và ô kiểm ở tab Kết quả paper (RAdam)). Mỗi ô giống hệt ô tương ứng của tab Kết quả paper (AdamW, trộn JS:Py 4:1 rút ngẫu nhiên theo seed, checkpoint Pha 1 chọn theo ROC trên val CHỈ JS, Pha 2 RecAdam + ASAM nạp Pha 1 cùng fold), CHỈ đổi trần Pha 1 từ 16 lên 30 epoch, warmup vẫn 25 % (của 30 epoch, nên lịch LR giãn theo). Nguồn: common MỞ RỘNG, 4CWE, full. Baseline dùng lại tab Kết quả paper. Ô full seed 1234 fold 5 là lần chạy lại 30 epoch đã có (cấu hình trùng, tất định). Collection riêng, không trộn vào các tab khác.</p>
+    <div class="scroll"><table class="ptbl" id="paperE-table"></table></div>
+    <h3 style="margin:14px 0 8px">Theo CWE</h3>
+    <div class="scroll"><table class="ptbl" id="paperE-cwe"></table></div>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; bấm vào ô để xem chi tiết run)</h3>
+    <div class="pgrid" id="paperE-grid"></div>
+  </section>
+
+  <section class="card" id="paperM-card" data-pane="paperOld">
+    <div class="sec-head"><h2>Paper cũ: Mosbach, val JS+Py</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 1 lr 2e-5, warmup 10 %, 20 epoch đủ, val JS + Python 4:1 · Pha 2 RecAdam + ASAM</span></div>
+    <p class="note">Tab riêng (người dùng 08/10 07:2x: "áp dụng và chạy lại n=15 xem, dừng các task đang chạy"). Pha 1 theo công thức của Mosbach, Andriushchenko, Klakow (ICLR 2021, "On the Stability of Fine-tuning BERT", mục 6): Adam có bias correction (AdamW của torch đã có), lr 2e-5 (thay 5,66e-5, áp cả graph_lr), warmup 10 % rồi giảm tuyến tính, 20 epoch và train ĐỦ 20 epoch (patience 20, không dừng sớm). Bài đó cho thấy run fine-tune hỏng có train loss đứng ở ln 2 do gradient tiêu biến ở các tầng dưới lúc đầu, và khuyên lr nhỏ + train lâu. Val Pha 1 (người dùng 08/10 09:1x: "xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train"): JS val như cũ + Python lấy từ SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như phần Python của train (4CWE 88 + 22, common mở rộng 170 + 43, full 188 + 47); checkpoint Pha 1 chọn theo ROC trên val trộn đó. Lý do: 65-76 % hàng val CHỈ JS có nửa cặp (hàm lỗi / đã vá) ngược nhãn trong train, nên val ROC giảm khi Pha 1 học và việc chọn checkpoint rơi vào epoch chưa học. Bản Mosbach val chỉ JS chạy trước đó (5 ô xong) đã gỡ khỏi tab theo yêu cầu, lưu ở archive_0810_mosbach_valjs. Còn lại giống hệt tab Kết quả paper (trộn JS:Py 4:1 rút ngẫu nhiên theo seed, Pha 2 RecAdam + ASAM nạp Pha 1 cùng fold). Nguồn: common MỞ RỘNG, 4CWE, full. Baseline dùng lại tab Kết quả paper. Khối tab 30 epoch dừng lúc 07:2x với 14 / 44 ô (vẫn hiện ở tab đó). Collection riêng, không trộn vào các tab khác.</p>
+    <div class="scroll"><table class="ptbl" id="paperM-table"></table></div>
+    <h3 style="margin:14px 0 8px">Theo CWE</h3>
+    <div class="scroll"><table class="ptbl" id="paperM-cwe"></table></div>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; bấm vào ô để xem chi tiết run)</h3>
+    <div class="pgrid" id="paperM-grid"></div>
+  </section>
+
+  <section class="card" id="paperW-card" data-pane="paperW">
+    <div class="sec-head"><h2>Kết quả paper</h2><span class="eyebrow">kết quả chính · n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 1 warmup 0,2, không patience · Pha 2 không dừng sớm, đủ 30 epoch</span></div>
+    <p class="note">Tab riêng (người dùng 08/10 15:1x: "thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới" + "đổi 1 cờ cho tôi nữa, warmup xuống 0.2"). Config tab Kết quả paper đầu (Pha 1 AdamW lr 5,66e-5, 16 epoch, trộn JS:Py 4:1 rút ngẫu nhiên theo seed, val Pha 1 chỉ JS; Pha 2 RecAdam + ASAM ρ 0,5, lr 5,66e-5, warmup 0, 30 epoch) chỉ đổi hai cờ: <b>warmup Pha 1 0,2</b> (thay 0,25) và <b>--patience 999</b> ở cả hai pha = không dừng sớm. Ở Pha 2 nghĩa là train đủ 30 epoch rồi chọn checkpoint theo val ROC tốt nhất (bản paper dừng sớm, trung vị ở epoch 17); ở Pha 1 (16 epoch) patience vốn không kích hoạt được vì chỉ đếm từ epoch 10. Pha 1 train lại (warmup đổi nên không dùng lại checkpoint paper); mỗi máy chạy trọn một nguồn (161: full, 158: common MỞ RỘNG, paper_night2: 4CWE; cùng RTX A4000), fold vòng ngoài, trong mỗi fold seed 42 / 1234 / 7, Pha 1 + Pha 2 của một ô trên cùng máy. Từ 18:07 thêm vast paper3 (RTX A4000, kiểm máy 3 epoch trùng 161 từng chữ số): nhận các ô seed 7 fold 2-5 của full và common MỞ RỘNG. 09/10 02:27 thêm hai dòng chạy trên 158 (người dùng: "chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15", "thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2"): <b>MW only</b> = nop1_adamw (không Pha 1, AdamW lr 5,66e-5, không warmup, patience 8; seed 42 lấy từ tab Kết quả gốc, seed 1234 / 7 chạy mới); <b>Baseline warmup 0,2</b> = baseline (CodeBERT 512, lr 4e-5) chỉ đổi warmup 0,2 + patience 999 (đủ 30 epoch, như Pha 2 tab này). Dòng Δ vẫn so với baseline gốc (dòng đầu). Baseline dùng lại tab Kết quả paper. Khối Mosbach dừng lúc 15:1x với 19 / 45 ô Pha 2 (vẫn hiện ở tab đó). Collection riêng, không trộn vào các tab khác.</p>
+    <div class="scroll"><table class="ptbl" id="paperW-table"></table></div>
+    <h3 style="margin:14px 0 8px">Theo CWE</h3>
+    <div class="scroll"><table class="ptbl" id="paperW-cwe"></table></div>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; bấm vào ô để xem chi tiết run)</h3>
+    <div class="pgrid" id="paperW-grid"></div>
+  </section>
+
+  <section class="card" id="paperA-card" data-pane="paperA">
+    <div class="sec-head"><h2>Kết quả paper (Adan)</h2><span class="eyebrow">n = 15 · 5 fold × seed 42 / 1234 / 7 · Pha 1 optimizer Adan, không warmup · Pha 2 = tab warmup 0,2 nguyên vẹn</span></div>
+    <p class="note">Tab riêng, do phiên "MultiVD Colab" chạy (người dùng 08/10: "bỏ qua warmup và áp dụng ở phase 1 thôi"; 09/10: chạy n = 15 trên A4000, ưu tiên full → common mở rộng → 4CWE). Pha 1 = p1_w20 nhưng optimizer <b>Adan</b> (Xie et al. 2022, arXiv:2208.06677; mã nguyên văn sail-sg/Adan@2c65bea, betas 0,98 / 0,92 / 0,99, eps 1e-8, weight decay 0,02 theo mặc định repo, no_prox False), LR 5,66e-5 (bằng AdamW), KHÔNG warmup (LR giảm tuyến tính về 0 trong 16 epoch), patience 999. Pha 2 = rasam_w20 nguyên vẹn (RecAdam + ASAM ρ 0,5, 30 epoch, patience 999). Phân máy: 161 = seed 42, paper_night2 = seed 1234, paper3 = seed 7; mỗi máy full f1-5 → common mở rộng f1-5 → 4CWE f1-5 (Pha 1 + Pha 2 cùng máy). Lượt kiểm trên Colab (GPU khác, không ghép cặp): cứu cả 3 ô từng sập (ROC 0,570 / 0,512 / 0,567 → 0,928 / 0,907 / 0,877); LR 2,83e-4 không warmup sập 3 / 3. Baseline dùng lại tab Kết quả paper. Collection riêng paper_adan_folds.</p>
+    <div class="scroll"><table class="ptbl" id="paperA-table"></table></div>
+    <h3 style="margin:14px 0 8px">So với tab Kết quả paper (warmup 0,2; ghép cặp CHÍNH: cùng Pha 2, chỉ đổi Pha 1; cùng nguồn, seed, fold)</h3>
+    <p class="note">Chỉ tính các ô đã xong ở CẢ HAI tab; trung bình hai bên lấy trên cùng tập ô đó, Δ = tab này - tab đối chiếu theo từng ô, +k/-k đếm ô dương / âm (hoà khi |Δ| ≤ 0,001). Chưa đủ 45 ô thì chưa kết luận.</p>
+    <div class="scroll"><table class="ptbl" id="paperA-pairW"></table></div>
+    <h3 style="margin:14px 0 8px">So với paper đầu (tab Tham khảo; cùng nguồn, seed, fold)</h3>
+    <div class="scroll"><table class="ptbl" id="paperA-pairP"></table></div>
+    <h3 style="margin:14px 0 8px">Theo CWE</h3>
+    <div class="scroll"><table class="ptbl" id="paperA-cwe"></table></div>
+    <h3 style="margin:14px 0 8px">Từng ô (ROC test; bấm vào ô để xem chi tiết run)</h3>
+    <div class="pgrid" id="paperA-grid"></div>
   </section>
 
   <section class="card" id="compare-card" data-pane="compare">
@@ -543,7 +632,7 @@ const VARIANTS = [
 ];
 const FOLDS = [1, 2, 3, 4, 5];
 // máy đang dùng; vast đã huỷ (paper_mw, paper_mw2 - 05/10 13:1x) không hiện nữa (người dùng 05/10 17:4x). Ô đã chạy trên đó vẫn giữ tên máy trong chi tiết.
-const HOSTS = ["161", "158", "paper_night"];   // 07/10 03:3x: paper_night (54537908) cho tab Kết quả paper; 06/10 23:00: paper_mw4 destroy
+const HOSTS = ["161", "158", "paper_night2", "paper3"];   // 08/10 18:0x: thêm paper3 (54827622);   // 07/10 21:1x: thêm paper_night2 (54653423); 17:0x: paper_night (54537908) destroy (03:3x thêm cho tab Kết quả paper); 06/10 23:00: paper_mw4 destroy
 const METRICS = [
   { k: "f1_05", t: "F1@0.5" },
   { k: "f1_val", t: "F1@val" },
@@ -595,6 +684,12 @@ const SIDE_RUNS = [
     lvl: "full · JS:Py 3:1", note: "Pha 1: 1 066 JS + 355 Py (SVEN train fold k), val như 4:1 · Pha 2 nạp Pha 1 cùng fold (vast paper_mw4)" },
   { run: "rasam_jspy41jsval_full", src: null, col: "rasam", host: "161", group: "Pha 1 trộn JS:Py theo fold · full (06/10, bậc 2 n=5) - so với cùng cột của full chỉ JS", p1run: "p1_jspy41jsval_full",
     lvl: "full · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS", note: "Pha 1: train TRÙNG 4:1 full (1 066 JS + 267 Py cân nhãn), val = CHỈ 188 JS full val ⇒ checkpoint chọn theo ROC trên JS · Pha 2 nạp Pha 1 cùng fold (161 f1/f3/f5, 158 f2/f4)" },
+  // 07/10 17:0x người dùng: "chạy thêm vào nhánh chính 1 bản SOTA nguồn js common, nhưng ... chỉ cần 1 nhãn nằm trong common thì giữ cả hàm; cả những CWE không có thông tin CWE, unknown"
+  { run: "rasam_jspy41jsval_common_ext", src: null, col: "rasam", host: "161", group: "Pha 1 trộn JS:Py theo fold · common (06/10, bậc 2 n=5) - so với cùng cột của common chỉ JS", p1run: "p1_jspy41jsval_common_ext",
+    lvl: "common MỞ RỘNG · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS", note: "Pha 1: 964 JS common mở rộng (≥ 1 nhãn thuộc common HOẶC có nhãn unknown = JS full trừ uncommon chặt; 1 134 hàm = 990 common gốc + 144) + 241 Py cân nhãn (SVEN train fold k), val = CHỈ 170 JS · Pha 2 nạp Pha 1 cùng fold (161 f1/f3/f5, 158 f2/f4)" },
+  // 07/10 15:0x người dùng: "tab chung, chạy thêm uncommon 4:1, val Pha 1 chỉ JS" (chọn bản CHẶT); khối mwonly5 không có uncommon chỉ JS
+  { run: "rasam_jspy41jsval_uncommon_strict", src: null, col: "rasam", host: "161", group: "Pha 1 trộn JS:Py theo fold · uncommon chặt (07/10, bậc 2 n=5) - so với baseline (khối không có uncommon chỉ JS)", p1run: "p1_jspy41jsval_uncommon_strict",
+    lvl: "uncommon chặt · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS", note: "Pha 1: 102 JS uncommon chặt (60 cặp, CWE-1321 56 + CWE-843 4) + 26 Py cân nhãn (SVEN train fold k), val = CHỈ 18 JS ⇒ checkpoint chọn theo ROC trên JS · Pha 2 nạp Pha 1 cùng fold (161 f1/f3/f5, 158 f2/f4)" },
   { run: "rasamanchor_common_jsonly", src: "common_jsonly", col: "rasam", host: "161", group: "Biến thể phụ",
     note: "RecAdam neo theo bài gốc (Chen 2020): γ 5000, k 0,05, t0 100 bước, head không neo + ASAM" },
   // 05/10 17:0x kiểm mục 2.3 (PHA2_SUA_THEO_BANG_CHUNG_0510.md): nhiễu ε của ASAM trên bias + LayerNorm, bậc 1 (f1-f3)
@@ -673,7 +768,7 @@ const SIDE_CELLS = SIDE_RUNS.flatMap(x => [...new Set([x.run, ...Object.values(x
 const foldsOf = run => (SIDE_RUNS.find(x => x.run === run) || {}).folds || FOLDS;
 const otherTarget = run => /_tojs/.test(String(run));
 
-const state = { folds: new Map(), paper: new Map(), alerts: [], insights: [], block: null, checks: null, sel: null, canWrite: true, connected: false, alertOpen: false };
+const state = { folds: new Map(), paper: new Map(), paperR: new Map(), paperE: new Map(), paperM: new Map(), paperW: new Map(), paperA: new Map(), alerts: [], insights: [], block: null, checks: null, sel: null, canWrite: true, connected: false, alertOpen: false };
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (v, d = 3) => (v == null || Number.isNaN(v)) ? "-" : Number(v).toFixed(d);
@@ -799,7 +894,7 @@ function renderHeader() {
   (state.block && Array.isArray(state.block.machines) ? state.block.machines : []).forEach(m => { desc[m.host] = m.desc; });
   $("machines").innerHTML = HOSTS.map(h => {
     const mine = CELLS.concat(SIDE_CELLS).map(x => row(x.run, x.fold)).filter(r => (r.host || r.planned_host || plannedHost(r.run)) === h);
-    const run = mine.filter(r => r.status === "running").concat([...state.paper.values()].filter(r => r.status === "running" && (r.host || r.planned_host) === h));
+    const run = mine.filter(r => r.status === "running").concat([...state.paper.values(), ...state.paperR.values(), ...state.paperE.values(), ...state.paperM.values(), ...state.paperW.values(), ...state.paperA.values()].filter(r => r.status === "running" && (r.host || r.planned_host) === h));
     const done = mine.filter(r => r.status === "done").length;
     const bad = mine.filter(r => r.status === "failed" || cellClass(r) === "collapse").length;
     const pill = run.length ? `<span class="pill run">đang chạy</span>` : done === mine.length && mine.length ? `<span class="pill done">xong</span>` : `<span class="pill idle">${done ? "rảnh" : "chưa bắt đầu"}</span>`;
@@ -1018,9 +1113,10 @@ function renderDetail() {
   document.body.classList.toggle("drawer-open", !!state.sel);
   if (!state.sel) { box.hidden = true; return; }
   const [run, f] = state.sel.split("__f");
-  const r = row(run, Number(f));
+  const pr = PAPER_RUN[run];
+  const r = pr ? prow(pr.coll, run, Number(f)) : row(run, Number(f));
   box.hidden = false;
-  $("d-title").textContent = runTitle(run) + (run.startsWith("p1_") ? "" : " · fold " + f);
+  $("d-title").textContent = pr ? pr.title + " · fold " + f : runTitle(run) + (run.startsWith("p1_") ? "" : " · fold " + f);
   $("d-chart").innerHTML = chartSvg(r.history, r.best_epoch, r.epochs);
   const kv = [
     ["Run", `<span class="mono">${esc(run)}</span>`],
@@ -1037,6 +1133,7 @@ function renderDetail() {
     ["Cảnh báo", r.alert ? `<span style="color:var(--warn)">${esc(r.alert)}</span>` : "-"],
     ["Cập nhật", esc(r.updated || "-")],
   ];
+  if (pr && pr.mate) kv.splice(1, 0, [pr.phase === 2 ? "Pha 1" : "Pha 2", `<button type="button" class="pcell linkbtn" data-id="${esc(docId(pr.mate, Number(f)))}">xem ${pr.phase === 2 ? "Pha 1" : "Pha 2"} cùng seed, fold</button>`]);
   $("d-kv").innerHTML = kv.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
   const cwe = r.cwe ? Object.entries(r.cwe).sort((a, b) => a[0].localeCompare(b[0])) : [];
   $("d-cwe").innerHTML = cwe.length ? `<table class="cwe"><thead><tr><th>CWE</th><th>n</th><th>lỗi</th><th>ROC</th><th>F1</th></tr></thead><tbody>${cwe.map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="num">${v.n ?? "-"}</td><td class="num">${v.pos ?? "-"}</td><td class="num">${fmt(v.roc, 3)}</td><td class="num">${fmt(v.f1, 3)}</td></tr>`).join("")}</tbody></table>` : "";
@@ -1079,28 +1176,140 @@ const PAPER_CFGS = [
     cell: s => s === 42 ? ["paper", "rasam_jspy41jsval_4cwe", "p1_jspy41jsval_4cwe"] : ["paper", "rasam_jspy41jsval_4cwe_s" + s, "p1_jspy41jsval_4cwe_s" + s] },
   { key: "full", title: "full · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS",
     cell: s => s === 42 ? ["folds", "rasam_jspy41jsval_full", "p1_jspy41jsval_full"] : ["paper", "rasam_jspy41jsval_full_s" + s, "p1_jspy41jsval_full_s" + s] },
+  // 07/10 18:4x người dùng: "common MỞ RỘNG chạy đủ n=15" - seed 42 là khối tab Kết quả gốc (rasam_jspy41jsval_common_ext)
+  { key: "common_ext", title: "common MỞ RỘNG · JS:Py 4:1 ngẫu nhiên, val Pha 1 chỉ JS",
+    cell: s => s === 42 ? ["folds", "rasam_jspy41jsval_common_ext", "p1_jspy41jsval_common_ext"] : ["paper", "rasam_jspy41jsval_common_ext_s" + s, "p1_jspy41jsval_common_ext_s" + s] },
 ];
+// 08/10 người dùng: tab "Kết quả paper (RAdam)" - common MỞ RỘNG / 4CWE / full với Pha 1 RAdam, collection riêng paper_radam_folds; baseline dùng lại
+const rsfx = s => s === 42 ? "" : "_s" + s;
+const PAPER_R_CFGS = [
+  PAPER_CFGS[0],
+  { key: "r_common_ext", title: "common MỞ RỘNG · Pha 1 RAdam", cell: s => ["paperR", "rasam_radam_jspy41jsval_common_ext" + rsfx(s), "p1_radam_jspy41jsval_common_ext" + rsfx(s)] },
+  { key: "r_4cwe", title: "4CWE · Pha 1 RAdam", cell: s => ["paperR", "rasam_radam_jspy41jsval_4cwe" + rsfx(s), "p1_radam_jspy41jsval_4cwe" + rsfx(s)] },
+  { key: "r_full", title: "full · Pha 1 RAdam", cell: s => ["paperR", "rasam_radam_jspy41jsval_full" + rsfx(s), "p1_radam_jspy41jsval_full" + rsfx(s)],
+    cellk: (s, k) => s === 1234 && k === 5 ? ["paper", "rasam_jspy41jsval_full_s1234_radam", "p1_jspy41jsval_full_s1234_radam"] : null },
+];
+// 08/10 02:0x người dùng: tab "Kết quả paper (30 epoch pha 1)" - bước 3, AdamW Pha 1 trần 30 epoch; collection riêng paper_e30_folds
+const PAPER_E_CFGS = [
+  PAPER_CFGS[0],
+  { key: "e_common_ext", title: "common MỞ RỘNG · Pha 1 30 epoch", cell: s => ["paperE", "rasam_e30_jspy41jsval_common_ext" + rsfx(s), "p1_e30_jspy41jsval_common_ext" + rsfx(s)] },
+  { key: "e_4cwe", title: "4CWE · Pha 1 30 epoch", cell: s => ["paperE", "rasam_e30_jspy41jsval_4cwe" + rsfx(s), "p1_e30_jspy41jsval_4cwe" + rsfx(s)] },
+  { key: "e_full", title: "full · Pha 1 30 epoch", cell: s => ["paperE", "rasam_e30_jspy41jsval_full" + rsfx(s), "p1_e30_jspy41jsval_full" + rsfx(s)],
+    cellk: (s, k) => s === 1234 && k === 5 ? ["paper", "rasam_jspy41jsval_full_s1234_p1e30", "p1_jspy41jsval_full_s1234_p1e30"] : null },
+];
+// 08/10 07:2x người dùng: tab "Kết quả paper (Mosbach)" - Pha 1 lr 2e-5, warmup 10 %, 20 epoch đủ; collection riêng paper_mb_folds
+const PAPER_M_CFGS = [
+  PAPER_CFGS[0],
+  { key: "m_common_ext", title: "common MỞ RỘNG · Pha 1 Mosbach, val JS+Py", cell: s => ["paperM", "rasam_mbmix_jspy41mixval_common_ext" + rsfx(s), "p1_mbmix_jspy41mixval_common_ext" + rsfx(s)] },
+  { key: "m_4cwe", title: "4CWE · Pha 1 Mosbach, val JS+Py", cell: s => ["paperM", "rasam_mbmix_jspy41mixval_4cwe" + rsfx(s), "p1_mbmix_jspy41mixval_4cwe" + rsfx(s)] },
+  { key: "m_full", title: "full · Pha 1 Mosbach, val JS+Py", cell: s => ["paperM", "rasam_mbmix_jspy41mixval_full" + rsfx(s), "p1_mbmix_jspy41mixval_full" + rsfx(s)] },
+];
+// 08/10 15:1x người dùng: tab "Kết quả paper (warmup 0,2, không patience)" - Pha 1 warmup 0,2, --patience 999 cả hai pha; collection riêng paper_w20_folds
+const PAPER_W_CFGS = [
+  // 09/10 người dùng: "đẩy 2 nhánh mới lên cạnh baseline (phân chia rõ đây là mốc so sánh) phía dưới 3 cấu hình chạy xong là sota" -
+  // trường group chỉ dùng để chèn dòng tiêu đề nhóm; Δ vẫn so với dòng đầu (baseline gốc)
+  { ...PAPER_CFGS[0], group: "Mốc so sánh" },
+  // 09/10 02:2x người dùng: "chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15" - seed 42 = nop1_adamw ở tab Kết quả gốc
+  { key: "w_nop1", group: "Mốc so sánh", title: "MW only (không Pha 1, AdamW)", cell: s => s === 42 ? ["folds", "nop1_adamw", null] : ["paperW", "nop1_adamw_s" + s, null] },
+  // 09/10 02:2x người dùng: "thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2"
+  { key: "w_base", group: "Mốc so sánh", title: "Baseline warmup 0,2, không dừng sớm (như Pha 2)", cell: s => ["paperW", "baseline_w20" + rsfx(s), null] },
+  { key: "w_common_ext", group: "SOTA - 3 cấu hình đã chạy xong (Pha 1 warmup 0,2, không patience)", title: "common MỞ RỘNG · Pha 1 warmup 0,2, không patience", cell: s => ["paperW", "rasam_w20_jspy41jsval_common_ext" + rsfx(s), "p1_w20_jspy41jsval_common_ext" + rsfx(s)] },
+  { key: "w_4cwe", group: "SOTA - 3 cấu hình đã chạy xong (Pha 1 warmup 0,2, không patience)", title: "4CWE · Pha 1 warmup 0,2, không patience", cell: s => ["paperW", "rasam_w20_jspy41jsval_4cwe" + rsfx(s), "p1_w20_jspy41jsval_4cwe" + rsfx(s)] },
+  { key: "w_full", group: "SOTA - 3 cấu hình đã chạy xong (Pha 1 warmup 0,2, không patience)", title: "full · Pha 1 warmup 0,2, không patience", cell: s => ["paperW", "rasam_w20_jspy41jsval_full" + rsfx(s), "p1_w20_jspy41jsval_full" + rsfx(s)] },
+];
+// 09/10 01:3x (phiên "MultiVD Colab"): tab "Kết quả paper (Adan)" - Pha 1 Adan không warmup, Pha 2 = rasam_w20; collection riêng paper_adan_folds
+const PAPER_A_CFGS = [
+  PAPER_CFGS[0],
+  { key: "a_full", title: "full · Pha 1 Adan, không warmup", cell: s => ["paperA", "rasam_adanlr1_jspy41jsval_full" + rsfx(s), "p1_adanlr1_jspy41jsval_full" + rsfx(s)] },
+  { key: "a_common_ext", title: "common MỞ RỘNG · Pha 1 Adan, không warmup", cell: s => ["paperA", "rasam_adanlr1_jspy41jsval_common_ext" + rsfx(s), "p1_adanlr1_jspy41jsval_common_ext" + rsfx(s)] },
+  { key: "a_4cwe", title: "4CWE · Pha 1 Adan, không warmup", cell: s => ["paperA", "rasam_adanlr1_jspy41jsval_4cwe" + rsfx(s), "p1_adanlr1_jspy41jsval_4cwe" + rsfx(s)] },
+];
+// run của tab paper -> {title, seed, phase, mate (run Pha 1 / Pha 2 đối ứng), coll}: dùng cho ngăn chi tiết khi bấm ô lưới
+const PAPER_RUN = {};
+PAPER_CFGS.concat(PAPER_R_CFGS.slice(1), PAPER_E_CFGS.slice(1), PAPER_M_CFGS.slice(1), PAPER_W_CFGS.slice(1), PAPER_A_CFGS.slice(1)).forEach(cfg => PAPER_SEEDS.forEach(s => {
+  const [c, run, p1] = cfg.cell(s);
+  PAPER_RUN[run] = { title: cfg.title + " · seed " + s, seed: s, phase: 2, mate: p1, coll: c };
+  if (p1) PAPER_RUN[p1] = { title: "Pha 1 - " + cfg.title + " · seed " + s, seed: s, phase: 1, mate: run, coll: c };
+}));
+// 07/10 người dùng: "RAdam bạn để ở đâu trên artifact" - các lần chạy lại ô sập full s1234 f5, hiện riêng dưới lưới, không tính vào n = 15
+const PAPER_CHECKS = [
+  { p1: "p1_jspy41jsval_full_s1234", p2: "rasam_jspy41jsval_full_s1234", title: "Ô gốc (đang dùng trong n = 15)", note: "Pha 1 AdamW 16 epoch, kẹt ln2" },
+  { p1: "p1_jspy41jsval_full_s1234_repro", p2: "rasam_jspy41jsval_full_s1234_repro", title: "Chạy lại Y HỆT (kiểm tất định)", note: "cấu hình trùng 40/40 cờ; paper_night2" },
+  { p1: "p1_jspy41jsval_full_s1234_p1e30", p2: "rasam_jspy41jsval_full_s1234_p1e30", title: "Pha 1 trần 30 epoch", note: "đổi luôn lịch LR (warmup 25 % của 30 epoch); 161" },
+  { p1: "p1_jspy41jsval_full_s1234_radam", p2: "rasam_jspy41jsval_full_s1234_radam", title: "Pha 1 RAdam (Liu et al. 2019)", note: "chỉ đổi AdamW -> RAdam ở Pha 1; Pha 2 như cũ; paper_night2" },
+];
+PAPER_CHECKS.forEach(c => {
+  PAPER_RUN[c.p2] = PAPER_RUN[c.p2] || { title: c.title + " - Pha 2 · full · seed 1234", seed: 1234, phase: 2, mate: c.p1, coll: "paper" };
+  PAPER_RUN[c.p1] = PAPER_RUN[c.p1] || { title: c.title + " - Pha 1 · full · seed 1234", seed: 1234, phase: 1, mate: c.p2, coll: "paper" };
+});
+// 08/10 02:0x người dùng: ô kiểm của tab RAdam - 3 ô seed 1234 fold 1, mỗi biến thể Pha 1 một dòng; 02:2x: "điều kiện ổn là ROC test >= 88 cả 3 ô (tương tự không RAdam)"
+const RCHK_OK = 0.88;
+const RCHK_SRC = [["common_ext", "common MỞ RỘNG"], ["4cwe", "4CWE"], ["full", "full"]];
+const RCHK_VAR = [
+  { key: "adamw", title: "AdamW (tab Kết quả paper)", coll: "paper", p1: s => `p1_jspy41jsval_${s}_s1234`, p2: s => `rasam_jspy41jsval_${s}_s1234` },
+  { key: "radam", title: "RAdam β2 0,999, warmup 25 % (bản n = 15 tạm dừng)", coll: "paperR", p1: s => `p1_radam_jspy41jsval_${s}_s1234`, p2: s => `rasam_radam_jspy41jsval_${s}_s1234` },
+  { key: "radam99", title: "RAdam β2 0,99, warmup 25 %", coll: "paperR", p1: s => `p1_radam99_jspy41jsval_${s}_s1234`, p2: s => `rasam_radam99_jspy41jsval_${s}_s1234` },
+  { key: "radamw0", title: "RAdam β2 0,999, warmup 0", coll: "paperR", p1: s => `p1_radamw0_jspy41jsval_${s}_s1234`, p2: s => `rasam_radamw0_jspy41jsval_${s}_s1234`, optional: true },
+];
+RCHK_VAR.forEach(v => RCHK_SRC.forEach(([s, sl]) => {
+  PAPER_RUN[v.p2(s)] = PAPER_RUN[v.p2(s)] || { title: `${v.title} - Pha 2 · ${sl} · seed 1234`, seed: 1234, phase: 2, mate: v.p1(s), coll: v.coll };
+  PAPER_RUN[v.p1(s)] = PAPER_RUN[v.p1(s)] || { title: `${v.title} - Pha 1 · ${sl} · seed 1234`, seed: 1234, phase: 1, mate: v.p2(s), coll: v.coll };
+}));
+function renderRChecks() {
+  const el = $("paperR-checks"); if (!el) return;
+  const stTxt = r => r.status === "done" ? "xong" : r.status === "running" ? `ep ${r.epoch || 0}/${r.epochs || "?"}` : r.status === "failed" ? "lỗi" : "chưa chạy";
+  const cbtn = (run, inner) => { const id = docId(run, 1); return `<button type="button" class="pcell${state.sel === id ? " sel" : ""}" data-id="${esc(id)}">${inner}</button>`; };
+  let html = `<thead><tr><th>Nguồn</th><th>Pha 1</th><th class="gs">Pha 1 (val JS · epoch)</th><th class="gs">ROC-AUC</th><th>Δ ROC so AdamW</th><th>PR-AUC</th><th>F1@0,5</th><th>F1@val</th><th class="gs">ROC ≥ 0,88</th></tr></thead><tbody>`;
+  const vars = RCHK_VAR.filter(v => !v.optional || RCHK_SRC.some(([s]) => prow(v.coll, v.p1(s), 1).status !== "pending"));
+  RCHK_SRC.forEach(([s, sl], si) => {
+    const ref = prow("paper", RCHK_VAR[0].p2(s), 1);
+    vars.forEach((v, vi) => {
+      const a = prow(v.coll, v.p1(s), 1), b = prow(v.coll, v.p2(s), 1), d = b.status === "done" && b.roc != null;
+      const p1txt = a.status === "done" ? `${fmt(a.roc, 3)} · ep ${a.best_epoch ?? "-"}` : stTxt(a);
+      const dd = d && v.key !== "adamw" && ref.status === "done" && ref.roc != null ? b.roc - ref.roc : null;
+      let verdict = v.key === "adamw" ? `<span class="muted">mốc</span>` : "-";
+      if (d && v.key !== "adamw") verdict = b.roc >= RCHK_OK ? `<span class="verdict-ok">đạt</span>` : `<span class="verdict-no">không đạt</span>`;
+      const cls = d && b.roc < COLLAPSE ? ' class="pc-collapse"' : "";
+      html += `<tr${vi === 0 && si > 0 ? ' style="border-top:2px solid var(--rule)"' : ""}><td>${vi === 0 ? esc(sl) : ""}</td><td>${esc(v.title)}</td><td class="gs">${cbtn(v.p1(s), p1txt)}</td>`
+        + `<td class="gs"><span${cls}>${cbtn(v.p2(s), d ? fmt(b.roc, 4) : stTxt(b))}</span></td><td>${dd != null ? `<span class="${dd > 0.001 ? "pos" : dd < -0.001 ? "neg" : ""}">${fmtSigned(dd, 4)}</span>` : "-"}</td>`
+        + `<td>${d ? fmt(b.pr, 4) : "-"}</td><td>${d ? fmt(b.f1_05, 4) : "-"}</td><td>${d ? fmt(b.f1_val, 4) : "-"}</td><td class="gs">${verdict}</td></tr>`;
+    });
+  });
+  // dòng tổng: biến thể "ổn" khi đạt cả 3 nguồn
+  html += `<tr style="border-top:2px solid var(--rule)"><td colspan="2"><strong>Kết luận theo điều kiện</strong></td><td colspan="7">` + vars.filter(v => v.key !== "adamw").map(v => {
+    const res = RCHK_SRC.map(([s]) => { const b = prow(v.coll, v.p2(s), 1), ref = prow("paper", RCHK_VAR[0].p2(s), 1);
+      return b.status === "done" && b.roc != null ? b.roc >= RCHK_OK : null; });
+    const n = res.filter(x => x != null).length, ok = res.filter(x => x === true).length;
+    return `${esc(v.title)}: ${n < 3 ? `<span class="muted">${n}/3 ô xong (${ok} đạt)</span>` : ok === 3 ? `<span class="verdict-ok">ỔN (3/3)</span>` : `<span class="verdict-no">KHÔNG ỔN (${ok}/3)</span>`}`;
+  }).join(" · ") + `</td></tr></tbody>`;
+  el.innerHTML = html;
+}
+function renderRLog() {
+  const el = $("paperR-log"); if (!el) return;
+  const L = (state.rlog || []).slice().sort((a, b) => String(b.id).localeCompare(String(a.id)));
+  el.innerHTML = L.length ? L.map(x => `<li><span class="t">${esc(x.data.t || "")}</span><span>${esc(x.data.text || "")}</span></li>`).join("") : `<li><span class="t">-</span><span class="muted">chưa có mục nào</span></li>`;
+}
 // người dùng 07/10 02:1x: "bỏ F1@ngưỡng val ra ..., thay vì đó là CWE" - bảng chính 3 chỉ số, thêm bảng theo CWE
 const PAPER_M = [["roc", "ROC-AUC"], ["pr", "PR-AUC"], ["f1_05", "F1@0,5"]];
 const PAPER_CWE = ["CWE-022", "CWE-078", "CWE-079", "CWE-089"];
-const prow = (coll, run, fold) => (coll === "folds" ? state.folds : state.paper).get(docId(run, fold)) || { run, fold, status: "pending" };
+const prow = (coll, run, fold) => (coll === "folds" ? state.folds : coll === "paperR" ? state.paperR : coll === "paperE" ? state.paperE : coll === "paperM" ? state.paperM : coll === "paperW" ? state.paperW : coll === "paperA" ? state.paperA : state.paper).get(docId(run, fold)) || { run, fold, status: "pending" };
 const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
 const sdev = a => a.length < 2 ? null : Math.sqrt(a.reduce((x, y) => x + (y - mean(a)) ** 2, 0) / (a.length - 1));
 function paperCells(cfg) {
   const out = [];
-  PAPER_SEEDS.forEach(s => { const [c, run, p1] = cfg.cell(s); for (let k = 1; k <= 5; k++) out.push({ seed: s, fold: k, r: prow(c, run, k), p1: p1 ? prow(c, p1, k) : null }); });
+  PAPER_SEEDS.forEach(s => { for (let k = 1; k <= 5; k++) { const [c, run, p1] = (cfg.cellk && cfg.cellk(s, k)) || cfg.cell(s); out.push({ seed: s, fold: k, r: prow(c, run, k), p1: p1 ? prow(c, p1, k) : null }); } });
   return out;
 }
-function renderPaper() {
+function renderPaperTab(CFGS, ids) {
   // người dùng 07/10 02:2x: "tô đậm các con số tốt nhất trong bảng kết quả paper" - mỗi cột in đậm giá trị cao nhất giữa các cấu hình
   // (so sau khi làm tròn đúng số chữ số hiển thị, hoà thì đậm cả); lưới seed × fold: đậm cấu hình cao nhất ở cùng (seed, fold)
   const done = r => r.status === "done" && r.roc != null;
-  const base = new Map(paperCells(PAPER_CFGS[0]).map(x => [x.seed + ":" + x.fold, x.r]));
+  const base = new Map(paperCells(CFGS[0]).map(x => [x.seed + ":" + x.fold, x.r]));
   const rnd = (v, d) => v == null ? null : Number(v.toFixed(d));
   const bestOf = (vals, d) => { const r = vals.map(v => rnd(v, d)).filter(v => v != null); return r.length ? Math.max(...r) : null; };
   const B = (v, best, d, txt) => v != null && best != null && rnd(v, d) === best ? `<strong>${txt}</strong>` : txt;
   // lượt 1: thống kê từng cấu hình
-  const S = PAPER_CFGS.map(cfg => {
+  const S = CFGS.map(cfg => {
     const cells = paperCells(cfg), ok = cells.filter(x => done(x.r));
     const st = { cfg, cells, ok, run: cells.filter(x => x.r.status === "running").length, avg: {}, sd: {}, d: {} };
     PAPER_M.forEach(([m]) => {
@@ -1117,7 +1326,9 @@ function renderPaper() {
   PAPER_M.forEach(([m]) => { bestAvg[m] = bestOf(S.map(x => x.avg[m]), 4); bestD[m] = bestOf(S.map(x => x.d[m] ? x.d[m].md : null), 4); });
   let head = `<thead><tr class="grp"><th rowspan="2">Cấu hình</th><th rowspan="2" class="gs">xong</th><th colspan="3" class="gs">Trung bình (độ lệch chuẩn)</th><th colspan="3" class="gs">Δ so với baseline, ghép cặp (seed, fold)</th></tr><tr>`;
   head += PAPER_M.map(([, l], i) => `<th${i === 0 ? ' class="gs"' : ""}>${esc(l)}</th>`).join("") + PAPER_M.map(([, l], i) => `<th${i === 0 ? ' class="gs"' : ""}>${esc(l)}</th>`).join("") + `</tr></thead>`;
-  const body = S.map(st => {
+  // dòng tiêu đề nhóm (chỉ khi cấu hình có trường group, các tab khác không đổi)
+  const grpRow = (i, span) => S[i].cfg.group && (i === 0 || S[i - 1].cfg.group !== S[i].cfg.group) ? `<tr class="cfg-grp"><td colspan="${span}">${esc(S[i].cfg.group)}</td></tr>` : "";
+  const body = S.map((st, si) => {
     const avg = PAPER_M.map(([m], i) => `<td${i === 0 ? ' class="gs"' : ""}>${st.avg[m] != null ? B(st.avg[m], bestAvg[m], 4, fmt(st.avg[m], 4)) + `<span class="sd">± ${st.sd[m] == null ? "-" : fmt(st.sd[m], 4)}</span>` : "-"}</td>`).join("");
     const dl = PAPER_M.map(([m], i) => {
       const gs = i === 0 ? ' class="gs"' : "";
@@ -1126,9 +1337,9 @@ function renderPaper() {
       if (!d) return `<td${gs}>-</td>`;
       return `<td${gs}><span class="${d.md > 0.001 ? "pos" : d.md < -0.001 ? "neg" : ""}">${B(d.md, bestD[m], 4, fmtSigned(d.md, 4))}</span><span class="k">+${d.pos}/-${d.neg} · n ${d.n}</span></td>`;
     }).join("");
-    return `<tr><td>${esc(st.cfg.title)}</td><td class="gs">${st.ok.length}/15${st.run ? `<span class="k">${st.run} đang chạy</span>` : ""}</td>${avg}${dl}</tr>`;
+    return grpRow(si, 2 + PAPER_M.length * 2) + `<tr><td>${esc(st.cfg.title)}</td><td class="gs">${st.ok.length}/15${st.run ? `<span class="k">${st.run} đang chạy</span>` : ""}</td>${avg}${dl}</tr>`;
   }).join("");
-  $("paper-table").innerHTML = head + `<tbody>${body}</tbody>`;
+  $(ids.table).innerHTML = head + `<tbody>${body}</tbody>`;
   // theo CWE: ROC và F1@0,5 của từng nhóm CWE trên test của fold (trường cwe của bản ghi), TB ± SD trên các ô đã xong; Δ ghép cặp với baseline
   const cv = (r, c, m) => r.cwe && r.cwe[c] && r.cwe[c][m] != null ? r.cwe[c][m] : null;
   const CM = [["roc", " gs"], ["f1", ""]];
@@ -1157,16 +1368,16 @@ function renderPaper() {
       if (x.d) extra += `<span class="k"><span class="${x.d.md > 0.001 ? "pos" : x.d.md < -0.001 ? "neg" : ""}">Δ ${fmtSigned(x.d.md, 3)}</span> +${x.d.pos}/-${x.d.neg}</span>`;
       return `<td class="${gs.trim()}">${B(x.avg, bestC[c + m], 3, fmt(x.avg, 3))}${extra}</td>`;
     }).join("")).join("");
-    return `<tr><td>${esc(st.cfg.title)}</td>${tds}</tr>`;
+    return grpRow(i, 1 + PAPER_CWE.length * 2) + `<tr><td>${esc(st.cfg.title)}</td>${tds}</tr>`;
   }).join("");
-  $("paper-cwe").innerHTML = chead + `<tbody>${cbody}</tbody>`;
+  $(ids.cwe).innerHTML = chead + `<tbody>${cbody}</tbody>`;
   // lưới: đậm ROC cao nhất giữa các cấu hình ở cùng (seed, fold) và TB seed cao nhất
   const bestCell = {}, bestSeed = {};
   PAPER_SEEDS.forEach(s => {
     for (let k = 1; k <= 5; k++) bestCell[s + ":" + k] = bestOf(S.map(st => { const x = st.cells.find(y => y.seed === s && y.fold === k); return x && done(x.r) ? x.r.roc : null; }), 3);
     bestSeed[s] = bestOf(S.map(st => { const v = st.ok.filter(x => x.seed === s).map(x => x.r.roc); return v.length === 5 ? mean(v) : null; }), 3);
   });
-  $("paper-grid").innerHTML = S.map(st => {
+  $(ids.grid).innerHTML = S.map((st, si) => {
     const rows = PAPER_SEEDS.map(s => {
       const mine = st.cells.filter(x => x.seed === s);
       const tds = mine.map(x => {
@@ -1175,14 +1386,70 @@ function renderPaper() {
         const p1v = x.p1 && x.p1.status === "done" ? x.p1.roc : null;
         const tip = cls === "done" || cls === "collapse" ? `PR ${fmt(r.pr, 4)} · F1@0,5 ${fmt(r.f1_05, 4)} · chọn ep ${r.best_epoch ?? "-"}${p1v != null ? " · val ROC Pha 1 " + fmt(p1v, 4) : ""} · ${r.host || ""}`
           : cls === "running" ? `đang chạy trên ${r.host || r.planned_host || "?"}` : `chưa chạy · dự kiến ${r.planned_host || "?"}${x.p1 && x.p1.status === "running" ? " · Pha 1 đang chạy" : ""}`;
-        return `<td class="pc-${cls === "done" ? "done" : cls === "collapse" ? "collapse" : cls === "running" || (x.p1 && x.p1.status === "running") ? "run" : cls === "failed" ? "failed" : "pend"}" title="${esc(tip)}">${x.p1 && x.p1.status === "running" && cls === "pending" ? "Pha 1" : txt}</td>`;
+        const p1only = x.p1 && x.p1.status === "running" && cls === "pending";
+        const [c0, run0, p10] = (st.cfg.cellk && st.cfg.cellk(s, x.fold)) || st.cfg.cell(s);
+        const id = docId(p1only ? p10 : run0, x.fold);
+        return `<td class="pc-${cls === "done" ? "done" : cls === "collapse" ? "collapse" : cls === "running" || (x.p1 && x.p1.status === "running") ? "run" : cls === "failed" ? "failed" : "pend"}"><button type="button" class="pcell${state.sel === id ? " sel" : ""}" data-id="${esc(id)}" title="${esc(tip)}">${p1only ? "Pha 1" : txt}</button></td>`;
       }).join("");
       const v = mine.filter(x => done(x.r)).map(x => x.r.roc);
       const tb = v.length ? (v.length === 5 ? B(mean(v), bestSeed[s], 3, fmt(mean(v), 3)) : fmt(mean(v), 3) + ` <span class="muted">(${v.length})</span>`) : "-";
       return `<tr><td>${s}</td>${tds}<td>${tb}</td></tr>`;
     }).join("");
-    return `<div class="pbox"><h3>${esc(st.cfg.title)}</h3><table><thead><tr><th>seed</th><th>f1</th><th>f2</th><th>f3</th><th>f4</th><th>f5</th><th>TB</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    const gh = st.cfg.group && (si === 0 || S[si - 1].cfg.group !== st.cfg.group) ? `<div class="pgrid-grp">${esc(st.cfg.group)}</div>` : "";
+    return gh + `<div class="pbox"><h3>${esc(st.cfg.title)}</h3><table><thead><tr><th>seed</th><th>f1</th><th>f2</th><th>f3</th><th>f4</th><th>f5</th><th>TB</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join("");
+  if (ids.checks) {
+  // ô kiểm: mỗi lần chạy lại một dòng; ô Pha 1 / Pha 2 là nút mở ngăn chi tiết
+  const crow = run => { const pr = PAPER_RUN[run]; return pr ? prow(pr.coll, run, 5) : prow("paper", run, 5); };
+  const stTxt = r => r.status === "done" ? "xong" : r.status === "running" ? `ep ${r.epoch || 0}/${r.epochs || "?"}` : r.status === "failed" ? "lỗi" : "chưa chạy";
+  const cbtn = (run, inner) => { const id = docId(run, 5); return `<button type="button" class="pcell${state.sel === id ? " sel" : ""}" data-id="${esc(id)}">${inner}</button>`; };
+  $(ids.checks).innerHTML = `<thead><tr><th>Lần chạy</th><th class="gs">Pha 1 (val JS · epoch)</th><th class="gs">ROC-AUC</th><th>PR-AUC</th><th>F1@0,5</th><th>F1@val</th><th class="gs">Ghi chú</th></tr></thead><tbody>`
+    + PAPER_CHECKS.map(c => {
+      const a = crow(c.p1), b = crow(c.p2), d = b.status === "done";
+      const p1txt = a.status === "done" ? `${fmt(a.roc, 3)} · ep ${a.best_epoch ?? "-"}` : stTxt(a);
+      const cls = d && b.roc != null && b.roc < COLLAPSE ? ' class="pc-collapse"' : "";
+      return `<tr><td>${esc(c.title)}</td><td class="gs">${cbtn(c.p1, p1txt)}</td><td class="gs"><span${cls}>${cbtn(c.p2, d ? fmt(b.roc, 4) : stTxt(b))}</span></td>`
+        + `<td>${d ? fmt(b.pr, 4) : "-"}</td><td>${d ? fmt(b.f1_05, 4) : "-"}</td><td>${d ? fmt(b.f1_val, 4) : "-"}</td><td class="gs"><span class="muted">${esc(c.note)}</span></td></tr>`;
+    }).join("") + `</tbody>`;
+  }
+}
+// 08/10 23:2x người dùng: "cập nhật đủ bảng trung bình những ô đã có đi" - bảng so tab warmup 0,2 với tab paper đầu trên ĐÚNG các ô đã xong ở cả hai
+const PAPER_W_PAIR = { w_common_ext: "common_ext", w_4cwe: "4cwe", w_full: "full" };
+function renderPairTable(CFGS, PAIR, elId, REF = PAPER_CFGS, refLabel = "paper đầu") {
+  const el = $(elId); if (!el) return;
+  const done = r => r && r.status === "done" && r.roc != null;
+  const ref = Object.fromEntries(REF.map(c => [c.key, c]));
+  const groups = [];
+  CFGS.filter(c => PAIR[c.key]).forEach(cfg => {
+    const a = paperCells(cfg), b = new Map(paperCells(ref[PAIR[cfg.key]]).map(x => [x.seed + ":" + x.fold, x.r]));
+    groups.push({ title: cfg.title.split(" · ")[0], pairs: a.filter(x => done(x.r) && done(b.get(x.seed + ":" + x.fold))).map(x => [x.r, b.get(x.seed + ":" + x.fold)]) });
+  });
+  groups.push({ title: "Gộp 3 nguồn", pairs: groups.flatMap(g => g.pairs), all: true });
+  let head = `<thead><tr class="grp"><th rowspan="2">Nguồn</th><th rowspan="2" class="gs">n ô</th>` + PAPER_M.map(([, l]) => `<th colspan="3" class="gs">${esc(l)}</th>`).join("") + `</tr><tr>`;
+  head += PAPER_M.map(() => `<th class="gs">tab này</th><th>${esc(refLabel)}</th><th>Δ ghép cặp</th>`).join("") + `</tr></thead>`;
+  const body = groups.map(g => {
+    const n = g.pairs.length;
+    const cells = PAPER_M.map(([m]) => {
+      const pr = g.pairs.filter(([x, y]) => x[m] != null && y[m] != null);
+      if (!pr.length) return `<td class="gs">-</td><td>-</td><td>-</td>`;
+      const d = pr.map(([x, y]) => x[m] - y[m]), md = mean(d);
+      return `<td class="gs">${fmt(mean(pr.map(p => p[0][m])), 4)}</td><td>${fmt(mean(pr.map(p => p[1][m])), 4)}</td>` +
+        `<td><span class="${md > 0.001 ? "pos" : md < -0.001 ? "neg" : ""}">${fmtSigned(md, 4)}</span><span class="k">+${d.filter(v => v > 0.001).length}/-${d.filter(v => v < -0.001).length}</span></td>`;
+    }).join("");
+    return `<tr${g.all ? ' style="font-weight:600"' : ""}><td>${esc(g.title)}</td><td class="gs">${n}</td>${cells}</tr>`;
+  }).join("");
+  el.innerHTML = head + `<tbody>${body}</tbody>`;
+}
+function renderPaper() {
+  renderPaperTab(PAPER_CFGS, { table: "paper-table", cwe: "paper-cwe", grid: "paper-grid", checks: "paper-checks" });
+  renderPaperTab(PAPER_R_CFGS, { table: "paperR-table", cwe: "paperR-cwe", grid: "paperR-grid" });
+  renderRChecks(); renderRLog();
+  renderPaperTab(PAPER_E_CFGS, { table: "paperE-table", cwe: "paperE-cwe", grid: "paperE-grid" });
+  renderPaperTab(PAPER_M_CFGS, { table: "paperM-table", cwe: "paperM-cwe", grid: "paperM-grid" });
+  renderPaperTab(PAPER_W_CFGS, { table: "paperW-table", cwe: "paperW-cwe", grid: "paperW-grid" });
+  renderPaperTab(PAPER_A_CFGS, { table: "paperA-table", cwe: "paperA-cwe", grid: "paperA-grid" });
+  renderPairTable(PAPER_A_CFGS, { a_full: "w_full", a_common_ext: "w_common_ext", a_4cwe: "w_4cwe" }, "paperA-pairW", PAPER_W_CFGS, "paper (warmup 0,2)");
+  renderPairTable(PAPER_A_CFGS, { a_full: "full", a_common_ext: "common_ext", a_4cwe: "4cwe" }, "paperA-pairP");
 }
 function setTab(t) {
   document.body.dataset.tab = t;
@@ -1190,7 +1457,10 @@ function setTab(t) {
   try { localStorage.setItem("mwonly5_tab", t); } catch (e) { /* trình duyệt chặn bộ nhớ: bỏ qua */ }
 }
 document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
-(() => { let t = "results"; try { t = localStorage.getItem("mwonly5_tab") || "results"; } catch (e) { /* bỏ qua */ } setTab(["p1", "notes", "compare", "paper"].includes(t) ? t : "results"); })();
+(() => { let t = "results"; try { t = localStorage.getItem("mwonly5_tab") || "results"; } catch (e) { /* bỏ qua */ }
+  const MOVED = { paper: "paperW", paperR: "paperOld", paperE: "paperOld", paperM: "paperOld" }; // 09/10: gộp tab paper cũ
+  t = MOVED[t] || t;
+  setTab(["p1", "notes", "compare", "paperW", "paperA", "paperOld"].includes(t) ? t : "results"); })();
 
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = String(text); return e; }
 function renderNotes() {
@@ -1366,11 +1636,15 @@ document.addEventListener("click", ev => {
   if (fb && fb.dataset.fold) { toggleType(fb.dataset.fold); return; }
   const a = ev.target.closest(".ack");
   if (a) { ack(a.dataset.id, a); return; }
-  const c = ev.target.closest(".chip, .p1cell");
-  if (c && c.dataset.id) { state.sel = state.sel === c.dataset.id ? null : c.dataset.id; renderMatrix(); renderDetail(); if (state.sel) $("detail").focus({ preventScroll: true }); }
+  const c = ev.target.closest(".chip, .p1cell, .pcell");
+  if (c && c.dataset.id) {
+    // nút "xem Pha 1 / Pha 2" trong ngăn chi tiết luôn chuyển sang run đó, không đóng ngăn
+    state.sel = state.sel === c.dataset.id && !c.classList.contains("linkbtn") ? null : c.dataset.id;
+    renderMatrix(); renderPaper(); renderDetail(); if (state.sel) $("detail").focus({ preventScroll: true });
+  }
 });
 // đóng thanh bên: nút Đóng, bấm nền mờ, hoặc phím Esc
-const closeDrawer = () => { state.sel = null; renderMatrix(); renderDetail(); };
+const closeDrawer = () => { state.sel = null; renderMatrix(); renderPaper(); renderDetail(); };
 $("d-close").addEventListener("click", closeDrawer);
 $("drawer-backdrop").addEventListener("click", closeDrawer);
 document.addEventListener("keydown", ev => {
@@ -1416,7 +1690,37 @@ setInterval(renderAll, 60000);
   }, fail);
   db.collection("paper_folds").limit(1000).onSnapshot(snap => {
     state.paper = new Map(snap.docs.map(d => [d.id, d.data()]));
-    renderPaper(); renderHeader();
+    renderPaper(); renderHeader(); if (state.sel && PAPER_RUN[state.sel.split("__f")[0]]) renderDetail();
+  }, () => {});
+  // 08/10: tab "Kết quả paper (RAdam)" - collection riêng
+  db.collection("paper_radam_folds").limit(1000).onSnapshot(snap => {
+    state.paperR = new Map(snap.docs.map(d => [d.id, d.data()]));
+    renderPaper(); renderHeader(); if (state.sel && PAPER_RUN[state.sel.split("__f")[0]]) renderDetail();
+  }, () => {});
+  // 08/10: tab "Kết quả paper (30 epoch pha 1)" - collection riêng
+  db.collection("paper_e30_folds").limit(1000).onSnapshot(snap => {
+    state.paperE = new Map(snap.docs.map(d => [d.id, d.data()]));
+    renderPaper(); renderHeader(); if (state.sel && PAPER_RUN[state.sel.split("__f")[0]]) renderDetail();
+  }, () => {});
+  // 08/10 07:2x: tab "Kết quả paper (Mosbach)" - collection riêng
+  db.collection("paper_mb_folds").limit(1000).onSnapshot(snap => {
+    state.paperM = new Map(snap.docs.map(d => [d.id, d.data()]));
+    renderPaper(); renderHeader(); if (state.sel && PAPER_RUN[state.sel.split("__f")[0]]) renderDetail();
+  }, () => {});
+  // 09/10 01:3x: tab "Kết quả paper (Adan)" - collection riêng
+  db.collection("paper_adan_folds").limit(1000).onSnapshot(snap => {
+    state.paperA = new Map(snap.docs.map(d => [d.id, d.data()]));
+    renderPaper(); renderHeader(); if (state.sel && PAPER_RUN[state.sel.split("__f")[0]]) renderDetail();
+  }, () => {});
+  // 08/10 15:1x: tab "Kết quả paper (warmup 0,2, không patience)" - collection riêng
+  db.collection("paper_w20_folds").limit(1000).onSnapshot(snap => {
+    state.paperW = new Map(snap.docs.map(d => [d.id, d.data()]));
+    renderPaper(); renderHeader(); if (state.sel && PAPER_RUN[state.sel.split("__f")[0]]) renderDetail();
+  }, () => {});
+  // 08/10 02:0x người dùng: "ghi log mỗi log 1 câu ngắn gọn ở đầu tab Kết quả paper (RAdam)"
+  db.collection("paper_radam_log").limit(500).onSnapshot(snap => {
+    state.rlog = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+    renderRLog();
   }, () => {});
   db.collection("alerts").limit(500).onSnapshot(snap => {
     state.alerts = snap.docs.map(d => ({ id: d.id, data: d.data() }));

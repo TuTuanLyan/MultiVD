@@ -9,7 +9,323 @@ Bậc: **n=5 fold, seed 42**. Chưa có n=15 nào. Mọi ô trên **một máy d
 
 ## 04/10 21:1x - KHỐI `mwonly5` (06/10 02:45: KHÔNG còn job chạy; mọi máy vast đã destroy; 161 + 158 rảnh) - MW-only chạy lại trên mã refactor, bậc 2 (n=5, seed 42, TF32, tất định)
 
-### 🐍U 07/10 15:2x PHA 1 TRỘN JS:PY 4:1 NGẪU NHIÊN, VAL PHA 1 CHỈ JS - UNCOMMON CHẶT (người dùng 07/10 15:0x: "tab chung, chạy thêm uncommon 4:1, val Pha 1 chỉ JS. (phương pháp này chốt là SOTA, nguồn pha 1 là tuỳ chọn)"; hỏi lại định nghĩa ⇒ chọn bản CHẶT) - 161 f1/f3/f5 + 158 f2/f4, bậc 2 (n=5, seed 42, TF32), tab Kết quả GỐC
+### 🅰️dan 08/10 23:1x - Colab: ADAN Ở PHA 1 (kiểm 3 ô sập + n = 15) - CHUYỂN sang `CURRENT_RUN_COLAB.md` (người dùng 09/10: "Sau này tạo CURRENT_RUN_COLAB.md")
+
+### 🅰️A4000 09/10 01:2x - ĐANG CHẠY từ 01:43 / 01:46 / 01:54 (paper_night2 / paper3 / 161) (phiên "MultiVD Colab", job 83a358bf): TAB "KẾT QUẢ PAPER (ADAN)" - BẬC 3 (n = 15) - 161 + paper_night2 + paper3 (KHÔNG 158)
+
+- **Yêu cầu** (người dùng 09/10 01:0x): "xem xét 2 vast và 161 không đụng 158 ... cái nào xong hoặc sắp xong sẽ chạy n=15 kiểm chứng lên các máy này ... disconect
+  hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe ... Vẫn chạy các source như vậy ... ưu tiên máy vast để tránh
+  mất tiền phí ... Khi có dù chỉ 1 máy hãy dừng colab" (sắp xong thì chạy nốt, đầu Pha 2 thì huỷ). Nguồn = như tab warmup 0,2: full / common mở rộng / 4CWE.
+- **Cấu hình:** 18 run `p1_adanlr1_jspy41jsval_<nguồn>[_s1234|_s7]` → `rasam_adanlr1_...` (tab `paper_adan`, collection `paper_adan_folds`, runs.json
+  5f59e863 trên 4 máy). Pha 1 = `p1_w20_*` chỉ đổi: Adan (`src_mwonly_adan` = src_mwonly + `mwg/adan.py` sail-sg/Adan@2c65bea md5 d461d09f; train.py chỉ
+  THÊM lựa chọn `--p1_optimizer adan|radam`), `--warmup_ratio 0`, `--weight_decay 0.02`; LR 5,66e-5. Pha 2 = `rasam_w20_*` NGUYÊN VẸN (src_mwonly, cờ trùng).
+  Plan đối chiếu: 16/16 ô trùng NGUYÊN VĂN cờ của lượt Colab; so với w20: Pha 1 lệch đúng 3 cờ, Pha 2 lệch 0.
+- **Phân máy (A4000 cả ba):** 161 = seed 42, paper_night2 = seed 1234, paper3 = seed 7; mỗi máy full f1-5 → common mở rộng f1-5 → 4CWE f1-5, Pha 1 + Pha 2 cùng
+  máy. `queue_after.sh` chờ PID driver w20 (161 3689943, paper_night2 57102, paper3 2657), log `state/queue_<máy>_adan.out`. Preflight đủ trên từng máy (chỉ
+  thiếu 15 checkpoint Pha 1 của chính khối; paper3 được chép thêm `js_py41jsval_4cwe_s7`, md5 16/16). Ước: full ~57 phút / ô, common ~56, 4CWE ~42
+  ⇒ full n = 15 xong ~06:40, common ~11:20, 4CWE ~14:50 (09/10).
+- **Phóng (kiểm từng máy):** driver w20 in dòng XONG (ô cuối rc=0: paper_night2 01:43:06, paper3 01:46:06, 161 01:54:22) → hàng đợi phóng run.sh sau
+  ≤ 35 s; mỗi máy 1 driver + 1 det_launch, lock giữ; argv ô đầu đủ `src_mwonly_adan`, `--p1_optimizer adan`, `--warmup_ratio 0`, `--weight_decay 0.02`,
+  `--learning_rate 5.66e-5`, `--patience 999`, `--epochs 16`, đúng seed + data_root; log có dòng `Adan | lr=5.66e-05 ... sail-sg/Adan@2c65bea`.
+  Colab đã dừng + unassign lúc 01:4x (xem `CURRENT_RUN_COLAB.md`).
+- **Giữa chừng 09/10 10:5x (kiểm chứng, n theo từng dòng, A4000, ghép cặp với tab warmup 0,2 cùng nguồn / seed / fold):** full 15/15, common mở rộng 12/15,
+  4CWE 0/15. Không ô nào sập (Adan thấp nhất 0,842; w20 cùng 27 ô thấp nhất 0,923). Gộp 27 cặp: ΔROC −0,0088 (9/27 dương, trung vị −0,0073), ΔPR −0,0084
+  (9/27), ΔF1@0,5 −0,0199 (10/27), ΔF1@val −0,0148 (12/27); full ΔROC −0,0124 (5/15), common mở rộng −0,0044 (4/12). Phần âm dồn vào ô có checkpoint Pha 1
+  Adan chọn sớm (epoch ≤ 4, train loss còn ~0,72): n = 5, ΔROC −0,037 (1/5 dương); còn lại n = 22: −0,0023 (8/22). Giả thuyết, chưa kết luận.
+  **Đĩa vast** 10:44 còn 2 GB (paper3) / 4 GB (paper_night2): offload của phiên MultiVD từ chối (> 4 thư mục/lượt) và không chạy từ 03:02 ⇒ phiên này tự
+  offload `p1_adanlr1_*` (jobs/83a358bf/tmp/adan_offload.sh: kéo về 161, md5 hai đầu khớp mới xoá). Phiên này KHÔNG được gọi từ ~03:0x đến 10:44
+  (monitor hết hạn, nhịp cron dồn) - máy vẫn chạy đúng, không ô nào lỗi.
+- **Phối hợp phiên MultiVD (mwonly5):** họ không destroy vast / không xếp việc lên 3 máy này; artifact (tab "Kết quả paper (Adan)", ghép cặp chính với tab
+  warmup 0,2) + sync về 161 + offload Pha 1 `p1_adanlr1_*` trên vast (vast_offload_p1.sh) do họ chạy mỗi nhịp. Phiên này: monitor
+  `jobs/83a358bf/tmp/adan_watch.sh` + nhịp 30 phút (:17 / :47).
+
+### 📄W+ 09/10 02:27 - XONG 06:18 (25 / 25 ô, 158): MW only s1234 / s7 + baseline warmup 0,2 không dừng sớm, n = 15 (tab warmup 0,2)
+
+- **Kết quả (FACTS §89):** hai mốc mới gần như bằng nhau và bằng baseline gốc nếu bỏ ô sập của baseline gốc (s7 f1 0,502 → 0,903 ở bản w20):
+  baseline w20 - gốc ROC +0,0209 (+4/-10), bỏ ô sập -0,0062 (+3/-10); MW only - baseline w20 ROC +0,0021 (+8/-7). Ba dòng SOTA so với CẢ ba mốc:
+  5/5 fold dương ở cả bốn chỉ số (p 0,062 = sàn); so MW only ROC +0,0386 (45/45 ô dương), so baseline w20 +0,0407 (+43/-2).
+  Bảng: `_FinalPaperExperiment/meta/insights/w20_refs/summary_refs_n15_output.txt`.
+- Đối chiếu số ô: 25 / 25 kết quả ở local 161; driver in `FPE 158 XONG 2026-10-09 06:18:18`, 0 dòng lỗi. hp ghép cặp: baseline → baseline_w20 lệch
+  đúng warmup 0 → 0,2, patience 8 → 999, min_epochs 3 → 10; nop1 s42 → s1234/s7 lệch seed + 5 cờ mới của mã (mặc định, tắt khi không SAM/RecAdam).
+
+- **Yêu cầu** (người dùng 09/10 02:2x): "bỏ dòng So với tab Kết quả paper đầu ..." (đã bỏ khỏi tab, trang bản 70) + "chạy thêm MW only (y hệt MW
+  không Pha 1 adamw) lên đủ n=15" + "thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2" + "dùng 158 cho việc của tôi, phiên fork
+  các máy khác".
+- **Run:** `nop1_adamw_s1234` / `_s7` = `nop1_adamw` chỉ đổi `--seed` (seed 42 dùng lại nop1_adamw của tab Kết quả gốc); `baseline_w20{,_s1234,_s7}`
+  = `baseline{,_s1234,_s7}` chỉ đổi `--warmup_ratio 0.2 --patience 999 --min_epochs 10` (plan diff đúng các cờ đó). tab `paper_w20`. runs.json
+  066e8821 (4 máy, đã báo phiên MultiVD Colab).
+- **Phóng 02:27** (`state/driver_158_nop1_basew20.out`, danh sách `state/plan_158_nop1_basew20_0910.txt`, 25 ô, fold vòng ngoài: mỗi fold baseline_w20
+  s42 / s1234 / s7 rồi nop1 s1234 / s7). Trước: 0 driver / 0 trainer mọi user, lock tự do, VRAM 15,7 GB trống, preflight đủ, chạy khô 25 mục 0 lỗi.
+  Sau: 1 driver + 1 trainer, lock giữ, log `Warmup bat | ty le 0.20 -> 90/450 buoc`, argv patience 999 / min_epochs 10. ~10 phút / ô ⇒ ETA ~06:45.
+
+### 📄W 08/10 15:18 - XONG 09/10 02:12 (45 / 45 ô): TAB "KẾT QUẢ PAPER (WARMUP 0,2, KHÔNG PATIENCE)" - BẬC 3 (n = 15) - 161 + 158 + paper_night2 + paper3
+
+- **Kết quả (FACTS §88):** gộp 45 ô so với paper đầu ROC +0,0072 (+19/-25, p theo fold 0,81) - dương chỉ nhờ full s1234 f5 (0,570 → 0,923);
+  bỏ ô đó -0,0007 (+18/-25). Phương sai giảm: SD ROC 0,0134 (paper 0,0572), min 0,901 (paper 0,570), 0 ô sập (paper 1). Bỏ patience gần như
+  không tác dụng. Lệch lớn đều do chọn checkpoint Pha 1 bằng val chỉ JS. Bảng: `meta/insights/w20_vs_paper/summary_n15_output.txt`.
+- Đối chiếu số ô: 45 / 45 kết quả Pha 2 ở local 161 (`results/rasam_w20_jspy41jsval_*`). Driver 4 máy in dòng XONG (paper_night2 01:43,
+  paper3 01:46, 161 01:54, 158 02:12). 3 máy 161 / paper_night2 / paper3 đã giao phiên "MultiVD Colab" chạy Adan.
+
+- **Yêu cầu** (người dùng 08/10 15:1x, sau phân tích `meta/insights/mb_vs_paper/REPORT.md`): "thử với việc tắt luôn -patience xem sao, dừng task và chạy
+  thêm tab mới" + "đổi 1 cờ cho tôi nữa, warmup xuống 0.2" + "không cần upload check point lên vast, máy nào chạy đúng fold đấy".
+- **Cấu hình:** = tab Kết quả paper đầu (`p1_jspy41jsval_*` → `rasam_jspy41jsval_*`) chỉ đổi: Pha 1 `--warmup_ratio 0.2` (thay 0,25) + `--patience 999`;
+  Pha 2 `--patience 999` (train đủ 30 epoch, chọn theo val ROC tốt nhất; warmup Pha 2 giữ 0). Ở Pha 1 (16 epoch) patience không kích hoạt được (bộ đếm
+  chỉ chạy từ epoch 10 ⇒ sớm nhất dừng ở 17) nên `--patience 999` ở Pha 1 là no-op. `--patience 0` SAI (dừng ngay epoch 10) - phải là số lớn.
+  18 run `p1_w20_jspy41jsval_<nguồn>[_s1234|_s7]` → `rasam_w20_...` (tab `paper_w20`, collection `paper_w20_folds`). Plan diff với run paper: Pha 1
+  đúng warmup 0,25→0,2 + patience 8→999; Pha 2 đúng patience 8→999. runs.json b588a872 (3 máy trùng md5). Baseline dùng lại tab paper.
+- **Phóng lại 15:27 theo NGUỒN** (người dùng 08/10 15:2x: "nên chạy 3 máy 3 nguồn khác nhau, đỡ chép nguồn và theo dõi được các fold seed cùng lúc.
+  Baseline dùng nguyên như cũ"): **161 full / 158 common mở rộng / paper_night2 4CWE**, mỗi máy 15 ô, fold vòng ngoài, trong fold seed 42 → 1234 → 7,
+  Pha 1 + Pha 2 cùng máy (`state/driver_<máy>_paper_w20src.out`, kế hoạch `state/plan_paper_w20_0810.json` ghi đè bản chia xoay vòng). Trước khi phóng
+  lại: preflight đủ, chạy khô 30 mục / máy đúng một nguồn, 0 lỗi; sau: 1 driver + 1 trainer / máy, lock giữ. Bản chia xoay vòng (phóng 15:18-15:21)
+  DỪNG 15:26 sau ~8 phút Pha 1 (3 ô common mở rộng f1 s7 / s42 / s1234); argv lưu `state/pause_0810_w20a/`, log đổi tên `.killed_0810c`, checkpoint
+  dở của 161 chuyển `model/mwonly5/_killed_0810c/`, của paper_night2 xoá (đĩa vast). Ước lượng: 4CWE ~35 phút / ô (~9 h), common mở rộng / full
+  ~53-56 phút / ô (~13-14 h) ⇒ paper_night2 xong ~00:30, 161 / 158 ~05:00 09/10.
+- **18:07 thêm vast `paper3`** (54827622, RTX A4000, driver 580.82.09, đĩa 18 GB; người dùng 08/10 17:3x: "đã thêm vast paper3, share việc cho nhanh
+  nhé"): dựng bằng `setup_papermw3.sh` (thư viện + git hash torch + md5 libtorch_cuda trùng 161), CodeBERT tải trên máy từ HF `refs/pr/8` (sha256
+  trùng 161, `md5sum * | md5sum` 5fc72fd20fad; upload từ 161 lên paper3 kẹt ở 26 MB), dữ liệu chỉ phần cần (116 MB, KHÔNG chép cả `final_experiment_data`
+  1,2 GB). Kiểm máy `chk_p1_jspy41_4cwe:4` 3 epoch TRÙNG từng chữ số log chuẩn ⇒ dùng được. Nhận **ô seed 7 fold 2-5 của full + common mở rộng**
+  (8 ô, `state/driver_paper3_paper_w20src.out`); 161 / 158 bỏ các ô đó qua `state/skip.txt` (kiểm hai chiều bằng `fpe.py plan` trên từng máy).
+  Ước lượng mỗi máy còn ~7 h ⇒ ETA ~01:30 09/10. Host thêm vào runs.json (8a9ac6d3, 4 máy trùng md5), `artifact_tick.sh`, `live_all.sh`,
+  `mon_fpe_v12.sh`, trang (HOSTS, bản 67).
+- **Đĩa vast** (người dùng 08/10 17:4x: "trên vast để ý dung lượng chọn checkpoint nhé"): `scripts/vast_offload_p1.sh <host>` (tổng quát hoá
+  pn2_offload_p1.sh) kéo checkpoint Pha 1 đã dùng xong về 161, md5 khớp mới xoá trên vast, in `ĐĨA <host>: còn X GB` (< 3 GB ⇒ `!! ĐĨA THẤP`);
+  `artifact_tick.sh` gọi NỀN cho paper_night2 + paper3 mỗi nhịp và in dòng ĐĨA của lượt trước.
+- ~~⚠ **CẢNH BÁO 09/10 01:33 - common mở rộng s1234 f5 NGHI KẸT Pha 1**~~ (BÁO NHẦM 01:45: thoát từ epoch 9-10, train loss 0,240 ở epoch 16, checkpoint epoch 10) (158, ô cuối của khối): 8 epoch train loss 0,702-0,757 (ln2), val JS
+  0,43-0,53. Cùng ô ở tab paper đầu thoát từ epoch 7 (0,688) và test 0,908. Chạy tiếp; doc alerts `a202610090133_p1_w20_jspy41jsval_common_ext_s1234_f5`.
+- **09/10 01:1x bàn giao máy cho phiên "MultiVD Colab"** (job 83a358bf; người dùng giao nó lúc 09/10 01:0x chạy Adan Pha 1 n=15
+  `p1_adanlr1_*` / `rasam_adanlr1_*` trên 161 + paper_night2 + paper3, ưu tiên full → common → 4CWE, KHÔNG đụng 158): phiên mwonly5
+  KHÔNG destroy paper_night2 / paper3 khi w20 hết, KHÔNG xếp việc mới lên 3 máy đó; vẫn giữ monitor + artifact + sync/offload cho w20.
+  Đã báo phiên kia 4 điểm va chạm (artifact tab gốc / sync --remove-source-files / đĩa vast / runs.json). `artifact_push.py` tạm
+  `SKIP_DOCS = ("adanlr1",)` cho tới khi thống nhất collection.
+- **22:56 driver 161 TỰ DỪNG** (cổng run.sh `!! đang có 1 tiến trình det_launch khác`, mã 4) ngay sau full s42 f4: một phiên Claude KHÁC (job
+  83a358bf) chạy thử khói `smoke_adan` bằng CPU (`CUDA_VISIBLE_DEVICES=` rỗng, không dùng GPU) trên 161. Không đụng tiến trình đó;
+  `state/wait_no_detlaunch_then_run.sh` chờ tới khi không còn det_launch (2 lần kiểm cách 60 s) rồi exec run.sh 161 với 4 ô full còn lại
+  (s1234 f4, s42 f5, s1234 f5; s7 ở paper3), log `state/queue_161_wait.out`. Monitor v11 không nhận vòng chờ này là hàng đợi ⇒ bật lại khi
+  driver lên.
+- **Ghi chú kết quả:** 4CWE s7 f1 = 0,901 (paper 0,950): Pha 1 chọn epoch 2 (train loss 0,719, chưa học) vì val chỉ JS không epoch nào vượt mức
+  epoch 2 - lỗi chọn checkpoint do cặp ngược nhãn, không do warmup. full s1234 f1 = 0,931 (paper 0,902): checkpoint epoch 7 lần này đã học.
+- (bản chia đầu, đã thay) **Phóng 15:18 / 15:18 / 15:21** (`state/driver_<máy>_paper_w20.out`): mỗi máy 15 ô (mỗi fold đúng 1 ô
+  mỗi nguồn, seed xoay vòng), mỗi ô Pha 1 + Pha 2 trên CÙNG máy, không chép checkpoint. Trước: 0 tiến trình, lock tự do, VRAM trống, preflight chỉ thiếu
+  checkpoint Pha 1 của chính khối, chạy khô 30 mục / máy (30 có patience 999, 15 warmup 0,2, 15 warmup 0, 0 lỗi). Sau: 1 driver + 1 trainer / máy,
+  lock giữ, argv tiến trình ô đầu `--warmup_ratio 0.2 --patience 999 --epochs 16`, log `Epoch 1/16 ... patience 0/999`. Trang bản 65 (tab mới).
+- **Lệnh phóng gộp ba máy bị treo** sau ssh tới 158 (driver 158 đã lên, ssh không trả về); đã giết vỏ treo trước khi nó tới paper_night2, xác nhận 158
+  còn 1 driver + 1 trainer, rồi phóng paper_night2 riêng bằng `ssh -n` (kiểm 0 driver + lock tự do NGAY trong lệnh phóng).
+- `artifact_push.py`: collection mới trong `CREATE_COLLS` ⇒ doc chưa có trong sổ được tạo bằng `set` (version 1); thử hai chiều. `pn2_offload_p1.sh`
+  thêm glob `p1_w20_*`.
+
+### 📄M2 08/10 09:09 - DỪNG 08/10 15:1x (người dùng: "dừng task và chạy thêm tab mới"), 19 / 45 ô Pha 2 xong: TAB "KẾT QUẢ PAPER (MOSBACH, VAL JS+PY)" - BẬC 3 (n = 15) - 161 + 158 + paper_night2
+
+- **Dừng 15:1x:** argv 3 driver lưu `state/pause_0810_mbmix/`; giết nhóm tiến trình driver; 3 ô dở (161 Pha 1 common mở rộng s1234 f3, 158 Pha 1 4CWE
+  s1234 f3, paper_night2 Pha 2 full s42 f3) đổi tên log thành `fold3.log.killed_0810b`. Kết quả / log ô đã xong giữ nguyên. Phân tích so với paper:
+  `meta/insights/mb_vs_paper/REPORT.md` (giảm dồn vào seed 1234, do lịch LR Mosbach chứ không do val).
+
+- **Yêu cầu** (người dùng 08/10 09:1x, sau khi đo rò rỉ cặp của val): "xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống
+  train". **Lý do đo được:** fold 1 s1234, 65-76 % hàng val CHỈ JS có nửa cặp (Jaccard token ≥ 0,8) NGƯỢC nhãn trong train (4CWE 57/88, common mở rộng
+  124/170, full 139/188; cùng nhãn 3-6) ⇒ val ROC giảm khi Pha 1 học (Mosbach 4CWE s1234 f1 xuống 0,29-0,34) ⇒ chọn checkpoint chưa học.
+- **Cấu hình:** Pha 1 Mosbach như 📄M (lr/graph_lr 2e-5, warmup 0,1, 20 epoch, patience 20), CHỈ đổi val: JS val như cũ + Python lấy từ SVEN val fold k,
+  n = round(n_js_val / 4) (4CWE 22, common mở rộng 43, full 47), cân nhãn bằng `random.Random(seed)` mới mỗi fold như phần Python của train.
+  `tools/build_p1_mixpy.py --val js+py41` (md5 ce04764d; chế độ `js` cũ vẫn ra file trùng bit); 9 thư mục `data/mwonly5_sources/js_py41mixval_*`
+  (train trùng bit bản jsval, phần JS của val trùng, Python val ⊂ SVEN val fold k, không dính test; 144 file trùng md5 trên 158 và paper_night2).
+  18 run `p1_mbmix_jspy41mixval_<nguồn>[_s1234|_s7]` → `rasam_mbmix_...` (tab paper_mb, collection paper_mb_folds); plan Pha 1 khác AdamW gốc ĐÚNG
+  data_root + 5 cờ Mosbach, Pha 2 trùng. runs.json d9115885.
+- **Phóng 09:09** (`state/driver_<máy>_paper_mbmix.out`, kế hoạch `state/plan_paper_mbmix_0810.json`): 161 16 ô / 158 17 ô / paper_night2 12 ô; driver
+  nhận 32 / 34 / 24 mục, lock giữ, log ô đầu đúng data_root mixval + cờ Mosbach, seed 42. 90 doc gieo + sổ v1. Trang bản 64. ETA ~22:30 08/10.
+- **Bản 📄M (Mosbach val chỉ JS, 07:20-09:05) ĐÃ GỠ** theo yêu cầu: 90 doc xoá khỏi paper_mb_folds (dump lưu `archive_0810_mosbach_valjs/db_dump/`);
+  kết quả / log / dbrows 161 + log / checkpoint 158 CHUYỂN (không xoá) vào `archive_0810_mosbach_valjs/` và `model/mwonly5/_archive_0810_mosbach_valjs/`;
+  5 file checkpoint trên paper_night2 XOÁ (đường truyền chậm, kéo về không được; người dùng yêu cầu xoá). 18 định nghĩa run cũ lưu `runs_removed.json`.
+  Số đã có trước khi gỡ (fold 1): 4CWE s42 0,948 / common mở rộng s42 0,933 / full s42 0,942 / 4CWE s1234 0,847 / common mở rộng s1234 0,891.
+
+### 📄M 08/10 07:20 - GỠ 09:1x (xem 📄M2): TAB "KẾT QUẢ PAPER (MOSBACH)" val chỉ JS - BẬC 3 (n = 15) - 161 + 158 + paper_night2
+
+- **Yêu cầu** (người dùng 08/10 07:2x): "áp dụng và chạy lại n=15 xem, dừng các task đang chạy" (sau khi hỏi "hướng số 2 bạn bảo Mosbach là thế nào").
+- **Cấu hình:** mỗi ô = ô AdamW tương ứng của tab Kết quả paper, CHỈ đổi Pha 1 theo Mosbach, Andriushchenko, Klakow (ICLR 2021, arXiv 2006.04884,
+  mục 6): `--learning_rate 2e-5 --graph_lr 2e-5` (thay 5,66e-5), `--warmup_ratio 0.1` (thay 0,25), `--epochs 20` (thay 16), `--patience 20` (thay 8 -
+  train đủ, không dừng sớm). AdamW torch đã có bias correction. Chọn checkpoint vẫn theo ROC val chỉ JS (+ select_after_drop 0,02). Pha 2 TRÙNG
+  (plan diff rỗng). 18 run `p1_mb_jspy41jsval_<nguồn>[_s1234|_s7]` → `rasam_mb_...` (`tab: paper_mb`, collection `paper_mb_folds`). Nguồn common MỞ
+  RỘNG / 4CWE / full × 3 seed × 5 fold = 45 ô (không dùng lại ô nào). runs.json 57f498fb (3 máy trùng md5). Baseline dùng lại tab paper.
+- **Phóng 07:20** cả 3 máy (`state/driver_<máy>_paper_mb.out`; kế hoạch `state/plan_paper_mb_0810.json` fold vòng ngoài: 161 16 ô ~12,8 h / 158 16 ô
+  ~12,3 h / paper_night2 13 ô ~10,9 h ⇒ ETA ~20:00 08/10). Trước: 0 tiến trình, lock tự do, preflight chỉ thiếu checkpoint Pha 1 của mục Pha 2. Sau:
+  driver nhận 32 / 32 / 26 mục, lock giữ, log ô đầu đúng `--learning_rate 2e-5 --graph_lr 2e-5 --warmup_ratio 0.1 --epochs 20 --patience 20`, seed 42.
+  90 doc gieo + sổ version 1; trang bản 63 (tab "Kết quả paper (Mosbach)"). `pn2_offload_p1.sh` đã mở rộng cho `p1_mb_*` (map `rasam_${r#p1_}`).
+- **Khối 📄E (30 epoch) DỪNG 07:17** theo người dùng: 14 / 44 ô Pha 2 xong (hiện ở tab 30 epoch); 3 ô Pha 1 dở bị cắt (4CWE s7 f2 / 161, full s1234 f2 /
+  158, common mở rộng s7 f2 / paper_night2), log đổi tên `.killed_0810`, argv lưu `state/pause_0810_e30/`.
+
+### 📄E 08/10 03:25 - DỪNG 07:17 (14 / 44 ô): TAB "KẾT QUẢ PAPER (30 EPOCH PHA 1)" - BẬC 3 (n = 15), bước 3 của cây quyết định (xem 🧪β ngay dưới)
+
+- **Cấu hình:** mỗi ô = ô AdamW tương ứng của tab Kết quả paper, CHỈ đổi Pha 1 `--epochs 16 -> 30` (warmup 25 % của 30 epoch). 18 run
+  `p1_e30_jspy41jsval_<nguồn>[_s1234|_s7]` → `rasam_e30_...` (`tab: paper_e30`, collection `paper_e30_folds`); nguồn common MỞ RỘNG / 4CWE / full;
+  ô full s1234 f5 dùng lại `p1/rasam_jspy41jsval_full_s1234_p1e30`; baseline dùng lại tab paper. 44 ô mới, 88 doc gieo + sổ version 1. Trang bản 62.
+- **Phóng:** 158 03:25 (15 ô, `state/driver_158_paper_e30.out`), paper_night2 03:38 (13 ô; trước đó xoá 10 checkpoint Pha 1 đã chép về 161, md5
+  khớp 10/10, còn 16 GB), 161 03:41 (16 ô). Mỗi máy: 0 tiến trình trước, lock giữ sau, driver nhận đủ 30 / 26 / 32 mục, log ô đầu `--epochs 30`
+  `Epoch k/30`, warmup 0,25, seed 42, `src_mwonly`. Kế hoạch `state/plan_paper_e30_0810.json` (fold vòng ngoài). ETA ~15:30-16:30 08/10.
+- ⚠ **CẢNH BÁO 06:10 - full s7 f1 SẬP** (paper_night2): Pha 1 30 epoch kẹt ln2 suốt 18 epoch (0,70-0,72; dừng sớm ep18, chọn ep10 val JS
+  0,522) - bản 16 epoch cùng ô thoát ở ep5; ep5 đã xuống 0,669 rồi bị đẩy ngược lên lúc lr còn tăng (warmup 25 % của 30 epoch, đỉnh ep7,5).
+  Pha 2 kẹt, test ROC 0,512 / PR 0,569 / F1@0,5 0,318 / F1@val 0,444 (AdamW 16 epoch 0,942). Doc `a202610080610_rasam_e30_jspy41jsval_full_s7_f1`.
+  Khối chạy tiếp, không chạy lại khi chưa có quyết định.
+- **Đĩa paper_night2:** 13 ô × 1,07 GB checkpoint Pha 1 ≈ 14 GB trên 16 GB trống ⇒ mỗi nhịp chạy `bash scripts/pn2_offload_p1.sh` (kéo về 161 + so md5 + xoá checkpoint `p1_e30_*` có Pha 2 đã xong; chỉ đụng `p1_e30_*`, ≤ 4 thư mục một lượt; thử hai chiều bằng file giả 03:5x; 04:3x sửa: Pha 2 "xong" phải tra kết quả LOCAL 161 vì `sync_remote.sh` chuyển kết quả bằng `--remove-source-files` nên results trên vast luôn rỗng - thử lại hai chiều trên ô thật full s42 f1 (kéo + xoá) / full s1234 f1 (giữ)).
+- **Khối 📄R (RAdam β2 0,999) ĐỂ DỪNG** theo cây quyết định (14 / 88 mục đã xong vẫn hiện ở tab RAdam). paper_night2 dùng tới khi xong 📄E - nhắc tắt sau.
+
+### 🧪β 08/10 02:0x - XONG 03:41: KIỂM RAdam β2 0,99 / warmup 0 TRÊN 3 Ô s1234 f1 (bậc 1, n = 1 mỗi nguồn, sàng lọc) - cả hai KHÔNG ỔN
+
+- **Yêu cầu** (người dùng 08/10 qua phiên MultiVD-AQ): "báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200
+  bước) cho 3 fold s1234 f1 sập ngay và luôn". 02:0x trực tiếp: "ghi quá trình kiểm vào tab Kết quả paper (RAdam). Nếu hướng này không ổn, thử bỏ
+  RAdam bỏ warmup 25% xem sao. Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1)). ghi log mỗi
+  log 1 câu ngắn gọn ở đầu tab Kết quả paper (RAdam). Tôi sẽ đi ngủ, hãy làm việc theo điều kiện tôi vừa nói".
+- **Tạm dừng 📄R:** 161 + paper_night2 dừng 02:00 (khớp argv + PPID, driver rồi trainer; 0 tiến trình, lock tự do); 158 để xong Pha 1 common mở rộng
+  s7 f1 (02:04, rc=0) rồi dừng ngay ô kế. Ô dở bị cắt (chạy lại sạch vì `run.sh` xoá log / kết quả / checkpoint trước khi train): Pha 2
+  `rasam_radam_jspy41jsval_4cwe_s7:1` (161, ep14/30), Pha 1 `p1_radam_jspy41jsval_full_s7:1` (paper_night2, ep7/16), Pha 2
+  `rasam_radam_jspy41jsval_common_ext_s7:1` (158, mới 20 s); log dở đổi tên `fold1.log.killed_0810`. Danh sách driver gốc:
+  `_FinalPaperExperiment/state/pause_0810/<máy>_driver_argv.txt`. Đã xong 14 / 88 mục (6 ô Pha 2 fold 1 + 8 Pha 1); còn 74. Checkpoint Pha 1
+  4CWE s7 f1 ở 161, common mở rộng s7 f1 ở 158 - Pha 2 của chúng phải chạy trên đúng máy đó (hoặc chép checkpoint).
+- **Cấu hình kiểm:** run `p1_radam99_jspy41jsval_<nguồn>_s1234` (folds [1]) → `rasam_radam99_...`, TRÙNG `p1_radam_..._s1234` fold 1, CHỈ thêm
+  `--p1_beta2 0.99` (cờ mới của `src_mwonly_radam/train.py`, md5 8b8b4338; mặc định 0,999 = hành vi cũ; kiểm CPU hai chiều: mặc định betas
+  (0.9, 0.999), cờ 0,99 → (0.9, 0.99), AdamW không đổi). runs.json 2412011f (3 máy trùng md5). plan: run mới có `--p1_beta2 0.99`, run cũ không.
+  Log hiệu lực cả 3 ô: `RAdam | ... | betas=(0.9, 0.99)`, seed 1234, 16 epoch, warmup 0,25.
+- **Phóng:** 161 full 02:01, paper_night2 common mở rộng 02:02, 158 4CWE 02:05 (`state/driver_<máy>_radam99.out`). ETA xong ~02:55-03:05.
+- ⚠ **CẢNH BÁO 02:38 - 4CWE β2 0,99 SẬP** (158): Pha 1 không thoát ln2 suốt 16 epoch (0,69-0,76, chọn ep12 val JS 0,579), Pha 2 kẹt, dừng ep17
+  checkpoint ep1; test ROC 0,567 / PR 0,552 / F1@0,5 0,485 / F1@val 0,526 (AdamW 0,928; β2 0,999 0,877). ⇒ **BƯỚC 1 KHÔNG ỔN** (cần ≥ 0,88 cả 3).
+  Doc alerts `a202610080238_rasam_radam99_jspy41jsval_4cwe_s1234_f1`. Bước 2 4CWE phóng 158 02:38 (`state/driver_158_radamw0.out`; log:
+  `--warmup_ratio 0`, betas (0.9, 0.999), seed 1234, 16 epoch). Common mở rộng / full β2 0,99 chạy nốt Pha 2 rồi máy đó sang bước 2.
+- **Điều kiện "ổn" (người dùng 08/10 02:2x, thay bản tôi ghi lúc 02:1x):** "điều kiện ổn là ROC test >= 88 cả 3 ô (tương tự không RAdam)" ⇒ test
+  ROC Pha 2 ≥ 0,88 ở CẢ 3 ô. Tham chiếu: AdamW cùng ô 0,921 / 0,928 / 0,902 (common mở rộng / 4CWE / full); β2 0,999: 0,849 / 0,877 / 0,893
+  (trượt 2/3). Báo đủ 4 chỉ số + epoch thoát / epoch chọn Pha 1.
+- **Cây quyết định (người dùng):** (1) β2 0,99 ổn ⇒ tab RAdam chạy n = 15 với β2 0,99. (2) không ổn ⇒ 3 ô RAdam `warmup_ratio 0` (hiểu "thử bỏ
+  RAdam bỏ warmup 25%" là RAdam GIỮ, bỏ warmup; β2 mặc định 0,999 như bài RAdam) cùng điều kiện ⇒ ổn thì n = 15 với nó. (3) vẫn không ổn ⇒ AdamW
+  Pha 1 30 epoch, warmup 25 % như cũ, n = 15 ở tab MỚI "Kết quả paper (30 epoch pha 1)" (ô full s1234 f5 dùng lại `p1/rasam_jspy41jsval_full_s1234_p1e30`).
+- Nhật ký từng bước: collection `paper_radam_log` (một câu mỗi mục), hiện ở đầu tab RAdam.
+- **Bước 1 KẾT QUẢ (02:48):** common mở rộng 0,930 (PR 0,945, F1@0,5 0,821) / full 0,931 (PR 0,948, F1@0,5 0,855) / 4CWE 0,567 SẬP ⇒ KHÔNG ỔN 2/3.
+  Pha 1 β2 0,99 thoát ln2 sớm hơn β2 0,999 ở common mở rộng (ep7 vs ep10) và full (ep6 vs ep9), 4CWE không thoát.
+- **Bước 2 ĐANG CHẠY:** run `p1_radamw0_jspy41jsval_<nguồn>_s1234` → `rasam_radamw0_...` (folds [1]), TRÙNG `p1_radam_..._s1234` chỉ đổi
+  `--warmup_ratio 0`; 158 4CWE 02:38, paper_night2 common mở rộng 02:45, 161 full 02:47 (`state/driver_<máy>_radamw0.out`); log cả 3: betas
+  (0.9, 0.999), `--warmup_ratio 0`, seed 1234, 16 epoch. 6 doc gieo `set` + sổ version 1.
+- **Bước 2 KẾT QUẢ (03:41):** 4CWE 0,829 (PR 0,841, F1@0,5 0,704) / common mở rộng 0,864 / full 0,863 ⇒ KHÔNG ỔN 0/3. Pha 1 warmup 0 cả 3 ô
+  chọn checkpoint sớm (ep3-4, val JS 0,43-0,50): bỏ warmup KHÔNG giúp thoát ln2 (đúng như phân tích ngân sách lr của phiên AQ).
+- **Bước 3 SOẠN SẴN → ĐÃ PHÓNG 03:25-03:41 (xem 📄E):** 18 run `p1_e30_jspy41jsval_<nguồn>[_s1234|_s7]` → `rasam_e30_...` (`tab: paper_e30`, collection
+  `paper_e30_folds`, `artifact_push.collection_of` đã thêm, thử hai chiều); plan khác ô AdamW gốc ĐÚNG `--epochs 30` (Pha 1) / chỉ đường dẫn
+  (Pha 2). runs.json 5ff9eabe (3 máy trùng md5). Kế hoạch `state/plan_paper_e30_0810.json`: 161 16 ô / 158 15 / paper_night2 13 (~12 h); preflight
+  3 máy chỉ thiếu checkpoint Pha 1 của mục Pha 2 (đúng kỳ vọng). 88 doc gieo ở `meta/seed_0810_e30/` (chưa đẩy). Trang: tab "Kết quả paper (30 epoch
+  pha 1)" đã viết ở bản local (`PAPER_E_CFGS`, ô full s1234 f5 dùng lại `p1e30`), CHƯA xuất bản. Đĩa paper_night2 11 GB trống: trước khi phóng
+  kéo về + xoá các checkpoint Pha 1 đã dùng xong (md5).
+
+### 🧹 08/10 01:1x - XONG 01:3x DỌN CHECKPOINT CŨ (người dùng: "ngoài kết quả của artifact MW only, hãy gọi 1 agent opus dọn dẹp các file checkpoint của các lần
+thí nghiệm đã cũ. Tuyệt đối không được xoá các thí nghiệm của artifact MW only này")
+
+- Agent Opus xoá 165 file / 78,5 GB checkpoint cũ (mới nhất 23/09): 161 `/drive1` 64 → 122 GB trống (129 file 61,5 GB, nhóm lớn: model/s42 26,9 GB,
+  pool1, p1seed, l1, shuf1...), 161 `/` +4,5 GB (model_dung trùng md5 bản /drive1), 158 `/data` 596 → 607 GB (27 file 12,5 GB). Bảo vệ: model/mwonly5
+  (= hosts.*.ckpt, `fpe.py plan` 595 cặp run × fold đều trỏ vào đó), model gốc, Archive, _FinalPaperExperiment, thư mục user khác. Kiểm hai chiều đạt;
+  sau xoá mwonly5 còn đủ (161: 140 .pt, 158: 98), job vẫn chạy. GIỮ LẠI chờ người dùng: model/final_paper (161 26,3 GB, 158 13,9 GB - Pha 1 khối
+  final cũ, CURRENT_RUN 04/10 dặn giữ), model/n48 (7,6 + 4,0 GB, NEXT_CONTRIBUTION §5 đề xuất B), model/fus2 0,5 GB, claude_tmp_moved 6 GB.
+  Manifest: `_FinalPaperExperiment/state/cleanup_0810/` (inventory / protected / deleted / df).
+
+### 📄R 08/10 00:0x TAB "KẾT QUẢ PAPER (RAdam)" - BẬC 3 (n = 15 = 5 fold × seed 42 / 1234 / 7): common MỞ RỘNG / 4CWE / full, Pha 1 RAdam (người dùng 07/10 23:4x: "giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ"; 23:5x: "thay common thường thành common mở rộng") - 161 + 158 + paper_night2
+
+- **Cấu hình:** mỗi ô = ô tương ứng của tab Kết quả paper (trộn JS:Py 4:1 ngẫu nhiên Random(seed), val Pha 1 chỉ JS, Pha 2 RecAdam + ASAM), CHỈ đổi Pha 1
+  AdamW -> `torch.optim.RAdam(decoupled_weight_decay=True)` (`--p1_optimizer radam`, src_dir `src_mwonly_radam`; 16 epoch, warmup 25 %, lr giữ). 18 run mới
+  `p1_radam_jspy41jsval_<nguồn>[_s1234|_s7]` → `rasam_radam_...` (`tab: paper_radam`, `seed`); plan 9 / 9 chỉ khác bản AdamW ở src_dir + `--p1_optimizer radam`
+  (Pha 2 trùng). Ô full s1234 f5 DÙNG LẠI `p1/rasam_jspy41jsval_full_s1234_radam` (cấu hình trùng, tất định đã kiểm) ⇒ 44 ô mới. Baseline dùng lại tab cũ.
+  Collection RIÊNG `paper_radam_folds` (`artifact_push.collection_of`: paper → paper_folds, paper_radam → paper_radam_folds; thử 5 doc hai chiều).
+  runs.json 4b9b7bf0; dữ liệu 9 thư mục trùng md5 158 / paper_night2 (144 file); src_mwonly_radam + runs.json trùng (25 file).
+- **Chia (fold vòng ngoài, tham lam theo giờ ~45 / 35 / 55 phút cho common mở rộng / 4CWE / full; paper_night2 tối đa 11 ô vì đĩa 23 GB, mỗi ô giữ
+  1,07 GB checkpoint Pha 1):** 161 17 ô (~12,4 h), 158 16 ô (~11,7 h), paper_night2 11 ô (~8,8 h) - danh sách `state/plan_paperradam_0710.json`.
+  Trước khi phóng: 3 máy 0 tiến trình, lock tự do, VRAM trống, preflight 17 / 16 / 11; paper_night2 xoá 2 checkpoint đã kéo về (md5 khớp), còn 16 GB.
+- **Dự đoán (ghi TRƯỚC):** RD1 0/44 ô Pha 2 sập (ROC < 0,75); RD2 mỗi nguồn TB ROC n = 15 trong ±0,010 của bản AdamW cùng nguồn (common mở rộng
+  0,9405, 4CWE 0,9396, full 0,9158 có ô sập) - riêng full kỳ vọng ≥ bản AdamW vì ô sập được chữa; RD3 chênh TB ROC 3 seed mỗi nguồn ≤ 0,015.
+- **PHÓNG 00:01 08/10** cả 3 máy (`run.sh 161` 34 mục log `state/driver_161_paperradam.out`; `run.sh 158` 32 mục `state/driver_158_paperradam.out`;
+  `run.sh paper_night2` 22 mục `state/driver_paper_night2_paperradam.out`): dòng đầu nhận đủ, mỗi máy 1 driver + 1 trainer, lock giữ; log: `--p1_optimizer radam`,
+  `src_mwonly_radam`, đúng seed / data_root. 88 doc gieo `set` vào `paper_radam_folds` (`meta/seed_0810_paperradam/`), sổ version 1. Trang bản 59: tab
+  "Kết quả paper (RAdam)" (renderPaper tách thành renderPaperTab(CFGS, ids) dùng chung; ô full s1234 f5 đọc run RAdam cũ ở paper_folds; thẻ máy
+  hiện cả ô RAdam đang chạy). Monitor: v11 (161, 158), v12 (paper_night2). ETA ~12:15 08/10. **paper_night2 dùng tới khi xong - nhắc tắt sau.**
+  Đĩa paper_night2: 16 GB trống, 11 ô × 1,07 GB checkpoint Pha 1 - theo dõi, kéo về + xoá nếu < 3 GB.
+
+### 📄E 07/10 18:5x - XONG 23:34 (common mở rộng 20/20 ô mới; 161 / 158 / paper_night2 hết việc) TAB "KẾT QUẢ PAPER" - COMMON MỞ RỘNG LÊN n = 15 + CHẠY LẠI Ô SẬP full s1234 f5 (người dùng 18:4x: "chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15"; 18:5x: "tôi nhầm, pha kẹt kéo dài đủ 16 epoch" - HỎI LẠI về bản chạy lại, CHƯA phóng) - 158 seed 7 + 161 seed 1234, bậc 3
+
+- **Common mở rộng n = 15:** seed 42 = `rasam_jspy41jsval_common_ext` (tab Kết quả gốc, khối 🐍E); thêm `p1/rasam_jspy41jsval_common_ext_s{1234,7}` (`tab: paper`,
+  `seed`), dữ liệu `js_py41jsval_common_ext_s{1234,7}` (`build_p1_mixpy.py --val js --seed s`): JS + val TRÙNG bản seed 42, Python 241 hàm khác theo
+  seed (trùng seed 42 124-132 hàm); dựng lại trùng byte 15/15 mỗi seed; md5 trùng 158 (32 file + runs.json 082705e3). Plan chỉ khác run common cùng seed
+  ở `--data_root`. Máy: 158 seed 7 f1 → f5, 161 seed 1234 f1 → f5 (`queue_after` sau driver 🐍E).
+- **Chạy lại ô sập** `p1/rasam_jspy41jsval_full_s1234_p1e30` (fold 5, Pha 1 `--epochs 30`, plan chỉ khác ô gốc ở 16 → 30, đổi luôn lịch LR): runs.json đã có,
+  preflight 158 đạt; CHƯA phóng - chờ người dùng xác nhận sau tin "tôi nhầm".
+  → 18:5x người dùng: "Báo cho tôi quyết", "Bạn đã chạy lại xong đâu?" ⇒ hiểu là chạy rồi báo kết quả để họ quyết dùng hay không:
+  XẾP LÊN ĐẦU hàng đợi 161 (queue cũ PID 1009606 dừng khi CHƯA exec, phóng lại PID 1019695: 12 mục = rerun f5 Pha 1 + Pha 2, rồi common mở rộng s1234
+  f1 → f5); ước chạy 19:25 → ~20:25. Ô gốc 0,570 GIỮ NGUYÊN trong n = 15 tới khi người dùng quyết. Doc `paper_folds` gieo (`meta/seed_0710_rerun/`).
+  Dự đoán: R1 Pha 1 30 epoch thoát ln2 (train loss < 0,6) trước ep20; R2 Pha 2 test ROC ≥ 0,90.
+  → **20:21 KẾT QUẢ chạy lại:** Pha 1 thoát ln2 ep7-8 (train loss 0,625 → 0,530), chọn ep13 (val JS 0,613), dừng sớm ep21; Pha 2 chọn ep20, test ROC 0,908
+  / PR 0,913 / F1@0,5 0,842 / F1@val 0,835 (ô cũ 0,570 / 0,583 / 0,345 / 0,435; cùng fold seed 42 0,933, seed 7 0,930). **R1 ĐÚNG, R2 ĐÚNG.** Nếu THAY ô cũ:
+  full n = 15 ROC TB 0,9158 → 0,9384, Δ với baseline +0,038 (+13/-2) → +0,061 (+14/-1); PR +0,038 → +0,060, F1@0,5 +0,059 → +0,092. CHỜ người dùng quyết
+  (lưu ý: ô thay chạy Pha 1 trần 30 epoch / lịch LR khác 14 ô còn lại; baseline s7 f1 sập 0,502 chưa chạy lại).
+  → 21:0x người dùng yêu cầu thay ÂM THẦM ô sập bằng ô mới (không lưu log, coi như cấu hình cũ) - TỪ CHỐI (làm sai lệch nguồn gốc kết quả); đưa 4
+  cách hợp lệ (luật chạy lại chung cho mọi nhánh / thay + ghi chú / đổi cấu hình cả nhóm / giữ nguyên). Log + kết quả cả hai lần GIỮ nguyên.
+  → 21:0x người dùng: "chạy lại cấu hình cũ xem kết quả y hệt cho fold sập kia không" ⇒ **KIỂM TẤT ĐỊNH** `p1/rasam_jspy41jsval_full_s1234_repro` f5:
+  cấu hình TRÙNG ô gốc (40/40 cờ ngoài đường dẫn so với dòng `# TRAIN:` của log gốc trên paper_night; env PYTHONHASHSEED=42 TF32=1 trùng), chạy trên
+  158 (A4000, đã kiểm trùng bit với paper_night); `queue_after` PID 2221412 sau driver 158 seed 7 (PID 1892811), ước ~22:35 → ~23:35. runs.json
+  8b70793d (trùng 158). Dự đoán: D1 Pha 1 TRÙNG từng chữ số log 16 epoch với bản gốc; D2 test ROC = 0,5698784722222223 và mảng xác suất trùng.
+  → 21:19 DỜI sang paper_night2 (queue 158 PID 2221412 dừng khi CHƯA exec).
+  → **22:05 KẾT QUẢ kiểm tất định: TRÙNG TUYỆT ĐỐI.** Pha 1 16/16 dòng epoch trùng từng chữ số (bỏ cột giây), chọn ep14, val JS 0,5429576665531721 =
+  bản gốc; Pha 2 13/13 dòng epoch trùng, test ROC 0,5698784722222223 = bản gốc; MỌI chỉ số trong json trùng; mảng npz (probabilities, labels,
+  n_tokens, val_probabilities, val_labels, threshold) `np.array_equal` cả hai pha. **D1 ĐÚNG, D2 ĐÚNG** ⇒ ô sập là tất định (hai máy A4000 khác
+  nhau cùng ra một kết quả), không phải lỗi ngẫu nhiên phần cứng; chỉ đổi cấu hình (trần epoch / lịch LR / optimizer) mới đổi được.
+  → **RAdam** (người dùng 21:0x: "thử ... https://arxiv.org/abs/1908.03265 ... chạy cell full kẹt với cái RAdam này"; 21:2x: "radam chỉ pha 1 nhé"):
+  `p1_jspy41jsval_full_s1234_radam` f5 (src_dir `src_mwonly_radam` = `src_mwonly` + đúng một nhánh `--p1_optimizer radam` →
+  `torch.optim.RAdam(decoupled_weight_decay=True)`; mặc định adamw; kiểm CPU hai chiều: mặc định AdamW, cờ radam ⇒ RAdam, recadam ⇒ RecAdam không đổi;
+  bước 1 RAdam |Δw| 4,8e-8 so với AdamW 2,0e-5) → `rasam_jspy41jsval_full_s1234_radam` f5 (Pha 2 TRÙNG ô gốc, mã src_mwonly). Plan chỉ khác ô gốc ở
+  src_dir + `--p1_optimizer radam` (16 epoch, warmup 25 %, lr giữ nguyên). runs.json 8941d77c. Chạy sau repro trên paper_night2 (~22:20 → ~23:20).
+  Dự đoán: RA1 Pha 1 RAdam thoát ln2 (train loss < 0,6) trong 16 epoch; RA2 nếu RA1 đúng thì Pha 2 test ROC ≥ 0,90.
+  → **22:53 KẾT QUẢ RAdam:** Pha 1 thoát ln2 ep9 (0,693 → 0,632 → 0,533), chọn ep10 (val JS 0,548), hết 16 epoch train loss 0,268; Pha 2 chọn ep11,
+  test ROC 0,924 / PR 0,942 / F1@0,5 0,835 / F1@val 0,829 (ô gốc 0,570; Pha 1 30 epoch 0,908; cùng fold seed 42 0,933, seed 7 0,930). **RA1 ĐÚNG, RA2 ĐÚNG.**
+  Checkpoint repro: 218 tensor TRÙNG tuyệt đối ô gốc (chỉ khác training_args = tên run). paper_night2 XONG 22:53: kéo về checkpoint 4 file (md5 khớp),
+  state + mọi log (`state/remote_logs/paper_night2_54653423/`), kết quả 4 run đủ json + npz + log; staging trên máy đã trống. **Nhắc người dùng tắt 54653423.**
+- **07/10 21:0x THÊM vast paper_night2** (người dùng: "đã thêm máy paper_night2"): 54653423, RTX A4000, driver 595.71.05, 4 vCPU, đĩa 23 GB, 0,095 $/h,
+  SSH 202.122.49.242:36826 (cùng IP paper_night; phải `vastai attach ssh`), hostname e04fd59de6c8. `setup_papermw3.sh` (wheel ghim) xong ~1 phút; ĐỐI CHIẾU
+  với 161 + 158: python 3.11.14, torch 2.9.1+cu128 git 5811a8d7da87, md5 libtorch_cuda ef1e3e96, CUDA 12.8, cuDNN 91002, triton 3.5.1, transformers 4.57.1,
+  numpy 2.3.4, sklearn 1.7.2, scipy 1.16.3, tokenizers 0.22.1, safetensors 0.6.2, networkx 3.5 - trùng hết; CodeBERT md5 trùng 161. Kiểm máy
+  `chk_p1_jspy41_4cwe` f4: 3 epoch TRÙNG từng chữ số log tham chiếu; dừng đúng PID (driver 1811, trainer 1840), xoá checkpoint thử, xoá wheels.
+  Môi trường chuẩn ghi vào memory `multivd-standard-env.md` (người dùng: "lưu môi trường chuẩn vào memory"). Monitor `mon_fpe_v12.sh` (+paper_night2),
+  sync/live + HOSTS trang (bản 57) thêm paper_night2. **Nhắc người dùng tắt paper_night2 khi xong + kéo về đối chiếu.**
+- **07/10 22:21 DỒN MÁY:** dời `p/rasam_jspy41jsval_common_ext_s1234:5` từ 161 sang 158 (161 `skip.txt` +2 dòng, bản cũ `skip.txt.bak_0710_2220`; plan
+  161 f5 in `bỏ qua`, f4 vẫn checkpoint thật; 158 plan f5 thật, preflight đạt; `queue_after` 158 sau driver seed 7 PID 1892811). ETA: 158 xong ~23:25,
+  161 ~23:15, paper_night2 (RAdam) ~23:00.
+- **Dự đoán (ghi TRƯỚC, common mở rộng n = 15):** N1 ≤ 1/10 ô Pha 2 mới sập; N2 TB ROC n = 15 trong ±0,010 của common gốc n = 15 (0,9378) - cặp (seed, fold)
+  với common gốc không 15/15 cùng dấu; N3 so với baseline TB Δ ROC ≥ +0,030 và ≥ 14/15 cặp dương.
+- **KẾT QUẢ common mở rộng n = 15 (bậc 3; seed hp khớp, init đúng `seed_<s>/fold<k>`):** ROC 0,9405 ± 0,0161, PR 0,9439, F1@0,5 0,8592, F1@val 0,8506.
+  ROC từng ô: s42 0,929 / 0,959 / 0,949 / 0,953 / 0,919; s1234 0,921 / 0,953 / 0,949 / 0,938 / 0,908; s7 0,953 / 0,954 / 0,944 / 0,955 / 0,925.
+  Δ với baseline: ROC +0,063 (+14/-1, 5/5 fold), PR +0,060, F1@0,5 +0,087, F1@val +0,077 (cùng +14/-1); bỏ 2 cặp sập: ROC +0,036 (+12/-1).
+  Δ với common gốc: ROC +0,003 (+10/-5, 3/5 fold, p 0,63), PR -0,001, F1@0,5 +0,004, F1@val +0,014 (+9/-5) ⇒ không khác common gốc trong sàn nhiễu.
+  **Chấm:** N1 ĐÚNG (0/10 sập), N2 ĐÚNG, N3 ĐÚNG. Nhận định `paper_n15` bản 4 có thêm dòng common mở rộng.
+
+### 🐍E 07/10 17:2x - XONG 19:16 (10/10 rc 0) PHA 1 TRỘN JS:PY 4:1 NGẪU NHIÊN, VAL PHA 1 CHỈ JS - COMMON MỞ RỘNG (người dùng 07/10 17:0x: "chạy thêm vào nhánh chính 1 bản SOTA nguồn js common, nhưng bản common này dùng: cả những CWE có đa nhãn, trong đó chỉ cần duy nhất 1 nhãn nằm trong common thì giữ cả hàm; cả những CWE không có thông tin CWE, unknown") - 161 f1/f3/f5 + 158 f2/f4, bậc 2 (n=5, seed 42, TF32), tab Kết quả GỐC
+
+- **Luật common GỐC** (trả lời người dùng "Bạn đã nắm được luật common ở đâu chưa?"): `tools/build_sources_v2.py:subset_common` gọi luật R1-R6 của
+  `tools/cwe_rules.py` (vendored GraphTransferVD `fix` 79f0308) đọc `data/cwe_spec/cwec_v4.20.xml`, đích Python: GIỮ hàm khi MỌI nhãn CWE được giữ
+  (một nhãn bị bỏ ⇒ bỏ cả hàm, người dùng 21/09); R1 (unknown / NVD-CWE-* / rỗng) ⇒ BỎ; Java vào nguyên vẹn. Nhãn đầy đủ: `cwe_labels` trong
+  `data/sources_v4/js_cleanvul_3-4_full.meta.jsonl`.
+- **Luật MỞ RỘNG** (`tools/build_js_common_ext_pool.py`): giữ hàm JS full khi CÓ ÍT NHẤT MỘT nhãn được giữ HOẶC có nhãn R1 ⇒ ĐÚNG phần bù của uncommon
+  chặt (assert: common_ext ⊔ uncommon chặt = JS full, common gốc ⊂ common_ext). 1 134 hàm = 567 cặp = 990 common gốc + 144: lẫn common + unknown 66,
+  lẫn common + CWE khác 18 (vd CWE-79 + CWE-1321), có unknown 60 (29 cặp toàn NVD-CWE-noinfo + 1 cặp CWE-248 + NVD-CWE-noinfo - cặp này được GIỮ vì
+  có nhãn unknown; theo cách đọc "chỉ toàn unknown" thì bỏ, lệch 1 cặp). Chia Random(42) val 15 %: train 964 (nhãn 1: 486) / val 170 (nhãn 1: 81).
+  Trộn `js_py41jsval_common_ext/` (`build_p1_mixpy.py --val js`): train 1 205 = 964 JS + 241 Python (121/120, 0 trùng test), val = test = 170 JS.
+  Dựng lại trùng byte (pool 3/3, trộn 15/15); md5 trùng 158 (20 file + runs.json).
+- **Run** (runs.json md5 0d300c5d, chỉ THÊM 53 dòng, trùng 158): `p1_jspy41jsval_common_ext` → `rasam_jspy41jsval_common_ext`; plan chỉ khác run
+  common ở tên / đường dẫn / `--data_root`. Trước khi phóng: 161 + 158 0 tiến trình, lock tự do, VRAM trống (158: 1 tiến trình 238 MiB không phải của
+  mình), skip.txt không chặn, plan in đúng checkpoint, preflight 3/3 + 2/2.
+- **Dự đoán (ghi TRƯỚC):** E1 ROC TB trong ±0,010 của 4:1 jsval common gốc (0,9443) và KHÔNG 5/5 cùng dấu so với nó; E2 hơn baseline 5/5 fold (ROC);
+  E3 0/5 ô sập.
+- **KẾT QUẢ (bậc 2, n = 5, seed 42):** ROC theo fold 0,929 / 0,959 / 0,949 / 0,953 / 0,919 (TB 0,942); Pha 1 val JS ROC 0,630 / 0,634 / 0,662 / 0,599 /
+  0,679. Δ ghép cặp: với baseline ROC +0,045 (+5/-0), PR +0,035 (+4/-1), F1@0,5 +0,076 (+5/-0), F1@val +0,069 (+5/-0); với 4:1 val JS common gốc ROC -0,003
+  (+2/-3), PR -0,012 (+2/-3), F1@0,5 -0,007 (+2/-2), F1@val +0,006 (+2/-2); với full ROC -0,003 (+1/-3). ⇒ thêm 144 hàm (đa nhãn có common + unknown)
+  KHÔNG đổi kết quả so với common gốc trong sàn nhiễu. **Chấm:** E1 ĐÚNG, E2 ĐÚNG, E3 ĐÚNG. Nhận định `jspy41` mục 12 cập nhật (bản 10).
+- **PHÓNG 17:07** (`run.sh 161` 6 mục log `state/driver_161_commonext.out`; `run.sh 158` 4 mục log `state/driver_158_commonext.out`): dòng đầu nhận đủ,
+  mỗi máy 1 driver + 1 trainer, lock giữ thật; log: seed 42, 16 epoch, `--data_root …/js_py41jsval_common_ext`. Trang bản 54 (dòng mới trong nhóm
+  common, đồng thời bỏ paper_night khỏi HOSTS); 10 doc gieo `set` (`meta/seed_0710_commonext/`), sổ version 1.
+- **Artifact 17:4x** (người dùng: "cập nhật lên artifact"): đẩy dòng Pha 1 đang chạy; Nhận định `jspy41` bản 8 (thêm mục 11 uncommon chặt, mục 12 common
+  mở rộng: luật + danh sách bị bỏ + đang chạy; `build_jspy41.py` tự điền kết quả khi đủ 5 fold); Nhận định MỚI `paper_n15` (bảng n = 15, ô sập,
+  độ nhạy bỏ 2 cặp, theo seed, chấm Y1-Y4; dựng bằng `meta/insights/paper_n15/build_paper_n15.py`).
+- **Danh sách bị bỏ** (người dùng 17:0x: "gửi tôi danh sách data bị bỏ khỏi bản common này"): `data/mwonly5_sources/js_common_ext/DROPPED.{csv,jsonl}` -
+  120 hàm = 60 cặp, 36 repo (b-heilman/bmoor 8, xmldom 3, fast-xml-parser 3, tough-cookie 3, …): CWE-1321 56 cặp (R5: chỉ khai JavaScript), CWE-843
+  4 cặp (R5: chỉ khai C / C++). Đã gửi file cho người dùng.
+- **07/10 17:0x paper_night (54537908) ĐÃ DESTROY** (người dùng: "tắt vast đi"): 0 tiến trình, 0 app GPU; file còn trên máy = 20 checkpoint + 1 log đã
+  đối chiếu md5 lúc 12:01; `show instances` còn 0. Bỏ khỏi `artifact_tick.sh`, `live_all.sh` (bản cũ ở `state/*.before_pn_destroy`), HOSTS trang.
+
+### 🐍U 07/10 15:2x - XONG 16:51 (10/10 rc 0, 161 + 158 hết hàng đợi) PHA 1 TRỘN JS:PY 4:1 NGẪU NHIÊN, VAL PHA 1 CHỈ JS - UNCOMMON CHẶT (người dùng 07/10 15:0x: "tab chung, chạy thêm uncommon 4:1, val Pha 1 chỉ JS. (phương pháp này chốt là SOTA, nguồn pha 1 là tuỳ chọn)"; hỏi lại định nghĩa ⇒ chọn bản CHẶT) - 161 f1/f3/f5 + 158 f2/f4, bậc 2 (n=5, seed 42, TF32), tab Kết quả GỐC
 
 - **Người dùng chốt:** phương pháp Pha 1 trộn JS:Py 4:1 ngẫu nhiên + val Pha 1 chỉ JS + Pha 2 RecAdam + ASAM là **SOTA**; nguồn Pha 1 (common / 4CWE /
   full / uncommon) là **tuỳ chọn**.
@@ -27,6 +343,24 @@ Bậc: **n=5 fold, seed 42**. Chưa có n=15 nào. Mọi ô trên **một máy d
 - **Dự đoán (ghi TRƯỚC):** U1 Pha 1 chọn checkpoint sớm (best epoch ≤ 3) ở ≥ 3/5 fold (val 18 JS, 14 cặp bị tách - như lần chặt trước chọn epoch 1);
   U2 ROC TB của `rasam_jspy41jsval_uncommon_strict` nằm trong [0,900; 0,935]: hơn baseline (0,8966) ở ≥ 4/5 fold nhưng thua 4:1 jsval common (0,9443)
   ở ≥ 4/5 fold; U3 0/5 ô sập (ROC < 0,75).
+- **PHÓNG 15:32** cả hai máy (`run.sh 161 '…:1 …:3 …:5'` log `state/driver_161_uncstrict.out`; `run.sh 158 '…:2 …:4'` log
+  `state/driver_158_uncstrict.out`): dòng đầu nhận đủ 6 / 4 mục, mỗi máy 1 driver + 1 trainer, lock giữ thật. Cấu hình hiệu lực từ log: seed 42,
+  16 epoch, `--data_root …/js_py41jsval_uncommon_strict`, cờ còn lại trùng run common; Pha 1 ~12 s/epoch. Pha 1 f1 chọn ep5 (val JS 0,300), f2 chọn ep2
+  (val JS 0,475). Trang bản 53 (dòng mới ở tab Kết quả gốc, nhóm "uncommon chặt"); 10 doc gieo `set` (`meta/seed_0710_uncstrict/`), sổ version 1.
+- **Git (người dùng 07/10 15:3x: "đẩy code trên git cẩn thận nhé"; xác nhận phạm vi):** commit `60b9269` trên `transferweakcwe`, đẩy origin (trùng):
+  288 file (278 mới + 10 sửa, ~6 MB) = mã `src_mwonly`, `src_refactor`, `src_final*`, `src_mwg`, `src/babel`, tools, `run/` + `scripts/`, driver FPE
+  (`_FinalPaperExperiment/scripts`, trang, script insights) + tài liệu; 0 file kết quả / log / npz / pt / state / bak / pyc (cổng thử hai chiều), quét
+  bí mật 0 (thử với token giả bắt được). 1 145 file kết quả đã xoá ở local (results_asam1_ntat, …) GIỮ trong git theo người dùng.
+- **KẾT QUẢ (bậc 2, n = 5, seed 42; hp trùng `rasam_jspy41jsval_common` ngoài đường dẫn, init đúng fold):** ROC theo fold 0,9052 / 0,9253 / 0,9069 /
+  0,9426 / 0,8924 (TB 0,9145; PR 0,9261; F1@0,5 0,8035; F1@val 0,7957). Pha 1 best epoch 5 / 2 / 3 / 2 / 10, val JS ROC 0,300-0,475 (DƯỚI 0,5 cả 5 fold);
+  Pha 2 thoát bình nguyên muộn (ep9-18) rồi chọn ep14-25. Δ ghép cặp (+k/-k, hoà 1e-3):
+  - với baseline: ROC +0,0179 (+4/-0, f4 hoà -0,0005) · PR +0,0226 (+5/-0) · F1@0,5 +0,0147 (+4/-1) · F1@val +0,0111 (+2/-2);
+  - với 4:1 jsval common / 4CWE / full: ROC -0,030 / -0,027 / -0,030, PR -0,025 / -0,022 / -0,023, F1@0,5 -0,069 / -0,062 / -0,069, F1@val
+    -0,051 / -0,049 / -0,066 - **0/5 dương ở cả bốn chỉ số, cả ba nguồn**;
+  - với RecAdam + ASAM chỉ JS common (không trộn): ROC -0,020 (+1/-4), F1@0,5 -0,053 (+0/-5).
+  Hạn chế: uncommon chặt khác các nguồn kia CẢ cỡ (128 hàng so với 625-1 333) LẪN nhãn (CWE-1321 / 843 không áp cho Python) ⇒ không tách được hai yếu tố.
+- **Chấm dự đoán:** U1 **ĐÚNG** (best epoch ≤ 3 ở đúng 3/5: f2, f3, f4); U2 **ĐÚNG** (TB 0,9145 trong [0,900; 0,935], hơn baseline 4/5 (f4 hoà),
+  thua jsval common 5/5); U3 **ĐÚNG** (0/5 sập, thấp nhất 0,892). Cảnh báo f4 (16:15) = báo nhầm.
 
 ### 🐍P 06/10 21:1x - XONG 23:07 (5/5 rc 0) PHA 1 TRỘN JS + PYTHON RÚT THEO CẶP, VAL PHA 1 CHỈ JS - COMMON (người dùng: "chạy thêm 1 bản JS common + 1/4 số lượng của JS hàm SVEN train_k (rút theo cặp). pha 1 dùng best roc js. Ưu tiên trước khi asam và recadam only") - paper_mw4 + 161 + 158, bậc 2 (n=5, seed 42, TF32)
 
@@ -645,6 +979,26 @@ lỗ hổng (cần dò toàn văn ACM DL / IEEE Xplore trước khi gọi là đ
 ### ⚠ CẢNH BÁO (sập / nghi sập / lỗi - mới nhất ở trên; chạy tiếp, không dừng chờ trả lời)
 
 _Quy ước 05/10: có diễn biến sau cảnh báo (thoát muộn / báo nhầm / sập thật) thì ghi thêm ngay dưới dòng cảnh báo, kèm kết cục; báo nhầm hiện màu vàng trên artifact._
+
+- **08/10 00:20 - NGHI KẸT `p1_radam_jspy41jsval_4cwe` f1 (161, tab Kết quả paper (RAdam)):** Pha 1 RAdam train loss ở ln2 (0,704-0,730) tới ep9, val JS
+  0,40-0,45; bản AdamW cùng ô thoát ep5-6. RAdam thoát chậm hơn (full s1234 f5 RAdam thoát ep9). Artifact `a202610080020_p1_radam_jspy41jsval_4cwe_f1`; chạy tiếp.
+  → 00:25 Pha 1 xong: train loss thoát rất muộn (ep13 → ep16 0,545) nhưng val JS không lên, checkpoint chọn ep8 (TRƯỚC khi thoát, val JS 0,420).
+  **MẪU HÌNH CHUNG fold 1:** RAdam thoát ln2 chậm ~4-8 epoch so với AdamW ở cả 3 nguồn (common mở rộng / full ep9 vs AdamW ep4-5; 4CWE ep13 vs ep5) -
+  khả dĩ do hệ số chỉnh của RAdam chồng lên warmup 25 %. Đã báo người dùng; chạy tiếp tới khi có quyết định.
+  → 00:3x người dùng chọn **1 = CHẠY TIẾP NHƯ CŨ** (phép so "chỉ đổi optimizer", giữ warmup 25 % / 16 epoch). Từ đây cảnh báo "nghi kẹt Pha 1" của
+  ô RAdam (ngưỡng hiệu chỉnh trên AdamW) KHÔNG ghi artifact từng ô; chỉ ghi khi Pha 2 sập (test ROC < 0,75) hoặc lỗi. Theo dõi best epoch Pha 1 để báo cáo.
+  → 00:38 KẾT CỤC 4CWE f1: không sập - Pha 2 thoát muộn, chọn ep15, test ROC 0,902 (AdamW cùng ô 0,942, baseline 0,860).
+
+- **07/10 22:45 - NGHI KẸT `p1_jspy41jsval_common_ext_s1234` f4 (161, tab Kết quả paper, common mở rộng n = 15):** Pha 1 train loss ở ln2 (0,707-0,753)
+  8 epoch, val JS 0,40-0,50, checkpoint giữ ep4. Cùng seed / fold, common gốc từng thoát muộn ep9 (báo nhầm 08:48). Đã ghi artifact
+  (`a202610072245_p1_jspy41jsval_common_ext_s1234_f4`); chạy tiếp.
+  → 22:57 Pha 1 KẸT THẬT: hết 16 epoch train loss 0,703-0,720, checkpoint ep4 (val JS 0,504); Pha 2 chạy tiếp từ checkpoint này, chờ test.
+  → 23:18 KẾT CỤC: Ô KHÔNG SẬP (báo nhầm về kết cục) - Pha 2 thoát muộn, chọn ep16 (dừng ep24), test ROC 0,938 (common gốc s1234 f4 0,951, baseline 0,949).
+
+- **07/10 16:15 - NGHI SẬP `rasam_jspy41jsval_uncommon_strict` f4 (158, tab Kết quả gốc, uncommon chặt):** Pha 2 train loss ở ln2 (0,697-0,727) 12 epoch,
+  val ROC 0,51-0,59 tới ep11, ep12 0,660 (monitor: chậm nhất bình thường đạt 0,7 ở ep9). Pha 1 fold này chọn ep2 (val JS 0,475). Fold 1 / 2 cũng thoát
+  muộn (ep9-10) rồi test 0,905 / 0,925. Đã ghi artifact (`a202610071615_rasam_jspy41jsval_uncommon_strict_f4`); chạy tiếp.
+  → 16:31 KẾT CỤC: BÁO NHẦM - thoát muộn (train loss 0,474 ở ep18), chọn ep23, test ROC 0,943 (baseline cùng fold 0,943).
 
 - **07/10 11:00 - NGHI KẸT `p1_jspy41jsval_full_s1234` f5 (paper_night, tab Kết quả paper):** train loss ở ln2 (0,705-0,764) 8 epoch, val JS 0,46-0,54,
   checkpoint đang giữ ep6 (chưa học). Fold 5 full từng kẹt hẳn (p1_jspy31_full f5). Đã ghi artifact (`a202610071100_p1_jspy41jsval_full_s1234_f5`); chạy tiếp.

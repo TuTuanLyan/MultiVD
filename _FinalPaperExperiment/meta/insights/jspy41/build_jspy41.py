@@ -279,8 +279,60 @@ if all(res("raonly_jspy41_%s" % l, k) for l in ("common", "full") for k in range
                         sgn(st.mean(rr[("full", "raonly")])), sum(v >= -TIE for v in rr[("full", "raonly")])),
                     "R41c %s: chỉ RecAdam trộn - cột chính trộn |ROC TB| ≤ 0,010, không 5/5 cùng dấu ở mỗi mức (common %s, full %s)." % (
                         "ĐÚNG" if all(c10.values()) else "SAI", sgn(st.mean(rr[("common", "rasam")])), sgn(st.mean(rr[("full", "rasam")])))]}]
+# 07/10 15:0x người dùng: "tab chung, chạy thêm uncommon 4:1, val Pha 1 chỉ JS" (bản CHẶT)
+unc_sections = []
+UNC = "rasam_jspy41jsval_uncommon_strict"
+if all(res(UNC, k) for k in range(1, 6)):
+    A11, t11, r11 = pair_table(UNC, (("baseline", "- baseline"), ("rasam_jspy41jsval_common", "- 4:1 val JS · common"),
+                                     ("rasam_jspy41jsval_4cwe", "- 4:1 val JS · 4CWE"), ("rasam_jspy41jsval_full", "- 4:1 val JS · full"),
+                                     ("rasam_common_jsonly", "- chỉ JS common (không trộn)")))
+    p11 = [res("p1_jspy41jsval_uncommon_strict", k) for k in range(1, 6)]
+    unc_sections = [{"heading": "11. Uncommon CHẶT trộn 4:1, val Pha 1 chỉ JS (n = 5): 102 JS + 26 Python, val = 18 JS",
+        "paras": ["Nguồn: 120 hàm JS = 60 cặp (CWE-1321 56, CWE-843 4) - JS full bỏ JS common và bỏ mọi hàm có nhãn common hoặc nhãn unknown "
+                  "(luật chặt 01/10). ROC theo fold %s (TB %s). Pha 1 gần như không học: val JS ROC %s (dưới 0,5 cả 5 fold), checkpoint ep %s; "
+                  "Pha 2 thoát bình nguyên muộn (ep9-18). Hơn baseline ~0,02 nhưng THUA cả ba nguồn khác cùng phương pháp 0/5 fold ở cả 4 chỉ số. "
+                  "Uncommon chặt khác các nguồn kia cả CỠ (128 hàng so với 625-1 333) lẫn NHÃN (CWE-1321 / 843 không áp cho Python) - không tách được." % (
+                      " / ".join(num(a["test_roc_auc"]) for a in A11), num(st.mean(a["test_roc_auc"] for a in A11)),
+                      " / ".join(num(p["test_roc_auc"]) for p in p11), " / ".join(str(p["best_epoch"]) for p in p11))],
+        "table": t11,
+        "bullets": ["U1 ĐÚNG: Pha 1 chọn ep ≤ 3 ở 3/5 fold (f2, f3, f4).",
+                    "U2 ĐÚNG: TB %s trong [0,900; 0,935], hơn baseline %d/5 (f4 hoà), thua 4:1 val JS common 5/5." % (
+                        num(st.mean(a["test_roc_auc"] for a in A11)), sum(v > TIE for v in r11["baseline"])),
+                    "U3 ĐÚNG: 0/5 ô sập (min %s); cảnh báo f4 16:15 = báo nhầm (thoát muộn, test 0,943)." % num(min(a["test_roc_auc"] for a in A11))]}]
+
+# 07/10 17:0x người dùng: common MỞ RỘNG - giữ hàm có ≥ 1 nhãn thuộc common, giữ cả hàm unknown
+ext_sections = []
+EXT = "rasam_jspy41jsval_common_ext"
+mext = json.load(open(os.path.join(DATA, "js_common_ext", "MANIFEST.json"), encoding="utf-8"))
+ext_done = [k for k in range(1, 6) if res(EXT, k)]
+ext_paras = ["Luật common GỐC (tools/build_sources_v2.py:subset_common, luật R1-R6 của tools/cwe_rules.py trên cwec_v4.20.xml, đích Python): giữ hàm khi MỌI "
+             "nhãn CWE được giữ, nhãn unknown / NVD-CWE-* / rỗng (R1) ⇒ bỏ. Bản MỞ RỘNG: giữ hàm khi có ÍT NHẤT MỘT nhãn được giữ HOẶC có nhãn R1 ⇒ đúng phần bù "
+             "của uncommon chặt trong JS full. %s hàm = %d cặp = %d common gốc + %d (lẫn common + unknown 66, lẫn common + CWE khác 18 - vd CWE-79 + CWE-1321, "
+             "có unknown 60: 29 cặp toàn NVD-CWE-noinfo + 1 cặp CWE-248 + NVD-CWE-noinfo). Bị bỏ 120 hàm = 60 cặp, 36 repo: CWE-1321 56 cặp (R5: chỉ khai "
+             "JavaScript), CWE-843 4 cặp (R5: chỉ khai C / C++); danh sách: data/mwonly5_sources/js_common_ext/DROPPED.csv. Pha 1: %d JS + 241 Python, val = %d JS." % (
+                 "{:,}".format(mext["n"]).replace(",", " "), *[int(x) for x in (mext["pairs"], mext["n_common_goc"], mext["n_them"], mext["train"], mext["val"])])]
+ext_bullets = ["Dự đoán (ghi trước): E1 ROC TB trong ±0,010 của 4:1 val JS common gốc (0,944) và không 5/5 cùng dấu; E2 hơn baseline 5/5 fold; E3 0/5 ô sập."]
+t12 = None
+if len(ext_done) == 5:
+    A12, t12, r12 = pair_table(EXT, (("baseline", "- baseline"), ("rasam_jspy41jsval_common", "- 4:1 val JS · common gốc"),
+                                     ("rasam_jspy41jsval_full", "- 4:1 val JS · full")))
+    m12 = st.mean(a["test_roc_auc"] for a in A12)
+    ext_paras.append("ROC theo fold %s (TB %s)." % (" / ".join(num(a["test_roc_auc"]) for a in A12), num(m12)))
+    dc = r12["rasam_jspy41jsval_common"]
+    ext_bullets = ["E1 %s: Δ với common gốc %s (+%d/-%d)." % ("ĐÚNG" if abs(st.mean(dc)) <= 0.010 and not same(dc) else "SAI", sgn(st.mean(dc)),
+                                                             sum(v > TIE for v in dc), sum(v < -TIE for v in dc)),
+                   "E2 %s: hơn baseline %d/5 fold." % ("ĐÚNG" if sum(v > TIE for v in r12["baseline"]) == 5 else "SAI", sum(v > TIE for v in r12["baseline"])),
+                   "E3 %s: min ROC %s." % ("ĐÚNG" if min(a["test_roc_auc"] for a in A12) >= 0.75 else "SAI", num(min(a["test_roc_auc"] for a in A12)))]
+else:
+    ext_paras.append("ĐANG CHẠY từ 17:07 (161 f1/f3/f5, 158 f2/f4); xong %d/5 fold Pha 2. ROC từng fold đã xong (common mở rộng / common gốc / baseline): %s. "
+                     "Chưa kết luận khi chưa đủ 5 fold." % (len(ext_done), "; ".join("f%d %s / %s / %s" % (k, num(res(EXT, k)["test_roc_auc"]),
+                         num(res("rasam_jspy41jsval_common", k)["test_roc_auc"]), num(res("baseline", k)["test_roc_auc"])) for k in ext_done) or "-"))
+ext_sections = [{"heading": "12. Common MỞ RỘNG trộn 4:1, val Pha 1 chỉ JS (n = 5)", "paras": ext_paras, "bullets": ext_bullets}]
+if t12:
+    ext_sections[0]["table"] = t12
+
 doc = {
-    "title": "Pha 1 trộn JS:Py theo fold (4:1, 3:1, 4CWE, val chỉ JS)",
+    "title": "Pha 1 trộn JS:Py theo fold (4:1, 3:1, 4CWE, val chỉ JS, uncommon, common mở rộng)",
     "updated": sys.argv[1] if len(sys.argv) > 1 else "",
     "question": "Người dùng 06/10 11:5x: \"trộn phase 1 cho model transfer tỷ lệ js:py là 4:1 với cả bộ full và common, val sẽ bằng cả js 15% là python của fold đó. Chạy thử 5 fold\"; chọn: Python lấy mẫu cân nhãn từ SVEN train fold k (seed 42), val Pha 1 = JS val + SVEN val fold k, Pha 2 chỉ cột chính.",
     "verdict": verdict,
@@ -292,7 +344,7 @@ doc = {
         {"heading": "3. Pha 1: ROC trên val Pha 1 tách theo ngôn ngữ", "table": t_p1,
          "paras": ["Val Pha 1 = JS val (148 / 188) + SVEN val fold k (152, cũng là val Pha 2). Phần JS gần ngẫu nhiên nên checkpoint Pha 1 được chọn chủ yếu theo phần Python của ĐÍCH."]},
         {"heading": "4. Chấm dự đoán ghi trước", "bullets": grades},
-    ] + ratio_sections + asam_sections + full31_sections + cwe_sections + sep_sections + ra_sections,
+    ] + ratio_sections + asam_sections + full31_sections + cwe_sections + sep_sections + ra_sections + unc_sections + ext_sections,
     "next": ["(XONG 07/10 00:41, mục 9) Tách nguồn lợi qua val Pha 1: val CHỈ JS không làm mất lợi TB.",
              "(cần duyệt) Đối chứng Python-only: Pha 1 = 211/267 hàm SVEN train (không JS) - đo phần lợi của riêng dữ liệu đích trong Pha 1."],
     "sources": ["_FinalPaperExperiment/results/{p1,rasam}_jspy41_{common,full}/fold<k>.json (+ probs.npz), đối chứng rasam_<mức>_jsonly",

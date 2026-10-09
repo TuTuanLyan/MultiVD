@@ -7880,3 +7880,55 @@ ROC riêng; claims_k13 và tab Nhận định dùng ROC GỘP trên hợp hai CW
 train_baseline.py in val ROC dưới nhãn "Macro-F1" (chọn checkpoint vẫn theo ROC). (e) Phát hiện mới cả ba phản biện cùng thấy: không Pha 1 xếp
 CWE-022/079 NGƯỢC (ROC gộp 0,29-0,32; baseline 0,48) - 42 % hàm test 022/079 có song sinh train ngược nhãn (Jaccard ≥ 0,8); transfer CleanVul đưa
 lên 0,66-0,74 (+0,34..+0,45, 5/5). Chi tiết: tab Nhận định đóng góp (D0-D6), meta/review_pack/reviewer{1,2,3}_*.md.
+
+## §88 - **PHA 1 WARMUP 0,2 + BỎ PATIENCE CẢ HAI PHA, n = 15, so với tab Kết quả paper đầu** (08/10 15:27 - 09/10 02:12; 161 + 158 + vast paper_night2 + paper3, RTX A4000)
+
+**Cấu hình.** `p1_w20_jspy41jsval_*` → `rasam_w20_jspy41jsval_*` = tab paper đầu chỉ đổi `--warmup_ratio 0.2` (thay 0,25) ở Pha 1 và `--patience 999`
+cả hai pha (Pha 1 16 epoch: patience vốn không kích hoạt; Pha 2: đủ 30 epoch). 45 ô = 3 nguồn × 3 seed × 5 fold, ghép cặp (nguồn, seed, fold).
+paper3 qua kiểm máy 3 epoch trùng từng chữ số 161. Script `_FinalPaperExperiment/meta/insights/w20_vs_paper/summary_n15.py` (+ `_output.txt`).
+p = Wilcoxon trên 5 trung bình THEO FOLD ([[repeated-measures-p-value-per-fold]]).
+
+| tập | n | ROC Δ (+/-), p | PR Δ (+/-) | F1@0.5 Δ (+/-) | F1@val Δ (+/-) |
+|---|---|---|---|---|---|
+| gộp | 45 | +0,0072 (+19/-25), p 0,81 | +0,0082 (+19/-21) | +0,0072 (+18/-24) | +0,0074 (+23/-17) |
+| gộp, bỏ ô sập của paper (full s1234 f5) | 44 | **-0,0007 (+18/-25)**, p 0,81 | +0,0002 (+18/-21) | -0,0040 (+17/-24) | -0,0015 (+22/-17) |
+| common mở rộng | 15 | -0,0004 (+7/-8) | +0,0026 | -0,0011 | -0,0017 |
+| 4CWE | 15 | -0,0013 (+7/-7) | -0,0019 | -0,0070 | -0,0001 |
+| full | 15 | +0,0233 (+5/-10) | +0,0240 | +0,0297 | +0,0239 |
+| seed 42 | 15 | -0,0009 (+6/-9) | +0,0023 | -0,0033 | +0,0052 |
+| seed 1234 | 15 | +0,0290 (+9/-5) | +0,0270 | +0,0441 (5/5 fold dương, p 0,062 = sàn) | +0,0379 |
+| seed 7 | 15 | -0,0065 (+4/-11) | -0,0046 | -0,0193 | -0,0210 |
+
+**Đọc:** trung bình dương CHỈ nhờ một ô: full s1234 f5 (paper 0,570 vì Pha 1 kẹt ln2 cả 16 epoch → bản mới 0,923, Pha 1 thoát từ epoch 5).
+Bỏ ô đó thì trung tính / hơi âm, số ô âm nhiều hơn dương ở ROC và F1@0.5. Phương sai giảm rõ: SD ROC 45 ô 0,0134 (paper 0,0572), min 0,901
+(paper 0,570), ô ROC < 0,92: 3 (paper 6), ô sập < 0,75: 0 (paper 1). Hướng theo seed ngược nhau (1234 +, 7 -) ⇒ thay đổi quỹ đạo Pha 1 làm
+xáo lại ô nào gặp may khi chọn checkpoint chứ không nâng trung bình.
+**Cơ chế các ô lệch lớn:** đều là chọn checkpoint Pha 1 bằng val chỉ JS (ngược nhãn trên dữ liệu cặp, [[paired-val-split-inverts-checkpoint-selection]]):
+4CWE s7 f1 -0,049 và f3 -0,030 (bản mới chọn epoch 2, chưa học), 4CWE s7 f2 +0,032 và full s1234 f1 +0,029 (paper chọn epoch chưa học).
+**Bỏ patience:** chỉ đổi lựa chọn checkpoint Pha 2 ở số ít ô (full s1234 f2 chọn epoch 20 vì val nhích +0,0005; common mở rộng s42 f4 chọn
+epoch 23 nhưng patience 8 cũng sẽ tới đó); không có tác dụng đo được.
+
+
+## §89 - **HAI MỐC SO SÁNH MỚI CỦA TAB WARMUP 0,2, n = 15: baseline warmup 0,2 không dừng sớm, và MW only** (09/10 02:27 - 06:18, 158, RTX A4000)
+
+**Cấu hình.** `baseline_w20{,_s1234,_s7}` = `baseline*` chỉ đổi `--warmup_ratio 0.2 --patience 999 --min_epochs 10` (người dùng: "baseline dùng warmup
+0.2, early stop giống với phase 2"). `nop1_adamw_s1234` / `_s7` = `nop1_adamw` (MW không Pha 1, AdamW, TF32) chỉ đổi `--seed`; seed 42 dùng lại
+`nop1_adamw` của tab Kết quả gốc. Ghép cặp (seed, fold); dòng SOTA = `rasam_w20_jspy41jsval_*` (§88). p = Wilcoxon trên 5 trung bình THEO FOLD.
+Script `_FinalPaperExperiment/meta/insights/w20_refs/summary_refs_n15.py` (+ `_output.txt`).
+
+| so sánh | n | ROC Δ (+/-), fold dương | PR Δ | F1@0.5 Δ | F1@val Δ |
+|---|---|---|---|---|---|
+| baseline w20 - baseline gốc | 15 | +0,0209 (+4/-10), 1/5 | +0,0230 (+7/-7) | +0,0216 (+5/-8) | +0,0182 (+8/-6) |
+| ↳ bỏ ô sập s7 f1 của baseline gốc | 14 | **-0,0062 (+3/-10)**, 1/5, p 0,44 | -0,0010 | -0,0078 | -0,0009 |
+| MW only - baseline gốc | 15 | +0,0230 (+7/-8), 3/5 | +0,0233 | +0,0342 | +0,0174 |
+| MW only - baseline w20 | 15 | +0,0021 (+8/-7), 3/5 | +0,0003 | +0,0126 (+9/-5, 4/5) | -0,0008 |
+| SOTA gộp - baseline gốc | 45 | +0,0616 (+42/-3), 5/5 | +0,0614 (+44/-1), 5/5 | +0,0840, 5/5 | +0,0744, 5/5 |
+| SOTA gộp - baseline w20 | 45 | +0,0407 (+43/-2), 5/5 | +0,0384 (+43/-2), 5/5 | +0,0624, 5/5 | +0,0562, 5/5 |
+| SOTA gộp - MW only | 45 | **+0,0386 (+45/-0)**, 5/5 | +0,0381 (+44/-1), 5/5 | +0,0498, 5/5 | +0,0570, 5/5 |
+
+Trung bình ROC: baseline gốc 0,8775, baseline w20 0,8985, MW only 0,9005, SOTA 0,9391 (common mở rộng 0,9400 / 4CWE 0,9383 / full 0,9391).
+**Đọc:** warmup 0,2 + bỏ dừng sớm ở baseline chỉ cứu ô sập s7 f1 (0,502 → 0,903, chọn epoch 9 thay vì 1); bỏ ô đó thì hơi âm ở ROC (3/14 dương).
+MW only ngang baseline w20 trừ F1@0.5. Ba dòng SOTA vượt cả ba mốc ở cả bốn chỉ số, 5/5 fold, từng nguồn cũng 5/5 (trừ common mở rộng - baseline gốc
+ROC 4/5 và F1@val 4/5; common mở rộng - baseline w20 F1@val 4/5). p 0,062 là sàn của n = 5 fold, không phân biệt được với may mắn theo §2b; độ lớn
++0,04 ROC gấp 4 sàn nhiễu chạy lại 0,010. **Phần cứng:** mốc chạy trên 158, SOTA trên 161 / 158 / paper_night2 / paper3 - cùng RTX A4000, đã qua kiểm
+máy 3 epoch trùng từng chữ số (§88), nhưng §4 vẫn ghi nhận cặp ghép khác máy.

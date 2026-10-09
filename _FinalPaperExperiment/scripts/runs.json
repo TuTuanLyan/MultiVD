@@ -124,6 +124,34 @@
    "instance": 54537908,
    "label": "paper_night",
    "specs": "RTX A4000 16 GB, driver 595.71.05, image vastai/pytorch:cuda-12.8.1-auto, 4 vCPU, đĩa 23 GB, 0,091 $/h, Nhật (cùng máy chủ với paper_mw3 cũ). Người dùng thuê 07/10 ~03:3x để chia việc tab Kết quả paper (\"nhắc tôi tắt sau khi chạy xong việc\"). Môi trường: state/vast_papermw3_54294215/setup_papermw3.sh."
+  },
+  "paper_night2": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@202.122.49.242",
+   "port": 36826,
+   "hostname": "e04fd59de6c8",
+   "instance": 54653423,
+   "label": "paper_night2",
+   "specs": "RTX A4000 16 GB (sm 8.6), driver 595.71.05, image vastai/pytorch:cuda-12.8.1-auto, 4 vCPU, đĩa 23 GB, 0,095 $/h. Người dùng thuê 07/10 21:0x (\"đã thêm máy paper_night2\"); cùng IP 202.122.49.242 với paper_night. Môi trường setup_papermw3.sh: torch 2.9.1+cu128 git 5811a8d7da87, libtorch_cuda md5 trùng 161, CodeBERT md5 trùng 161."
+  },
+  "paper3": {
+   "root": "/workspace/MultiVD",
+   "python": "/workspace/venv311/bin/python",
+   "model": "/workspace/models/codebert-base",
+   "src": "src_mwonly",
+   "out": "/workspace/MultiVD/_FinalPaperExperiment_staging",
+   "ckpt": "/workspace/MultiVD/model/mwonly5",
+   "ssh": "root@172.97.225.87",
+   "port": 40980,
+   "hostname": "40107fc0ad87",
+   "instance": 54827622,
+   "label": "paper3",
+   "specs": "RTX A4000 16 GB (sm 8.6), driver 580.82.09 (KHÁC 595.71.05 của các máy chuẩn - chỉ dùng sau khi phép kiểm máy 3 epoch trùng từng chữ số), image vastai/pytorch:cuda-12.8.1-auto, 80 vCPU, RAM 125 GB, đĩa 18 GB, 0,085 $/h. Người dùng thuê 08/10 17:3x (\"đã thêm vast paper3, share việc cho nhanh nhé\"). Môi trường setup_papermw3.sh (17 wheel ghim, uv venv 3.11.14)."
   }
  },
  "sources": [
@@ -2783,6 +2811,917 @@
    "env": {
     "FPE_TF32": "1"
    },
+   "id": "p1_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 17:0x: \"chạy thêm vào nhánh chính 1 bản SOTA nguồn js common, nhưng bản common này dùng: cả những CWE có đa nhãn, trong đó chỉ cần duy nhất 1 nhãn nằm trong common thì giữ cả hàm; cả những CWE không có thông tin CWE, unknown\". Pool js_common_ext (tools/build_js_common_ext_pool.py: JS full giữ hàm có ≥ 1 nhãn được luật R1-R6 giữ HOẶC có nhãn R1 unknown; = JS full trừ uncommon chặt; 1 134 hàm = 990 common gốc + 144; chia Random(42) val 15 %: train 964 / val 170). Train = 964 JS + 241 Python cân nhãn (SVEN train fold k, Random(42)); val = CHỈ 170 JS. tools/build_p1_mixpy.py --val js."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_jspy41jsval_common_ext",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG",
+   "desc": "Người dùng 07/10 17:0x (common mở rộng, nhánh chính). Pha 2 = cột chính RecAdam + ASAM như rasam_jspy41jsval_common, fold k nạp Pha 1 fold k."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 18:4x: \"chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15\". Pool js_common_ext (chia seed 42 như mọi pool); Python 241 hàm rút Random(1234) (tools/build_p1_mixpy.py --val js --seed 1234).",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 1234",
+   "desc": "Người dùng 07/10 18:4x: \"chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15\". Pha 2 cột chính, fold k nạp Pha 1 fold k (init_same_fold).",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s7"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 18:4x: \"chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15\". Pool js_common_ext (chia seed 42 như mọi pool); Python 241 hàm rút Random(7) (tools/build_p1_mixpy.py --val js --seed 7).",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_jspy41jsval_common_ext_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 7",
+   "desc": "Người dùng 07/10 18:4x: \"chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15\". Pha 2 cột chính, fold k nạp Pha 1 fold k (init_same_fold).",
+   "seed": 7,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_full_s1234_p1e30",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1, val chỉ JS - full - seed 1234 - CHẠY LẠI fold 5, Pha 1 30 epoch",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--epochs": 30
+   },
+   "folds": [
+    5
+   ],
+   "desc": "Người dùng 07/10 18:4x: \"chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15\". Chạy lại ô sập rasam_jspy41jsval_full_s1234 f5 (Pha 1 kẹt ln2 cả 16 epoch, test 0,570): cùng dữ liệu / seed, CHỈ đổi --epochs 16 -> 30 (đổi luôn lịch LR: warmup 25 % của tổng bước).",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_full_s1234_p1e30",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_jspy41jsval_full_s1234_p1e30",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM - full - seed 1234 - CHẠY LẠI fold 5 (Pha 1 30 epoch)",
+   "desc": "Người dùng 07/10 18:4x: \"chạy lại fold sập của JS full SOTA, kéo dài phase 1 30 epoch, common MỞ RỘNG chạy đủ n=15\". Pha 2 y hệt rasam_jspy41jsval_full_s1234, nạp Pha 1 30 epoch.",
+   "seed": 1234,
+   "tab": "paper",
+   "folds": [
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_full_s1234_repro",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 - full - seed 1234 - CHẠY LẠI Y HỆT fold 5 (kiểm tất định)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234"
+   },
+   "folds": [
+    5
+   ],
+   "desc": "Người dùng 07/10 21:0x: \"vậy chạy lại cấu hình cũ xem kết quả y hệt cho fold sập kia không nhé\" - kiểm TẤT ĐỊNH: cấu hình TRÙNG p1_jspy41jsval_full_s1234 (16 epoch), chỉ khác tên run / thư mục; bản gốc chạy trên paper_night (A4000), bản này trên 158 (A4000, đã kiểm trùng bit).",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_full_s1234_repro",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_jspy41jsval_full_s1234_repro",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM - full - seed 1234 - CHẠY LẠI Y HỆT fold 5 (kiểm tất định)",
+   "desc": "Người dùng 07/10 21:0x: \"vậy chạy lại cấu hình cũ xem kết quả y hệt cho fold sập kia không nhé\" - kiểm TẤT ĐỊNH: Pha 2 trùng rasam_jspy41jsval_full_s1234, nạp Pha 1 _repro.",
+   "seed": 1234,
+   "tab": "paper",
+   "folds": [
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_jspy41jsval_full_s1234_radam",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 RAdam - full - seed 1234 - fold 5 (ô kẹt)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    5
+   ],
+   "desc": "Người dùng 07/10 21:0x: \"thử với cell sập và kẹt ... bằng cái này https://arxiv.org/abs/1908.03265 (RAdam). chạy cell full kẹt với cái RAdam này xem sao\"; 21:2x: \"radam chỉ pha 1 nhé\". Cấu hình TRÙNG ô gốc p1_jspy41jsval_full_s1234 f5 (16 epoch, warmup 25 %, lr 5,66e-5) - CHỈ đổi AdamW -> torch.optim.RAdam(decoupled_weight_decay=True) qua --p1_optimizer radam (src_mwonly_radam = src_mwonly + đúng một nhánh optimizer).",
+   "seed": 1234,
+   "tab": "paper"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_jspy41jsval_full_s1234_radam",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_jspy41jsval_full_s1234_radam",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM - full - seed 1234 - fold 5, nạp Pha 1 RAdam",
+   "desc": "Người dùng 07/10 21:0x: \"thử với cell sập và kẹt ... bằng cái này https://arxiv.org/abs/1908.03265 (RAdam). chạy cell full kẹt với cái RAdam này xem sao\"; 21:2x: \"radam chỉ pha 1 nhé\". Pha 2 TRÙNG rasam_jspy41jsval_full_s1234 (src_mwonly, RecAdam + ASAM), chỉ khác checkpoint Pha 1.",
+   "seed": 1234,
+   "tab": "paper",
+   "folds": [
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - common_ext - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_common_ext, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "tab": "paper_radam",
+   "seed": 42
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_radam_jspy41jsval_common_ext",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - common_ext - seed 42",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_common_ext, nạp Pha 1 RAdam cùng fold.",
+   "tab": "paper_radam",
+   "seed": 42,
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - common_ext - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_common_ext_s1234, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_radam_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - common_ext - seed 1234",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_common_ext_s1234, nạp Pha 1 RAdam cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - common_ext - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s7",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_common_ext_s7, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "seed": 7,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_radam_jspy41jsval_common_ext_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - common_ext - seed 7",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_common_ext_s7, nạp Pha 1 RAdam cùng fold.",
+   "seed": 7,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - 4cwe - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_4cwe, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "seed": 42,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_radam_jspy41jsval_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - 4cwe - seed 42",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_4cwe, nạp Pha 1 RAdam cùng fold.",
+   "seed": 42,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - 4cwe - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_4cwe_s1234, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_radam_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - 4cwe - seed 1234",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_4cwe_s1234, nạp Pha 1 RAdam cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - 4cwe - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s7",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_4cwe_s7, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "seed": 7,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_radam_jspy41jsval_4cwe_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - 4cwe - seed 7",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_4cwe_s7, nạp Pha 1 RAdam cùng fold.",
+   "seed": 7,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - full - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_full, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "tab": "paper_radam",
+   "seed": 42
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_radam_jspy41jsval_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - full - seed 42",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_full, nạp Pha 1 RAdam cùng fold.",
+   "tab": "paper_radam",
+   "seed": 42,
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - full - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_full_s1234, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam). Fold 5 dùng lại p1/rasam_jspy41jsval_full_s1234_radam (cấu hình trùng, tất định).",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_radam_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - full - seed 1234",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_full_s1234, nạp Pha 1 RAdam cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam (Liu et al. 2019), weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 RAdam - trộn JS:Py 4:1, val chỉ JS - full - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s7",
+    "--p1_optimizer": "radam"
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Cấu hình TRÙNG p1_jspy41jsval_full_s7, CHỈ đổi AdamW -> RAdam ở Pha 1 (--p1_optimizer radam, src_mwonly_radam).",
+   "seed": 7,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_radam_jspy41jsval_full_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam - full - seed 7",
+   "desc": "Người dùng 07/10 23:4x: \"giờ chạy thêm tab Kết quả paper (Radam) với các ô common/ 4CWE/ FULL/common mở rộng tương tự như tab kết quả paper, nhưng thêm phần Radam ở [pha] 1 ... Chạy lại n=15. Tab này kết quả riêng nhé. Dùng cùng đúng 3 seed như bên tab cũ\"; 23:5x: \"thay common thường thành common mở rộng\". Pha 2 TRÙNG rasam_jspy41jsval_full_s7, nạp Pha 1 RAdam cùng fold.",
+   "seed": 7,
+   "tab": "paper_radam",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
    "id": "p1_jspy41jsval_4cwe",
    "src": "jspy41jsval_4cwe",
    "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42",
@@ -3239,6 +4178,2854 @@
    "seed": 7,
    "tab": "paper",
    "desc": "Người dùng 07/10 01:4x: \"tạo thêm 1 tab kết quả nữa, gồm baseline + common/4cwe/full · JS:Py 4:1 ... val Pha 1 chỉ JS chạy lên n = 15 ... tab kết quả mới tên \\\"Kết quả paper\\\". Chạy nhánh chính trước\"; trả lời: rút Python ngẫu nhiên theo seed của run (không theo cặp), seed 42 / 1234 / 7. = baseline (seed 42 của khối) nhưng --seed 7."
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam beta2 0,99, weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam99_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 RAdam β2 0,99 - common_ext - seed 1234 - fold 1 (ô kiểm)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234",
+    "--p1_optimizer": "radam",
+    "--p1_beta2": "0.99"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 08/10 (chuyển qua phiên MultiVD-AQ): \"báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200 bước) cho 3 fold s1234 f1 sập ngay và luôn\". Cấu hình TRÙNG p1_radam_jspy41jsval_common_ext_s1234 fold 1, CHỈ đổi betas RAdam (0.9, 0.999) -> (0.9, 0.99) (--p1_beta2 0.99). Bậc 1, n=1, sàng lọc.",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam99_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_radam99_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam β2 0,99 - common_ext - seed 1234 - fold 1 (ô kiểm)",
+   "desc": "Người dùng 08/10 (chuyển qua phiên MultiVD-AQ): \"báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200 bước) cho 3 fold s1234 f1 sập ngay và luôn\". Pha 2 TRÙNG rasam_radam_jspy41jsval_common_ext_s1234, nạp Pha 1 RAdam β2 0,99 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam beta2 0,99, weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam99_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 RAdam β2 0,99 - 4cwe - seed 1234 - fold 1 (ô kiểm)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234",
+    "--p1_optimizer": "radam",
+    "--p1_beta2": "0.99"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 08/10 (chuyển qua phiên MultiVD-AQ): \"báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200 bước) cho 3 fold s1234 f1 sập ngay và luôn\". Cấu hình TRÙNG p1_radam_jspy41jsval_4cwe_s1234 fold 1, CHỈ đổi betas RAdam (0.9, 0.999) -> (0.9, 0.99) (--p1_beta2 0.99). Bậc 1, n=1, sàng lọc.",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam99_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_radam99_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam β2 0,99 - 4cwe - seed 1234 - fold 1 (ô kiểm)",
+   "desc": "Người dùng 08/10 (chuyển qua phiên MultiVD-AQ): \"báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200 bước) cho 3 fold s1234 f1 sập ngay và luôn\". Pha 2 TRÙNG rasam_radam_jspy41jsval_4cwe_s1234, nạp Pha 1 RAdam β2 0,99 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam beta2 0,99, weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radam99_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 RAdam β2 0,99 - full - seed 1234 - fold 1 (ô kiểm)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--p1_optimizer": "radam",
+    "--p1_beta2": "0.99"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 08/10 (chuyển qua phiên MultiVD-AQ): \"báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200 bước) cho 3 fold s1234 f1 sập ngay và luôn\". Cấu hình TRÙNG p1_radam_jspy41jsval_full_s1234 fold 1, CHỈ đổi betas RAdam (0.9, 0.999) -> (0.9, 0.99) (--p1_beta2 0.99). Bậc 1, n=1, sàng lọc.",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radam99_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_radam99_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam β2 0,99 - full - seed 1234 - fold 1 (ô kiểm)",
+   "desc": "Người dùng 08/10 (chuyển qua phiên MultiVD-AQ): \"báo phiên chính dừng tạm n=15 để thử hướng RAdam β2 = 0,99 (warmup riêng còn khoảng 200 bước) cho 3 fold s1234 f1 sập ngay và luôn\". Pha 2 TRÙNG rasam_radam_jspy41jsval_full_s1234, nạp Pha 1 RAdam β2 0,99 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam β2 0,999, warmup 0, weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radamw0_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 RAdam warmup 0 - common_ext - seed 1234 - fold 1 (ô kiểm)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234",
+    "--p1_optimizer": "radam",
+    "--warmup_ratio": "0"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu hướng này không ổn, thử bỏ RAdam bỏ warmup 25% xem sao\" (hiểu: GIỮ RAdam, bỏ warmup 25 %; β2 mặc định 0,999 như bài RAdam). Cấu hình TRÙNG p1_radam_jspy41jsval_common_ext_s1234 fold 1, CHỈ đổi --warmup_ratio 0.25 -> 0. Bậc 1, n=1, sàng lọc; chỉ chạy nếu β2 0,99 không ổn.",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radamw0_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_radamw0_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam warmup 0 - common_ext - seed 1234 - fold 1 (ô kiểm)",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu hướng này không ổn, thử bỏ RAdam bỏ warmup 25% xem sao\" (hiểu: GIỮ RAdam, bỏ warmup 25 %; β2 mặc định 0,999 như bài RAdam). Pha 2 TRÙNG rasam_radam_jspy41jsval_common_ext_s1234, nạp Pha 1 RAdam warmup 0 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam β2 0,999, warmup 0, weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radamw0_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 RAdam warmup 0 - 4cwe - seed 1234 - fold 1 (ô kiểm)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234",
+    "--p1_optimizer": "radam",
+    "--warmup_ratio": "0"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu hướng này không ổn, thử bỏ RAdam bỏ warmup 25% xem sao\" (hiểu: GIỮ RAdam, bỏ warmup 25 %; β2 mặc định 0,999 như bài RAdam). Cấu hình TRÙNG p1_radam_jspy41jsval_4cwe_s1234 fold 1, CHỈ đổi --warmup_ratio 0.25 -> 0. Bậc 1, n=1, sàng lọc; chỉ chạy nếu β2 0,99 không ổn.",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radamw0_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_radamw0_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam warmup 0 - 4cwe - seed 1234 - fold 1 (ô kiểm)",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu hướng này không ổn, thử bỏ RAdam bỏ warmup 25% xem sao\" (hiểu: GIỮ RAdam, bỏ warmup 25 %; β2 mặc định 0,999 như bài RAdam). Pha 2 TRÙNG rasam_radam_jspy41jsval_4cwe_s1234, nạp Pha 1 RAdam warmup 0 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_radam",
+   "optimizer": "RAdam β2 0,999, warmup 0, weight decay tách rời",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_radamw0_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 RAdam warmup 0 - full - seed 1234 - fold 1 (ô kiểm)",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--p1_optimizer": "radam",
+    "--warmup_ratio": "0"
+   },
+   "folds": [
+    1
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu hướng này không ổn, thử bỏ RAdam bỏ warmup 25% xem sao\" (hiểu: GIỮ RAdam, bỏ warmup 25 %; β2 mặc định 0,999 như bài RAdam). Cấu hình TRÙNG p1_radam_jspy41jsval_full_s1234 fold 1, CHỈ đổi --warmup_ratio 0.25 -> 0. Bậc 1, n=1, sàng lọc; chỉ chạy nếu β2 0,99 không ổn.",
+   "seed": 1234,
+   "tab": "paper_radam"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_radamw0_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_radamw0_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 RAdam warmup 0 - full - seed 1234 - fold 1 (ô kiểm)",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu hướng này không ổn, thử bỏ RAdam bỏ warmup 25% xem sao\" (hiểu: GIỮ RAdam, bỏ warmup 25 %; β2 mặc định 0,999 như bài RAdam). Pha 2 TRÙNG rasam_radam_jspy41jsval_full_s1234, nạp Pha 1 RAdam warmup 0 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_radam",
+   "folds": [
+    1
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - common_ext - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_common_ext, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 42,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_e30_jspy41jsval_common_ext",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - common_ext - seed 42",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_common_ext, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 42,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - common_ext - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_common_ext_s1234, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 1234,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_e30_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - common_ext - seed 1234",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_common_ext_s1234, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 1234,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - common_ext - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s7",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_common_ext_s7, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 7,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_e30_jspy41jsval_common_ext_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - common_ext - seed 7",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_common_ext_s7, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 7,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - 4cwe - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_4cwe, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 42,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_e30_jspy41jsval_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - 4cwe - seed 42",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_4cwe, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 42,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - 4cwe - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_4cwe_s1234, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 1234,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_e30_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - 4cwe - seed 1234",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_4cwe_s1234, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 1234,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - 4cwe - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s7",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_4cwe_s7, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 7,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_e30_jspy41jsval_4cwe_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - 4cwe - seed 7",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_4cwe_s7, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 7,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - full - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_full, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 42,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_e30_jspy41jsval_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - full - seed 42",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_full, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 42,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - full - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_full_s1234, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 1234,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_e30_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - full - seed 1234",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_full_s1234, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 1234,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_e30_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 AdamW 30 epoch - trộn JS:Py 4:1, val chỉ JS - full - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s7",
+    "--epochs": 30
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Cấu hình TRÙNG p1_jspy41jsval_full_s7, CHỈ đổi --epochs 16 -> 30 ở Pha 1 (warmup 25 % của 30 epoch, lịch LR đổi theo).",
+   "seed": 7,
+   "tab": "paper_e30"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_e30_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_e30_jspy41jsval_full_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 AdamW 30 epoch - full - seed 7",
+   "desc": "Người dùng 08/10 02:0x: \"Nếu không ổn thì quay về dùng pha 1 30 epoch, warmup như cũ (tạo tab mới Kết quả paper (30 epoch pha 1))\" - bước 3 của cây quyết định, chạy khi RAdam β2 0,99 và RAdam warmup 0 đều không đạt ROC ≥ 0,88 cả 3 ô s1234 f1. Pha 2 TRÙNG rasam_jspy41jsval_full_s7, nạp Pha 1 30 epoch cùng fold.",
+   "seed": 7,
+   "tab": "paper_e30",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_common_ext",
+   "src": "jspy41mixval_common_ext",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - common_ext - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_common_ext",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 42,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_common_ext",
+   "src": "jspy41mixval_common_ext",
+   "init_from": "p1_mbmix_jspy41mixval_common_ext",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - common_ext - seed 42",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_common_ext.",
+   "seed": 42,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_common_ext_s1234",
+   "src": "jspy41mixval_common_ext",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - common_ext - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_common_ext_s1234",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 1234,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_common_ext_s1234",
+   "src": "jspy41mixval_common_ext",
+   "init_from": "p1_mbmix_jspy41mixval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - common_ext - seed 1234",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_common_ext_s1234.",
+   "seed": 1234,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_common_ext_s7",
+   "src": "jspy41mixval_common_ext",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - common_ext - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_common_ext_s7",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 7,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_common_ext_s7",
+   "src": "jspy41mixval_common_ext",
+   "init_from": "p1_mbmix_jspy41mixval_common_ext_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - common_ext - seed 7",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_common_ext_s7.",
+   "seed": 7,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_4cwe",
+   "src": "jspy41mixval_4cwe",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - 4cwe - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_4cwe",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 42,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_4cwe",
+   "src": "jspy41mixval_4cwe",
+   "init_from": "p1_mbmix_jspy41mixval_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - 4cwe - seed 42",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_4cwe.",
+   "seed": 42,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_4cwe_s1234",
+   "src": "jspy41mixval_4cwe",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - 4cwe - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_4cwe_s1234",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 1234,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_4cwe_s1234",
+   "src": "jspy41mixval_4cwe",
+   "init_from": "p1_mbmix_jspy41mixval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - 4cwe - seed 1234",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_4cwe_s1234.",
+   "seed": 1234,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_4cwe_s7",
+   "src": "jspy41mixval_4cwe",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - 4cwe - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_4cwe_s7",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 7,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_4cwe_s7",
+   "src": "jspy41mixval_4cwe",
+   "init_from": "p1_mbmix_jspy41mixval_4cwe_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - 4cwe - seed 7",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_4cwe_s7.",
+   "seed": 7,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_full",
+   "src": "jspy41mixval_full",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - full - seed 42",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_full",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 42,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_full",
+   "src": "jspy41mixval_full",
+   "init_from": "p1_mbmix_jspy41mixval_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - full - seed 42",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_full.",
+   "seed": 42,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_full_s1234",
+   "src": "jspy41mixval_full",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - full - seed 1234",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_full_s1234",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 1234,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_full_s1234",
+   "src": "jspy41mixval_full",
+   "init_from": "p1_mbmix_jspy41mixval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - full - seed 1234",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_full_s1234.",
+   "seed": 1234,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (bias correction có sẵn), lr 2e-5, warmup 10 %, 20 epoch, không dừng sớm",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_mbmix_jspy41mixval_full_s7",
+   "src": "jspy41mixval_full",
+   "title": "Pha 1 Mosbach, val JS+Py 4:1 - full - seed 7",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41mixval_full_s7",
+    "--learning_rate": "2e-5",
+    "--graph_lr": "2e-5",
+    "--warmup_ratio": 0.1,
+    "--epochs": 20,
+    "--patience": 20
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41).",
+   "seed": 7,
+   "tab": "paper_mb"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_mbmix_jspy41mixval_full_s7",
+   "src": "jspy41mixval_full",
+   "init_from": "p1_mbmix_jspy41mixval_full_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 Mosbach val JS+Py 4:1 - full - seed 7",
+   "desc": "Người dùng 08/10 09:1x: \"xoá kết quả tab này chạy lại với val gồm cả 2 ngôn ngữ, tỷ lệ 4:1 random giống train\" - Pha 1 Mosbach (lr 2e-5, warmup 10 %, 20 epoch đủ) như bản trước, CHỈ đổi val Pha 1: JS val + Python SVEN val fold k theo JS:Py = 4:1, cân nhãn bằng Random(seed) như train (tools/build_p1_mixpy.py --val js+py41). Pha 2 TRÙNG rasam_jspy41jsval_full_s7.",
+   "seed": 7,
+   "tab": "paper_mb",
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_common_ext (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_w20_jspy41jsval_common_ext",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_common_ext (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_common_ext fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "flags": {
+    "--patience": 999
+   },
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 1234 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_common_ext_s1234 (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 1234,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_w20_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 1234 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_common_ext_s1234 (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_common_ext_s1234 fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 1234,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 7 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s7",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_common_ext_s7 (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 7,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_w20_jspy41jsval_common_ext_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 7 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_common_ext_s7 (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_common_ext_s7 fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 7,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_4cwe (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 42,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_w20_jspy41jsval_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_4cwe (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_4cwe fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 42,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 1234 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_4cwe_s1234 (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 1234,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_w20_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 1234 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_4cwe_s1234 (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_4cwe_s1234 fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 1234,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 7 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s7",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_4cwe_s7 (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 7,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_w20_jspy41jsval_4cwe_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 7 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_4cwe_s7 (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_4cwe_s7 fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 7,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_full (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_w20_jspy41jsval_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_full (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_full fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "flags": {
+    "--patience": 999
+   },
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 1234 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_full_s1234 (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 1234,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_w20_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 1234 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_full_s1234 (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_full_s1234 fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 1234,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "optimizer": "AdamW (không pair loss)",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_w20_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 7 - warmup 0,2, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s7",
+    "--warmup_ratio": 0.2,
+    "--patience": 999
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt p1_jspy41jsval_full_s7 (tab Kết quả paper) trừ --warmup_ratio 0.2 (thay 0.25) và --patience 999 (không dừng sớm; ở Pha 1 16 epoch patience vốn không kích hoạt được vì chỉ đếm từ epoch 10).",
+   "seed": 7,
+   "tab": "paper_w20"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_w20_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_w20_jspy41jsval_full_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 7 - Pha 1 warmup 0,2, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 08/10 15:1x: \"thử với việc tắt luôn -patience xem sao, dừng task và chạy thêm tab mới\" + \"đổi 1 cờ cho tôi nữa, warmup xuống 0.2\" + \"không cần upload check point lên vast, máy nào chạy đúng fold đấy\". Giống hệt rasam_jspy41jsval_full_s7 (tab Kết quả paper) trừ --patience 999 (train đủ 30 epoch, chọn checkpoint theo val ROC tốt nhất) và nạp Pha 1 p1_w20_jspy41jsval_full_s7 fold k (warmup 0,2). Warmup Pha 2 giữ 0.",
+   "seed": 7,
+   "tab": "paper_w20",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_full (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_full",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_adanlr1_jspy41jsval_full",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_full (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_full cùng fold.",
+   "flags": {
+    "--patience": 999
+   },
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 1234 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s1234",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_full_s1234 (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 1234,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_full_s1234",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_adanlr1_jspy41jsval_full_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 1234 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_full_s1234 (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_full_s1234 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 7 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_full_s7",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_full_s7 (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 7,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_full_s7",
+   "src": "jspy41jsval_full",
+   "init_from": "p1_adanlr1_jspy41jsval_full_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - full - seed 7 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_full_s7 (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_full_s7 cùng fold.",
+   "seed": 7,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_common_ext (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_common_ext",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_adanlr1_jspy41jsval_common_ext",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_common_ext (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_common_ext cùng fold.",
+   "flags": {
+    "--patience": 999
+   },
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 1234 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s1234",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_common_ext_s1234 (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 1234,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_common_ext_s1234",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_adanlr1_jspy41jsval_common_ext_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 1234 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_common_ext_s1234 (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_common_ext_s1234 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 7 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_common_ext_s7",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_common_ext_s7 (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 7,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_common_ext_s7",
+   "src": "jspy41jsval_common_ext",
+   "init_from": "p1_adanlr1_jspy41jsval_common_ext_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - common MỞ RỘNG - seed 7 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_common_ext_s7 (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_common_ext_s7 cùng fold.",
+   "seed": 7,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_4cwe (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 42,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_4cwe",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_adanlr1_jspy41jsval_4cwe",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 42 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_4cwe (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_4cwe cùng fold.",
+   "seed": 42,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 1234 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s1234",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_4cwe_s1234 (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 1234,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_4cwe_s1234",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_adanlr1_jspy41jsval_4cwe_s1234",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 1234 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_4cwe_s1234 (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_4cwe_s1234 cùng fold.",
+   "seed": 1234,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "source",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly_adan",
+   "optimizer": "Adan (sail-sg/Adan@2c65bea, betas 0,98/0,92/0,99, eps 1e-8, weight decay 0,02), không warmup",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase1"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "p1_adanlr1_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "title": "Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 7 - Adan, không warmup, không patience",
+   "flags": {
+    "--data_root": "data/mwonly5_sources/js_py41jsval_4cwe_s7",
+    "--warmup_ratio": 0,
+    "--patience": 999,
+    "--p1_optimizer": "adan",
+    "--weight_decay": 0.02
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt p1_w20_jspy41jsval_4cwe_s7 (tab warmup 0,2) trừ optimizer AdamW -> Adan (--p1_optimizer adan, mã src_mwonly_adan = src_mwonly + mwg/adan.py), --warmup_ratio 0 (thay 0,2), --weight_decay 0,02 (mặc định repo Adan); LR giữ 5,66e-5.",
+   "seed": 7,
+   "tab": "paper_adan"
+  },
+  {
+   "family": "p1_mixpy",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "variant": "rasam",
+   "role": "chính",
+   "optimizer": "RecAdam + ASAM",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "recadam_asam"
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "id": "rasam_adanlr1_jspy41jsval_4cwe_s7",
+   "src": "jspy41jsval_4cwe",
+   "init_from": "p1_adanlr1_jspy41jsval_4cwe_s7",
+   "init_same_fold": true,
+   "title": "RecAdam + ASAM, Pha 1 trộn JS:Py 4:1 ngẫu nhiên, val chỉ JS - 4cwe - seed 7 - Pha 1 Adan không warmup, Pha 2 không patience (đủ 30 epoch)",
+   "desc": "Người dùng 09/10 01:0x: \"Khi đó sẽ disconect hoàn toàn colab để chuyển sang chạy a4000 với n=15 ưu tiên full -> các loại common -> 4cwe nhé. Vẫn chạy các source như vậy\" (n=15 kiểm chứng Adan đã chạy trên Colab, người dùng 08/10: \"bỏ qua warmup và áp dụng ở phase 1 thôi\"). Giống hệt rasam_w20_jspy41jsval_4cwe_s7 (cùng mã src_mwonly, cùng cờ) trừ nạp Pha 1 p1_adanlr1_jspy41jsval_4cwe_s7 cùng fold.",
+   "seed": 7,
+   "tab": "paper_adan",
+   "flags": {
+    "--patience": 999
+   }
+  },
+  {
+   "id": "nop1_adamw_s1234",
+   "family": "nop1",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "nop1_adamw",
+   "title": "MW only (không Pha 1, AdamW) - seed 1234",
+   "optimizer": "AdamW, KHÔNG Pha 1",
+   "desc": "Người dùng 09/10 02:2x: \"chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15\" + \"thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2\" + \"dùng 158 cho việc của tôi\". Y HỆT nop1_adamw (seed 42, tab Kết quả gốc) chỉ đổi --seed 1234: lr 5,66e-5, không warmup, 30 epoch, patience 8, min_epochs 10, init none, không RecAdam / ASAM.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--init": "none",
+    "--seed": 1234
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 1234,
+   "tab": "paper_w20"
+  },
+  {
+   "id": "nop1_adamw_s7",
+   "family": "nop1",
+   "stage": "target",
+   "trainer": "train.py",
+   "src_dir": "src_mwonly",
+   "src": null,
+   "variant": "nop1_adamw",
+   "title": "MW only (không Pha 1, AdamW) - seed 7",
+   "optimizer": "AdamW, KHÔNG Pha 1",
+   "desc": "Người dùng 09/10 02:2x: \"chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15\" + \"thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2\" + \"dùng 158 cho việc của tôi\". Y HỆT nop1_adamw (seed 42, tab Kết quả gốc) chỉ đổi --seed 7: lr 5,66e-5, không warmup, 30 epoch, patience 8, min_epochs 10, init none, không RecAdam / ASAM.",
+   "flag_sets": [
+    "mw_common",
+    "no_graph",
+    "phase2_target",
+    "plain_adamw"
+   ],
+   "flags": {
+    "--init": "none",
+    "--seed": 7
+   },
+   "folds": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 7,
+   "tab": "paper_w20"
+  },
+  {
+   "id": "baseline_w20",
+   "family": "baseline",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "Baseline warmup 0,2, không dừng sớm (như Pha 2 tab warmup 0,2) - seed 42",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+    "--target_lang": "python",
+    "--seed": 42,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0.2,
+    "--epochs": 30,
+    "--min_epochs": 10,
+    "--patience": 999,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 42,
+   "tab": "paper_w20",
+   "desc": "Người dùng 09/10 02:2x: \"chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15\" + \"thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2\" + \"dùng 158 cho việc của tôi\". = baseline (CodeBERT 512 head_middle_tail, lr 4e-5, 30 epoch) chỉ đổi --warmup_ratio 0.2 (thay 0; warmup tuyến tính rồi giảm tuyến tính), --patience 999 + --min_epochs 10 như Pha 2 của tab warmup 0,2 (đủ 30 epoch, chọn theo val ROC)."
+  },
+  {
+   "id": "baseline_w20_s1234",
+   "family": "baseline",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "Baseline warmup 0,2, không dừng sớm (như Pha 2 tab warmup 0,2) - seed 1234",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+    "--target_lang": "python",
+    "--seed": 1234,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0.2,
+    "--epochs": 30,
+    "--min_epochs": 10,
+    "--patience": 999,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 1234,
+   "tab": "paper_w20",
+   "desc": "Người dùng 09/10 02:2x: \"chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15\" + \"thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2\" + \"dùng 158 cho việc của tôi\". = baseline_s1234 (CodeBERT 512 head_middle_tail, lr 4e-5, 30 epoch) chỉ đổi --warmup_ratio 0.2 (thay 0; warmup tuyến tính rồi giảm tuyến tính), --patience 999 + --min_epochs 10 như Pha 2 của tab warmup 0,2 (đủ 30 epoch, chọn theo val ROC)."
+  },
+  {
+   "id": "baseline_w20_s7",
+   "family": "baseline",
+   "stage": "target",
+   "trainer": "train_baseline.py",
+   "src_dir": "src_final",
+   "src": null,
+   "title": "Baseline warmup 0,2, không dừng sớm (như Pha 2 tab warmup 0,2) - seed 7",
+   "optimizer": "AdamW, LR hằng (không warmup, không decay)",
+   "flags": {
+    "--method_name": "baseline",
+    "--data_root": "data/final_experiment_data/sven_python_folds_nocomment",
+    "--target_lang": "python",
+    "--seed": 7,
+    "--pooling": "cls",
+    "--batch_size": 32,
+    "--eval_batch_size": 16,
+    "--max_length": 512,
+    "--truncation_strategy": "head_middle_tail",
+    "--learning_rate": "4e-5",
+    "--weight_decay": 0,
+    "--warmup_ratio": 0.2,
+    "--epochs": 30,
+    "--min_epochs": 10,
+    "--patience": 999,
+    "--max_grad_norm": 1.0,
+    "--selection_metric": "roc_auc",
+    "--num_workers": 0
+   },
+   "env": {
+    "FPE_TF32": "1"
+   },
+   "seed": 7,
+   "tab": "paper_w20",
+   "desc": "Người dùng 09/10 02:2x: \"chạy thêm MW only (y hệt MW không Pha 1 adamw) lên đủ n=15\" + \"thêm n=15 với baseline dùng warmup 0.2, early stop giống với phase 2\" + \"dùng 158 cho việc của tôi\". = baseline_s7 (CodeBERT 512 head_middle_tail, lr 4e-5, 30 epoch) chỉ đổi --warmup_ratio 0.2 (thay 0; warmup tuyến tính rồi giảm tuyến tính), --patience 999 + --min_epochs 10 như Pha 2 của tab warmup 0,2 (đủ 30 epoch, chọn theo val ROC)."
   }
  ]
 }
