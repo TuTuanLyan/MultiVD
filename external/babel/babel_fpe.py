@@ -1,5 +1,6 @@
 import argparse
 import ast
+import importlib.util
 import json
 import logging
 import os
@@ -83,8 +84,10 @@ def scores(out):
 
 def install_shims(args, parsed_init):
     import transformers
-    from compat_adamw_v4332 import AdamW
-    transformers.AdamW = AdamW
+    spec = importlib.util.spec_from_file_location("adamw_transformer_4_33_2", HERE / "adamw_transformer.4.33.2.py")
+    adamw = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(adamw)
+    transformers.AdamW = adamw.AdamW
     sys.path.insert(0, str(UPSTREAM))
     import run
     for mod in ("run", "model.hierarchical_att_model", "model.word_att_model", "model.sent_han_attn_confusion", "evaluator.clean_gadget",
