@@ -14,19 +14,17 @@ from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, get_constant_schedule_with_warmup, get_linear_schedule_with_warmup
 
-from mwg.data import GraphWindowDataset, PairBatchSampler
-from mwg.metrics import classification_metrics, find_best_threshold
-from mwg.model import ARCHITECTURE, MWGraphModel, build_backbone, pair_margin_loss
-from mwg.optim import RecAdam, SAMStep
-from mwg.utils import configure_logging, get_logger, limit_records, load_jsonl, set_seed, train_loss_stalled
+from multiwindow.data import WindowDataset
+from multiwindow.metrics import classification_metrics, find_best_threshold
+from multiwindow.model import ARCHITECTURE, MultiWindowModel, build_backbone
+from multiwindow.optim import RecAdam, SAMStep
+from multiwindow.utils import configure_logging, get_logger, limit_records, load_jsonl, set_seed, train_loss_stalled
 
 logger = get_logger()
-KEYS = ("input_ids", "attention_mask", "window_mask", "window_pos", "tok_line", "graphs", "line_mask", "line_ids", "pair")
-GRAPH_PREFIX = ("graph.", "word_att.")
+KEYS = ("input_ids", "attention_mask", "window_mask", "window_pos")
 INIT_PARTS = {"encoder": ("backbone.",), "encoder_agg": ("backbone.", "agg.", "win_pos_emb.", "rel_pos."),
-              "graph": GRAPH_PREFIX, "graph_agg": GRAPH_PREFIX + ("agg.", "win_pos_emb.", "rel_pos."),
-              "all": ("backbone.", "agg.", "win_pos_emb.", "rel_pos.") + GRAPH_PREFIX,
-              "all_head": ("backbone.", "agg.", "win_pos_emb.", "rel_pos.") + GRAPH_PREFIX + ("vul_head.",)}
+              "all": ("backbone.", "agg.", "win_pos_emb.", "rel_pos."),
+              "all_head": ("backbone.", "agg.", "win_pos_emb.", "rel_pos.", "vul_head.")}
 SELECT_METRICS = ("roc_auc", "macro_f1", "pr_auc", "train_loss")
 STUCK_EXIT = 3
 
@@ -36,13 +34,13 @@ def parse_args():
     p.add_argument("--phase", choices=("train", "test"), required=True)
     p.add_argument("--run_name", required=True)
     p.add_argument("--fold", type=int, default=1)
-    p.add_argument("--data_root", required=True, help="thư mục chứa fold<k>/{train,val,test}.jsonl")
-    p.add_argument("--target_lang", default=None, help="nếu đặt: mọi bản ghi phải có lang này")
+    p.add_argument("--data_root", required=True, help="directory containing fold<k>/{train,val,test}.jsonl")
+    p.add_argument("--target_lang", default=None, help="if set, every record must have this lang")
     p.add_argument("--model_name", required=True)
     p.add_argument("--seed", type=int, default=36)
     p.add_argument("--deterministic", type=int, default=1,
-                   help="1 = thuật toán tất định (use_deterministic_algorithms, CUBLAS_WORKSPACE_CONFIG, PYTHONHASHSEED)")
-    p.add_argument("--tf32", type=int, default=0, help="1 = bật TF32 ở matmul và cuDNN")
+                   help="1 = deterministic algorithms (use_deterministic_algorithms, CUBLAS_WORKSPACE_CONFIG, PYTHONHASHSEED)")
+    p.add_argument("--tf32", type=int, default=0, help="1 = enable TF32 in matmul and cuDNN")
     p.add_argument("--window", type=int, default=510)
     p.add_argument("--stride", type=int, default=384)
     p.add_argument("--max_windows", type=int, default=8)
@@ -50,67 +48,51 @@ def parse_args():
     p.add_argument("--agg", choices=("transformer", "mean"), default="mean")
     p.add_argument("--agg_layers", type=int, default=2)
     p.add_argument("--pooling", default="cls")
-    p.add_argument("--graph", choices=("typed", "babel"), default="typed", help="typed: 4 quan hệ; babel: 2 quan hệ gốc")
-    p.add_argument("--max_lines", type=int, default=150, help="số dòng tối đa của đồ thị (BABEL max_sentnum)")
-    p.add_argument("--graph_layers", type=int, default=2)
-    p.add_argument("--graph_lstm", type=int, default=1)
-    p.add_argument("--fusion", choices=("cat", "sum", "graph", "mw"), default="cat", help="mw = chỉ nhánh multi-window")
-    p.add_argument("--norm_text", type=int, default=0, help="1 = đưa văn bản đã chuẩn hoá VARk/FUNk vào CodeBERT")
-    p.add_argument("--line_enc", choices=("codebert", "babel"), default="codebert",
-                   help="vector dòng: codebert = gộp trạng thái token theo dòng; babel = WordAttNet gốc")
-    p.add_argument("--drop_bracket", type=int, default=0, help="1 = bỏ dòng chỉ có ngoặc khỏi tập đỉnh")
-    p.add_argument("--co_mode", choices=("all", "chain"), default="all", help="chain = co_use chỉ nối hai lần xuất hiện liên tiếp")
-    p.add_argument("--max_words", type=int, default=60, help="số token tối đa mỗi dòng (chỉ dùng khi --line_enc babel)")
-    p.add_argument("--graph_lr", type=float, default=1e-4, help="lr riêng của nhánh đồ thị")
     p.add_argument("--init", choices=tuple(["none"] + list(INIT_PARTS)), default="none",
-                   help="nạp phần nào từ --init_ckpt (head mới, trừ all_head: nạp cả vul_head)")
+                   help="which parts to load from --init_ckpt (new classifier head, except all_head, which also loads vul_head)")
     p.add_argument("--init_ckpt", default=None)
-    p.add_argument("--freeze_backbone", type=int, default=0, help="1 = đóng băng CodeBERT")
-    p.add_argument("--pair_loss", type=float, default=0.0, help=">0: batch xếp theo cặp + lambda * softplus(margin - (s_lỗi - s_vá))")
-    p.add_argument("--pair_margin", type=float, default=1.0)
     p.add_argument("--recadam", type=int, default=0)
     p.add_argument("--pretrain_cof", type=float, default=5000.0)
     p.add_argument("--anneal_t0_ratio", type=float, default=0.05)
     p.add_argument("--anneal_k", type=float, default=0.05)
     p.add_argument("--anneal_fun", default="sigmoid")
     p.add_argument("--anneal_t0_steps", type=int, default=0,
-                   help=">0: t0 tính bằng BƯỚC tuyệt đối như bài gốc (Chen et al. 2020), bỏ qua --anneal_t0_ratio")
+                   help=">0: t0 in absolute steps as in the original paper (Chen et al. 2020), ignores --anneal_t0_ratio")
     p.add_argument("--recadam_free_head", type=int, default=0,
-                   help="1 = vul_head chạy Adam thường (anneal_w=0, không neo) như mã gốc RecAdam; 0 = neo cả head (hành vi cũ)")
+                   help="1 = vul_head uses plain Adam (anneal_w=0, no anchoring) as in the original RecAdam code; 0 = anchor the head too")
     p.add_argument("--sam_rho", type=float, default=0.0)
     p.add_argument("--sam_variant", choices=("sam", "asam"), default="sam")
     p.add_argument("--sam_eta", type=float, default=0.01)
     p.add_argument("--sam_bias_ln", choices=("full", "exclude", "shrink", "mask"), default="full",
-                   help="ASAM: nhiễu trên bias + LayerNorm - full (cũ), exclude (không nhiễu, ρ dồn cho weight), shrink (T nhân --sam_bias_ln_scale), "
-                        "mask (chuẩn như full, ε = 0 trên bias/LN ⇒ ε weight trùng full)")
-    p.add_argument("--sam_log_share", type=int, default=0, help="1 = ghi mỗi epoch tỉ lệ ‖g·T‖² theo nhóm weight / bias / LN (T của ASAM gốc)")
+                   help="ASAM perturbation on bias + LayerNorm: full, exclude (no perturbation, rho goes to weights), "
+                        "shrink (T scaled by --sam_bias_ln_scale), mask (normalized as full, eps = 0 on bias/LN)")
+    p.add_argument("--sam_log_share", type=int, default=0, help="1 = log per epoch the share of ||g*T||^2 for weight / bias / LN")
     p.add_argument("--sam_bias_ln_scale", type=float, default=0.1)
     p.add_argument("--epochs", type=int, default=30)
     p.add_argument("--min_epochs", type=int, default=3)
     p.add_argument("--patience", type=int, default=8)
     p.add_argument("--batch_size", type=int, default=4)
     p.add_argument("--eval_batch_size", type=int, default=8)
-    p.add_argument("--micro", type=int, default=16, help="số cửa sổ mỗi lượt qua CodeBERT")
+    p.add_argument("--micro", type=int, default=16, help="number of windows per encoder pass")
     p.add_argument("--learning_rate", type=float, default=2e-5)
     p.add_argument("--weight_decay", type=float, default=0.01)
     p.add_argument("--warmup_ratio", type=float, default=0.10)
     p.add_argument("--lr_schedule", choices=("linear", "constant"), default="linear",
-                   help="linear: warmup rồi giảm tuyến tính về 0; constant: warmup rồi giữ hằng")
+                   help="linear: warm-up then linear decay to 0; constant: warm-up then constant")
     p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--selection_metric", choices=SELECT_METRICS, default="roc_auc",
-                   help="chọn checkpoint theo metric val (lớn là tốt) hoặc train_loss (nhỏ là tốt)")
+                   help="checkpoint selection by a validation metric (higher is better) or train_loss (lower is better)")
     p.add_argument("--also_select", choices=SELECT_METRICS, default=None,
-                   help="giữ thêm checkpoint tốt nhất theo metric này ở <thư mục checkpoint>/best_<metric>.pt")
+                   help="also keep the best checkpoint by this metric at <checkpoint dir>/best_<metric>.pt")
     p.add_argument("--select_after_drop", type=float, default=0.0,
-                   help=">0: chọn checkpoint theo train loss nhỏ nhất cho tới epoch đầu tiên có train loss < (1 - giá trị) × train loss epoch 1, "
-                        "từ đó theo --selection_metric (điểm cũ bỏ đi vì hai thang không so được); 0 = tắt (như cũ)")
+                   help=">0: select by the lowest train loss until the first epoch whose train loss < (1 - value) x the epoch-1 train loss, "
+                        "then by --selection_metric (earlier scores are discarded); 0 = off")
     p.add_argument("--patience_after_loss", type=float, default=0.0,
-                   help=">0: chỉ đếm patience (early stopping) từ epoch đầu tiên có train loss < giá trị này; "
-                        "tránh cắt lượt còn đứng ở loss ~ln 2 (0 = tắt, như cũ)")
+                   help=">0: count patience only from the first epoch whose train loss < this value; 0 = off")
     p.add_argument("--stuck_epoch", type=int, default=0,
-                   help=">=2: cuối epoch này, nếu train loss giảm chưa tới --stuck_min_drop so với epoch trước thì dừng, "
-                        "thoát mã 3 (0 = tắt)")
-    p.add_argument("--stuck_min_drop", type=float, default=0.02, help="độ giảm tương đối tối thiểu của train loss giữa hai epoch")
+                   help=">=2: at the end of this epoch, stop with exit code 3 if the train loss dropped less than --stuck_min_drop "
+                        "relative to the previous epoch (0 = off)")
+    p.add_argument("--stuck_min_drop", type=float, default=0.02, help="minimum relative drop of the train loss between two epochs")
     p.add_argument("--grad_checkpoint", type=int, default=1)
     p.add_argument("--checkpoint_path", default=None)
     p.add_argument("--result_path", default=None)
@@ -120,7 +102,7 @@ def parse_args():
     p.add_argument("--cpu", action="store_true")
     args = p.parse_args()
     if args.stuck_epoch == 1 or args.stuck_epoch < 0:
-        p.error("--stuck_epoch phải là 0 (tắt) hoặc >= 2")
+        p.error("--stuck_epoch must be 0 (off) or >= 2")
     return args
 
 
@@ -154,34 +136,28 @@ def save_ckpt(path, model, epoch, score, args):
 
 def init_from(model, path, parts, device):
     ck = torch.load(path, map_location=device, weights_only=True)
-    assert ck.get("architecture") in (ARCHITECTURE, "codebert_multiwindow"), f"{path}: không phải checkpoint MWG"
+    assert ck.get("architecture") == ARCHITECTURE, f"{path}: not a multi-window checkpoint"
     keep = {k: v for k, v in ck["model_state_dict"].items() if k.startswith(INIT_PARTS[parts])}
     missing, unexpected = model.load_state_dict(keep, strict=False)
-    head = "head NẠP từ Pha 1" if any(k.startswith("vul_head.") for k in keep) else "head mới"
-    logger.info("Khởi tạo từ %s | parts=%s | nạp %d tensor | %s | thiếu (ngoài backbone): %s", path, parts, len(keep), head,
+    head = "head loaded from Phase 1" if any(k.startswith("vul_head.") for k in keep) else "new head"
+    logger.info("Initialized from %s | parts=%s | loaded %d tensors | %s | missing (outside backbone): %s", path, parts, len(keep), head,
                 [m for m in missing if not m.startswith("backbone.")][:8])
     assert not unexpected, unexpected
 
 
 def build_optimizer(model, args, total_steps):
-    prefix = GRAPH_PREFIX + (("vul_head.", "win_pos_emb.", "rel_pos.") if args.freeze_backbone else ())
-    g_params = [q for n, q in model.named_parameters() if n.startswith(prefix) and q.requires_grad]
-    o_params = [q for n, q in model.named_parameters() if not n.startswith(prefix) and q.requires_grad]
+    o_params = [q for n, q in model.named_parameters() if q.requires_grad]
     if not args.recadam:
-        return torch.optim.AdamW([{"params": o_params, "lr": args.learning_rate}, {"params": g_params, "lr": args.graph_lr}],
-                                 lr=args.learning_rate, weight_decay=args.weight_decay)
+        return torch.optim.AdamW([{"params": o_params, "lr": args.learning_rate}], lr=args.learning_rate, weight_decay=args.weight_decay)
     t0 = args.anneal_t0_steps if args.anneal_t0_steps > 0 else max(1, int(args.anneal_t0_ratio * total_steps))
     h_params = [q for n, q in model.named_parameters() if args.recadam_free_head and n.startswith("vul_head.") and q.requires_grad]
     o_params = [q for q in o_params if all(q is not h for h in h_params)]
-    g_params = [q for q in g_params if all(q is not h for h in h_params)]
-    anchor = [q.detach().clone() for q in o_params + g_params + h_params]
-    logger.info("RecAdam | cof=%.0f | k=%g | t0=%d/%d | neo %d tensor | head tự do %d tensor", args.pretrain_cof, args.anneal_k,
-                t0, total_steps, len(o_params) + len(g_params), len(h_params))
-    groups = [{"params": o_params, "lr": args.learning_rate, "pretrain_params": anchor[: len(o_params)]},
-              {"params": g_params, "lr": args.graph_lr, "pretrain_params": anchor[len(o_params): len(o_params) + len(g_params)]}]
+    anchor = [q.detach().clone() for q in o_params + h_params]
+    logger.info("RecAdam | cof=%.0f | k=%g | t0=%d/%d | anchored %d tensors | free head %d tensors", args.pretrain_cof, args.anneal_k,
+                t0, total_steps, len(o_params), len(h_params))
+    groups = [{"params": o_params, "lr": args.learning_rate, "pretrain_params": anchor[: len(o_params)]}]
     if h_params:
-        groups.append({"params": h_params, "lr": args.learning_rate, "anneal_w": 0.0,
-                       "pretrain_params": anchor[len(o_params) + len(g_params):]})
+        groups.append({"params": h_params, "lr": args.learning_rate, "anneal_w": 0.0, "pretrain_params": anchor[len(o_params):]})
     return RecAdam(groups, lr=args.learning_rate, weight_decay=args.weight_decay, anneal_fun=args.anneal_fun, anneal_k=args.anneal_k,
                    anneal_t0=t0, anneal_w=1.0, pretrain_cof=args.pretrain_cof, pretrain_params=anchor)
 
@@ -199,13 +175,8 @@ def train(model, args, device, make_loader, load_split):
     t_prep = time.perf_counter()
     tr = make_loader(load_split("train", args.max_train_samples), args.batch_size, True)
     va = make_loader(load_split("val", args.max_eval_samples), args.eval_batch_size, False)
-    if args.pair_loss > 0:
-        sampler = PairBatchSampler(tr.dataset, args.batch_size, args.seed)
-        tr = DataLoader(tr.dataset, batch_sampler=sampler, num_workers=args.num_workers)
-        logger.info("Pair loss lambda=%.2f margin=%.2f | %d cặp đủ hai nhãn, %d mẫu lẻ", args.pair_loss, args.pair_margin,
-                    len(sampler.pairs), len(sampler.singles))
     cov = {"train": tr.dataset.coverage(), "val": va.dataset.coverage()}
-    logger.info("Độ phủ W=%d S=%d K=%d Lmax=%d | tiền xử lý %.0fs | %s", args.window, args.stride, args.max_windows, args.max_lines,
+    logger.info("Coverage W=%d S=%d K=%d | preprocessing %.0fs | %s", args.window, args.stride, args.max_windows,
                 time.perf_counter() - t_prep, json.dumps(cov))
     if args.init != "none":
         init_from(model, args.init_ckpt, args.init, device)
@@ -221,13 +192,8 @@ def train(model, args, device, make_loader, load_split):
         sched = get_constant_schedule_with_warmup(opt, int(total * args.warmup_ratio))
     else:
         sched = get_linear_schedule_with_warmup(opt, int(total * args.warmup_ratio), total)
-    logger.info("Lịch LR: %s | warmup %d/%d bước | lr đầu %.3e", args.lr_schedule, int(total * args.warmup_ratio), total, opt.param_groups[0]["lr"])
-
-    def loss_of(logits, y, bd):
-        loss = F.cross_entropy(logits, y)
-        if args.pair_loss > 0:
-            loss = loss + args.pair_loss * pair_margin_loss(logits, y, bd["pair"], args.pair_margin)
-        return loss
+    logger.info("LR schedule: %s | warm-up %d/%d steps | initial lr %.3e", args.lr_schedule, int(total * args.warmup_ratio), total,
+                opt.param_groups[0]["lr"])
 
     best, best_ep, wait, t0, losses = -math.inf, 0, 0, time.perf_counter(), []
     best2, also_path = -math.inf, str(Path(args.checkpoint_path).with_name(f"best_{args.also_select}.pt"))
@@ -235,12 +201,10 @@ def train(model, args, device, make_loader, load_split):
     gate_open = args.select_after_drop <= 0
     for ep in range(1, args.epochs + 1):
         model.train()
-        if args.freeze_backbone:
-            model.backbone.eval()
         tl, tn, te = 0.0, 0, time.perf_counter()
         for b in tr:
             bd, y = to_dev(b, device), b["labels"].to(device)
-            loss = loss_of(model(bd, args.micro)["vul_logits"], y, bd)
+            loss = F.cross_entropy(model(bd, args.micro)["vul_logits"], y)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             if sam is not None:
@@ -248,7 +212,7 @@ def train(model, args, device, make_loader, load_split):
                 params = [q for _, q in named]
                 if sam.ascend(params, names=[n for n, _ in named]):
                     opt.zero_grad(set_to_none=True)
-                    loss_of(model(bd, args.micro)["vul_logits"], y, bd).backward()
+                    F.cross_entropy(model(bd, args.micro)["vul_logits"], y).backward()
                     sam.restore(params)
             nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
             opt.step()
@@ -258,7 +222,7 @@ def train(model, args, device, make_loader, load_split):
         losses.append(tl / max(1, tn))
         if not counting and losses[-1] < args.patience_after_loss:
             counting = True
-            logger.info("Bắt đầu đếm patience từ epoch %d (train loss %.4f < %.2f)", ep, losses[-1], args.patience_after_loss)
+            logger.info("Patience counting starts at epoch %d (train loss %.4f < %.2f)", ep, losses[-1], args.patience_after_loss)
         v = run_eval(model, va, device, args.micro)
         for k in ("roc_auc", "macro_f1", "pr_auc"):
             if v.get(k) is None:
@@ -266,8 +230,8 @@ def train(model, args, device, make_loader, load_split):
         if not gate_open and losses[-1] < (1 - args.select_after_drop) * losses[0]:
             gate_open = True
             best, wait = -math.inf, 0
-            logger.info("Chọn checkpoint theo %s từ epoch %d (train loss %.4f < %.0f%% train loss epoch 1 = %.4f)", args.selection_metric, ep,
-                        losses[-1], 100 * (1 - args.select_after_drop), losses[0])
+            logger.info("Selecting checkpoints by %s from epoch %d (train loss %.4f < %.0f%% of the epoch-1 train loss %.4f)",
+                        args.selection_metric, ep, losses[-1], 100 * (1 - args.select_after_drop), losses[0])
         metric = args.selection_metric if gate_open else "train_loss"
         score = selection_score(metric, v, losses[-1])
         if args.also_select:
@@ -288,19 +252,19 @@ def train(model, args, device, make_loader, load_split):
         if sam is not None and args.sam_log_share:
             sh = sam.group_shares()
             if sh:
-                logger.info("SAM share ep %d | weight %.1f%% | bias %.1f%% | LN %.1f%% | %d bước (‖g·T‖², T của ASAM gốc)",
+                logger.info("SAM share ep %d | weight %.1f%% | bias %.1f%% | LN %.1f%% | %d steps (||g*T||^2, T of the original ASAM)",
                             ep, 100 * sh[0]["weight"], 100 * sh[0]["bias"], 100 * sh[0]["LN"], sh[1])
         if ep == args.stuck_epoch:
             stalled, drop = train_loss_stalled(losses, args.stuck_min_drop)
-            logger.info("Kiểm kẹt | epoch %d | train loss %.4f -> %.4f | giảm %.2f%% (ngưỡng %.2f%%) | %s", ep, losses[-2],
-                        losses[-1], 100 * drop, 100 * args.stuck_min_drop, "KẸT" if stalled else "đang học")
+            logger.info("Stall check | epoch %d | train loss %.4f -> %.4f | drop %.2f%% (threshold %.2f%%) | %s", ep, losses[-2],
+                        losses[-1], 100 * drop, 100 * args.stuck_min_drop, "STALLED" if stalled else "learning")
             if stalled:
                 sys.exit(STUCK_EXIT)
         if ep >= args.min_epochs and wait >= args.patience:
             logger.info("Early stopping | Epoch: %d | Best epoch: %d", ep, best_ep)
             break
-    logger.info("Lịch LR: %s | lr cuối %.3e", args.lr_schedule, opt.param_groups[0]["lr"])
-    logger.info("Train xong | best epoch %d | %.0fs", best_ep, time.perf_counter() - t0)
+    logger.info("LR schedule: %s | final lr %.3e", args.lr_schedule, opt.param_groups[0]["lr"])
+    logger.info("Training done | best epoch %d | %.0fs", best_ep, time.perf_counter() - t0)
 
 
 def test(model, args, device, make_loader, load_split):
@@ -329,8 +293,7 @@ def test(model, args, device, make_loader, load_split):
            "test_roc_auc": m05["roc_auc"], "test_pr_auc": m05["pr_auc"], "test_macro_f1_at_0.5": m05["macro_f1"],
            "test_macro_f1_at_valcal": mvc["macro_f1"], "test_inference_seconds": t2 - t1, "validation_and_threshold_seconds": t1 - t0,
            "subgroup_roc": {"le510": sub(nt <= 510), "gt510": sub(nt > 510), "one_window": sub(np.asarray(ds.n_windows_total) == 1),
-                            "truncated_at_K": sub(np.asarray(ds.n_windows_total) > args.max_windows),
-                            "lines_gt_Lmax": sub(np.asarray(ds.n_lines) > args.max_lines)},
+                            "truncated_at_K": sub(np.asarray(ds.n_windows_total) > args.max_windows)},
            "coverage": {"val": va.dataset.coverage(), "test": ds.coverage()}, "hyperparameters": ck["training_args"]}
     Path(args.result_path).parent.mkdir(parents=True, exist_ok=True)
     with open(args.result_path, "w") as fh:
@@ -340,7 +303,7 @@ def test(model, args, device, make_loader, load_split):
         np.savez_compressed(Path(args.result_path).with_suffix(".probs.npz"), probabilities=pr.astype(np.float32),
                             labels=lab.astype(np.int8), n_tokens=nt, val_probabilities=np.asarray(v["probabilities"], np.float32),
                             val_labels=np.asarray(v["labels"], np.int8), threshold=np.float32(thr))
-    logger.info("Kết quả: %s", args.result_path)
+    logger.info("Results: %s", args.result_path)
 
 
 def main():
@@ -353,39 +316,28 @@ def main():
     args.result_path = args.result_path or str(Path("results") / args.run_name / "multiwindow" / f"seed_{args.seed}" / f"fold{args.fold}.json")
     configure_logging()
     set_seed(args.seed, bool(args.deterministic), bool(args.tf32))
-    logger.info("Tái lập | deterministic=%s CUBLAS=%s PYTHONHASHSEED=%s cudnn.det=%s benchmark=%s tf32(matmul/cudnn)=%s/%s",
+    logger.info("Reproducibility | deterministic=%s CUBLAS=%s PYTHONHASHSEED=%s cudnn.det=%s benchmark=%s tf32(matmul/cudnn)=%s/%s",
                 torch.are_deterministic_algorithms_enabled(), os.environ.get("CUBLAS_WORKSPACE_CONFIG"), os.environ.get("PYTHONHASHSEED"),
                 torch.backends.cudnn.deterministic, torch.backends.cudnn.benchmark, torch.backends.cuda.matmul.allow_tf32,
                 torch.backends.cudnn.allow_tf32)
     device = torch.device("cpu" if args.cpu or not torch.cuda.is_available() else "cuda")
     tok = AutoTokenizer.from_pretrained(args.model_name)
     fold_dir = Path(args.data_root) / f"fold{args.fold}"
-    typed = args.graph == "typed"
 
     def load_split(split, cap):
         return limit_records(load_jsonl(fold_dir / f"{split}.jsonl", args.target_lang), cap, args.seed)
 
     def make_loader(records, batch_size, shuffle):
-        ds = GraphWindowDataset(records, tok, args.window, args.stride, args.max_windows, args.max_lines, typed, args.max_length,
-                                bool(args.norm_text), args.max_words, bool(args.drop_bracket), args.co_mode)
+        ds = WindowDataset(records, tok, args.window, args.stride, args.max_windows, args.max_length)
         gen = torch.Generator().manual_seed(args.seed) if shuffle else None
         return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=args.num_workers, generator=gen)
 
     backbone = build_backbone(args.model_name)
-    if args.freeze_backbone:
-        for q in backbone.parameters():
-            q.requires_grad = False
-        backbone.eval()
-        logger.info("CodeBERT đóng băng: chỉ học nhánh đồ thị + vị trí cửa sổ + head")
-    elif args.grad_checkpoint and hasattr(backbone, "gradient_checkpointing_enable"):
+    if args.grad_checkpoint and hasattr(backbone, "gradient_checkpointing_enable"):
         backbone.gradient_checkpointing_enable()
-    model = MWGraphModel(backbone, args.max_windows, args.agg, args.agg_layers, pooling=args.pooling, num_rel=4 if typed else 2,
-                         graph_layers=args.graph_layers, fusion=args.fusion, graph_lstm=bool(args.graph_lstm),
-                         max_lines=args.max_lines, line_enc=args.line_enc).to(device)
-    n_graph = sum(q.numel() for n, q in model.named_parameters() if n.startswith(GRAPH_PREFIX) and q.requires_grad)
-    logger.info("MWGraph | graph=%s R=%d Lmax=%d layers=%d lstm=%d fusion=%s norm_text=%d line_enc=%s drop_bracket=%d co_mode=%s | "
-                "tham số nhánh đồ thị %.2fM", args.graph, 4 if typed else 2, args.max_lines, args.graph_layers, args.graph_lstm,
-                args.fusion, args.norm_text, args.line_enc, args.drop_bracket, args.co_mode, n_graph / 1e6)
+    model = MultiWindowModel(backbone, args.max_windows, args.agg, args.agg_layers, pooling=args.pooling).to(device)
+    logger.info("Multi-window | window %d | stride %d | max windows %d | agg %s | pooling %s", args.window, args.stride,
+                args.max_windows, args.agg, args.pooling)
     (train if args.phase == "train" else test)(model, args, device, make_loader, load_split)
 
 

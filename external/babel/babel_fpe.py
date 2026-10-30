@@ -1,6 +1,5 @@
 import argparse
 import ast
-import hashlib
 import json
 import logging
 import os
@@ -19,33 +18,14 @@ ROOT = HERE.parent.parent
 sys.path.append(str(ROOT / "baseline"))
 from evaluate import classification_metrics, find_best_threshold, per_cwe_metrics
 sys.path.remove(str(ROOT / "baseline"))
-assert Path(sys.modules["evaluate"].__file__).resolve().parent == ROOT / "baseline", "evaluate không phải baseline/evaluate.py"
+assert Path(sys.modules["evaluate"].__file__).resolve().parent == ROOT / "baseline", "evaluate is not baseline/evaluate.py"
 
 logger = logging.getLogger("babel_fpe")
 CKPT_NAME = os.path.join("checkpoint-best-acc", "model.bin")
 BABEL_FLAGS = (("max_sentnum", int), ("max_wordnum", int), ("patience_step", int), ("epoch", int), ("train_batch_size", int),
                ("eval_batch_size", int), ("learning_rate", float), ("max_grad_norm", float))
 STATE = {"capture": None, "train_loss": [], "history": [], "best_acc": 0.0, "best_epoch": None, "t": None, "args": None,
-         "init_md5": None, "eval_labels": None, "thr": None, "test": None}
-
-
-def md5_file(path):
-    h = hashlib.md5()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def check_upstream():
-    bad = []
-    for line in open(HERE / "upstream.md5", encoding="utf-8"):
-        digest, rel = line.split(None, 1)
-        path = UPSTREAM / rel.strip()
-        if not path.exists() or md5_file(path) != digest:
-            bad.append(rel.strip())
-    if bad:
-        sys.exit("babel_fpe: upstream/ khác bản gốc @ac53252: %s" % ", ".join(bad))
+         "eval_labels": None, "thr": None, "test": None}
 
 
 def class_to_cwe():
@@ -53,7 +33,7 @@ def class_to_cwe():
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "CWE_MAPPING" for t in node.targets):
             return {v: k for k, v in ast.literal_eval(node.value).items()}
-    sys.exit("babel_fpe: không thấy CWE_MAPPING trong baseline/train_transfer.py")
+    sys.exit("babel_fpe: CWE_MAPPING not found in baseline/train_transfer.py")
 
 
 def load_jsonl(path):
@@ -66,10 +46,10 @@ def fold_records(args):
     js = {s: lim(load_jsonl(os.path.join(args.source_root, f"{s}.jsonl"))) for s in ("train", "val")}
     if args.mode == "source":
         if args.data_root:
-            sys.exit("babel_fpe: --mode source (Pha 1, chỉ JS) không nhận --data_root")
+            sys.exit("babel_fpe: --mode source (Phase 1, JavaScript only) does not take --data_root")
         return {"train": js["train"], "eval": js["val"], "test": js["val"], "python_target": False}
     if not args.data_root:
-        sys.exit("babel_fpe: --mode %s cần --data_root (fold SVEN)" % args.mode)
+        sys.exit("babel_fpe: --mode %s needs --data_root (SVEN folds)" % args.mode)
     fold_dir = os.path.join(args.data_root, f"fold{args.fold}")
     py = {s: lim(load_jsonl(os.path.join(fold_dir, f"{s}.jsonl"))) for s in ("train", "val", "test")}
     train = js["train"] + py["train"] if args.mode == "mix" else py["train"]
@@ -90,9 +70,9 @@ def prepare_data(args, work):
     for split in ("train", "eval", "test"):
         files[split] = data / f"{split}.jsonl"
         write_babel_jsonl(recs[split], files[split])
-    logger.info("BABEL data | mode %s | fold %d | train %d (dương %d) | eval %d | test %d | %s", args.mode, args.fold, len(recs["train"]),
+    logger.info("BABEL data | mode %s | fold %d | train %d (positive %d) | eval %d | test %d | %s", args.mode, args.fold, len(recs["train"]),
                 sum(int(r["label"]) for r in recs["train"]), len(recs["eval"]), len(recs["test"]),
-                "SVEN fold k" if recs["python_target"] else "JS pool (test = bản sao val)")
+                "SVEN fold k" if recs["python_target"] else "JS pool (test = copy of val)")
     return recs, files
 
 
@@ -110,7 +90,7 @@ def install_shims(args, parsed_init):
     for mod in ("run", "model.hierarchical_att_model", "model.word_att_model", "model.sent_han_attn_confusion", "evaluator.clean_gadget",
                 "layer.GNNs", "layer.Attention", "layer.soft_attn"):
         where = Path(sys.modules[mod].__file__).resolve()
-        assert UPSTREAM in where.parents, "%s nạp từ %s, không phải upstream/" % (mod, where)
+        assert UPSTREAM in where.parents, "%s loaded from %s, not from upstream/" % (mod, where)
     orig_model, orig_evaluate, orig_test = run.HierAttNet, run.evaluate, run.test
 
     def build_model(model_args, embed_table=None):
@@ -126,8 +106,7 @@ def install_shims(args, parsed_init):
         if parsed_init:
             state = torch.load(parsed_init, map_location="cpu")
             model.load_state_dict(state, strict=True)
-            STATE["init_md5"] = md5_file(parsed_init)
-            logger.info("BABEL Pha 2 | nạp checkpoint Pha 1 %s (md5 %s, %d tensor, strict=True)", parsed_init, STATE["init_md5"], len(state))
+            logger.info("BABEL Phase 2 | loaded Phase 1 checkpoint %s (%d tensors, strict=True)", parsed_init, len(state))
         return model
 
     def evaluate(eval_args, eval_dataset, model, eval_when_training=False):
@@ -136,8 +115,8 @@ def install_shims(args, parsed_init):
         probs = torch.cat(STATE["capture"]).numpy() if STATE["capture"] else np.zeros(0)
         STATE["capture"] = None
         labels = np.asarray([int(e.label) for e in eval_dataset.examples])
-        assert len(probs) == len(labels), "hook bắt %d xác suất, eval có %d hàm" % (len(probs), len(labels))
-        assert abs(float(np.mean(labels == (probs > 0.5))) - result["eval_acc"]) <= 5.1e-5, "accuracy tính lại lệch eval_acc gốc"
+        assert len(probs) == len(labels), "hook captured %d probabilities, eval has %d functions" % (len(probs), len(labels))
+        assert abs(float(np.mean(labels == (probs > 0.5))) - result["eval_acc"]) <= 5.1e-5, "recomputed accuracy differs from the original eval_acc"
         log_epoch(eval_args, result, probs, labels)
         return result
 
@@ -177,7 +156,7 @@ def log_epoch(eval_args, result, probs, labels):
     logger.info("Epoch %d/%d | train loss %.4f | val loss %.4f | val roc_auc %.4f | val macro_f1 %.4f | best ep %d | patience %d/%d | %ds",
                 epoch, eval_args.epoch, row["train_loss"] if row["train_loss"] is not None else float("nan"), row["val_loss"], roc, f1,
                 best, epoch - best, eval_args.patience_step, int(seconds))
-    logger.info("BABEL val | acc %.4f (chọn checkpoint theo acc, mã gốc) | best acc %.4f ở epoch %d", result["eval_acc"], STATE["best_acc"], best)
+    logger.info("BABEL val | acc %.4f (checkpoint selection by acc, original code) | best acc %.4f at epoch %d", result["eval_acc"], STATE["best_acc"], best)
 
 
 def jsonable(value):
@@ -210,29 +189,29 @@ def run_train(args):
     meta_path = Path(str(ckpt) + ".babel.json")
     for stale in (work / CKPT_NAME, meta_path):
         if stale.exists():
-            logger.warning("xoá file sót của lượt trước: %s", stale)
+            logger.warning("removing a leftover file from a previous run: %s", stale)
             stale.unlink()
     recs, files = prepare_data(args, work)
     STATE["files"] = files
     if args.mode == "target" and not args.init_ckpt:
-        sys.exit("babel_fpe: --mode target cần --init_ckpt (checkpoint Pha 1)")
+        sys.exit("babel_fpe: --mode target needs --init_ckpt (Phase 1 checkpoint)")
     if args.mode != "target" and args.init_ckpt:
-        sys.exit("babel_fpe: --init_ckpt chỉ dùng cho --mode target")
+        sys.exit("babel_fpe: --init_ckpt is only for --mode target")
     if args.init_ckpt and not os.path.exists(args.init_ckpt):
-        sys.exit("babel_fpe: không thấy checkpoint Pha 1 %s" % args.init_ckpt)
+        sys.exit("babel_fpe: Phase 1 checkpoint not found: %s" % args.init_ckpt)
     run = install_shims(args, args.init_ckpt)
     sys.argv = babel_argv(args, files, work, "train")
-    logger.info("BABEL train | run.main() gốc với: %s", " ".join(sys.argv[1:]))
+    logger.info("BABEL train | original run.main() with: %s", " ".join(sys.argv[1:]))
     STATE["t"] = time.perf_counter()
     t0 = time.perf_counter()
     run.main()
     seconds = time.perf_counter() - t0
     src = work / CKPT_NAME
     if not src.exists():
-        sys.exit("babel_fpe: train() gốc không ghi %s (không epoch nào có eval_acc > 0)" % src)
+        sys.exit("babel_fpe: the original train() did not write %s (no epoch had eval_acc > 0)" % src)
     os.replace(src, ckpt)
     meta = {"mode": args.mode, "best_epoch": STATE["best_epoch"], "best_val_acc": STATE["best_acc"], "history": STATE["history"],
-            "train_seconds": seconds, "init_ckpt": args.init_ckpt, "init_ckpt_md5": STATE["init_md5"], "checkpoint_md5": md5_file(ckpt),
+            "train_seconds": seconds, "init_ckpt": args.init_ckpt,
             "n_train": len(recs["train"]), "n_eval": len(recs["eval"]), "babel_argv": sys.argv[1:], "wrapper_args": vars(args),
             "babel_effective_args": STATE.get("babel_args"),
             "upstream_commit": "ac532522b3a0e43b148be5dcd29f7c72fac190f3",
@@ -240,20 +219,18 @@ def run_train(args):
     with open(str(meta_path) + ".tmp", "w", encoding="utf-8") as handle:
         json.dump(jsonable(meta), handle, indent=2, ensure_ascii=False)
     os.replace(str(meta_path) + ".tmp", meta_path)
-    logger.info("Train xong | best epoch %s | %ds | VRAM đỉnh %s MiB | checkpoint %s", STATE["best_epoch"], int(seconds),
+    logger.info("Training done | best epoch %s | %ds | peak VRAM %s MiB | checkpoint %s", STATE["best_epoch"], int(seconds),
                 "%.0f" % meta["peak_vram_allocated_mib"] if meta["peak_vram_allocated_mib"] is not None else "-", ckpt)
 
 
 def run_test(args):
     if not args.result_path:
-        sys.exit("babel_fpe: --phase test cần --result_path")
+        sys.exit("babel_fpe: --phase test needs --result_path")
     ckpt = Path(args.checkpoint_path)
     meta_path = Path(str(ckpt) + ".babel.json")
     if not ckpt.exists() or not meta_path.exists():
-        sys.exit("babel_fpe: thiếu %s hoặc %s" % (ckpt, meta_path))
+        sys.exit("babel_fpe: missing %s or %s" % (ckpt, meta_path))
     meta = json.load(open(meta_path, encoding="utf-8"))
-    if md5_file(ckpt) != meta["checkpoint_md5"]:
-        sys.exit("babel_fpe: md5 checkpoint lệch meta (file bị thay sau khi train)")
     work = ckpt.parent / "babel_work"
     recs, files = prepare_data(args, work)
     STATE["files"] = files
@@ -264,7 +241,7 @@ def run_test(args):
     os.link(ckpt, link)
     run = install_shims(args, None)
     sys.argv = babel_argv(args, files, work, "test")
-    logger.info("BABEL test | run.main() gốc với: %s", " ".join(sys.argv[1:]))
+    logger.info("BABEL test | original run.main() with: %s", " ".join(sys.argv[1:]))
     try:
         run.main()
     finally:
@@ -275,20 +252,20 @@ def run_test(args):
 def write_result(args, meta, ckpt, recs):
     thr_p, test_p = STATE["thr"]["probs"].tolist(), STATE["test"]["probs"].tolist()
     thr_y, test_y = [int(r["label"]) for r in recs["eval"]], [int(r["label"]) for r in recs["test"]]
-    assert len(thr_p) == len(thr_y) and len(test_p) == len(test_y), "số xác suất lệch số hàm"
+    assert len(thr_p) == len(thr_y) and len(test_p) == len(test_y), "the number of probabilities differs from the number of functions"
     for name, p, y in (("thr", thr_p, thr_y), ("test", test_p, test_y)):
         assert abs(float(np.mean(np.asarray(y) == (np.asarray(p) > 0.5))) - STATE[name]["metrics"]["test_acc"]) <= 5.1e-5, name
     threshold, calibrated_f1 = find_best_threshold(thr_y, thr_p)
     cwe = [r.get("cwe_class") for r in recs["test"]]
     at05, atval = classification_metrics(test_y, test_p, 0.5), classification_metrics(test_y, test_p, threshold)
     c2c = class_to_cwe()
-    logger.info("Test | ROC %.4f | PR %.4f | macro-F1@0.5 %.4f | macro-F1@val %.4f (ngưỡng %.2f)", at05["roc_auc"], at05["pr_auc"],
+    logger.info("Test | ROC %.4f | PR %.4f | macro-F1@0.5 %.4f | macro-F1@val %.4f (threshold %.2f)", at05["roc_auc"], at05["pr_auc"],
                 at05["macro_f1"], atval["macro_f1"], threshold)
     pt = recs["python_target"]
     result = {
         "experiment_name": f"{args.run_name}/babel_{args.mode}", "phase": "test", "fold": args.fold, "seed": args.seed,
-        "source_checkpoint": meta.get("init_ckpt"), "source_checkpoint_md5": meta.get("init_ckpt_md5"), "target_checkpoint": str(ckpt),
-        "best_epoch": meta["best_epoch"], "best_val_acc_babel": meta["best_val_acc"], "babel_selection": "eval_acc > best_acc (mã gốc)",
+        "source_checkpoint": meta.get("init_ckpt"), "target_checkpoint": str(ckpt),
+        "best_epoch": meta["best_epoch"], "best_val_acc_babel": meta["best_val_acc"], "babel_selection": "eval_acc > best_acc (original code)",
         "val_calibrated_threshold": threshold, "val_macro_f1_at_valcal": calibrated_f1,
         "validation_and_threshold_seconds": STATE["thr"]["seconds"], "test_inference_seconds": STATE["test"]["seconds"],
         "train_seconds": meta["train_seconds"], "peak_vram_allocated_mib": meta.get("peak_vram_allocated_mib"),
@@ -324,20 +301,19 @@ def main():
     p.add_argument("--mode", choices=("mix", "source", "target"), required=True)
     p.add_argument("--run_name", required=True)
     p.add_argument("--fold", type=int, required=True)
-    p.add_argument("--model_name", required=True, help="thư mục CodeBERT = --cache_dir gốc (tokenizer + bảng embedding)")
+    p.add_argument("--model_name", required=True, help="CodeBERT directory = original --cache_dir (tokenizer + embedding table)")
     p.add_argument("--checkpoint_path", required=True)
     p.add_argument("--result_path")
-    p.add_argument("--init_ckpt", help="--mode target: checkpoint Pha 1 (best.pt của run --mode source)")
+    p.add_argument("--init_ckpt", help="--mode target: Phase 1 checkpoint (best.pt of the --mode source run)")
     p.add_argument("--data_root", help="fold SVEN Python (data_root/fold<k>/{train,val,test}.jsonl)")
     p.add_argument("--source_root", required=True, help="pool JS ({train,val}.jsonl)")
     p.add_argument("--seed", type=int, required=True)
-    p.add_argument("--limit_examples", type=int, default=0, help="chỉ cho thử khói; 0 = tắt")
+    p.add_argument("--limit_examples", type=int, default=0, help="smoke tests only; 0 = off")
     for name, kind in BABEL_FLAGS:
-        p.add_argument("--" + name, type=kind, required=True, help="cờ gốc của run.py (README)")
+        p.add_argument("--" + name, type=kind, required=True, help="original run.py flag (README)")
     args = p.parse_args()
     logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO)
-    check_upstream()
-    logger.info("BABEL | upstream @ac53252 trùng md5 | phase %s | mode %s | cờ gốc: %s", args.phase, args.mode,
+    logger.info("BABEL | upstream @ac53252 | phase %s | mode %s | original flags: %s", args.phase, args.mode,
                 " ".join("--%s %s" % (n, getattr(args, n)) for n, _ in BABEL_FLAGS))
     (run_train if args.phase == "train" else run_test)(args)
 

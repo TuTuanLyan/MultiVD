@@ -88,13 +88,13 @@ def _grad_global_norm(params):
 class SAMStep:
     def __init__(self, rho, variant="sam", eta=0.01, bias_ln="full", bias_ln_scale=0.1, log_share=False):
         if rho <= 0:
-            raise ValueError("rho phải dương")
+            raise ValueError("rho must be positive")
         if variant not in ("sam", "asam"):
-            raise ValueError(f"variant phải là sam hoặc asam, nhận {variant!r}")
+            raise ValueError(f"variant must be sam or asam, got {variant!r}")
         if bias_ln not in ("full", "exclude", "shrink", "mask"):
-            raise ValueError(f"bias_ln phải là full, exclude, shrink hoặc mask, nhận {bias_ln!r}")
+            raise ValueError(f"bias_ln must be full, exclude, shrink or mask, got {bias_ln!r}")
         if bias_ln != "full" and variant != "asam":
-            raise ValueError("bias_ln chỉ áp cho variant asam")
+            raise ValueError("bias_ln applies only to variant asam")
         self.rho, self.variant, self.eta = rho, variant, eta
         self.bias_ln, self.bias_ln_scale = bias_ln, bias_ln_scale
         self.log_share, self._share = log_share, None
@@ -144,7 +144,7 @@ class SAMStep:
     @torch.no_grad()
     def _ascend_asam(self, params, names):
         if names is None:
-            raise ValueError("ASAM cần `names` để biết tham số nào là 'weight'")
+            raise ValueError("ASAM needs `names` to know which parameters are 'weight'")
         self._eps = []
         tws = []
         skip = [self.bias_ln == "exclude" and self.is_bias_or_ln(n) for n in names]

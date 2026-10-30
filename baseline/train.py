@@ -345,14 +345,14 @@ def train_loop(
         sam = SAMStep(args.sam_rho, variant=_variant, eta=getattr(args, "sam_eta", 0.01))
         if _variant == "asam":
             logger.info(
-                "ASAM bat | rho=%.4f eta=%.4f | chuan hoa THEO TUNG THAM SO qua "
-                "T_w=|w|+eta nen rho bat bien theo thang | 2 luot forward-backward",
+                "ASAM on | rho=%.4f eta=%.4f | per-parameter normalization through "
+                "T_w=|w|+eta, so rho is scale invariant | 2 forward-backward passes",
                 args.sam_rho, getattr(args, "sam_eta", 0.01),
             )
         else:
             logger.info(
-                "SAM bat | rho=%.4f (tuyet doi, chuan L2 toan cuc) | moi buoc 2 luot "
-                "forward-backward, thoi gian huan luyen ~2x", args.sam_rho,
+                "SAM on | rho=%.4f (absolute, global L2 norm) | 2 "
+                "forward-backward passes per step, about 2x training time", args.sam_rho,
             )
     best_score, best_epoch, patience_counter = -math.inf, 0, 0
     training_started = time.perf_counter()
@@ -411,13 +411,13 @@ def train_loop(
         score = val.get(metric_name)
         _keep = getattr(args, "_val_keep", None)
         if _keep is not None and len(_keep) != len(val["labels"]):
-            logger.warning("Val mask bo qua: mask %d mau, val %d mau (max_eval_samples?)", len(_keep), len(val["labels"])); _keep = None
+            logger.warning("Val mask ignored: the mask has %d samples, val has %d samples (max_eval_samples?)", len(_keep), len(val["labels"])); _keep = None
         if _keep is not None:
             import numpy as _np
             _y = _np.asarray(val["labels"])[_keep]; _p = _np.asarray(val["probabilities"])[_keep]
             _sub = classification_metrics(_y.tolist(), _p.tolist(), 0.5)
             score = _sub.get(metric_name)
-            logger.info("Val mask | giu %d/%d mau | %s tren phan giu: %s | toan val: %s",
+            logger.info("Val mask | kept %d/%d samples | %s on the kept part: %s | full val: %s",
                         int(_keep.sum()), len(_keep), metric_name,
                         "%.4f" % score if score is not None else "-", "%.4f" % val.get(metric_name) if val.get(metric_name) is not None else "-")
         if score is None:
@@ -443,9 +443,9 @@ def train_loop(
             train_seconds, validation_seconds, epoch_seconds, total_seconds
         )
         if "pair_acc" in train:
-            logger.info("RankNet nguon | rank loss %.4f | pair_acc %.3f", train.get("rank", 0.0), train["pair_acc"])
+            logger.info("Source RankNet | rank loss %.4f | pair_acc %.3f", train.get("rank", 0.0), train["pair_acc"])
         if "replay_w_mean" in train:
-            logger.info("Replay | w trung binh %.3f | ty le w=0 %.2f | cos trung binh %s | forward-backward %d",
+            logger.info("Replay | mean w %.3f | share of w=0 %.2f | mean cos %s | forward-backward %d",
                         train["replay_w_mean"], train["replay_zero_frac"],
                         ("%.3f" % train["replay_cos_mean"]) if train["replay_cos_mean"] == train["replay_cos_mean"] else "-",
                         train["fb_passes"])

@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import torch
 
-LOGGER_NAME = "mwg"
+LOGGER_NAME = "guidevul"
 
 
 def configure_logging():
@@ -48,27 +48,27 @@ def load_jsonl(path, expected_lang=None):
             try:
                 record = json.loads(line)
             except json.JSONDecodeError as error:
-                raise ValueError(f"{path}:{line_number}: JSON hỏng: {error}") from error
+                raise ValueError(f"{path}:{line_number}: invalid JSON: {error}") from error
             if not isinstance(record.get("code"), str) or not record["code"].strip():
-                raise ValueError(f"{path}:{line_number}: thiếu hoặc rỗng trường 'code'")
+                raise ValueError(f"{path}:{line_number}: missing or empty field 'code'")
             try:
                 record["label"] = int(record["label"])
             except (KeyError, TypeError, ValueError) as error:
-                raise ValueError(f"{path}:{line_number}: 'label' phải là 0 hoặc 1") from error
+                raise ValueError(f"{path}:{line_number}: 'label' must be 0 or 1") from error
             if record["label"] not in (0, 1):
-                raise ValueError(f"{path}:{line_number}: 'label' phải là 0 hoặc 1, nhận {record['label']}")
+                raise ValueError(f"{path}:{line_number}: 'label' must be 0 or 1, got {record['label']}")
             lang, legacy = record.get("lang"), record.get("language")
             if lang is not None and legacy is not None and lang != legacy:
-                raise ValueError(f"{path}:{line_number}: 'lang'={lang!r} mâu thuẫn 'language'={legacy!r}")
+                raise ValueError(f"{path}:{line_number}: 'lang'={lang!r} conflicts with 'language'={legacy!r}")
             lang = lang if lang is not None else legacy
             if not isinstance(lang, str) or not lang.strip():
-                raise ValueError(f"{path}:{line_number}: thiếu trường 'lang'")
+                raise ValueError(f"{path}:{line_number}: missing field 'lang'")
             record["lang"] = lang
             if expected_lang is not None and lang != expected_lang:
-                raise ValueError(f"{path}:{line_number}: cần lang {expected_lang!r}, nhận {lang!r}")
+                raise ValueError(f"{path}:{line_number}: expected lang {expected_lang!r}, got {lang!r}")
             records.append(record)
     if not records:
-        raise ValueError(f"{path}: không có bản ghi nào")
+        raise ValueError(f"{path}: no records")
     return records
 
 

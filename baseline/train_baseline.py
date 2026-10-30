@@ -38,7 +38,7 @@ def make_model(model_name, device, pooling="cls", grad_checkpoint=0):
     backbone = build_backbone(model_name)
     if grad_checkpoint and hasattr(backbone, "gradient_checkpointing_enable"):
         backbone.gradient_checkpointing_enable()
-        logger.info("gradient checkpointing: bật")
+        logger.info("gradient checkpointing: on")
     return BaselineModel(backbone, pooling=pooling).to(device)
 
 
@@ -183,7 +183,7 @@ def run_train(args, device):
         total = len(train_loader) * args.epochs
         warm = int(total * args.warmup_ratio)
         args._scheduler = get_linear_schedule_with_warmup(optimizer, warm, total)
-        logger.info("Warmup bat | ty le %.2f -> %d/%d buoc", args.warmup_ratio, warm, total)
+        logger.info("Warmup on | ratio %.2f -> %d/%d steps", args.warmup_ratio, warm, total)
     args._val_keep = None
     if getattr(args, "val_keep_mask", None):
         import numpy as _np; args._val_keep = _np.load(args.val_keep_mask).astype(bool)
@@ -336,17 +336,17 @@ def parse_args():
     parser.add_argument("--learning_rate", type=float, default=2e-5, help="AdamW learning rate")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="AdamW weight decay")
     parser.add_argument("--warmup_ratio", type=float, default=0.0,
-                        help="ty le buoc warmup tuyen tinh (0 = tat, giu nguyen hanh vi cu)")
+                        help="linear warm-up ratio of the total steps (0 = off)")
     parser.add_argument("--patience", type=int, default=5, help="early-stopping patience")
     parser.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clip norm")
     parser.add_argument("--num_workers", type=int, default=0, help="DataLoader workers")
-    parser.add_argument("--val_keep_mask", default=None, help="file .npy bool theo thu tu val.jsonl; True = dung de chon checkpoint")
+    parser.add_argument("--val_keep_mask", default=None, help="boolean .npy file in val.jsonl order; True = used for checkpoint selection")
     parser.add_argument("--selection_metric", choices=("macro_f1", "pr_auc", "roc_auc"),
                         default="macro_f1",
-                        help="chi so chon checkpoint tren val; train.py doc bang getattr. "
-                             "Mac dinh macro_f1 GIU NGUYEN hanh vi cu — dat roc_auc de "
-                             "chon epoch bang dung chi so cua goal.")
-    parser.add_argument("--grad_checkpoint", type=int, default=0, help="1 = gradient checkpointing cho backbone (tiết kiệm VRAM, cùng phép tính)")
+                        help="validation metric for checkpoint selection; train.py reads it with getattr. "
+                             "The default macro_f1 keeps the original behaviour; set roc_auc to "
+                             "select the epoch by the target metric.")
+    parser.add_argument("--grad_checkpoint", type=int, default=0, help="1 = gradient checkpointing for the backbone (saves memory, same computation)")
     parser.add_argument("--max_train_samples", type=int, help="smoke training cap")
     parser.add_argument("--max_eval_samples", type=int, help="smoke evaluation cap")
     args = parser.parse_args()

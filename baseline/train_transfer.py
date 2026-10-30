@@ -525,7 +525,7 @@ def run_phase1(args, device):
     model = make_model(args.model_name, device, args)
     log_environment(args, model, device, "phase1_train")
     if getattr(args, "phase1_loss", "ce") == "ranknet":
-        assert args.aux_mode == "none", "RankNet nguon chi ho tro --aux_mode none"
+        assert args.aux_mode == "none", "source RankNet supports only --aux_mode none"
         train_loader = build_pair_dataloader(train_records, tokenizer, args)
     else:
         train_loader = build_dataloader(
@@ -542,7 +542,7 @@ def run_phase1(args, device):
         _lv_lr = float(os.environ.get("LOGVAR_LR", "1e-2"))
         param_groups.append({"params": [args._log_vars], "weight_decay": 0.0, "lr": _lv_lr})
         logger.info(
-            "Trong so mat mat HOC DUOC (Kendall+ 2018) | s=0 -> lambda=1.0 | lr(s)=%g | chi Phase 1", _lv_lr
+            "Learned loss weights (Kendall et al. 2018) | s=0 -> lambda=1.0 | lr(s)=%g | Phase 1 only", _lv_lr
         )
     optimizer = torch.optim.AdamW(
         param_groups, lr=args.learning_rate, weight_decay=args.weight_decay
@@ -553,7 +553,7 @@ def run_phase1(args, device):
     if getattr(args, "_log_vars", None) is not None:
         s_vul, s_cwe = args._log_vars.detach().tolist()
         logger.info(
-            "Trong so hoc duoc | s_vul=%.4f s_cwe=%.4f -> lambda_hieu_dung=%.4f",
+            "Learned weights | s_vul=%.4f s_cwe=%.4f -> effective lambda=%.4f",
             s_vul, s_cwe, math.exp(s_vul - s_cwe),
         )
 
@@ -584,7 +584,7 @@ def build_pair_dataloader(records, tokenizer, args):
     for r in records:
         pid = r.get("pair_id")
         if pid is None:
-            raise ValueError("--phase1_loss ranknet can truong pair_id trong nguon (dung data/src_pair_*.jsonl)")
+            raise ValueError("--phase1_loss ranknet needs a pair_id field in the source data")
         groups.setdefault(pid, []).append(r)
     pairs = []
     for pid, g in groups.items():
@@ -592,7 +592,7 @@ def build_pair_dataloader(records, tokenizer, args):
         if len(v) == 1 and len(f) == 1:
             pairs.append((v[0], f[0]))
     dropped = len(records) - 2 * len(pairs)
-    logger.info("RankNet nguon | %d cap tu %d ham (bo %d ham khong du cap sau khi chia train/val)",
+    logger.info("Source RankNet | %d pairs from %d functions (dropped %d functions without a pair after the train/val split)",
                 len(pairs), len(records), dropped)
     bs = max(1, args.batch_size // 2)
     generator = torch.Generator(); generator.manual_seed(args.seed)
@@ -736,12 +736,12 @@ def run_phase2(args, device):
 
     if getattr(args, "phase2_aux", "frozen_source") == "target4":
         if args.aux_mode != "cwe":
-            raise ValueError("--phase2_aux target4 chi ho tro --aux_mode cwe")
+            raise ValueError("--phase2_aux target4 supports only --aux_mode cwe")
         hidden = model.backbone.config.hidden_size
         model.cwe_head = torch.nn.Linear(hidden, len(CWE_MAPPING)).to(device)
         args.num_cwes = len(CWE_MAPPING)
         logger.info(
-            "Phase 2 aux: head CWE MOI %d lop, HOC DUOC (thay head %s lop dong bang cua nguon)",
+            "Phase 2 aux: new trainable %d-class CWE head (replaces the frozen %s-class source head)",
             len(CWE_MAPPING), source_checkpoint.get("num_cwes", "?"))
     else:
         freeze_aux_head(model)
@@ -795,7 +795,7 @@ def run_phase2(args, device):
         from transformers import get_linear_schedule_with_warmup
         _warm = int(total_steps * args.warmup_ratio)
         args._scheduler = get_linear_schedule_with_warmup(optimizer, _warm, total_steps)
-        logger.info("Warmup bat | ty le %.2f -> %d/%d buoc", args.warmup_ratio, _warm, total_steps)
+        logger.info("Warmup on | ratio %.2f -> %d/%d steps", args.warmup_ratio, _warm, total_steps)
     print_recadam_schedule(args, total_steps, anneal_t0, len(train_loader))
     replay = build_replay(args, model, tokenizer, device)
     args._val_keep = None
@@ -807,7 +807,7 @@ def run_phase2(args, device):
         _pc = _np.where(_vy == 1, _vp, 1.0 - _vp)
         _k = max(2, int(round(args.val_hard_frac * len(_pc)))); _idx = _np.argsort(_pc)[:_k]
         _m = _np.zeros(len(_pc), dtype=bool); _m[_idx] = True; args._val_keep = _m
-        logger.info("Val kho | tham chieu %s | giu %d/%d mau kho nhat (frac %.2f) | nhan 1 trong phan giu: %d", args.val_hard_ref, _k, len(_pc), args.val_hard_frac, int(_vy[_m].sum()))
+        logger.info("Hard val | reference %s | kept the %d/%d hardest samples (frac %.2f) | label 1 in the kept part: %d", args.val_hard_ref, _k, len(_pc), args.val_hard_frac, int(_vy[_m].sum()))
     log_environment(args, model, device, "phase2_train")
     train_loop(
         args,
@@ -846,8 +846,8 @@ def build_replay(args, model, tokenizer, device):
     nl = getattr(args, "replay_cos_layers", 2)
     want = tuple(f"backbone.encoder.layer.{i}." for i in range(L - nl, L)) + ("vul_head.",)
     params = [q for n, q in model.named_parameters() if q.requires_grad and n.startswith(want)]
-    logger.info("Replay %s | nguon %s (%d ham, %d duong/%d am) | lambda %.2f | batch %d | "
-                "tham so cham diem cosine: %d tensor o %d tang cuoi + head",
+    logger.info("Replay %s | source %s (%d functions, %d positive/%d negative) | lambda %.2f | batch %d | "
+                "cosine scoring parameters: %d tensors in the last %d layers + head",
                 mode, args.data_path, len(src), n1, n0, args.replay_lambda, bs, len(params), nl)
     return {"iter": cycle(), "mode": mode, "lam": float(args.replay_lambda), "params": params,
             "ema_beta": float(getattr(args, "replay_ema", 0.9)), "ema": None, "stats": {"w": [], "cos": []}}
@@ -1056,18 +1056,18 @@ def parse_args():
                           help="hold prototypes fixed for this many steps so the projection "
                                "settles before assignment targets move")
     training.add_argument("--phase1_loss", choices=("ce", "ranknet"), default="ce",
-                          help="RankNet o NGUON (pha 1): CE + rank_lambda*BCE(s_loi - s_va); can pair_id")
+                          help="RankNet on the source (Phase 1): CE + rank_lambda*BCE(s_vulnerable - s_fixed); needs pair_id")
     training.add_argument("--rank_lambda", type=float, default=1.0)
     training.add_argument("--replay_mode", choices=("none", "uniform", "cosine"), default="none",
-                          help="Q3: replay nguon trong pha 2; none = duong chay cu")
+                          help="source replay in Phase 2; none = off")
     training.add_argument("--replay_lambda", type=float, default=1.0)
     training.add_argument("--replay_cos_layers", type=int, default=2)
     training.add_argument("--replay_ema", type=float, default=0.9)
     training.add_argument("--replay_batch_size", type=int, default=0)
-    training.add_argument("--val_keep_mask", default=None, help="file .npy bool theo thu tu val.jsonl; True = dung de chon checkpoint")
-    training.add_argument("--val_hard_ref", default=None, help=".npz (co val_probabilities/val_labels) cua mo hinh tham chieu; chon epoch bang phan val kho nhat")
-    training.add_argument("--val_hard_frac", type=float, default=0.5, help="ti le val giu lai khi --val_hard_ref")
-    training.add_argument("--focal_gamma", type=float, default=0.0, help="focal loss cho CE target o pha 2; 0 = CE thuong")
+    training.add_argument("--val_keep_mask", default=None, help="boolean .npy file in val.jsonl order; True = used for checkpoint selection")
+    training.add_argument("--val_hard_ref", default=None, help=".npz (with val_probabilities/val_labels) of a reference model; select the epoch on the hardest part of val")
+    training.add_argument("--val_hard_frac", type=float, default=0.5, help="share of val kept with --val_hard_ref")
+    training.add_argument("--focal_gamma", type=float, default=0.0, help="focal loss for the target CE in Phase 2; 0 = plain CE")
     training.add_argument("--selection_metric", choices=("macro_f1", "pr_auc", "roc_auc"),
                           default="macro_f1",
                           help="validation metric for best-checkpoint and early stopping; "
@@ -1076,13 +1076,13 @@ def parse_args():
     training.add_argument("--patience", type=int, default=5, help="early-stopping patience")
     training.add_argument(
         "--phase2_aux", choices=("frozen_source", "target4"), default="frozen_source",
-        help="buoc 2: giu head phu cua nguon (dong bang) hay dung head MOI 4 lop hoc tren nhan dich")
+        help="Phase 2: keep the frozen auxiliary source head or train a new 4-class head on target labels")
     training.add_argument("--warmup_ratio", type=float, default=0.0,
-                          help="ty le buoc warmup tuyen tinh o buoc 2 (0 = tat)")
+                          help="linear warm-up ratio of the Phase 2 steps (0 = off)")
     training.add_argument("--sam_variant", choices=("sam", "asam"), default="sam",
-        help="sam: eps=rho*g/||g|| (chuan L2 toan cuc) · asam: chuan hoa theo tung tham so qua T_w=|w|+eta, rho bat bien thang")
+        help="sam: eps=rho*g/||g|| (global L2 norm); asam: per-parameter normalization through T_w=|w|+eta, so rho is scale invariant")
     training.add_argument("--sam_eta", type=float, default=0.01,
-        help="eta trong T_w=|w|+eta cua ASAM (chi dung khi --sam_variant asam)")
+        help="eta in T_w=|w|+eta of ASAM (only with --sam_variant asam)")
     training.add_argument("--max_grad_norm", type=float, default=1.0, help="gradient clipping norm")
 
     recadam = parser.add_argument_group("RecAdam phase 2")
@@ -1097,10 +1097,10 @@ def parse_args():
                          help="anneal midpoint as a fraction of total Phase-2 steps")
     recadam.add_argument("--anneal_w", type=float, default=1.0, help="maximum target-task weight")
     recadam.add_argument("--sam_rho", type=float, default=0.0,
-                         help="Sharpness-Aware Minimization o Phase 2. 0 = tat (mac dinh, "
-                              "duong chay khong doi). >0 bat, moi buoc 2 luot forward-backward "
-                              "nen ~2x thoi gian. rho la do dai TUYET DOI cua nhieu loan, "
-                              "chuan L2 toan cuc, dung quy uoc bai bao (0.05, 0.1 la pho bien)")
+                         help="Sharpness-Aware Minimization in Phase 2. 0 = off (default, "
+                              "unchanged training). >0 = on, 2 forward-backward passes per step, "
+                              "about 2x time. rho is the absolute perturbation length, "
+                              "global L2 norm, as in the SAM paper (0.05 and 0.1 are common)")
     recadam.add_argument("--recadam_anchor", choices=("source", "pretrained"), default="source",
                          help="what RecAdam pulls back toward: the Phase-1 weights (default) "
                               "or the untouched pretrained weights. Initialisation is the "

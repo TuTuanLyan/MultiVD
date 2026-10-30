@@ -17,9 +17,9 @@ def _grad_global_norm(params):
 class SAMStep:
     def __init__(self, rho, variant="sam", eta=0.01):
         if rho <= 0:
-            raise ValueError("rho phai duong")
+            raise ValueError("rho must be positive")
         if variant not in ("sam", "asam"):
-            raise ValueError(f"variant phai la sam hoac asam, nhan {variant!r}")
+            raise ValueError(f"variant must be sam or asam, got {variant!r}")
         self.rho = rho
         self.variant = variant
         self.eta = eta
@@ -46,7 +46,7 @@ class SAMStep:
     @torch.no_grad()
     def _ascend_asam(self, params, names):
         if names is None:
-            raise ValueError("ASAM can `names` de biet tham so nao la 'weight'")
+            raise ValueError("ASAM needs `names` to know which parameters are 'weight'")
         self._eps = []
         tws = []
         for p, n in zip(params, names):

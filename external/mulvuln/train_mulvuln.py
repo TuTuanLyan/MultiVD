@@ -77,7 +77,7 @@ class MulVulnClassifier(nn.Module):
         sim = (q.unsqueeze(1) * k.unsqueeze(0)).sum(-1)
         if selection == "eq2":
             if language_ids is None:
-                raise ValueError("Eq. 2 cần nhãn ngôn ngữ của mẫu")
+                raise ValueError("Eq. 2 needs the language label of each sample")
             index = language_ids
         else:
             index = sim.argmax(dim=1)
@@ -95,7 +95,7 @@ class MulVulnClassifier(nn.Module):
 def build_model(args, device):
     config = AutoConfig.from_pretrained(args.model_name)
     if config.model_type not in ("t5",):
-        raise SystemExit(f"--model_name phải là checkpoint họ T5 (CodeT5), nhận model_type={config.model_type!r}")
+        raise SystemExit(f"--model_name must be a T5-family checkpoint (CodeT5), got model_type={config.model_type!r}")
     encoder = T5EncoderModel.from_pretrained(args.model_name)
     if args.grad_checkpoint:
         encoder.gradient_checkpointing_enable()
@@ -160,8 +160,8 @@ def build_optimizer(args, model, steps_per_epoch):
             "new_group_weight_decay": pool_wd, "new_group_warmup_steps": pool_warm, "new_group_schedule": pool_kind,
             "n_backbone_tensors": len(enc_params), "n_new_tensors": len(new_params),
             "n_backbone_params": sum(p.numel() for p in enc_params), "n_new_params": sum(p.numel() for p in new_params)}
-    logger.info("Optimizer %s | backbone: lr %.3g wd %g, %s, warmup %d/%d bước (%.2f × %d bước/epoch × %d epoch) | "
-                "pool + khoá + classifier: lr %.3g wd %g, %s, warmup %d/%d bước | %d + %d tham số",
+    logger.info("Optimizer %s | backbone: lr %.3g wd %g, %s, warm-up %d/%d steps (%.2f x %d steps/epoch x %d epochs) | "
+                "pool + keys + classifier: lr %.3g wd %g, %s, warm-up %d/%d steps | %d + %d parameters",
                 args.optimizer, args.learning_rate, args.weight_decay, args.scheduler, warm, total, args.warmup_ratio, steps_per_epoch,
                 args.epochs, pool_lr, pool_wd, pool_kind, pool_warm, total, info["n_backbone_params"],
                 info["n_new_params"])
@@ -169,7 +169,7 @@ def build_optimizer(args, model, steps_per_epoch):
 
 
 def log_lrs(optimizer, step, total, tag):
-    logger.info("LR %s | bước %d/%d | %s", tag, step, total,
+    logger.info("LR %s | step %d/%d | %s", tag, step, total,
                 " | ".join("%s %.4e" % (g["name"], g["lr"]) for g in optimizer.param_groups))
 
 
@@ -258,7 +258,7 @@ def run_train(args, device):
     model = build_model(args, device)
     train_set = encode(js["train"] + py["train"], tokenizer, args)
     val_set = encode(js["val"] + py["val"], tokenizer, args)
-    logger.info("MulVuln data | fold %d | train %d (JS %d + Python %d, dương %d) | val %d (JS %d + Python %d) | languages %s | "
+    logger.info("MulVuln data | fold %d | train %d (JS %d + Python %d, positive %d) | val %d (JS %d + Python %d) | languages %s | "
                 "pool %d | query %s | selection train %s, val/test eq1 | λ %s | Lp %d | max_code_length %d",
                 args.fold, len(train_set), len(js["train"]), len(py["train"]), int(train_set.tensors[1].sum()), len(val_set),
                 len(js["val"]), len(py["val"]), args.languages, args.pool, args.query, args.selection, args.lambda_key,
@@ -300,7 +300,7 @@ def run_train(args, device):
                         sums["agree"] += int((eq1 == pick).sum())
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
             if step in log_points:
-                log_lrs(optimizer, step, total, "đầu" if step == 0 else ("giữa" if step == total // 2 else "cuối"))
+                log_lrs(optimizer, step, total, "start" if step == 0 else ("middle" if step == total // 2 else "end"))
             optimizer.step()
             scheduler.step()
             step += 1
@@ -324,7 +324,7 @@ def run_train(args, device):
                   "seconds": seconds, **{f"val_{k}": v for k, v in summary.items() if k not in ("selection_key",)}}
         history.append(record)
         logger.info("Epoch %d/%d | train loss %.4f | val loss %.4f | val roc_auc %s | val macro_f1 %s | best ep %d | patience %d/%d | %.0fs"
-                    " | val JS+Py: F1 %s ROC %s | train CE %.4f cos %s Eq1=Eq2 %s | val Eq.1 chọn đúng: %s",
+                    " | val JS+Py: F1 %s ROC %s | train CE %.4f cos %s Eq1=Eq2 %s | val Eq.1 correct choice: %s",
                     epoch, args.epochs, train_loss, summary["loss"], fmt(summary["roc_auc_python"]), fmt(summary["macro_f1_python"]),
                     best_epoch, wait, args.patience, seconds, fmt(summary["f1_binary_all"]), fmt(summary["roc_auc_all"]),
                     record["train_ce"], fmt(record["train_cos"]), fmt(record["train_eq1_agree"], "%.2f"), pick_txt)
@@ -333,31 +333,31 @@ def run_train(args, device):
             break
     seconds = time.perf_counter() - started
     if best_epoch == 0:
-        raise SystemExit("không epoch nào cho điểm val hữu hạn - không có checkpoint")
+        raise SystemExit("no epoch gave a finite validation score - no checkpoint")
     peak = torch.cuda.max_memory_allocated(device) / 2 ** 20 if device.type == "cuda" else None
     meta = {"best_epoch": best_epoch, "best_val_selection_score": best, "best_val": best_summary, "history": history,
             "train_seconds": seconds, "peak_vram_allocated_mib": peak, "optimizer_info": opt_info,
             "training_args": training_args(args)}
     with open(meta_path, "w", encoding="utf-8") as handle:
         json.dump(finite_or_none(meta), handle, indent=1, allow_nan=False)
-    logger.info("Train xong | best epoch %d | %.0fs | VRAM đỉnh %s MiB", best_epoch, seconds, fmt(peak, "%.0f"))
+    logger.info("Training done | best epoch %d | %.0fs | peak VRAM %s MiB", best_epoch, seconds, fmt(peak, "%.0f"))
 
 
 def training_args(args):
     out = {k: v for k, v in vars(args).items() if k not in ("languages", "pad_token_id")}
     out.update({
         "mv_language_index": {name: i for i, name in enumerate(args.languages)},
-        "mv_backbone": "T5EncoderModel (chỉ encoder), fine-tune toàn bộ",
-        "mv_query": {"mean_embed": "trung bình đầu ra tầng embedding trên token thật (người dùng chốt 10/10)",
-                     "cls_embed": "đầu ra tầng embedding tại token đầu <s> (chữ của bài; hằng với CodeT5)"}[args.query] if args.pool else None,
-        "mv_pool_init": ({"normal": "N(0, 0.02²)", "uniform": "U(-1, 1) như L2P"}[args.pool_init] + " cho pool và khoá") if args.pool else None,
-        "mv_classifier": ("Linear(D, 2) trên trung bình đầu ra encoder tại Lp vị trí pool" if args.pool
-                          else "Linear(D, 2) trên trung bình đầu ra encoder tại token thật"),
+        "mv_backbone": "T5EncoderModel (encoder only), full fine-tuning",
+        "mv_query": {"mean_embed": "mean of the embedding-layer outputs over real tokens",
+                     "cls_embed": "embedding-layer output at the first token <s> (as in the paper; constant for CodeT5)"}[args.query] if args.pool else None,
+        "mv_pool_init": ({"normal": "N(0, 0.02²)", "uniform": "U(-1, 1) as in L2P"}[args.pool_init] + " for the pool and keys") if args.pool else None,
+        "mv_classifier": ("Linear(D, 2) on the mean encoder output at the Lp pool positions" if args.pool
+                          else "Linear(D, 2) on the mean encoder output over real tokens"),
         "mv_selection_eval": "eq1",
-        "mv_truncation": "cắt đầu: <s> + %d token mã + </s>, đệm tới %d" % (args.max_code_length - 2, args.max_code_length),
-        "mv_checkpoint_selection": "val %s trên %s, tăng nghiêm ngặt" % (args.selection_metric, args.selection_split),
+        "mv_truncation": "head truncation: <s> + %d code tokens + </s>, padded to %d" % (args.max_code_length - 2, args.max_code_length),
+        "mv_checkpoint_selection": "val %s on %s, strictly increasing" % (args.selection_metric, args.selection_split),
         "mv_adam_betas_eps": "(0.9, 0.999), 1e-8",
-        "mv_source": "tự cài theo arXiv 2510.04397 (không có mã công bố)",
+        "mv_source": "reimplemented from arXiv 2510.04397 (no public code)",
     })
     return out
 
@@ -380,13 +380,13 @@ def run_test(args, device):
     test = score_split(model, encode(py["test"], tokenizer, args), args, device)
     test_seconds = time.perf_counter() - started
     test_y, test_p = test["label"].tolist(), test["prob"].tolist()
-    assert test_y == [int(r["label"]) for r in py["test"]], "thứ tự / nhãn test lệch test.jsonl"
+    assert test_y == [int(r["label"]) for r in py["test"]], "test order / labels differ from test.jsonl"
     cwe = [r.get("cwe_class") for r in py["test"]]
     at05, atval = classification_metrics(test_y, test_p, 0.5), classification_metrics(test_y, test_p, threshold)
     test_pick, val_pick = pick_rates(test, args.languages), pick_rates(val, args.languages)
     py_rate = None if test_pick is None else test_pick["Python"]["own_matrix_rate"]
-    logger.info("Test | ROC %.4f | PR %.4f | macro-F1@0.5 %.4f | macro-F1@val %.4f (ngưỡng %.2f) | F1 nhị phân@0.5 %.4f P %.4f R %.4f | "
-                "Eq.1: Python test chọn ma trận Python %s", at05["roc_auc"], at05["pr_auc"], at05["macro_f1"], atval["macro_f1"],
+    logger.info("Test | ROC %.4f | PR %.4f | macro-F1@0.5 %.4f | macro-F1@val %.4f (threshold %.2f) | binary F1@0.5 %.4f P %.4f R %.4f | "
+                "Eq.1: share of Python test samples choosing the Python matrix %s", at05["roc_auc"], at05["pr_auc"], at05["macro_f1"], atval["macro_f1"],
                 threshold, at05["positive_f1"], at05["precision"], at05["recall"], fmt(py_rate, "%.3f"))
     result = {
         "experiment_name": f"{args.run_name}/{'mulvuln' if args.pool else 't5joint'}", "phase": "test", "fold": args.fold,
@@ -427,56 +427,56 @@ def parse_args():
     p.add_argument("--phase", choices=("train", "test"), required=True)
     p.add_argument("--run_name", required=True)
     p.add_argument("--fold", type=int, required=True)
-    p.add_argument("--model_name", required=True, help="thư mục CodeT5 (tokenizer + trọng số), chỉ dùng encoder")
+    p.add_argument("--model_name", required=True, help="CodeT5 directory (tokenizer + weights); only the encoder is used")
     p.add_argument("--checkpoint_path", required=True)
     p.add_argument("--result_path")
-    p.add_argument("--data_root", required=True, help="fold SVEN Python (đích), tương đối từ gốc repo hoặc tuyệt đối")
+    p.add_argument("--data_root", required=True, help="SVEN Python folds (target), relative to the repository root or absolute")
     p.add_argument("--source_root", required=True, help="pool JS (train.jsonl + val.jsonl)")
-    p.add_argument("--language", default="Python,JavaScript", help="thứ tự ma trận trong pool: chỉ số k = ngôn ngữ thứ k")
+    p.add_argument("--language", default="Python,JavaScript", help="matrix order in the pool: index k = k-th language")
     p.add_argument("--seed", type=int, required=True)
-    p.add_argument("--pool", type=int, choices=(0, 1), default=1, help="0 = đối chứng RQ2 (ext_t5joint): không pool, không loss khoá")
-    p.add_argument("--prompt_length", type=int, default=5, help="Lp (bài: 5)")
-    p.add_argument("--lambda_key", type=float, default=None, help="λ của loss khoá (bài quét 0.1 / 0.3 / 0.01 / 0.03); bắt buộc khi --pool 1")
-    p.add_argument("--selection", choices=("eq1", "eq2"), default="eq2", help="cách chọn ma trận LÚC TRAIN; val / test luôn Eq. 1")
+    p.add_argument("--pool", type=int, choices=(0, 1), default=1, help="0 = joint-training control: no pool, no key loss")
+    p.add_argument("--prompt_length", type=int, default=5, help="Lp (paper: 5)")
+    p.add_argument("--lambda_key", type=float, default=None, help="lambda of the key loss (the paper sweeps 0.1 / 0.3 / 0.01 / 0.03); required with --pool 1")
+    p.add_argument("--selection", choices=("eq1", "eq2"), default="eq2", help="matrix selection during training; validation and test always use Eq. 1")
     p.add_argument("--query", choices=("mean_embed", "cls_embed"), default="mean_embed",
-                   help="q(X): trung bình tầng embedding trên token thật (chốt 10/10) hoặc token <s> của tầng embedding (chữ của bài)")
-    p.add_argument("--max_code_length", type=int, default=507, help="số token mã gồm <s> và </s> (507 + Lp 5 = 512)")
+                   help="q(X): mean of the embedding layer over real tokens, or the embedding-layer <s> token (as in the paper)")
+    p.add_argument("--max_code_length", type=int, default=507, help="number of code tokens including <s> and </s> (507 + Lp 5 = 512)")
     p.add_argument("--pool_init", choices=("normal", "uniform"), default="normal",
-                   help="khởi tạo pool + khoá (bài không nêu): normal = N(0, 0.02²); uniform = U(-1, 1) như L2P")
-    p.add_argument("--optimizer", choices=("adam", "adamw"), default="adam", help="bài: Adam")
-    p.add_argument("--learning_rate", type=float, default=1e-4, help="lr của encoder CodeT5 (bài: 1e-4 cố định)")
-    p.add_argument("--weight_decay", type=float, default=0.0, help="weight decay của encoder (Adam của bài: 0)")
-    p.add_argument("--warmup_ratio", type=float, default=0.0, help="tỉ lệ bước warmup của encoder (trên tổng bước = bước/epoch × epochs)")
-    p.add_argument("--scheduler", choices=("constant", "linear", "cosine"), default="constant", help="lịch lr của encoder sau warmup")
-    p.add_argument("--pool_lr", type=float, default=None, help="lr của pool + khoá + classifier; bỏ trống = --learning_rate")
-    p.add_argument("--pool_weight_decay", type=float, default=None, help="weight decay của pool + khoá + classifier; bỏ trống = --weight_decay")
+                   help="pool + key initialization (not given in the paper): normal = N(0, 0.02^2); uniform = U(-1, 1) as in L2P")
+    p.add_argument("--optimizer", choices=("adam", "adamw"), default="adam", help="paper: Adam")
+    p.add_argument("--learning_rate", type=float, default=1e-4, help="CodeT5 encoder learning rate (paper: constant 1e-4)")
+    p.add_argument("--weight_decay", type=float, default=0.0, help="encoder weight decay (Adam in the paper: 0)")
+    p.add_argument("--warmup_ratio", type=float, default=0.0, help="encoder warm-up ratio of the total steps (steps/epoch x epochs)")
+    p.add_argument("--scheduler", choices=("constant", "linear", "cosine"), default="constant", help="encoder learning-rate schedule after warm-up")
+    p.add_argument("--pool_lr", type=float, default=None, help="learning rate of pool + keys + classifier; unset = --learning_rate")
+    p.add_argument("--pool_weight_decay", type=float, default=None, help="weight decay of pool + keys + classifier; unset = --weight_decay")
     p.add_argument("--pool_scheduler", choices=("same", "constant"), default="same",
-                   help="same = cùng lịch + warmup với encoder; constant = lr hằng, không warmup")
+                   help="same = same schedule and warm-up as the encoder; constant = constant learning rate, no warm-up")
     p.add_argument("--epochs", type=int, default=30)
     p.add_argument("--patience", type=int, default=999)
-    p.add_argument("--min_epochs", type=int, default=10, help="patience chỉ đếm từ epoch này (khuôn trainer SOTA)")
-    p.add_argument("--selection_metric", choices=("roc_auc", "f1"), default="roc_auc", help="f1 = F1 nhị phân (lớp 1) ở argmax")
-    p.add_argument("--selection_split", choices=("python", "all"), default="python", help="chấm điểm chọn trên phần Python của val hay toàn val")
+    p.add_argument("--min_epochs", type=int, default=10, help="patience is counted only from this epoch")
+    p.add_argument("--selection_metric", choices=("roc_auc", "f1"), default="roc_auc", help="f1 = binary F1 (class 1) at argmax")
+    p.add_argument("--selection_split", choices=("python", "all"), default="python", help="compute the selection score on the Python part of val or on all of val")
     p.add_argument("--batch_size", type=int, default=32)
-    p.add_argument("--micro_batch", type=int, default=16, help="cỡ lượt forward; tích luỹ gradient cho đủ --batch_size")
+    p.add_argument("--micro_batch", type=int, default=16, help="forward micro-batch size; gradients are accumulated up to --batch_size")
     p.add_argument("--eval_batch_size", type=int, default=16)
     p.add_argument("--max_grad_norm", type=float, default=1.0)
     p.add_argument("--grad_checkpoint", type=int, choices=(0, 1), default=1)
-    p.add_argument("--limit_samples", type=int, default=0, help="CHỈ để thử khói: lấy N bản ghi đầu của mỗi tập; 0 = tắt")
+    p.add_argument("--limit_samples", type=int, default=0, help="smoke tests only: take the first N records of each split; 0 = off")
     args = p.parse_args()
     if args.phase == "test" and not args.result_path:
-        p.error("--phase test cần --result_path")
+        p.error("--phase test needs --result_path")
     if args.pool and args.lambda_key is None:
-        p.error("--pool 1 cần --lambda_key")
+        p.error("--pool 1 needs --lambda_key")
     if args.micro_batch < 1 or args.micro_batch > args.batch_size:
-        p.error("--micro_batch phải trong [1, --batch_size]")
+        p.error("--micro_batch must be in [1, --batch_size]")
     if args.max_code_length < 3 or args.max_code_length + (args.prompt_length if args.pool else 0) > 512:
-        p.error("--max_code_length (+ Lp nếu có pool) phải ≤ 512")
+        p.error("--max_code_length (+ Lp with a pool) must be <= 512")
     if args.epochs < 1 or args.min_epochs < 1 or args.patience < 1:
-        p.error("epochs, min_epochs, patience phải dương")
+        p.error("epochs, min_epochs and patience must be positive")
     args.languages = [x.strip() for x in args.language.split(",")]
     if sorted(args.languages) != ["JavaScript", "Python"]:
-        p.error("--language phải gồm đúng Python và JavaScript")
+        p.error("--language must contain exactly Python and JavaScript")
     return args
 
 

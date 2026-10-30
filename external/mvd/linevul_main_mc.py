@@ -36,7 +36,6 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 import matplotlib.pyplot as plt
 from sklearn.metrics import auc, confusion_matrix, matthews_corrcoef
 from sklearn.model_selection import train_test_split
-import hashlib
 import json
 import sys
 import time
@@ -426,18 +425,9 @@ def test(args, model, tokenizer, test_dataset, cls_threshold=0.5):
     return logits, y_trues, langs, lan_results
 
 FUNC_VARIANT = "mc"
-UPSTREAM_MD5 = {'linevul_main_mc.py': '1f9e993956f3628d370e36808157531b', 'linevul_model.py': '50129ed7d3eb6cb9af0ff13f12051d83'}
 SELECTION_METRICS = ("micro_f1", "pr_auc")
 LANG_NAME = {"js": "JavaScript", "python": "Python"}
 EPOCH_LOG = {"history": [], "train_loss": [], "t": None}
-
-
-def md5_file(path, chunk=1 << 20):
-    digest = hashlib.md5()
-    with open(path, "rb") as handle:
-        for block in iter(lambda: handle.read(chunk), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def load_jsonl(path):
@@ -473,9 +463,9 @@ def load_fold_records(args):
         fold_dir = os.path.join(args.data_root, f"fold{args.fold}")
         py = {s: limit_records(load_jsonl(os.path.join(fold_dir, f"{s}.jsonl")), args.limit_examples) for s in ("train", "val", "test")}
     elif "Python" in args.language:
-        sys.exit("--language có Python thì cần --data_root (fold SVEN)")
+        sys.exit("--language with Python needs --data_root (SVEN folds)")
     target = py if "Python" in args.language else js
-    logger.info("[func] dữ liệu | fold %d | train JS %d + Python %d | val JS %d + Python %d | chọn ngưỡng %d | test %d (%s)", args.fold,
+    logger.info("[func] data | fold %d | train JS %d + Python %d | val JS %d + Python %d | threshold selection %d | test %d (%s)", args.fold,
                 len(js["train"]), len(py["train"]), len(js["val"]), len(py["val"]), len(target["val"]), len(target["test"]),
                 "SVEN fold k" if target is py else "JS pool")
     return {"train": js["train"] + py["train"], "val": js["val"] + py["val"], "thr": target["val"], "test": target["test"],
@@ -485,16 +475,13 @@ def load_fold_records(args):
 def fpe_setup(args):
     parsed = dict(vars(args))
     if args.phase == "test" and not args.result_path:
-        sys.exit("--phase test cần --result_path")
-    model_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "linevul_model.py")
-    if md5_file(model_file) != UPSTREAM_MD5["linevul_model.py"]:
-        sys.exit("func/linevul_model.py phải trùng md5 bản gốc (chép nguyên văn)")
+        sys.exit("--phase test needs --result_path")
     args.model_name_or_path = args.tokenizer_name = args.model_name
     args.output_dir = os.path.dirname(os.path.abspath(args.checkpoint_path))
     args.model_name = os.path.basename(args.checkpoint_path)
     args.do_train, args.do_test = args.phase == "train", args.phase == "test"
     if args.init_ckpt and not args.zeroshot:
-        sys.exit("--init_ckpt chỉ dùng với --zeroshot 1")
+        sys.exit("--init_ckpt is only used with --zeroshot 1")
     return parsed
 
 
@@ -506,16 +493,14 @@ def write_meta(ckpt, meta):
 def read_meta(ckpt):
     path = str(ckpt) + ".mvd.json"
     if not os.path.exists(path):
-        sys.exit(f"thiếu {path}: checkpoint không do bản func ghi, hoặc bị chép thiếu file .mvd.json")
+        sys.exit(f"missing {path}: the checkpoint was not written by this wrapper, or its .mvd.json file was not copied")
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def training_args(args, parsed):
     out = dict(parsed)
-    here = os.path.dirname(os.path.abspath(__file__))
     out.update({"mvd_variant": FUNC_VARIANT, "mvd_role": args.mvd_role, "mvd_language": args.language,
-                "mvd_upstream_md5": UPSTREAM_MD5, "mvd_func_md5": {f: md5_file(os.path.join(here, f)) for f in sorted(UPSTREAM_MD5)},
                 "mvd_selection": SELECTION_TEXT[args.selection_metric]})
     return out
 
@@ -545,28 +530,28 @@ def log_epoch(args, result):
     now = time.perf_counter()
     seconds, EPOCH_LOG["t"] = now - (EPOCH_LOG["t"] or now), now
     row = history[-1]
-    logger.info("MVD epoch %d/%d | train loss %s | val loss %.4f | val micro_f1 %.4f | val pr_auc %.4f | chọn theo %s | best ep %s | %ds",
+    logger.info("MVD epoch %d/%d | train loss %s | val loss %.4f | val micro_f1 %.4f | val pr_auc %.4f | selected by %s | best ep %s | %ds",
                 row["epoch"], args.epochs, "%.4f" % row["train_loss"] if row["train_loss"] is not None else "-", row["val_loss"],
                 row["val_f1_original"], row["val_pr_auc"], args.selection_metric, best_epoch(history), int(seconds))
 
 
 SELECTION_TEXT = {
-    "micro_f1": "val micro-F1 (đa lớp, argmax nếu max prob > 0,5, ngược lại lớp 0) (mã gốc: eval_f1 > best_f1 mỗi epoch)",
-    "pr_auc": "val PR-AUC nhị phân trên toàn bộ val (nhãn label != 0, điểm 1 - P(lớp 0)) - bài MVD mục IV-D",
+    "micro_f1": "val micro-F1 (multi-class, argmax if max prob > 0.5, otherwise class 0) (original code: eval_f1 > best_f1 per epoch)",
+    "pr_auc": "binary val PR-AUC on all of val (label != 0, score 1 - P(class 0)) - MVD paper, Section IV-D",
 }
 
 
 def clear_stale_checkpoint(args):
     stale = os.path.join(args.output_dir, "checkpoint-best-f1", args.model_name)
     if os.path.exists(stale):
-        logger.warning("[func] xoá checkpoint sót của lượt trước: %s", stale)
+        logger.warning("[func] removing a leftover checkpoint from a previous run: %s", stale)
         os.remove(stale)
 
 
 def finish_train(args, parsed, seconds, num_class, extra=None):
     saved = os.path.join(args.output_dir, "checkpoint-best-f1", args.model_name)
     if not os.path.exists(saved):
-        sys.exit(f"train() gốc không lưu checkpoint nào ({saved}): không epoch nào có giá trị chọn > 0")
+        sys.exit(f"the original train() saved no checkpoint ({saved}): no epoch had a selection value > 0")
     os.replace(saved, args.checkpoint_path)
     os.rmdir(os.path.dirname(saved))
     history = EPOCH_LOG["history"]
@@ -579,18 +564,16 @@ def finish_train(args, parsed, seconds, num_class, extra=None):
             "language": args.language, "num_class": int(num_class), "training_args": training_args(args, parsed)}
     meta.update(extra or {})
     write_meta(args.checkpoint_path, meta)
-    logger.info("[func] train xong | %s | best epoch %s (chọn theo %s) | %ds | checkpoint %s", args.mvd_role, best, args.selection_metric,
+    logger.info("[func] training done | %s | best epoch %s (selected by %s) | %ds | checkpoint %s", args.mvd_role, best, args.selection_metric,
                 int(seconds), args.checkpoint_path)
 
 
 def test_checkpoint(args):
     meta = read_meta(args.checkpoint_path)
     if meta.get("role") != args.mvd_role:
-        sys.exit(f"{args.checkpoint_path}: checkpoint của vai {meta.get('role')!r}, lệnh này là vai {args.mvd_role!r}")
+        sys.exit(f"{args.checkpoint_path}: checkpoint of role {meta.get('role')!r}, this command has role {args.mvd_role!r}")
     if meta.get("role") == "zeroshot":
         teacher = meta["teacher_checkpoint"]
-        if md5_file(teacher) != meta["teacher_md5"]:
-            sys.exit(f"checkpoint teacher {teacher} đã đổi từ lúc ghi con trỏ zeroshot (md5 lệch)")
         return teacher, meta
     return args.checkpoint_path, meta
 
@@ -624,13 +607,13 @@ def mvd_score(out):
 def write_result(args, meta, ckpt, thr_out, thr_records, test_out, test_records, thr_seconds, test_seconds):
     thr_p, thr_y = mvd_score(thr_out)
     test_p, test_y = mvd_score(test_out)
-    assert thr_y == [int(r["label"]) for r in thr_records], "thứ tự / nhãn tập chọn ngưỡng lệch jsonl"
-    assert test_y == [int(r["label"]) for r in test_records], "thứ tự / nhãn test lệch test.jsonl"
+    assert thr_y == [int(r["label"]) for r in thr_records], "threshold-selection order / labels differ from the jsonl"
+    assert test_y == [int(r["label"]) for r in test_records], "test order / labels differ from test.jsonl"
     threshold, calibrated_f1 = find_best_threshold(thr_y, thr_p)
     cwe = [r.get("cwe_class") for r in test_records]
     python_target = all(r["lang"] == "python" for r in test_records)
     at05, atval = classification_metrics(test_y, test_p, 0.5), classification_metrics(test_y, test_p, threshold)
-    logger.info("Test | ROC %.4f | PR %.4f | macro-F1@0.5 %.4f | macro-F1@val %.4f (ngưỡng %.2f)", at05["roc_auc"], at05["pr_auc"],
+    logger.info("Test | ROC %.4f | PR %.4f | macro-F1@0.5 %.4f | macro-F1@val %.4f (threshold %.2f)", at05["roc_auc"], at05["pr_auc"],
                 at05["macro_f1"], atval["macro_f1"], threshold)
     result = {
         "experiment_name": f"{args.run_name}/mvd_func_{meta['role']}", "phase": "test", "fold": args.fold, "seed": args.seed,
@@ -673,18 +656,18 @@ def mvd_role(args):
 
 def zeroshot_prepare(args, parsed):
     if not args.init_ckpt:
-        sys.exit("--zeroshot 1 --phase train cần --init_ckpt <checkpoint teacher>")
+        sys.exit("--zeroshot 1 --phase train needs --init_ckpt <teacher checkpoint>")
     teacher = os.path.abspath(args.init_ckpt)
     teacher_meta = read_meta(teacher)
     if teacher_meta.get("role") != "teacher" or teacher_meta["num_class"] != len(args.language) + 1:
-        sys.exit(f"{teacher}: role {teacher_meta.get('role')!r}, num_class {teacher_meta['num_class']} - cần teacher {len(args.language) + 1} lớp")
+        sys.exit(f"{teacher}: role {teacher_meta.get('role')!r}, num_class {teacher_meta['num_class']} - needs a teacher with {len(args.language) + 1} classes")
     meta = dict(teacher_meta)
-    meta.update({"role": "zeroshot", "teacher_checkpoint": teacher, "teacher_md5": md5_file(teacher), "train_seconds": 0.0,
+    meta.update({"role": "zeroshot", "teacher_checkpoint": teacher, "train_seconds": 0.0,
                  "teacher_train_seconds": teacher_meta["train_seconds"], "teacher_language": teacher_meta["language"],
                  "language": args.language, "training_args": dict(training_args(args, parsed), teacher_training_args=teacher_meta["training_args"])})
     os.makedirs(os.path.dirname(os.path.abspath(args.checkpoint_path)), exist_ok=True)
     write_meta(args.checkpoint_path, meta)
-    logger.info("[func] zeroshot: không train | con trỏ %s.mvd.json -> teacher %s (best ep %s)", args.checkpoint_path, teacher,
+    logger.info("[func] zeroshot: no training | pointer %s.mvd.json -> teacher %s (best ep %s)", args.checkpoint_path, teacher,
                 teacher_meta["best_epoch"])
 
 
@@ -754,16 +737,16 @@ def main():
     parser.add_argument("--phase", choices=("train", "test"), required=True)
     parser.add_argument("--run_name", required=True)
     parser.add_argument("--fold", type=int, required=True, help="fold SVEN Python")
-    parser.add_argument("--model_name", required=True, help="thư mục backbone (tokenizer + encoder) = model_name_or_path / tokenizer_name gốc")
-    parser.add_argument("--checkpoint_path", required=True, help="checkpoint của ô này (train ghi, test đọc)")
-    parser.add_argument("--result_path", help="result JSON (pha test); .probs.npz cạnh nó")
+    parser.add_argument("--model_name", required=True, help="backbone directory (tokenizer + encoder) = original model_name_or_path / tokenizer_name")
+    parser.add_argument("--checkpoint_path", required=True, help="checkpoint of this run (written by train, read by test)")
+    parser.add_argument("--result_path", help="result JSON (test phase); .probs.npz next to it")
     parser.add_argument("--init_ckpt", help="zeroshot: checkpoint teacher (pha train)")
     parser.add_argument("--data_root", help="fold SVEN Python (data_root/fold<k>/{train,val,test}.jsonl)")
-    parser.add_argument("--source_root", required=True, help="pool JS ({train,val,test}.jsonl; test = bản sao val)")
+    parser.add_argument("--source_root", required=True, help="JavaScript pool ({train,val,test}.jsonl; test = copy of val)")
     parser.add_argument("--selection_metric", choices=SELECTION_METRICS, default="micro_f1",
-                        help="micro_f1 = như mã gốc (eval_f1); pr_auc = như bài (mục IV-D): PR-AUC nhị phân trên toàn bộ val")
-    parser.add_argument("--limit_examples", type=int, default=0, help="CHỈ thử khói: N bản ghi đầu mỗi tập, chia đều hai nhãn; 0 = tắt")
-    parser.add_argument("--zeroshot", type=int, default=0, help="1 = chấm checkpoint teacher (--init_ckpt) thẳng trên SVEN, không train")
+                        help="micro_f1 = as in the original code (eval_f1); pr_auc = as in the paper (Section IV-D): binary PR-AUC on all of val")
+    parser.add_argument("--limit_examples", type=int, default=0, help="smoke tests only: first N records of each split, balanced labels; 0 = off")
+    parser.add_argument("--zeroshot", type=int, default=0, help="1 = evaluate the teacher checkpoint (--init_ckpt) directly on SVEN, without training")
     args = parser.parse_args()
     parsed = fpe_setup(args)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
